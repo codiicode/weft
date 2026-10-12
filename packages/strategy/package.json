@@ -1,0 +1,25 @@
+{
+  "name": "@weft/strategy",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Strategy graph schema, validator, evaluator and risk checks for Weft.",
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts",
+    "./examples": "./src/examples/index.ts"
+  },
+  "scripts": {
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "typecheck": "tsc --noEmit",
+    "schema": "node scripts/emit-json-schema.ts"
+  },
+  "devDependencies": {
+    "@types/node": "^26.6.5",
+    "typescript": "^5.9.3",
+    "vitest": "^5.0.4"
+  },
+  "dependencies": {
+    "zod": "^4.6.6"
+  }
+}

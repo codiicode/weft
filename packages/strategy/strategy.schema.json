@@ -1,0 +1,2766 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "properties": {
+    "schemaVersion": {
+      "type": "number",
+      "const": 1
+    },
+    "id": {
+      "type": "string",
+      "pattern": "^[a-z0-9][a-z0-9-]{1,63}$"
+    },
+    "name": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 80
+    },
+    "thesis": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 2000,
+      "description": "The user's thesis in their own words"
+    },
+    "signals": {
+      "minItems": 1,
+      "type": "array",
+      "items": {
+        "oneOf": [
+          {
+            "type": "object",
+            "properties": {
+              "id": {
+                "type": "string",
+                "pattern": "^[a-z][a-z0-9_]{0,39}$"
+              },
+              "label": {
+                "type": "string",
+                "maxLength": 60
+              },
+              "maxAgeSeconds": {
+                "description": "Values older than this count as unknown; defaults per kind",
+                "type": "integer",
+                "exclusiveMinimum": 0,
+                "maximum": 9007199254740991
+              },
+              "kind": {
+                "type": "string",
+                "const": "price"
+              },
+              "params": {
+                "type": "object",
+                "properties": {
+                  "instrument": {
+                    "oneOf": [
+                      {
+                        "type": "object",
+                        "properties": {
+                          "kind": {
+                            "type": "string",
+                            "const": "perp"
+                          },
+                          "venue": {
+                            "type": "string",
+                            "const": "hyperliquid"
+                          },
+                          "dex": {
+                            "description": "HIP-3 deployer dex name; omit for core Hyperliquid perps",
+                            "type": "string",
+                            "minLength": 1
+                          },
+                          "symbol": {
+                            "type": "string",
+                            "minLength": 1,
+                            "description": "Market symbol, e.g. BTC, NVDA, WHEAT"
+                          },
+                          "assetClass": {
+                            "default": "crypto",
+                            "type": "string",
+                            "enum": [
+                              "crypto",
+                              "equity",
+                              "commodity",
+                              "fx",
+                              "index",
+                              "other"
+                            ]
+                          }
+                        },
+                        "required": [
+                          "kind",
+                          "venue",
+                          "symbol"
+                        ]
+                      },
+                      {
+                        "type": "object",
+                        "properties": {
+                          "kind": {
+                            "type": "string",
+                            "const": "spot"
+                          },
+                          "venue": {
+                            "type": "string",
+                            "const": "hyperliquid"
+                          },
+                          "symbol": {
+                            "type": "string",
+                            "minLength": 1,
+                            "description": "Spot pair, e.g. HYPE/USDC"
+                          },
+                          "assetClass": {
+                            "default": "crypto",
+                            "type": "string",
+                            "enum": [
+                              "crypto",
+                              "equity",
+                              "commodity",
+                              "fx",
+                              "index",
+                              "other"
+                            ]
+                          }
+                        },
+                        "required": [
+                          "kind",
+                          "venue",
+                          "symbol"
+                        ]
+                      },
+                      {
+                        "type": "object",
+                        "properties": {
+                          "kind": {
+                            "type": "string",
+                            "const": "token"
+                          },
+                          "chain": {
+                            "type": "string",
+                            "const": "solana"
+                          },
+                          "mint": {
+                            "type": "string",
+                            "pattern": "^[1-9A-HJ-NP-Za-km-z]{32,44}$"
+                          },
+                          "symbol": {
+                            "description": "Display only; the mint is the identity",
+                            "type": "string",
+                            "minLength": 1
+                          },
+                          "quote": {
+                            "default": "SOL",
+                            "type": "string",
+                            "enum": [
+                              "SOL",
+                              "USDC"
+                            ]
+                          },
+                          "route": {
+                            "default": "auto",
+                            "description": "Execution route; auto lets the router pick (Jupiter, or the launchpad curve before migration)",
+                            "type": "string",
+                            "enum": [
+                              "auto",
+                              "jupiter",
+                              "pumpfun",
+                              "meteora",
+                              "raydium"
+                            ]
+                          },
+                          "assetClass": {
+                            "default": "crypto",
+                            "type": "string",
+                            "enum": [
+                              "crypto",
+                              "equity",
+                              "commodity",
+                              "fx",
+                              "index",
+                              "other"
+                            ]
+                          }
+                        },
+                        "required": [
+                          "kind",
+                          "chain",
+                          "mint"
+                        ]
+                      },
+                      {
+                        "type": "object",
+                        "properties": {
+                          "kind": {
+                            "type": "string",
+                            "const": "outcome"
+                          },
+                          "venue": {
+                            "type": "string",
+                            "enum": [
+                              "hyperliquid",
+                              "jupiter"
+                            ]
+                          },
+                          "market": {
+                            "type": "string",
+                            "minLength": 1,
+                            "description": "Venue market id"
+                          },
+                          "outcome": {
+                            "type": "string",
+                            "minLength": 1,
+                            "description": "Outcome to hold, e.g. YES or NO"
+                          },
+                          "question": {
+                            "description": "Display only",
+                            "type": "string"
+                          }
+                        },
+                        "required": [
+                          "kind",
+                          "venue",
+                          "market",
+                          "outcome"
+                        ]
+                      },
+                      {
+                        "type": "object",
+                        "properties": {
+                          "kind": {
+                            "type": "string",
+                            "const": "option"
+                          },
+                          "venue": {
+                            "type": "string",
+                            "enum": [
+                              "hyperliquid",
+                              "derive",
+                              "deribit"
+                            ]
+                          },
+                          "underlying": {
+                            "type": "string",
+                            "minLength": 1
+                          },
+                          "expiry": {
+                            "type": "string",
+                            "format": "date",
+                            "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))$",
+                            "description": "YYYY-MM-DD"
+                          },
+                          "strike": {
+                            "type": "number",
+                            "exclusiveMinimum": 0
+                          },
+                          "right": {
+                            "type": "string",
+                            "enum": [
+                              "call",
+                              "put"
+                            ]
+                          }
+                        },
+                        "required": [
+                          "kind",
+                          "venue",
+                          "underlying",
+                          "expiry",
+                          "strike",
+                          "right"
+                        ]
+                      }
+                    ]
+                  }
+                },
+                "required": [
+                  "instrument"
+                ]
+              }
+            },
+            "required": [
+              "id",
+              "kind",
+              "params"
+            ]
+          },
+          {
+            "type": "object",
+            "properties": {
+              "id": {
+                "type": "string",
+                "pattern": "^[a-z][a-z0-9_]{0,39}$"
+              },
+              "label": {
+                "type": "string",
+                "maxLength": 60
+              },
+              "maxAgeSeconds": {
+                "description": "Values older than this count as unknown; defaults per kind",
+                "type": "integer",
+                "exclusiveMinimum": 0,
+                "maximum": 9007199254740991
+              },
+              "kind": {
+                "type": "string",
+                "const": "funding"
+              },
+              "params": {
+                "type": "object",
+                "properties": {
+                  "instrument": {
+                    "type": "object",
+                    "properties": {
+                      "kind": {
+                        "type": "string",
+                        "const": "perp"
+                      },
+                      "venue": {
+                        "type": "string",
+                        "const": "hyperliquid"
+                      },
+                      "dex": {
+                        "description": "HIP-3 deployer dex name; omit for core Hyperliquid perps",
+                        "type": "string",
+                        "minLength": 1
+                      },
+                      "symbol": {
+                        "type": "string",
+                        "minLength": 1,
+                        "description": "Market symbol, e.g. BTC, NVDA, WHEAT"
+                      },
+                      "assetClass": {
+                        "default": "crypto",
+                        "type": "string",
+                        "enum": [
+                          "crypto",
+                          "equity",
+                          "commodity",
+                          "fx",
+                          "index",
+                          "other"
+                        ]
+                      }
+                    },
+                    "required": [
+                      "kind",
+                      "venue",
+                      "symbol"
+                    ]
+                  }
+                },
+                "required": [
+                  "instrument"
+                ]
+              }
+            },
+            "required": [
+              "id",
+              "kind",
+              "params"
+            ]
+          },
+          {
+            "type": "object",
+            "properties": {
+              "id": {
+                "type": "string",
+                "pattern": "^[a-z][a-z0-9_]{0,39}$"
+              },
+              "label": {
+                "type": "string",
+                "maxLength": 60
+              },
+              "maxAgeSeconds": {
+                "description": "Values older than this count as unknown; defaults per kind",
+                "type": "integer",
+                "exclusiveMinimum": 0,
+                "maximum": 9007199254740991
+              },
+              "kind": {
+                "type": "string",
+                "const": "liquidity"
+              },
+              "params": {
+                "type": "object",
+                "properties": {
+                  "instrument": {
+                    "oneOf": [
+                      {
+                        "type": "object",
+                        "properties": {
+                          "kind": {
+                            "type": "string",
+                            "const": "perp"
+                          },
+                          "venue": {
+                            "type": "string",
+                            "const": "hyperliquid"
+                          },
+                          "dex": {
+                            "description": "HIP-3 deployer dex name; omit for core Hyperliquid perps",
+                            "type": "string",
+                            "minLength": 1
+                          },
+                          "symbol": {
+                            "type": "string",
+                            "minLength": 1,
+                            "description": "Market symbol, e.g. BTC, NVDA, WHEAT"
+                          },
+                          "assetClass": {
+                            "default": "crypto",
+                            "type": "string",
+                            "enum": [
+                              "crypto",
+                              "equity",
+                              "commodity",
+                              "fx",
+                              "index",
+                              "other"
+                            ]
+                          }
+                        },
+                        "required": [
+                          "kind",
+                          "venue",
+                          "symbol"
+                        ]
+                      },
+                      {
+                        "type": "object",
+                        "properties": {
+                          "kind": {
+                            "type": "string",
+                            "const": "spot"
+                          },
+                          "venue": {
+                            "type": "string",
+                            "const": "hyperliquid"
+                          },
+                          "symbol": {
+                            "type": "string",
+                            "minLength": 1,
+                            "description": "Spot pair, e.g. HYPE/USDC"
+                          },
+                          "assetClass": {
+                            "default": "crypto",
+                            "type": "string",
+                            "enum": [
+                              "crypto",
+                              "equity",
+                              "commodity",
+                              "fx",
+                              "index",
+                              "other"
+                            ]
+                          }
+                        },
+                        "required": [
+                          "kind",
+                          "venue",
+                          "symbol"
+                        ]
+                      },
+                      {
+                        "type": "object",
+                        "properties": {
+                          "kind": {
+                            "type": "string",
+                            "const": "token"
+                          },
+                          "chain": {
+                            "type": "string",
+                            "const": "solana"
+                          },
+                          "mint": {
+                            "type": "string",
+                            "pattern": "^[1-9A-HJ-NP-Za-km-z]{32,44}$"
+                          },
+                          "symbol": {
+                            "description": "Display only; the mint is the identity",
+                            "type": "string",
+                            "minLength": 1
+                          },
+                          "quote": {
+                            "default": "SOL",
+                            "type": "string",
+                            "enum": [
+                              "SOL",
+                              "USDC"
+                            ]
+                          },
+                          "route": {
+                            "default": "auto",
+                            "description": "Execution route; auto lets the router pick (Jupiter, or the launchpad curve before migration)",
+                            "type": "string",
+                            "enum": [
+                              "auto",
+                              "jupiter",
+                              "pumpfun",
+                              "meteora",
+                              "raydium"
+                            ]
+                          },
+                          "assetClass": {
+                            "default": "crypto",
+                            "type": "string",
+                            "enum": [
+                              "crypto",
+                              "equity",
+                              "commodity",
+                              "fx",
+                              "index",
+                              "other"
+                            ]
+                          }
+                        },
+                        "required": [
+                          "kind",
+                          "chain",
+                          "mint"
+                        ]
+                      },
+                      {
+                        "type": "object",
+                        "properties": {
+                          "kind": {
+                            "type": "string",
+                            "const": "outcome"
+                          },
+                          "venue": {
+                            "type": "string",
+                            "enum": [
+                              "hyperliquid",
+                              "jupiter"
+                            ]
+                          },
+                          "market": {
+                            "type": "string",
+                            "minLength": 1,
+                            "description": "Venue market id"
+                          },
+                          "outcome": {
+                            "type": "string",
+                            "minLength": 1,
+                            "description": "Outcome to hold, e.g. YES or NO"
+                          },
+                          "question": {
+                            "description": "Display only",
+                            "type": "string"
+                          }
+                        },
+                        "required": [
+                          "kind",
+                          "venue",
+                          "market",
+                          "outcome"
+                        ]
+                      },
+                      {
+                        "type": "object",
+                        "properties": {
+                          "kind": {
+                            "type": "string",
+                            "const": "option"
+                          },
+                          "venue": {
+                            "type": "string",
+                            "enum": [
+                              "hyperliquid",
+                              "derive",
+                              "deribit"
+                            ]
+                          },
+                          "underlying": {
+                            "type": "string",
+                            "minLength": 1
+                          },
+                          "expiry": {
+                            "type": "string",
+                            "format": "date",
+                            "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))$",
+                            "description": "YYYY-MM-DD"
+                          },
+                          "strike": {
+                            "type": "number",
+                            "exclusiveMinimum": 0
+                          },
+                          "right": {
+                            "type": "string",
+                            "enum": [
+                              "call",
+                              "put"
+                            ]
+                          }
+                        },
+                        "required": [
+                          "kind",
+                          "venue",
+                          "underlying",
+                          "expiry",
+                          "strike",
+                          "right"
+                        ]
+                      }
+                    ]
+                  }
+                },
+                "required": [
+                  "instrument"
+                ]
+              }
+            },
+            "required": [
+              "id",
+              "kind",
+              "params"
+            ]
+          },
+          {
+            "type": "object",
+            "properties": {
+              "id": {
+                "type": "string",
+                "pattern": "^[a-z][a-z0-9_]{0,39}$"
+              },
+              "label": {
+                "type": "string",
+                "maxLength": 60
+              },
+              "maxAgeSeconds": {
+                "description": "Values older than this count as unknown; defaults per kind",
+                "type": "integer",
+                "exclusiveMinimum": 0,
+                "maximum": 9007199254740991
+              },
+              "kind": {
+                "type": "string",
+                "const": "odds"
+              },
+              "params": {
+                "type": "object",
+                "properties": {
+                  "instrument": {
+                    "type": "object",
+                    "properties": {
+                      "kind": {
+                        "type": "string",
+                        "const": "outcome"
+                      },
+                      "venue": {
+                        "type": "string",
+                        "enum": [
+                          "hyperliquid",
+                          "jupiter"
+                        ]
+                      },
+                      "market": {
+                        "type": "string",
+                        "minLength": 1,
+                        "description": "Venue market id"
+                      },
+                      "outcome": {
+                        "type": "string",
+                        "minLength": 1,
+                        "description": "Outcome to hold, e.g. YES or NO"
+                      },
+                      "question": {
+                        "description": "Display only",
+                        "type": "string"
+                      }
+                    },
+                    "required": [
+                      "kind",
+                      "venue",
+                      "market",
+                      "outcome"
+                    ]
+                  }
+                },
+                "required": [
+                  "instrument"
+                ]
+              }
+            },
+            "required": [
+              "id",
+              "kind",
+              "params"
+            ]
+          },
+          {
+            "type": "object",
+            "properties": {
+              "id": {
+                "type": "string",
+                "pattern": "^[a-z][a-z0-9_]{0,39}$"
+              },
+              "label": {
+                "type": "string",
+                "maxLength": 60
+              },
+              "maxAgeSeconds": {
+                "description": "Values older than this count as unknown; defaults per kind",
+                "type": "integer",
+                "exclusiveMinimum": 0,
+                "maximum": 9007199254740991
+              },
+              "kind": {
+                "type": "string",
+                "const": "token_onchain"
+              },
+              "params": {
+                "type": "object",
+                "properties": {
+                  "mint": {
+                    "type": "string",
+                    "pattern": "^[1-9A-HJ-NP-Za-km-z]{32,44}$"
+                  }
+                },
+                "required": [
+                  "mint"
+                ]
+              }
+            },
+            "required": [
+              "id",
+              "kind",
+              "params"
+            ]
+          },
+          {
+            "type": "object",
+            "properties": {
+              "id": {
+                "type": "string",
+                "pattern": "^[a-z][a-z0-9_]{0,39}$"
+              },
+              "label": {
+                "type": "string",
+                "maxLength": 60
+              },
+              "maxAgeSeconds": {
+                "description": "Values older than this count as unknown; defaults per kind",
+                "type": "integer",
+                "exclusiveMinimum": 0,
+                "maximum": 9007199254740991
+              },
+              "kind": {
+                "type": "string",
+                "const": "social"
+              },
+              "params": {
+                "type": "object",
+                "properties": {
+                  "platform": {
+                    "default": "x",
+                    "type": "string",
+                    "enum": [
+                      "x"
+                    ]
+                  },
+                  "cashtags": {
+                    "default": [],
+                    "type": "array",
+                    "items": {
+                      "type": "string",
+                      "minLength": 1
+                    }
+                  },
+                  "keywords": {
+                    "default": [],
+                    "type": "array",
+                    "items": {
+                      "type": "string",
+                      "minLength": 1
+                    }
+                  },
+                  "accounts": {
+                    "default": [],
+                    "type": "array",
+                    "items": {
+                      "type": "string",
+                      "pattern": "^@?[A-Za-z0-9_]{1,15}$"
+                    }
+                  }
+                }
+              }
+            },
+            "required": [
+              "id",
+              "kind",
+              "params"
+            ]
+          },
+          {
+            "type": "object",
+            "properties": {
+              "id": {
+                "type": "string",
+                "pattern": "^[a-z][a-z0-9_]{0,39}$"
+              },
+              "label": {
+                "type": "string",
+                "maxLength": 60
+              },
+              "maxAgeSeconds": {
+                "description": "Values older than this count as unknown; defaults per kind",
+                "type": "integer",
+                "exclusiveMinimum": 0,
+                "maximum": 9007199254740991
+              },
+              "kind": {
+                "type": "string",
+                "const": "post_match"
+              },
+              "params": {
+                "type": "object",
+                "properties": {
+                  "accounts": {
+                    "minItems": 1,
+                    "type": "array",
+                    "items": {
+                      "type": "string",
+                      "pattern": "^@?[A-Za-z0-9_]{1,15}$"
+                    }
+                  },
+                  "claim": {
+                    "type": "string",
+                    "minLength": 3,
+                    "description": "What the post must say, matched semantically"
+                  },
+                  "contradiction": {
+                    "type": "string",
+                    "minLength": 3
+                  }
+                },
+                "required": [
+                  "accounts",
+                  "claim"
+                ]
+              }
+            },
+            "required": [
+              "id",
+              "kind",
+              "params"
+            ]
+          },
+          {
+            "type": "object",
+            "properties": {
+              "id": {
+                "type": "string",
+                "pattern": "^[a-z][a-z0-9_]{0,39}$"
+              },
+              "label": {
+                "type": "string",
+                "maxLength": 60
+              },
+              "maxAgeSeconds": {
+                "description": "Values older than this count as unknown; defaults per kind",
+                "type": "integer",
+                "exclusiveMinimum": 0,
+                "maximum": 9007199254740991
+              },
+              "kind": {
+                "type": "string",
+                "const": "news"
+              },
+              "params": {
+                "type": "object",
+                "properties": {
+                  "query": {
+                    "type": "string",
+                    "minLength": 2
+                  }
+                },
+                "required": [
+                  "query"
+                ]
+              }
+            },
+            "required": [
+              "id",
+              "kind",
+              "params"
+            ]
+          },
+          {
+            "type": "object",
+            "properties": {
+              "id": {
+                "type": "string",
+                "pattern": "^[a-z][a-z0-9_]{0,39}$"
+              },
+              "label": {
+                "type": "string",
+                "maxLength": 60
+              },
+              "maxAgeSeconds": {
+                "description": "Values older than this count as unknown; defaults per kind",
+                "type": "integer",
+                "exclusiveMinimum": 0,
+                "maximum": 9007199254740991
+              },
+              "kind": {
+                "type": "string",
+                "const": "forecast"
+              },
+              "params": {
+                "type": "object",
+                "properties": {
+                  "source": {
+                    "type": "string",
+                    "minLength": 1
+                  },
+                  "series": {
+                    "type": "string",
+                    "minLength": 1
+                  }
+                },
+                "required": [
+                  "source",
+                  "series"
+                ]
+              }
+            },
+            "required": [
+              "id",
+              "kind",
+              "params"
+            ]
+          },
+          {
+            "type": "object",
+            "properties": {
+              "id": {
+                "type": "string",
+                "pattern": "^[a-z][a-z0-9_]{0,39}$"
+              },
+              "label": {
+                "type": "string",
+                "maxLength": 60
+              },
+              "maxAgeSeconds": {
+                "description": "Values older than this count as unknown; defaults per kind",
+                "type": "integer",
+                "exclusiveMinimum": 0,
+                "maximum": 9007199254740991
+              },
+              "kind": {
+                "type": "string",
+                "const": "model"
+              },
+              "params": {
+                "type": "object",
+                "properties": {
+                  "question": {
+                    "type": "string",
+                    "minLength": 5
+                  },
+                  "instrument": {
+                    "type": "object",
+                    "properties": {
+                      "kind": {
+                        "type": "string",
+                        "const": "outcome"
+                      },
+                      "venue": {
+                        "type": "string",
+                        "enum": [
+                          "hyperliquid",
+                          "jupiter"
+                        ]
+                      },
+                      "market": {
+                        "type": "string",
+                        "minLength": 1,
+                        "description": "Venue market id"
+                      },
+                      "outcome": {
+                        "type": "string",
+                        "minLength": 1,
+                        "description": "Outcome to hold, e.g. YES or NO"
+                      },
+                      "question": {
+                        "description": "Display only",
+                        "type": "string"
+                      }
+                    },
+                    "required": [
+                      "kind",
+                      "venue",
+                      "market",
+                      "outcome"
+                    ]
+                  }
+                },
+                "required": [
+                  "question"
+                ]
+              }
+            },
+            "required": [
+              "id",
+              "kind",
+              "params"
+            ]
+          },
+          {
+            "type": "object",
+            "properties": {
+              "id": {
+                "type": "string",
+                "pattern": "^[a-z][a-z0-9_]{0,39}$"
+              },
+              "label": {
+                "type": "string",
+                "maxLength": 60
+              },
+              "maxAgeSeconds": {
+                "description": "Values older than this count as unknown; defaults per kind",
+                "type": "integer",
+                "exclusiveMinimum": 0,
+                "maximum": 9007199254740991
+              },
+              "kind": {
+                "type": "string",
+                "const": "calendar"
+              },
+              "params": {
+                "type": "object",
+                "properties": {
+                  "event": {
+                    "type": "string",
+                    "enum": [
+                      "earnings",
+                      "fomc",
+                      "cpi",
+                      "custom"
+                    ]
+                  },
+                  "symbol": {
+                    "type": "string"
+                  },
+                  "at": {
+                    "description": "Required for custom events",
+                    "type": "string",
+                    "format": "date-time",
+                    "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+                  }
+                },
+                "required": [
+                  "event"
+                ]
+              }
+            },
+            "required": [
+              "id",
+              "kind",
+              "params"
+            ]
+          },
+          {
+            "type": "object",
+            "properties": {
+              "id": {
+                "type": "string",
+                "pattern": "^[a-z][a-z0-9_]{0,39}$"
+              },
+              "label": {
+                "type": "string",
+                "maxLength": 60
+              },
+              "maxAgeSeconds": {
+                "description": "Values older than this count as unknown; defaults per kind",
+                "type": "integer",
+                "exclusiveMinimum": 0,
+                "maximum": 9007199254740991
+              },
+              "kind": {
+                "type": "string",
+                "const": "macro"
+              },
+              "params": {
+                "type": "object",
+                "properties": {
+                  "series": {
+                    "type": "string",
+                    "minLength": 1
+                  }
+                },
+                "required": [
+                  "series"
+                ]
+              }
+            },
+            "required": [
+              "id",
+              "kind",
+              "params"
+            ]
+          },
+          {
+            "type": "object",
+            "properties": {
+              "id": {
+                "type": "string",
+                "pattern": "^[a-z][a-z0-9_]{0,39}$"
+              },
+              "label": {
+                "type": "string",
+                "maxLength": 60
+              },
+              "maxAgeSeconds": {
+                "description": "Values older than this count as unknown; defaults per kind",
+                "type": "integer",
+                "exclusiveMinimum": 0,
+                "maximum": 9007199254740991
+              },
+              "kind": {
+                "type": "string",
+                "const": "position"
+              },
+              "params": {
+                "type": "object",
+                "properties": {
+                  "instrument": {
+                    "oneOf": [
+                      {
+                        "type": "object",
+                        "properties": {
+                          "kind": {
+                            "type": "string",
+                            "const": "perp"
+                          },
+                          "venue": {
+                            "type": "string",
+                            "const": "hyperliquid"
+                          },
+                          "dex": {
+                            "description": "HIP-3 deployer dex name; omit for core Hyperliquid perps",
+                            "type": "string",
+                            "minLength": 1
+                          },
+                          "symbol": {
+                            "type": "string",
+                            "minLength": 1,
+                            "description": "Market symbol, e.g. BTC, NVDA, WHEAT"
+                          },
+                          "assetClass": {
+                            "default": "crypto",
+                            "type": "string",
+                            "enum": [
+                              "crypto",
+                              "equity",
+                              "commodity",
+                              "fx",
+                              "index",
+                              "other"
+                            ]
+                          }
+                        },
+                        "required": [
+                          "kind",
+                          "venue",
+                          "symbol"
+                        ]
+                      },
+                      {
+                        "type": "object",
+                        "properties": {
+                          "kind": {
+                            "type": "string",
+                            "const": "spot"
+                          },
+                          "venue": {
+                            "type": "string",
+                            "const": "hyperliquid"
+                          },
+                          "symbol": {
+                            "type": "string",
+                            "minLength": 1,
+                            "description": "Spot pair, e.g. HYPE/USDC"
+                          },
+                          "assetClass": {
+                            "default": "crypto",
+                            "type": "string",
+                            "enum": [
+                              "crypto",
+                              "equity",
+                              "commodity",
+                              "fx",
+                              "index",
+                              "other"
+                            ]
+                          }
+                        },
+                        "required": [
+                          "kind",
+                          "venue",
+                          "symbol"
+                        ]
+                      },
+                      {
+                        "type": "object",
+                        "properties": {
+                          "kind": {
+                            "type": "string",
+                            "const": "token"
+                          },
+                          "chain": {
+                            "type": "string",
+                            "const": "solana"
+                          },
+                          "mint": {
+                            "type": "string",
+                            "pattern": "^[1-9A-HJ-NP-Za-km-z]{32,44}$"
+                          },
+                          "symbol": {
+                            "description": "Display only; the mint is the identity",
+                            "type": "string",
+                            "minLength": 1
+                          },
+                          "quote": {
+                            "default": "SOL",
+                            "type": "string",
+                            "enum": [
+                              "SOL",
+                              "USDC"
+                            ]
+                          },
+                          "route": {
+                            "default": "auto",
+                            "description": "Execution route; auto lets the router pick (Jupiter, or the launchpad curve before migration)",
+                            "type": "string",
+                            "enum": [
+                              "auto",
+                              "jupiter",
+                              "pumpfun",
+                              "meteora",
+                              "raydium"
+                            ]
+                          },
+                          "assetClass": {
+                            "default": "crypto",
+                            "type": "string",
+                            "enum": [
+                              "crypto",
+                              "equity",
+                              "commodity",
+                              "fx",
+                              "index",
+                              "other"
+                            ]
+                          }
+                        },
+                        "required": [
+                          "kind",
+                          "chain",
+                          "mint"
+                        ]
+                      },
+                      {
+                        "type": "object",
+                        "properties": {
+                          "kind": {
+                            "type": "string",
+                            "const": "outcome"
+                          },
+                          "venue": {
+                            "type": "string",
+                            "enum": [
+                              "hyperliquid",
+                              "jupiter"
+                            ]
+                          },
+                          "market": {
+                            "type": "string",
+                            "minLength": 1,
+                            "description": "Venue market id"
+                          },
+                          "outcome": {
+                            "type": "string",
+                            "minLength": 1,
+                            "description": "Outcome to hold, e.g. YES or NO"
+                          },
+                          "question": {
+                            "description": "Display only",
+                            "type": "string"
+                          }
+                        },
+                        "required": [
+                          "kind",
+                          "venue",
+                          "market",
+                          "outcome"
+                        ]
+                      },
+                      {
+                        "type": "object",
+                        "properties": {
+                          "kind": {
+                            "type": "string",
+                            "const": "option"
+                          },
+                          "venue": {
+                            "type": "string",
+                            "enum": [
+                              "hyperliquid",
+                              "derive",
+                              "deribit"
+                            ]
+                          },
+                          "underlying": {
+                            "type": "string",
+                            "minLength": 1
+                          },
+                          "expiry": {
+                            "type": "string",
+                            "format": "date",
+                            "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))$",
+                            "description": "YYYY-MM-DD"
+                          },
+                          "strike": {
+                            "type": "number",
+                            "exclusiveMinimum": 0
+                          },
+                          "right": {
+                            "type": "string",
+                            "enum": [
+                              "call",
+                              "put"
+                            ]
+                          }
+                        },
+                        "required": [
+                          "kind",
+                          "venue",
+                          "underlying",
+                          "expiry",
+                          "strike",
+                          "right"
+                        ]
+                      }
+                    ]
+                  }
+                }
+              }
+            },
+            "required": [
+              "id",
+              "kind",
+              "params"
+            ]
+          }
+        ]
+      }
+    },
+    "triggers": {
+      "minItems": 1,
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "pattern": "^[a-z][a-z0-9_]{0,39}$"
+          },
+          "label": {
+            "type": "string",
+            "maxLength": 60
+          },
+          "when": {
+            "$ref": "#/$defs/__schema0"
+          },
+          "forMinutes": {
+            "description": "Condition must hold continuously this long before it counts as met",
+            "type": "number",
+            "minimum": 0
+          },
+          "cooldownMinutes": {
+            "default": 0,
+            "description": "Minimum time between fires",
+            "type": "number",
+            "minimum": 0
+          },
+          "maxFires": {
+            "description": "Stop firing after this many times",
+            "type": "integer",
+            "exclusiveMinimum": 0,
+            "maximum": 9007199254740991
+          }
+        },
+        "required": [
+          "id",
+          "when"
+        ]
+      }
+    },
+    "actions": {
+      "minItems": 1,
+      "type": "array",
+      "items": {
+        "oneOf": [
+          {
+            "type": "object",
+            "properties": {
+              "id": {
+                "type": "string",
+                "pattern": "^[a-z][a-z0-9_]{0,39}$"
+              },
+              "label": {
+                "type": "string",
+                "maxLength": 60
+              },
+              "on": {
+                "minItems": 1,
+                "type": "array",
+                "items": {
+                  "type": "string",
+                  "pattern": "^[a-z][a-z0-9_]{0,39}$"
+                },
+                "description": "Trigger ids; the action runs when any of them fires"
+              },
+              "type": {
+                "type": "string",
+                "const": "open"
+              },
+              "instrument": {
+                "oneOf": [
+                  {
+                    "type": "object",
+                    "properties": {
+                      "kind": {
+                        "type": "string",
+                        "const": "perp"
+                      },
+                      "venue": {
+                        "type": "string",
+                        "const": "hyperliquid"
+                      },
+                      "dex": {
+                        "description": "HIP-3 deployer dex name; omit for core Hyperliquid perps",
+                        "type": "string",
+                        "minLength": 1
+                      },
+                      "symbol": {
+                        "type": "string",
+                        "minLength": 1,
+                        "description": "Market symbol, e.g. BTC, NVDA, WHEAT"
+                      },
+                      "assetClass": {
+                        "default": "crypto",
+                        "type": "string",
+                        "enum": [
+                          "crypto",
+                          "equity",
+                          "commodity",
+                          "fx",
+                          "index",
+                          "other"
+                        ]
+                      }
+                    },
+                    "required": [
+                      "kind",
+                      "venue",
+                      "symbol"
+                    ]
+                  },
+                  {
+                    "type": "object",
+                    "properties": {
+                      "kind": {
+                        "type": "string",
+                        "const": "spot"
+                      },
+                      "venue": {
+                        "type": "string",
+                        "const": "hyperliquid"
+                      },
+                      "symbol": {
+                        "type": "string",
+                        "minLength": 1,
+                        "description": "Spot pair, e.g. HYPE/USDC"
+                      },
+                      "assetClass": {
+                        "default": "crypto",
+                        "type": "string",
+                        "enum": [
+                          "crypto",
+                          "equity",
+                          "commodity",
+                          "fx",
+                          "index",
+                          "other"
+                        ]
+                      }
+                    },
+                    "required": [
+                      "kind",
+                      "venue",
+                      "symbol"
+                    ]
+                  },
+                  {
+                    "type": "object",
+                    "properties": {
+                      "kind": {
+                        "type": "string",
+                        "const": "token"
+                      },
+                      "chain": {
+                        "type": "string",
+                        "const": "solana"
+                      },
+                      "mint": {
+                        "type": "string",
+                        "pattern": "^[1-9A-HJ-NP-Za-km-z]{32,44}$"
+                      },
+                      "symbol": {
+                        "description": "Display only; the mint is the identity",
+                        "type": "string",
+                        "minLength": 1
+                      },
+                      "quote": {
+                        "default": "SOL",
+                        "type": "string",
+                        "enum": [
+                          "SOL",
+                          "USDC"
+                        ]
+                      },
+                      "route": {
+                        "default": "auto",
+                        "description": "Execution route; auto lets the router pick (Jupiter, or the launchpad curve before migration)",
+                        "type": "string",
+                        "enum": [
+                          "auto",
+                          "jupiter",
+                          "pumpfun",
+                          "meteora",
+                          "raydium"
+                        ]
+                      },
+                      "assetClass": {
+                        "default": "crypto",
+                        "type": "string",
+                        "enum": [
+                          "crypto",
+                          "equity",
+                          "commodity",
+                          "fx",
+                          "index",
+                          "other"
+                        ]
+                      }
+                    },
+                    "required": [
+                      "kind",
+                      "chain",
+                      "mint"
+                    ]
+                  },
+                  {
+                    "type": "object",
+                    "properties": {
+                      "kind": {
+                        "type": "string",
+                        "const": "outcome"
+                      },
+                      "venue": {
+                        "type": "string",
+                        "enum": [
+                          "hyperliquid",
+                          "jupiter"
+                        ]
+                      },
+                      "market": {
+                        "type": "string",
+                        "minLength": 1,
+                        "description": "Venue market id"
+                      },
+                      "outcome": {
+                        "type": "string",
+                        "minLength": 1,
+                        "description": "Outcome to hold, e.g. YES or NO"
+                      },
+                      "question": {
+                        "description": "Display only",
+                        "type": "string"
+                      }
+                    },
+                    "required": [
+                      "kind",
+                      "venue",
+                      "market",
+                      "outcome"
+                    ]
+                  }
+                ]
+              },
+              "side": {
+                "type": "string",
+                "enum": [
+                  "long",
+                  "short"
+                ],
+                "description": "Spot, tokens and outcomes are long-only (buy)"
+              },
+              "size": {
+                "oneOf": [
+                  {
+                    "type": "object",
+                    "properties": {
+                      "unit": {
+                        "type": "string",
+                        "const": "pct_equity"
+                      },
+                      "value": {
+                        "type": "number",
+                        "exclusiveMinimum": 0,
+                        "maximum": 100
+                      }
+                    },
+                    "required": [
+                      "unit",
+                      "value"
+                    ]
+                  },
+                  {
+                    "type": "object",
+                    "properties": {
+                      "unit": {
+                        "type": "string",
+                        "const": "usd"
+                      },
+                      "value": {
+                        "type": "number",
+                        "exclusiveMinimum": 0
+                      }
+                    },
+                    "required": [
+                      "unit",
+                      "value"
+                    ]
+                  },
+                  {
+                    "type": "object",
+                    "properties": {
+                      "unit": {
+                        "type": "string",
+                        "const": "native"
+                      },
+                      "value": {
+                        "type": "number",
+                        "exclusiveMinimum": 0
+                      }
+                    },
+                    "required": [
+                      "unit",
+                      "value"
+                    ]
+                  }
+                ]
+              },
+              "leverage": {
+                "default": 1,
+                "description": "Perps only",
+                "type": "number",
+                "minimum": 1,
+                "maximum": 50
+              },
+              "order": {
+                "default": {},
+                "type": "object",
+                "properties": {
+                  "type": {
+                    "default": "market",
+                    "type": "string",
+                    "enum": [
+                      "market",
+                      "limit"
+                    ]
+                  },
+                  "limitPrice": {
+                    "type": "number",
+                    "exclusiveMinimum": 0
+                  },
+                  "maxSlippageBps": {
+                    "description": "Defaults to the risk policy",
+                    "type": "integer",
+                    "exclusiveMinimum": 0,
+                    "maximum": 5000
+                  },
+                  "maxPriceImpactBps": {
+                    "type": "integer",
+                    "exclusiveMinimum": 0,
+                    "maximum": 5000
+                  }
+                }
+              },
+              "exits": {
+                "default": {},
+                "type": "object",
+                "properties": {
+                  "takeProfit": {
+                    "anyOf": [
+                      {
+                        "type": "object",
+                        "properties": {
+                          "pct": {
+                            "type": "number",
+                            "exclusiveMinimum": 0,
+                            "maximum": 1000
+                          }
+                        },
+                        "required": [
+                          "pct"
+                        ]
+                      },
+                      {
+                        "type": "object",
+                        "properties": {
+                          "price": {
+                            "type": "number",
+                            "exclusiveMinimum": 0
+                          }
+                        },
+                        "required": [
+                          "price"
+                        ]
+                      },
+                      {
+                        "type": "object",
+                        "properties": {
+                          "prob": {
+                            "type": "number",
+                            "exclusiveMinimum": 0,
+                            "exclusiveMaximum": 1
+                          }
+                        },
+                        "required": [
+                          "prob"
+                        ]
+                      }
+                    ]
+                  },
+                  "stopLoss": {
+                    "anyOf": [
+                      {
+                        "type": "object",
+                        "properties": {
+                          "pct": {
+                            "type": "number",
+                            "exclusiveMinimum": 0,
+                            "maximum": 1000
+                          }
+                        },
+                        "required": [
+                          "pct"
+                        ]
+                      },
+                      {
+                        "type": "object",
+                        "properties": {
+                          "price": {
+                            "type": "number",
+                            "exclusiveMinimum": 0
+                          }
+                        },
+                        "required": [
+                          "price"
+                        ]
+                      },
+                      {
+                        "type": "object",
+                        "properties": {
+                          "prob": {
+                            "type": "number",
+                            "exclusiveMinimum": 0,
+                            "exclusiveMaximum": 1
+                          }
+                        },
+                        "required": [
+                          "prob"
+                        ]
+                      }
+                    ]
+                  },
+                  "trailingStopPct": {
+                    "type": "number",
+                    "exclusiveMinimum": 0,
+                    "maximum": 100
+                  },
+                  "timeExitHours": {
+                    "type": "number",
+                    "exclusiveMinimum": 0
+                  }
+                }
+              },
+              "reentry": {
+                "default": "never",
+                "description": "never: fire at most once; after_close: may reopen once the previous position is closed",
+                "type": "string",
+                "enum": [
+                  "never",
+                  "after_close"
+                ]
+              }
+            },
+            "required": [
+              "id",
+              "on",
+              "type",
+              "instrument",
+              "side",
+              "size"
+            ]
+          },
+          {
+            "type": "object",
+            "properties": {
+              "id": {
+                "type": "string",
+                "pattern": "^[a-z][a-z0-9_]{0,39}$"
+              },
+              "label": {
+                "type": "string",
+                "maxLength": 60
+              },
+              "on": {
+                "minItems": 1,
+                "type": "array",
+                "items": {
+                  "type": "string",
+                  "pattern": "^[a-z][a-z0-9_]{0,39}$"
+                },
+                "description": "Trigger ids; the action runs when any of them fires"
+              },
+              "type": {
+                "type": "string",
+                "const": "options"
+              },
+              "legs": {
+                "minItems": 1,
+                "maxItems": 4,
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "instrument": {
+                      "type": "object",
+                      "properties": {
+                        "kind": {
+                          "type": "string",
+                          "const": "option"
+                        },
+                        "venue": {
+                          "type": "string",
+                          "enum": [
+                            "hyperliquid",
+                            "derive",
+                            "deribit"
+                          ]
+                        },
+                        "underlying": {
+                          "type": "string",
+                          "minLength": 1
+                        },
+                        "expiry": {
+                          "type": "string",
+                          "format": "date",
+                          "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))$",
+                          "description": "YYYY-MM-DD"
+                        },
+                        "strike": {
+                          "type": "number",
+                          "exclusiveMinimum": 0
+                        },
+                        "right": {
+                          "type": "string",
+                          "enum": [
+                            "call",
+                            "put"
+                          ]
+                        }
+                      },
+                      "required": [
+                        "kind",
+                        "venue",
+                        "underlying",
+                        "expiry",
+                        "strike",
+                        "right"
+                      ]
+                    },
+                    "side": {
+                      "type": "string",
+                      "enum": [
+                        "buy",
+                        "sell"
+                      ]
+                    },
+                    "ratio": {
+                      "default": 1,
+                      "type": "integer",
+                      "minimum": 1,
+                      "maximum": 10
+                    }
+                  },
+                  "required": [
+                    "instrument",
+                    "side"
+                  ]
+                }
+              },
+              "size": {
+                "oneOf": [
+                  {
+                    "type": "object",
+                    "properties": {
+                      "unit": {
+                        "type": "string",
+                        "const": "pct_equity"
+                      },
+                      "value": {
+                        "type": "number",
+                        "exclusiveMinimum": 0,
+                        "maximum": 100
+                      }
+                    },
+                    "required": [
+                      "unit",
+                      "value"
+                    ]
+                  },
+                  {
+                    "type": "object",
+                    "properties": {
+                      "unit": {
+                        "type": "string",
+                        "const": "usd"
+                      },
+                      "value": {
+                        "type": "number",
+                        "exclusiveMinimum": 0
+                      }
+                    },
+                    "required": [
+                      "unit",
+                      "value"
+                    ]
+                  },
+                  {
+                    "type": "object",
+                    "properties": {
+                      "unit": {
+                        "type": "string",
+                        "const": "native"
+                      },
+                      "value": {
+                        "type": "number",
+                        "exclusiveMinimum": 0
+                      }
+                    },
+                    "required": [
+                      "unit",
+                      "value"
+                    ]
+                  }
+                ],
+                "description": "Premium budget (debit) or max-loss budget (credit)"
+              },
+              "order": {
+                "default": {},
+                "type": "object",
+                "properties": {
+                  "type": {
+                    "default": "market",
+                    "type": "string",
+                    "enum": [
+                      "market",
+                      "limit"
+                    ]
+                  },
+                  "limitPrice": {
+                    "type": "number",
+                    "exclusiveMinimum": 0
+                  },
+                  "maxSlippageBps": {
+                    "description": "Defaults to the risk policy",
+                    "type": "integer",
+                    "exclusiveMinimum": 0,
+                    "maximum": 5000
+                  },
+                  "maxPriceImpactBps": {
+                    "type": "integer",
+                    "exclusiveMinimum": 0,
+                    "maximum": 5000
+                  }
+                }
+              },
+              "exits": {
+                "default": {},
+                "type": "object",
+                "properties": {
+                  "takeProfit": {
+                    "anyOf": [
+                      {
+                        "type": "object",
+                        "properties": {
+                          "pct": {
+                            "type": "number",
+                            "exclusiveMinimum": 0,
+                            "maximum": 1000
+                          }
+                        },
+                        "required": [
+                          "pct"
+                        ]
+                      },
+                      {
+                        "type": "object",
+                        "properties": {
+                          "price": {
+                            "type": "number",
+                            "exclusiveMinimum": 0
+                          }
+                        },
+                        "required": [
+                          "price"
+                        ]
+                      },
+                      {
+                        "type": "object",
+                        "properties": {
+                          "prob": {
+                            "type": "number",
+                            "exclusiveMinimum": 0,
+                            "exclusiveMaximum": 1
+                          }
+                        },
+                        "required": [
+                          "prob"
+                        ]
+                      }
+                    ]
+                  },
+                  "stopLoss": {
+                    "anyOf": [
+                      {
+                        "type": "object",
+                        "properties": {
+                          "pct": {
+                            "type": "number",
+                            "exclusiveMinimum": 0,
+                            "maximum": 1000
+                          }
+                        },
+                        "required": [
+                          "pct"
+                        ]
+                      },
+                      {
+                        "type": "object",
+                        "properties": {
+                          "price": {
+                            "type": "number",
+                            "exclusiveMinimum": 0
+                          }
+                        },
+                        "required": [
+                          "price"
+                        ]
+                      },
+                      {
+                        "type": "object",
+                        "properties": {
+                          "prob": {
+                            "type": "number",
+                            "exclusiveMinimum": 0,
+                            "exclusiveMaximum": 1
+                          }
+                        },
+                        "required": [
+                          "prob"
+                        ]
+                      }
+                    ]
+                  },
+                  "trailingStopPct": {
+                    "type": "number",
+                    "exclusiveMinimum": 0,
+                    "maximum": 100
+                  },
+                  "timeExitHours": {
+                    "type": "number",
+                    "exclusiveMinimum": 0
+                  }
+                }
+              },
+              "reentry": {
+                "default": "never",
+                "type": "string",
+                "enum": [
+                  "never",
+                  "after_close"
+                ]
+              }
+            },
+            "required": [
+              "id",
+              "on",
+              "type",
+              "legs",
+              "size"
+            ]
+          },
+          {
+            "type": "object",
+            "properties": {
+              "id": {
+                "type": "string",
+                "pattern": "^[a-z][a-z0-9_]{0,39}$"
+              },
+              "label": {
+                "type": "string",
+                "maxLength": 60
+              },
+              "on": {
+                "minItems": 1,
+                "type": "array",
+                "items": {
+                  "type": "string",
+                  "pattern": "^[a-z][a-z0-9_]{0,39}$"
+                },
+                "description": "Trigger ids; the action runs when any of them fires"
+              },
+              "type": {
+                "type": "string",
+                "const": "close"
+              },
+              "target": {
+                "anyOf": [
+                  {
+                    "type": "string",
+                    "const": "all"
+                  },
+                  {
+                    "type": "object",
+                    "properties": {
+                      "instrument": {
+                        "oneOf": [
+                          {
+                            "type": "object",
+                            "properties": {
+                              "kind": {
+                                "type": "string",
+                                "const": "perp"
+                              },
+                              "venue": {
+                                "type": "string",
+                                "const": "hyperliquid"
+                              },
+                              "dex": {
+                                "description": "HIP-3 deployer dex name; omit for core Hyperliquid perps",
+                                "type": "string",
+                                "minLength": 1
+                              },
+                              "symbol": {
+                                "type": "string",
+                                "minLength": 1,
+                                "description": "Market symbol, e.g. BTC, NVDA, WHEAT"
+                              },
+                              "assetClass": {
+                                "default": "crypto",
+                                "type": "string",
+                                "enum": [
+                                  "crypto",
+                                  "equity",
+                                  "commodity",
+                                  "fx",
+                                  "index",
+                                  "other"
+                                ]
+                              }
+                            },
+                            "required": [
+                              "kind",
+                              "venue",
+                              "symbol"
+                            ]
+                          },
+                          {
+                            "type": "object",
+                            "properties": {
+                              "kind": {
+                                "type": "string",
+                                "const": "spot"
+                              },
+                              "venue": {
+                                "type": "string",
+                                "const": "hyperliquid"
+                              },
+                              "symbol": {
+                                "type": "string",
+                                "minLength": 1,
+                                "description": "Spot pair, e.g. HYPE/USDC"
+                              },
+                              "assetClass": {
+                                "default": "crypto",
+                                "type": "string",
+                                "enum": [
+                                  "crypto",
+                                  "equity",
+                                  "commodity",
+                                  "fx",
+                                  "index",
+                                  "other"
+                                ]
+                              }
+                            },
+                            "required": [
+                              "kind",
+                              "venue",
+                              "symbol"
+                            ]
+                          },
+                          {
+                            "type": "object",
+                            "properties": {
+                              "kind": {
+                                "type": "string",
+                                "const": "token"
+                              },
+                              "chain": {
+                                "type": "string",
+                                "const": "solana"
+                              },
+                              "mint": {
+                                "type": "string",
+                                "pattern": "^[1-9A-HJ-NP-Za-km-z]{32,44}$"
+                              },
+                              "symbol": {
+                                "description": "Display only; the mint is the identity",
+                                "type": "string",
+                                "minLength": 1
+                              },
+                              "quote": {
+                                "default": "SOL",
+                                "type": "string",
+                                "enum": [
+                                  "SOL",
+                                  "USDC"
+                                ]
+                              },
+                              "route": {
+                                "default": "auto",
+                                "description": "Execution route; auto lets the router pick (Jupiter, or the launchpad curve before migration)",
+                                "type": "string",
+                                "enum": [
+                                  "auto",
+                                  "jupiter",
+                                  "pumpfun",
+                                  "meteora",
+                                  "raydium"
+                                ]
+                              },
+                              "assetClass": {
+                                "default": "crypto",
+                                "type": "string",
+                                "enum": [
+                                  "crypto",
+                                  "equity",
+                                  "commodity",
+                                  "fx",
+                                  "index",
+                                  "other"
+                                ]
+                              }
+                            },
+                            "required": [
+                              "kind",
+                              "chain",
+                              "mint"
+                            ]
+                          },
+                          {
+                            "type": "object",
+                            "properties": {
+                              "kind": {
+                                "type": "string",
+                                "const": "outcome"
+                              },
+                              "venue": {
+                                "type": "string",
+                                "enum": [
+                                  "hyperliquid",
+                                  "jupiter"
+                                ]
+                              },
+                              "market": {
+                                "type": "string",
+                                "minLength": 1,
+                                "description": "Venue market id"
+                              },
+                              "outcome": {
+                                "type": "string",
+                                "minLength": 1,
+                                "description": "Outcome to hold, e.g. YES or NO"
+                              },
+                              "question": {
+                                "description": "Display only",
+                                "type": "string"
+                              }
+                            },
+                            "required": [
+                              "kind",
+                              "venue",
+                              "market",
+                              "outcome"
+                            ]
+                          },
+                          {
+                            "type": "object",
+                            "properties": {
+                              "kind": {
+                                "type": "string",
+                                "const": "option"
+                              },
+                              "venue": {
+                                "type": "string",
+                                "enum": [
+                                  "hyperliquid",
+                                  "derive",
+                                  "deribit"
+                                ]
+                              },
+                              "underlying": {
+                                "type": "string",
+                                "minLength": 1
+                              },
+                              "expiry": {
+                                "type": "string",
+                                "format": "date",
+                                "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))$",
+                                "description": "YYYY-MM-DD"
+                              },
+                              "strike": {
+                                "type": "number",
+                                "exclusiveMinimum": 0
+                              },
+                              "right": {
+                                "type": "string",
+                                "enum": [
+                                  "call",
+                                  "put"
+                                ]
+                              }
+                            },
+                            "required": [
+                              "kind",
+                              "venue",
+                              "underlying",
+                              "expiry",
+                              "strike",
+                              "right"
+                            ]
+                          }
+                        ]
+                      }
+                    },
+                    "required": [
+                      "instrument"
+                    ]
+                  }
+                ]
+              },
+              "fraction": {
+                "default": 1,
+                "type": "number",
+                "exclusiveMinimum": 0,
+                "maximum": 1
+              }
+            },
+            "required": [
+              "id",
+              "on",
+              "type",
+              "target"
+            ]
+          },
+          {
+            "type": "object",
+            "properties": {
+              "id": {
+                "type": "string",
+                "pattern": "^[a-z][a-z0-9_]{0,39}$"
+              },
+              "label": {
+                "type": "string",
+                "maxLength": 60
+              },
+              "on": {
+                "minItems": 1,
+                "type": "array",
+                "items": {
+                  "type": "string",
+                  "pattern": "^[a-z][a-z0-9_]{0,39}$"
+                },
+                "description": "Trigger ids; the action runs when any of them fires"
+              },
+              "type": {
+                "type": "string",
+                "const": "notify"
+              },
+              "channel": {
+                "default": "push",
+                "type": "string",
+                "enum": [
+                  "push",
+                  "telegram",
+                  "email"
+                ]
+              },
+              "message": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 280
+              }
+            },
+            "required": [
+              "id",
+              "on",
+              "type",
+              "message"
+            ]
+          }
+        ]
+      }
+    },
+    "risk": {
+      "default": {},
+      "type": "object",
+      "properties": {
+        "maxPositionPct": {
+          "default": 10,
+          "description": "Max size of one position, % of allocated equity",
+          "type": "number",
+          "exclusiveMinimum": 0,
+          "maximum": 100
+        },
+        "maxTotalExposurePct": {
+          "default": 50,
+          "type": "number",
+          "exclusiveMinimum": 0,
+          "maximum": 500
+        },
+        "maxLeverage": {
+          "default": 5,
+          "type": "number",
+          "minimum": 1,
+          "maximum": 50
+        },
+        "maxDailyLossPct": {
+          "default": 10,
+          "description": "Opens are blocked for the day after this loss",
+          "type": "number",
+          "exclusiveMinimum": 0,
+          "maximum": 100
+        },
+        "requireStopLoss": {
+          "default": true,
+          "type": "boolean"
+        },
+        "defaultMaxSlippageBps": {
+          "default": 100,
+          "type": "integer",
+          "exclusiveMinimum": 0,
+          "maximum": 9007199254740991
+        },
+        "token": {
+          "default": {},
+          "type": "object",
+          "properties": {
+            "minLiquidityUsd": {
+              "default": 50000,
+              "type": "number",
+              "minimum": 0
+            },
+            "maxTop10HoldersPct": {
+              "default": 35,
+              "type": "number",
+              "minimum": 0,
+              "maximum": 100
+            },
+            "requireMintAuthorityRevoked": {
+              "default": true,
+              "type": "boolean"
+            },
+            "requireFreezeAuthorityRevoked": {
+              "default": true,
+              "type": "boolean"
+            },
+            "maxPriceImpactBps": {
+              "default": 300,
+              "type": "integer",
+              "exclusiveMinimum": 0,
+              "maximum": 9007199254740991
+            },
+            "minAgeMinutes": {
+              "default": 0,
+              "type": "number",
+              "minimum": 0
+            },
+            "blockIfDevSoldPctAbove": {
+              "default": 50,
+              "type": "number",
+              "minimum": 0,
+              "maximum": 100
+            }
+          }
+        }
+      }
+    },
+    "tags": {
+      "default": [],
+      "maxItems": 8,
+      "type": "array",
+      "items": {
+        "type": "string",
+        "minLength": 1,
+        "maxLength": 24
+      }
+    },
+    "forkedFrom": {
+      "type": "string"
+    }
+  },
+  "required": [
+    "schemaVersion",
+    "id",
+    "name",
+    "thesis",
+    "signals",
+    "triggers",
+    "actions"
+  ],
+  "$defs": {
+    "__schema0": {
+      "anyOf": [
+        {
+          "type": "object",
+          "properties": {
+            "op": {
+              "type": "string",
+              "enum": [
+                "and",
+                "or"
+              ]
+            },
+            "args": {
+              "minItems": 1,
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/__schema0"
+              }
+            }
+          },
+          "required": [
+            "op",
+            "args"
+          ]
+        },
+        {
+          "type": "object",
+          "properties": {
+            "op": {
+              "type": "string",
+              "const": "not"
+            },
+            "arg": {
+              "$ref": "#/$defs/__schema0"
+            }
+          },
+          "required": [
+            "op",
+            "arg"
+          ]
+        },
+        {
+          "type": "object",
+          "properties": {
+            "op": {
+              "type": "string",
+              "enum": [
+                "gt",
+                "gte",
+                "lt",
+                "lte",
+                "eq",
+                "neq"
+              ]
+            },
+            "left": {
+              "$ref": "#/$defs/__schema1"
+            },
+            "right": {
+              "$ref": "#/$defs/__schema1"
+            }
+          },
+          "required": [
+            "op",
+            "left",
+            "right"
+          ]
+        },
+        {
+          "type": "object",
+          "properties": {
+            "op": {
+              "type": "string",
+              "enum": [
+                "crosses_above",
+                "crosses_below"
+              ]
+            },
+            "left": {
+              "$ref": "#/$defs/__schema1"
+            },
+            "right": {
+              "$ref": "#/$defs/__schema1"
+            }
+          },
+          "required": [
+            "op",
+            "left",
+            "right"
+          ]
+        },
+        {
+          "type": "object",
+          "properties": {
+            "op": {
+              "type": "string",
+              "const": "between"
+            },
+            "value": {
+              "$ref": "#/$defs/__schema1"
+            },
+            "min": {
+              "$ref": "#/$defs/__schema1"
+            },
+            "max": {
+              "$ref": "#/$defs/__schema1"
+            }
+          },
+          "required": [
+            "op",
+            "value",
+            "min",
+            "max"
+          ]
+        },
+        {
+          "type": "object",
+          "properties": {
+            "op": {
+              "type": "string",
+              "const": "is"
+            },
+            "ref": {
+              "type": "string",
+              "pattern": "^[a-z][a-z0-9_]*\\.[a-z][a-z0-9_]*$"
+            },
+            "value": {
+              "type": "boolean"
+            }
+          },
+          "required": [
+            "op",
+            "ref",
+            "value"
+          ]
+        }
+      ]
+    },
+    "__schema1": {
+      "anyOf": [
+        {
+          "type": "object",
+          "properties": {
+            "ref": {
+              "type": "string",
+              "pattern": "^[a-z][a-z0-9_]*\\.[a-z][a-z0-9_]*$"
+            }
+          },
+          "required": [
+            "ref"
+          ]
+        },
+        {
+          "type": "object",
+          "properties": {
+            "value": {
+              "type": "number"
+            }
+          },
+          "required": [
+            "value"
+          ]
+        },
+        {
+          "type": "object",
+          "properties": {
+            "op": {
+              "type": "string",
+              "enum": [
+                "add",
+                "sub",
+                "mul",
+                "div",
+                "min",
+                "max"
+              ]
+            },
+            "args": {
+              "type": "array",
+              "prefixItems": [
+                {
+                  "$ref": "#/$defs/__schema1"
+                },
+                {
+                  "$ref": "#/$defs/__schema1"
+                }
+              ],
+              "items": false,
+              "minItems": 2,
+              "maxItems": 2
+            }
+          },
+          "required": [
+            "op",
+            "args"
+          ]
+        },
+        {
+          "type": "object",
+          "properties": {
+            "op": {
+              "type": "string",
+              "const": "abs"
+            },
+            "arg": {
+              "$ref": "#/$defs/__schema1"
+            }
+          },
+          "required": [
+            "op",
+            "arg"
+          ]
+        }
+      ]
+    }
+  }
+}
