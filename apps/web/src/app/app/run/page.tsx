@@ -8,21 +8,23 @@ import { instrumentLabel } from "@weft/strategy";
 import { api } from "@/lib/api";
 import { useRequireAuth } from "@/lib/auth";
 import { useApi, fmtUsd, fmtPct, fmtPrice, ago } from "@/lib/use-api";
-import { PageHeader, Card, Btn, Pill, Stat, Empty } from "@/components/app/AppShell";
+import { PageHeader, Card, Btn, Stat, Empty } from "@/components/app/AppShell";
+import { RunStatus } from "@/components/app/RunCard";
+import { StrategyRules } from "@/components/app/StrategyRules";
 import { StrategyCanvas } from "@/components/app/StrategyCanvas";
 import { EquityChart } from "@/components/app/EquityChart";
 
-const EVENT_TONE: Record<string, string> = {
-  fill: "text-long",
-  trigger_fired: "text-trigger",
-  trigger_met: "text-trigger",
-  rejected: "text-short",
-  error: "text-short",
-  warning: "text-trigger",
-  notify: "text-signal",
-  intent: "text-ink",
-  status: "text-ink-2",
-  tick: "text-faint",
+const EVENT: Record<string, [label: string, color: string]> = {
+  fill: ["Trade", "var(--long)"],
+  trigger_fired: ["Rule fired", "var(--trigger)"],
+  trigger_met: ["Conditions met", "var(--trigger)"],
+  rejected: ["Blocked", "var(--short)"],
+  error: ["Error", "var(--short)"],
+  warning: ["Warning", "var(--trigger)"],
+  notify: ["Alert", "var(--signal)"],
+  intent: ["Order", "var(--ink)"],
+  status: ["Status", "var(--muted)"],
+  tick: ["Check", "var(--line-2)"],
 };
 
 function HoldToKill({ onKill }: { onKill: () => void }) {
@@ -53,11 +55,12 @@ function HoldToKill({ onKill }: { onKill: () => void }) {
       onPointerLeave={cancel}
       onKeyDown={(e) => (e.key === " " || e.key === "Enter") && !e.repeat && start()}
       onKeyUp={cancel}
-      className="relative inline-flex h-10 select-none items-center gap-2 overflow-hidden rounded-full bg-[var(--short-soft)] px-4 text-[14px] font-medium text-short"
-      aria-label="Hold to kill: closes every position"
+      className="relative inline-flex h-9 select-none items-center gap-2 overflow-hidden rounded-[10px] border border-[color-mix(in_oklab,var(--short)_35%,transparent)] px-3.5 text-[14px] font-medium text-short"
+      aria-label="Hold to stop: closes every position and cancels every order"
+      title="Hold for a second: closes every position and cancels every order"
     >
-      <span className="absolute inset-y-0 left-0 bg-short/25" style={{ width: `${p * 100}%` }} />
-      <span className="relative">Hold to kill</span>
+      <span className="absolute inset-y-0 left-0 bg-[var(--short-soft)]" style={{ width: `${p * 100}%` }} />
+      <span className="relative">{p > 0 ? "Keep holding…" : "Hold to stop"}</span>
     </button>
   );
 }
@@ -68,6 +71,7 @@ function Run() {
   const fills = useApi(id ? () => api.fills(id) : null, [id], { pollMs: 8_000 });
   const [events, setEvents] = useState<EngineEvent[]>([]);
   const [showTicks, setShowTicks] = useState(false);
+  const [view, setView] = useState<"rules" | "graph">("rules");
   const [controlError, setControlError] = useState<string | null>(null);
   const requireAuth = useRequireAuth();
 
@@ -114,7 +118,7 @@ function Run() {
   if (!s) {
     return (
       <div className="p-10">
-        {snap.error ? <Empty title="Couldn't load this run" sub={snap.error.message} action={<Btn href="/app/runs">All runs</Btn>} /> : <div className="h-64 animate-pulse rounded-[20px] bg-paper-2" />}
+        {snap.error ? <Empty title="Couldn’t load this run" sub={snap.error.message} action={<Btn href="/app/runs">All runs</Btn>} /> : <div className="h-64 animate-pulse rounded-[12px] bg-paper-2" />}
       </div>
     );
   }
@@ -135,149 +139,196 @@ function Run() {
   };
   const shown = showTicks ? events : events.filter((e) => e.type !== "tick");
 
+  const metMap = Object.fromEntries(s.triggers.map((t) => [t.id, t.met]));
+  const tone = (v: number) => (v > 0 ? "long" : v < 0 ? "short" : undefined);
+  const fillList = [...(fills.data?.fills ?? [])].reverse();
+
   return (
     <>
       <PageHeader
-        eyebrow={`${d.mode === "live" ? "LIVE run" : "Paper run"} · ${d.id}`}
+        back={{ href: "/app/runs", label: "Runs" }}
         title={d.strategy.name}
-        sub={<span className="italic">“{d.strategy.thesis}”</span>}
+        sub={
+          <span className="flex flex-wrap items-center gap-x-3 gap-y-1">
+            <RunStatus s={s} />
+            <span className="text-faint">·</span>
+            <span>checks every {d.intervalSec < 60 ? `${d.intervalSec} s` : `${d.intervalSec / 60} min`}</span>
+          </span>
+        }
         actions={
           <>
-            {d.mode === "live" && <Pill tone="short">● Live · real orders</Pill>}
-            <Pill tone={status === "running" ? "long" : status === "killed" ? "short" : "neutral"}>
-              {status === "running" && <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-long" />}
-              {status}
-            </Pill>
-            {status === "running" && <Btn variant="ghost" onClick={() => control("pause")}>Pause</Btn>}
-            {status === "paused" && <Btn variant="ghost" onClick={() => control("resume")}>Resume</Btn>}
-            {(status === "running" || status === "paused") && <Btn variant="ghost" onClick={() => control("tick")}>Run tick now</Btn>}
+            {(status === "running" || status === "paused") && (
+              <Btn variant="quiet" onClick={() => control("tick")}>
+                Check now
+              </Btn>
+            )}
+            {status === "running" && (
+              <Btn variant="ghost" onClick={() => control("pause")}>
+                Pause
+              </Btn>
+            )}
+            {status === "paused" && (
+              <Btn variant="ghost" onClick={() => control("resume")}>
+                Resume
+              </Btn>
+            )}
             {(status === "running" || status === "paused") && <HoldToKill onKill={() => control("kill")} />}
           </>
         }
       />
-      <div className="space-y-6 px-5 py-6 lg:px-10">
-        {controlError && <Card className="p-3 text-[13px] text-short">{controlError}</Card>}
-        <div className="grid grid-cols-2 gap-3 lg:grid-cols-5">
-          <Stat label="Equity" value={fmtUsd(s.equityUsd, 2)} sub={`of ${fmtUsd(d.allocationUsd, 0)} allocated`} />
-          <Stat label="Return" value={fmtPct(s.returnPct)} tone={s.returnPct > 0 ? "long" : s.returnPct < 0 ? "short" : undefined} />
-          <Stat label="Unrealized" value={fmtUsd(s.unrealizedPnlUsd, 2)} tone={s.unrealizedPnlUsd > 0 ? "long" : s.unrealizedPnlUsd < 0 ? "short" : undefined} />
-          <Stat label="Realized" value={fmtUsd(s.realizedPnlUsd, 2)} tone={s.realizedPnlUsd > 0 ? "long" : s.realizedPnlUsd < 0 ? "short" : undefined} />
-          <Stat label="Last check" value={ago(s.lastTickAt)} sub={`every ${d.intervalSec}s${s.builderFeesUsd != null ? ` · fees ${fmtUsd(s.builderFeesUsd, 2)}` : ""}`} />
+      <div className="space-y-8 px-5 pb-16 pt-6 lg:px-10">
+        {d.mode === "live" && (
+          <div className="rounded-[12px] bg-[var(--short-soft)] px-4 py-3 text-[14px] text-short">This run places real orders from your Hyperliquid account.</div>
+        )}
+        {controlError && <div className="rounded-[12px] bg-[var(--short-soft)] px-4 py-3 text-[14px] text-short">{controlError}</div>}
+
+        <div className="grid grid-cols-2 gap-x-6 gap-y-5 border-y border-line py-5 sm:grid-cols-5">
+          <Stat label="Value" value={fmtUsd(s.equityUsd, 2)} sub={`started with ${fmtUsd(d.allocationUsd, 0)}`} />
+          <Stat label="Return" value={fmtPct(s.returnPct)} tone={tone(s.returnPct)} />
+          <Stat label="Open profit" value={fmtUsd(s.unrealizedPnlUsd, 2)} tone={tone(s.unrealizedPnlUsd)} />
+          <Stat label="Closed profit" value={fmtUsd(s.realizedPnlUsd, 2)} tone={tone(s.realizedPnlUsd)} />
+          <Stat label="Last check" value={ago(s.lastTickAt)} sub={s.builderFeesUsd ? `fees ${fmtUsd(s.builderFeesUsd, 2)}` : undefined} />
         </div>
 
-        <StrategyCanvas strategy={d.strategy} live={live} animate={false} />
-
-        <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_400px]">
-          <div className="min-w-0 space-y-6">
-            <Card className="p-5">
+        <div className="grid gap-8 xl:grid-cols-[minmax(0,1fr)_380px]">
+          <div className="min-w-0 space-y-8">
+            <section>
               <div className="mb-3 flex items-center justify-between">
-                <div className="text-[15px] font-semibold tracking-[-0.02em]">Equity</div>
-                <span className="font-mono text-[11px] text-faint">{s.equityCurve.length} samples</span>
-              </div>
-              <EquityChart points={s.equityCurve} base={d.allocationUsd} />
-            </Card>
-
-            <Card className="overflow-hidden">
-              <div className="flex items-center justify-between border-b border-line px-5 py-4">
-                <div className="text-[15px] font-semibold tracking-[-0.02em]">Open positions</div>
-                <span className="font-mono text-[11px] text-faint">{s.positions.length}</span>
-              </div>
-              {s.positions.length === 0 ? (
-                <div className="px-5 py-8 text-center text-[13.5px] text-ink-2">No open positions. The agent is waiting for its triggers.</div>
-              ) : (
-                <div className="overflow-x-auto">
-                  <table className="w-full min-w-[820px] text-left text-[13px]">
-                    <thead className="font-mono text-[10.5px] uppercase tracking-[0.12em] text-muted">
-                      <tr className="border-b border-line">
-                        <th className="px-5 py-2.5 font-normal">Instrument</th>
-                        <th className="px-3 py-2.5 font-normal">Side</th>
-                        <th className="px-3 py-2.5 text-right font-normal">Size</th>
-                        <th className="px-3 py-2.5 text-right font-normal">Entry</th>
-                        <th className="px-3 py-2.5 text-right font-normal">Mark</th>
-                        <th className="px-3 py-2.5 text-right font-normal">Liq.</th>
-                        <th className="px-3 py-2.5 text-right font-normal">Funding</th>
-                        <th className="px-5 py-2.5 text-right font-normal">P&amp;L</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {s.positions.map((p) => (
-                        <tr key={p.id} className="border-b border-line last:border-0">
-                          <td className="px-5 py-3 font-medium">{instrumentLabel(p.instrument)}</td>
-                          <td className="px-3 py-3"><Pill tone={p.side === "long" ? "long" : "short"}>{p.side}{p.leverage > 1 ? ` ${p.leverage}×` : ""}</Pill></td>
-                          <td className="tnum px-3 py-3 text-right font-mono">{fmtUsd(p.sizeUsd, 2)}</td>
-                          <td className="tnum px-3 py-3 text-right font-mono">{fmtPrice(p.entryPrice)}</td>
-                          <td className="tnum px-3 py-3 text-right font-mono">{fmtPrice(p.markPrice)}</td>
-                          <td className="tnum px-3 py-3 text-right font-mono text-short/80">{p.liquidationPrice ? fmtPrice(p.liquidationPrice) : "—"}</td>
-                          <td className={`tnum px-3 py-3 text-right font-mono ${(p.fundingPaidUsd ?? 0) > 0 ? "text-short" : "text-ink-2"}`}>{p.fundingPaidUsd != null ? fmtUsd(-p.fundingPaidUsd, 2) : "—"}</td>
-                          <td className={`tnum px-5 py-3 text-right font-mono ${p.unrealizedPnlUsd >= 0 ? "text-long" : "text-short"}`}>
-                            {fmtUsd(p.unrealizedPnlUsd, 2)} <span className="text-[11px]">({fmtPct(p.unrealizedPnlPct)})</span>
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
+                <h2 className="text-[15px] font-semibold text-ink">Rules</h2>
+                <div className="flex gap-1">
+                  {(
+                    [
+                      ["rules", "Text"],
+                      ["graph", "Diagram"],
+                    ] as const
+                  ).map(([k, l]) => (
+                    <button
+                      key={k}
+                      onClick={() => setView(k)}
+                      className={`h-7 rounded-[7px] px-2.5 text-[13px] ${view === k ? "bg-paper-2 font-medium text-ink" : "text-muted hover:text-ink"}`}
+                    >
+                      {l}
+                    </button>
+                  ))}
                 </div>
-              )}
-            </Card>
+              </div>
+              {view === "rules" ? <StrategyRules strategy={d.strategy} met={metMap} /> : <StrategyCanvas strategy={d.strategy} live={live} animate={false} />}
+            </section>
 
-            <Card className="overflow-hidden">
-              <div className="border-b border-line px-5 py-4 text-[15px] font-semibold tracking-[-0.02em]">Fills</div>
-              {(fills.data?.fills ?? []).length === 0 ? (
-                <div className="px-5 py-8 text-center text-[13.5px] text-ink-2">No fills yet.</div>
-              ) : (
-                <div className="max-h-[360px] overflow-auto">
-                  <table className="w-full min-w-[600px] text-left text-[12.5px]">
-                    <tbody>
-                      {[...(fills.data?.fills ?? [])].reverse().map((f) => (
-                        <tr key={f.id} className="border-b border-line last:border-0">
-                          <td className="px-5 py-2.5 font-mono text-faint">{new Date(f.ts).toLocaleTimeString()}</td>
-                          <td className="px-3 py-2.5"><Pill tone={f.side === "buy" ? "long" : "short"}>{f.side}</Pill></td>
-                          <td className="px-3 py-2.5 font-mono text-ink-2">{f.instrumentKey.split(":").slice(-1)[0]?.slice(0, 18)}</td>
-                          <td className="tnum px-3 py-2.5 text-right font-mono">{fmtPrice(f.price)}</td>
-                          <td className="px-3 py-2.5 font-mono text-[11px] text-muted">{f.reason.replace("_", " ")}</td>
-                          <td className={`tnum px-5 py-2.5 text-right font-mono ${f.realizedPnlUsd == null ? "text-faint" : f.realizedPnlUsd >= 0 ? "text-long" : "text-short"}`}>
-                            {f.realizedPnlUsd == null ? `fee ${fmtUsd(f.feeUsd, 2)}` : fmtUsd(f.realizedPnlUsd, 2)}
-                          </td>
+            <section>
+              <h2 className="mb-3 text-[15px] font-semibold text-ink">Value over time</h2>
+              <Card className="p-5">
+                <EquityChart points={s.equityCurve} base={d.allocationUsd} />
+              </Card>
+            </section>
+
+            <section>
+              <h2 className="mb-3 text-[15px] font-semibold text-ink">
+                Open positions <span className="font-normal text-muted">{s.positions.length || ""}</span>
+              </h2>
+              <Card className="overflow-hidden">
+                {s.positions.length === 0 ? (
+                  <p className="px-5 py-8 text-center text-[14px] text-muted">No open positions. It’s waiting for a rule to fire.</p>
+                ) : (
+                  <div className="overflow-x-auto">
+                    <table className="w-full min-w-[680px] text-left text-[13.5px]">
+                      <thead className="text-[12.5px] text-muted">
+                        <tr className="border-b border-line">
+                          <th className="px-5 py-2.5 font-normal">Market</th>
+                          <th className="px-3 py-2.5 font-normal">Side</th>
+                          <th className="px-3 py-2.5 text-right font-normal">Size</th>
+                          <th className="px-3 py-2.5 text-right font-normal">Entry</th>
+                          <th className="px-3 py-2.5 text-right font-normal">Now</th>
+                          <th className="px-3 py-2.5 text-right font-normal">Liquidation</th>
+                          <th className="px-5 py-2.5 text-right font-normal">Profit</th>
                         </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              )}
-            </Card>
+                      </thead>
+                      <tbody>
+                        {s.positions.map((p) => (
+                          <tr key={p.id} className="border-b border-line last:border-0">
+                            <td className="px-5 py-3 font-medium text-ink">{instrumentLabel(p.instrument)}</td>
+                            <td className={`px-3 py-3 ${p.side === "long" ? "text-long" : "text-short"}`}>
+                              {p.side === "long" ? "Long" : "Short"}
+                              {p.leverage > 1 ? <span className="text-muted"> {p.leverage}×</span> : null}
+                            </td>
+                            <td className="tnum px-3 py-3 text-right">{fmtUsd(p.sizeUsd, 2)}</td>
+                            <td className="tnum px-3 py-3 text-right text-ink-2">{fmtPrice(p.entryPrice)}</td>
+                            <td className="tnum px-3 py-3 text-right">{fmtPrice(p.markPrice)}</td>
+                            <td className="tnum px-3 py-3 text-right text-ink-2">{p.liquidationPrice ? fmtPrice(p.liquidationPrice) : "—"}</td>
+                            <td className={`tnum px-5 py-3 text-right ${p.unrealizedPnlUsd >= 0 ? "text-long" : "text-short"}`}>
+                              {fmtUsd(p.unrealizedPnlUsd, 2)} <span className="text-[12px] opacity-80">{fmtPct(p.unrealizedPnlPct)}</span>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
+              </Card>
+            </section>
+
+            <section>
+              <h2 className="mb-3 text-[15px] font-semibold text-ink">
+                Trades <span className="font-normal text-muted">{fillList.length || ""}</span>
+              </h2>
+              <Card className="overflow-hidden">
+                {fillList.length === 0 ? (
+                  <p className="px-5 py-8 text-center text-[14px] text-muted">No trades yet.</p>
+                ) : (
+                  <div className="max-h-[360px] overflow-auto">
+                    <table className="w-full min-w-[560px] text-left text-[13.5px]">
+                      <tbody>
+                        {fillList.map((f) => (
+                          <tr key={f.id} className="border-b border-line last:border-0">
+                            <td className="tnum px-5 py-2.5 text-muted">{new Date(f.ts).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}</td>
+                            <td className={`px-3 py-2.5 ${f.side === "buy" ? "text-long" : "text-short"}`}>{f.side === "buy" ? "Buy" : "Sell"}</td>
+                            <td className="px-3 py-2.5 text-ink">{f.instrumentKey.split(":").slice(-1)[0]?.slice(0, 18)}</td>
+                            <td className="tnum px-3 py-2.5 text-right">{fmtPrice(f.price)}</td>
+                            <td className="px-3 py-2.5 text-muted">{f.reason.replaceAll("_", " ")}</td>
+                            <td className={`tnum px-5 py-2.5 text-right ${f.realizedPnlUsd == null ? "text-muted" : f.realizedPnlUsd >= 0 ? "text-long" : "text-short"}`}>
+                              {f.realizedPnlUsd == null ? `fee ${fmtUsd(f.feeUsd, 2)}` : fmtUsd(f.realizedPnlUsd, 2)}
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
+              </Card>
+            </section>
           </div>
 
-          <Card className="flex max-h-[880px] flex-col overflow-hidden">
-            <div className="flex items-center justify-between border-b border-line px-5 py-4">
-              <div className="flex items-center gap-2 text-[15px] font-semibold tracking-[-0.02em]">
-                <span className="relative flex h-2 w-2"><span className="pulse-ring absolute inset-0 rounded-full bg-volt" /><span className="relative h-2 w-2 rounded-full bg-volt" /></span>
-                Execution log
-              </div>
-              <label className="flex items-center gap-1.5 font-mono text-[10.5px] text-muted">
-                <input type="checkbox" checked={showTicks} onChange={(e) => setShowTicks(e.target.checked)} /> ticks
+          <section className="min-w-0">
+            <div className="mb-3 flex items-center justify-between">
+              <h2 className="text-[15px] font-semibold text-ink">Activity</h2>
+              <label className="flex items-center gap-1.5 text-[13px] text-muted">
+                <input type="checkbox" checked={showTicks} onChange={(e) => setShowTicks(e.target.checked)} className="accent-[var(--ink)]" /> Show every check
               </label>
             </div>
-            <div className="flex-1 overflow-auto bg-[#0b0c0f] p-4 font-mono text-[11.5px] leading-[1.75] text-[#e9e7e2]">
-              <AnimatePresence initial={false}>
-                {shown.slice(0, 200).map((e) => (
-                  <motion.div key={e.id} initial={{ opacity: 0, x: -6 }} animate={{ opacity: 1, x: 0 }} className="flex gap-3">
-                    <span className="shrink-0 text-[#6e717a]">{new Date(e.ts).toLocaleTimeString([], { hour12: false })}</span>
-                    <span className={`w-[78px] shrink-0 uppercase ${EVENT_TONE[e.type] ?? "text-[#9a9da5]"}`} style={{ color: e.type === "tick" ? "#6e717a" : undefined }}>
-                      {e.type.replace("_", " ")}
-                    </span>
-                    <span className="min-w-0 break-words">{e.message}</span>
-                  </motion.div>
-                ))}
-              </AnimatePresence>
-              {shown.length === 0 && <div className="text-[#6e717a]">Waiting for the first tick…</div>}
-            </div>
-          </Card>
+            <Card className="max-h-[820px] overflow-auto">
+              <ol className="divide-y divide-line">
+                <AnimatePresence initial={false}>
+                  {shown.slice(0, 200).map((e) => {
+                    const [label, color] = EVENT[e.type] ?? [e.type, "var(--muted)"];
+                    return (
+                      <motion.li key={e.id} initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="px-4 py-3">
+                        <div className="flex items-center gap-2 text-[12.5px]">
+                          <span className="h-1.5 w-1.5 rounded-full" style={{ background: color }} />
+                          <span className="font-medium text-ink-2">{label}</span>
+                          <span className="tnum ml-auto text-faint">{new Date(e.ts).toLocaleTimeString([], { hour12: false })}</span>
+                        </div>
+                        <p className="mt-1 break-words pl-3.5 text-[13.5px] leading-relaxed text-ink">{e.message}</p>
+                      </motion.li>
+                    );
+                  })}
+                </AnimatePresence>
+              </ol>
+              {shown.length === 0 && <p className="px-4 py-8 text-center text-[14px] text-muted">Waiting for the first check…</p>}
+            </Card>
+          </section>
         </div>
 
-        <div className="flex flex-wrap gap-3 font-mono text-[11px] text-faint">
-          <Link href="/app/runs" className="hover:text-ink">← All runs</Link>
-          <span>{d.mode === "live" ? "Live trading on Hyperliquid through your agent." : "Paper trading with live prices."} Not financial advice.</span>
-        </div>
+        <p className="text-[12.5px] text-faint">{d.mode === "live" ? "Live trading on Hyperliquid through your agent." : "Paper trading with live prices."} Not financial advice.</p>
       </div>
     </>
   );

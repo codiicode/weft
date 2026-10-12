@@ -1,24 +1,24 @@
 "use client";
 import { Suspense, useEffect, useRef, useState } from "react";
 import { useSearchParams } from "next/navigation";
-import { AnimatePresence, motion } from "motion/react";
+import { motion } from "motion/react";
 import Link from "next/link";
 import type { Strategy } from "@weft/strategy";
 import { api, ApiError, type GenerateProgress, type GenerateResult } from "@/lib/api";
 import { useRequireAuth } from "@/lib/auth";
-import { PageHeader, Card, Btn, Pill } from "@/components/app/AppShell";
+import { PageHeader, Card, Btn } from "@/components/app/AppShell";
+import { StrategyRules } from "@/components/app/StrategyRules";
 import { StrategyCanvas } from "@/components/app/StrategyCanvas";
 import { DeployPanel } from "@/components/app/DeployPanel";
 import { BacktestPanel } from "@/components/app/BacktestPanel";
-import { IconModel, IconSend, IconCheck } from "@/components/graph/icons";
+import { IconSend, IconCheck } from "@/components/graph/icons";
 
 const SUGGESTIONS = [
-  "Buy $BONK when it dips 10% and sentiment turns bullish. 0.5 SOL, tight stop.",
-  "El Niño is coming — what's the trade?",
+  "Buy $BONK if it dips 10% and sentiment turns positive. 0.5 SOL, tight stop.",
+  "El Niño is coming. What's the trade?",
   "The Fed cuts in December and nobody's positioned for it.",
-  "NVDA rips into earnings, flat before the print.",
-  "SOL longs are way too crowded. Fade them.",
-  "ETH call spread if it breaks out this week.",
+  "NVDA rallies into earnings. Be out before the report.",
+  "SOL longs are too crowded. Fade them.",
 ];
 
 function Builder() {
@@ -28,7 +28,7 @@ function Builder() {
   const [steps, setSteps] = useState<GenerateProgress[]>([]);
   const [result, setResult] = useState<GenerateResult | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [tab, setTab] = useState<"graph" | "json">("graph");
+  const [tab, setTab] = useState<"rules" | "graph" | "json">("rules");
   const [json, setJson] = useState("");
   const [jsonMsg, setJsonMsg] = useState<{ ok: boolean; text: string } | null>(null);
   const [saved, setSaved] = useState<string | null>(null);
@@ -70,7 +70,7 @@ function Builder() {
       const v = await api.validate(parsed);
       setResult((r) => (r ? { ...r, strategy: v.strategy, warnings: v.warnings, graph: v.graph } : r));
       setJsonMsg({ ok: true, text: `Valid. ${v.warnings.length} warning(s).` });
-      setTab("graph");
+      setTab("rules");
     } catch (e) {
       setJsonMsg({ ok: false, text: e instanceof ApiError && e.issues?.length ? e.issues.map((i) => `${i.path}: ${i.message}`).join("\n") : (e as Error).message });
     }
@@ -82,132 +82,121 @@ function Builder() {
     setSaved(entry.id);
   };
 
+  const running = status === "running";
   return (
     <>
-      <PageHeader eyebrow="New strategy" title={<>Write the <span className="serif-em">thesis.</span></>} sub="Plain language. The agent researches the markets, builds a graph you can read, and you decide whether it runs." />
-      <div className="space-y-6 px-5 py-6 lg:px-10">
-        {/* Prompt */}
-        <Card className="p-3 sm:p-4">
-          <form
-            onSubmit={(e) => {
-              e.preventDefault();
-              generate();
+      <PageHeader title="New strategy" sub="Describe a trade in your own words. Weft drafts the rules, and nothing runs until you say so." />
+      <div className="space-y-8 px-5 pb-16 pt-6 lg:px-10">
+        <form
+          onSubmit={(e) => {
+            e.preventDefault();
+            generate();
+          }}
+          className="max-w-[860px] rounded-[14px] border border-line-2 bg-card focus-within:border-ink/40"
+        >
+          <textarea
+            value={thesis}
+            onChange={(e) => setThesis(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) generate();
             }}
-            className="flex items-start gap-3"
-          >
-            <span className="mt-1 grid h-8 w-8 shrink-0 place-items-center rounded-lg bg-[var(--signal-soft)] text-signal">
-              <IconModel size={16} />
-            </span>
-            <textarea
-              value={thesis}
-              onChange={(e) => setThesis(e.target.value)}
-              onKeyDown={(e) => {
-                if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) generate();
-              }}
-              rows={2}
-              placeholder="e.g. Buy $WIF when it reclaims 2.40 and X turns bullish, 1 SOL, stop at −15%"
-              className="min-h-[56px] flex-1 resize-none bg-transparent py-1.5 text-[17px] leading-relaxed tracking-[-0.01em] text-ink outline-none placeholder:text-faint"
-              aria-label="Your market thesis"
-            />
-            <button
-              type="submit"
-              disabled={status === "running" || thesis.trim().length < 3}
-              className="mt-0.5 grid h-10 w-10 shrink-0 place-items-center rounded-full bg-ink text-paper transition-opacity disabled:opacity-30"
-              aria-label="Generate strategy"
-            >
-              {status === "running" ? <span className="spin-slow block h-4 w-4 rounded-full border-2 border-paper/30 border-t-paper" /> : <IconSend size={15} />}
-            </button>
-          </form>
-          <div className="mt-3 flex flex-wrap gap-1.5 border-t border-line pt-3">
-            {SUGGESTIONS.map((s) => (
-              <button
-                key={s}
-                onClick={() => {
-                  setThesis(s);
-                  generate(s);
-                }}
-                className="rounded-full border border-line px-3 py-1 text-[12.5px] text-ink-2 transition-colors hover:border-ink hover:text-ink"
-              >
-                {s.length > 48 ? `${s.slice(0, 46)}…` : s}
-              </button>
-            ))}
+            rows={3}
+            placeholder="e.g. Buy $WIF if it gets back above 2.40 and X turns bullish. Use 1 SOL and stop out at −15%."
+            className="block min-h-[96px] w-full resize-none bg-transparent px-4 pt-4 text-[17px] leading-relaxed text-ink outline-none placeholder:text-faint"
+            aria-label="Your trade idea"
+          />
+          <div className="flex items-center justify-between gap-3 px-3 pb-3">
+            <span className="hidden pl-1 text-[12.5px] text-faint sm:inline">⌘ + Enter</span>
+            <Btn type="submit" disabled={running || thesis.trim().length < 3} className="ml-auto">
+              {running ? (
+                <>
+                  <span className="spin-slow block h-3.5 w-3.5 rounded-full border-2 border-paper/30 border-t-paper" /> Drafting…
+                </>
+              ) : (
+                <>
+                  Draft strategy <IconSend size={14} />
+                </>
+              )}
+            </Btn>
           </div>
-        </Card>
-
-        {/* Progress */}
-        <AnimatePresence>
-          {(status === "running" || (status !== "idle" && steps.length > 0)) && (
-            <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} className="flex flex-wrap items-center gap-1.5">
-              <span className={`mr-1 font-mono text-[10.5px] uppercase tracking-[0.12em] ${status === "running" ? "shimmer-text" : "text-muted"}`}>
-                {status === "running" ? "Researching" : "Research"}
-              </span>
-              {steps.map((s, i) => (
-                <motion.span
-                  key={i}
-                  initial={{ opacity: 0, scale: 0.95 }}
-                  animate={{ opacity: 1, scale: 1 }}
-                  className="inline-flex items-center gap-1.5 rounded-full border border-line bg-card px-2.5 py-1 text-[12px] text-ink-2"
-                >
-                  {i === steps.length - 1 && status === "running" ? (
-                    <span className="spin-slow block h-3 w-3 rounded-full border-[1.5px] border-line-2 border-t-ink-2" />
-                  ) : (
-                    <IconCheck size={11} className={s.type === "invalid" ? "text-trigger" : "text-long"} />
-                  )}
-                  {s.message}
-                </motion.span>
-              ))}
-            </motion.div>
-          )}
-        </AnimatePresence>
-
-        {error && (
-          <Card className="border-[color-mix(in_oklab,var(--short)_40%,transparent)] p-4 text-[14px] text-short">
-            {error}. Is the API running? <span className="font-mono">npm run dev -w @weft/api</span>
-          </Card>
-        )}
+        </form>
 
         {status === "idle" && (
-          <div className="dot-grid grid place-items-center rounded-[20px] border border-dashed border-line-2 px-6 py-20 text-center">
-            <div className="max-w-md">
-              <div className="text-[17px] font-semibold tracking-[-0.02em]">Your strategy graph appears here</div>
-              <p className="mt-1.5 text-[14px] text-ink-2">
-                Perps, stocks, predictions, Solana tokens and options. Tokens are resolved to their mint address, and vague words like “bullish” become measurable conditions.
-              </p>
-            </div>
-          </div>
-        )}
-
-        {status === "running" && !result && (
-          <div className="dot-grid grid h-[360px] place-items-center rounded-[20px] border border-line bg-paper/50">
-            <div className="flex items-center gap-2">
-              {["var(--signal)", "var(--trigger)", "var(--long)"].map((c, i) => (
-                <motion.span key={c} className="h-2.5 w-2.5 rounded-full" style={{ background: c }} animate={{ y: [0, -8, 0], opacity: [0.4, 1, 0.4] }} transition={{ duration: 0.9, repeat: Infinity, delay: i * 0.15 }} />
+          <div className="max-w-[860px]">
+            <p className="text-[13px] text-muted">Or try one of these</p>
+            <ul className="mt-2 divide-y divide-line border-y border-line">
+              {SUGGESTIONS.map((s) => (
+                <li key={s}>
+                  <button
+                    onClick={() => {
+                      setThesis(s);
+                      generate(s);
+                    }}
+                    className="flex w-full items-center justify-between gap-4 py-3 text-left text-[14.5px] text-ink-2 transition-colors hover:text-ink"
+                  >
+                    {s}
+                    <span className="text-faint">→</span>
+                  </button>
+                </li>
               ))}
-            </div>
+            </ul>
           </div>
         )}
 
-        {/* Result */}
-        {result && strategy && (
-          <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_340px]">
-            <div className="min-w-0 space-y-4">
-              <div className="flex flex-wrap items-center gap-2">
-                <h2 className="text-[24px] font-semibold tracking-[-0.03em]">{strategy.name}</h2>
-                <Pill tone={result.source === "claude" ? "signal" : "neutral"}>{result.source === "claude" ? "Built by Claude" : "Template"}</Pill>
-                {strategy.tags.map((t) => (
-                  <Pill key={t}>{t}</Pill>
-                ))}
-                <div className="ml-auto flex rounded-full border border-line p-0.5">
-                  {(["graph", "json"] as const).map((t) => (
-                    <button key={t} onClick={() => setTab(t)} className={`rounded-full px-3 py-1 font-mono text-[11px] uppercase tracking-[0.1em] ${tab === t ? "bg-ink text-paper" : "text-ink-2"}`}>
-                      {t}
-                    </button>
-                  ))}
-                </div>
-              </div>
-              {result.rationale && <p className="max-w-3xl text-[15px] leading-relaxed text-ink-2">{result.rationale}</p>}
+        {(running || (status !== "idle" && steps.length > 0 && !result)) && (
+          <ol className="max-w-[860px] space-y-2">
+            {steps.map((s, i) => (
+              <motion.li key={i} initial={{ opacity: 0, y: 4 }} animate={{ opacity: 1, y: 0 }} className="flex items-center gap-2.5 text-[14px] text-ink-2">
+                {i === steps.length - 1 && running ? (
+                  <span className="spin-slow block h-3.5 w-3.5 rounded-full border-[1.5px] border-line-2 border-t-ink-2" />
+                ) : (
+                  <IconCheck size={14} strokeWidth={2.2} className={s.type === "invalid" ? "text-trigger" : "text-long"} />
+                )}
+                {s.message}
+              </motion.li>
+            ))}
+            {running && steps.length === 0 && <li className="shimmer-text text-[14px]">Reading your idea…</li>}
+          </ol>
+        )}
 
-              {tab === "graph" ? (
+        {error && (
+          <div className="max-w-[860px] rounded-[12px] bg-[var(--short-soft)] px-4 py-3 text-[14px] text-short">
+            Couldn’t draft that: {error}
+          </div>
+        )}
+
+        {result && strategy && (
+          <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} className="grid gap-8 xl:grid-cols-[minmax(0,1fr)_340px]">
+            <div className="min-w-0 space-y-5">
+              <div>
+                <p className="text-[13px] text-muted">{result.source === "claude" ? "Drafted by Claude" : "Drafted from a template"}</p>
+                <h2 className="mt-1 text-[24px] font-semibold tracking-[-0.025em] text-ink">{strategy.name}</h2>
+                {result.rationale && <p className="mt-2 max-w-3xl text-[15px] leading-relaxed text-ink-2">{result.rationale}</p>}
+              </div>
+
+              <div role="tablist" aria-label="View" className="flex gap-5 border-b border-line text-[14px]">
+                {(
+                  [
+                    ["rules", "Rules"],
+                    ["graph", "Diagram"],
+                    ["json", "JSON"],
+                  ] as const
+                ).map(([t, l]) => (
+                  <button
+                    key={t}
+                    role="tab"
+                    aria-selected={tab === t}
+                    onClick={() => setTab(t)}
+                    className={`-mb-px border-b-2 pb-2.5 transition-colors ${tab === t ? "border-ink font-medium text-ink" : "border-transparent text-muted hover:text-ink"}`}
+                  >
+                    {l}
+                  </button>
+                ))}
+              </div>
+
+              {tab === "rules" ? (
+                <StrategyRules strategy={strategy} />
+              ) : tab === "graph" ? (
                 <StrategyCanvas strategy={strategy} />
               ) : (
                 <div>
@@ -215,30 +204,32 @@ function Builder() {
                     value={json}
                     onChange={(e) => setJson(e.target.value)}
                     spellCheck={false}
-                    className="h-[520px] w-full rounded-2xl border border-line bg-card p-4 font-mono text-[12px] leading-relaxed text-ink outline-none focus:border-ink"
+                    className="h-[520px] w-full rounded-[12px] border border-line bg-card p-4 font-mono text-[12.5px] leading-relaxed text-ink outline-none focus:border-ink/40"
                     aria-label="Strategy JSON"
                   />
-                  <div className="mt-2 flex items-start gap-3">
-                    <Btn onClick={applyJson} variant="ghost">Validate & apply</Btn>
-                    {jsonMsg && <pre className={`whitespace-pre-wrap font-mono text-[12px] ${jsonMsg.ok ? "text-long" : "text-short"}`}>{jsonMsg.text}</pre>}
+                  <div className="mt-3 flex items-start gap-3">
+                    <Btn onClick={applyJson} variant="ghost">
+                      Check and apply
+                    </Btn>
+                    {jsonMsg && <pre className={`whitespace-pre-wrap pt-2 font-mono text-[12px] ${jsonMsg.ok ? "text-long" : "text-short"}`}>{jsonMsg.text}</pre>}
                   </div>
                 </div>
               )}
 
               {(result.warnings.length > 0 || result.notes.length > 0) && (
-                <Card className="p-4">
-                  <div className="font-mono text-[10.5px] uppercase tracking-[0.14em] text-muted">Notes</div>
-                  <ul className="mt-2 space-y-1.5 text-[13px] text-ink-2">
+                <div className="rounded-[12px] border border-line px-5 py-4">
+                  <p className="text-[13px] font-medium text-ink">Worth knowing</p>
+                  <ul className="mt-2 space-y-1.5 text-[14px] leading-relaxed text-ink-2">
                     {result.notes.map((n) => (
-                      <li key={n}>• {n}</li>
+                      <li key={n}>{n}</li>
                     ))}
                     {result.warnings.map((w) => (
-                      <li key={w.path + w.message}>
-                        <span className="text-trigger">⚠</span> <span className="font-mono text-[11.5px] text-faint">{w.path}</span> {w.message}
+                      <li key={w.path + w.message} className="text-trigger">
+                        {w.message}
                       </li>
                     ))}
                   </ul>
-                </Card>
+                </div>
               )}
 
               <BacktestPanel strategy={strategy} />
@@ -247,25 +238,35 @@ function Builder() {
             <div className="space-y-4">
               <DeployPanel strategy={strategy} />
               <Card className="p-5">
-                <div className="text-[15px] font-semibold tracking-[-0.02em]">Publish to the library</div>
-                <p className="mt-1.5 text-[13px] text-ink-2">Public and forkable. Your wallet and sizes stay private.</p>
+                <div className="text-[15px] font-semibold tracking-[-0.015em] text-ink">Share it</div>
+                <p className="mt-1 text-[13.5px] leading-relaxed text-muted">Others can read and copy the rules. Your wallet and amounts stay private.</p>
                 {saved ? (
                   <Link href={`/app/strategy?id=${encodeURIComponent(saved)}`} className="mt-3 inline-flex items-center gap-1.5 text-[14px] font-medium text-long">
-                    <IconCheck size={14} /> Saved: view it →
+                    <IconCheck size={14} /> Published. View it →
                   </Link>
                 ) : (
-                  <Btn onClick={save} variant="ghost" className="mt-3 w-full">Save strategy</Btn>
+                  <Btn onClick={save} variant="ghost" className="mt-3 w-full">
+                    Publish
+                  </Btn>
                 )}
               </Card>
               <Card className="p-5">
-                <div className="font-mono text-[10.5px] uppercase tracking-[0.14em] text-muted">Risk policy</div>
-                <dl className="mt-3 grid grid-cols-2 gap-y-2 font-mono text-[12px]">
-                  <dt className="text-faint">Max position</dt><dd className="text-right">{strategy.risk.maxPositionPct}%</dd>
-                  <dt className="text-faint">Max exposure</dt><dd className="text-right">{strategy.risk.maxTotalExposurePct}%</dd>
-                  <dt className="text-faint">Max leverage</dt><dd className="text-right">{strategy.risk.maxLeverage}×</dd>
-                  <dt className="text-faint">Daily loss stop</dt><dd className="text-right">{strategy.risk.maxDailyLossPct}%</dd>
-                  <dt className="text-faint">Stops required</dt><dd className="text-right">{strategy.risk.requireStopLoss ? "yes" : "no"}</dd>
-                  <dt className="text-faint">Token min liq.</dt><dd className="text-right">${strategy.risk.token.minLiquidityUsd.toLocaleString()}</dd>
+                <div className="text-[15px] font-semibold tracking-[-0.015em] text-ink">Limits</div>
+                <dl className="mt-3 space-y-2 text-[13.5px]">
+                  {(
+                    [
+                      ["Largest single position", `${strategy.risk.maxPositionPct}%`],
+                      ["Most in the market at once", `${strategy.risk.maxTotalExposurePct}%`],
+                      ["Max leverage", `${strategy.risk.maxLeverage}×`],
+                      ["Stop for the day after losing", `${strategy.risk.maxDailyLossPct}%`],
+                      ["Every trade needs a stop", strategy.risk.requireStopLoss ? "Yes" : "No"],
+                    ] as const
+                  ).map(([k, v]) => (
+                    <div key={k} className="flex justify-between gap-4">
+                      <dt className="text-muted">{k}</dt>
+                      <dd className="tnum text-ink">{v}</dd>
+                    </div>
+                  ))}
                 </dl>
               </Card>
             </div>

@@ -17,12 +17,12 @@ function Step({ n, title, done, active, children }: { n: number; title: string; 
   return (
     <Card className={`p-5 transition-opacity ${active || done ? "" : "opacity-50"}`}>
       <div className="flex items-center gap-3">
-        <span className={`grid h-8 w-8 shrink-0 place-items-center rounded-full font-mono text-[12px] ${done ? "bg-[var(--long-soft)] text-long" : active ? "bg-ink text-paper" : "bg-paper-2 text-muted"}`}>
+        <span className={`grid h-7 w-7 shrink-0 place-items-center rounded-full text-[13px] font-medium ${done ? "bg-[var(--long-soft)] text-long" : active ? "bg-ink text-paper" : "bg-paper-2 text-muted"}`}>
           {done ? <IconCheck size={14} strokeWidth={2.4} /> : n}
         </span>
-        <div className="text-[16px] font-semibold tracking-[-0.02em]">{title}</div>
+        <div className="text-[16px] font-semibold tracking-[-0.015em] text-ink">{title}</div>
       </div>
-      <div className="mt-3 pl-11">{children}</div>
+      <div className="mt-3 pl-10">{children}</div>
     </Card>
   );
 }
@@ -38,7 +38,7 @@ function Setup() {
     const notConfigured = (status.error as ApiError).status === 501;
     return <Empty title={notConfigured ? "Live trading isn't configured on this server" : "Couldn't load live status"} sub={status.error.message} />;
   }
-  if (!s) return <div className="h-64 animate-pulse rounded-[20px] bg-paper-2" />;
+  if (!s) return <div className="h-64 animate-pulse rounded-[12px] bg-paper-2" />;
 
   const net = s.config.network;
   const linked = s.account && s.account.network === net ? s.account : null;
@@ -77,27 +77,27 @@ function Setup() {
       <div className="space-y-4">
         {error && <Card className="p-4 text-[13.5px] text-short">{error}</Card>}
 
-        <Step n={1} title="Link your Hyperliquid account" done={!!linked} active>
+        <Step n={1} title="Connect your Hyperliquid account" done={!!linked} active>
           <p className="text-[13.5px] leading-relaxed text-ink-2">
-            Your own wallet is your Hyperliquid account. Funds stay there; Weft never holds them.
+            Pick the wallet you use on Hyperliquid. Your money stays there.
           </p>
           {linked ? (
-            <div className="mt-3 flex flex-wrap items-center gap-3 font-mono text-[12.5px]">
-              <span className="rounded-lg bg-paper-2 px-2.5 py-1">{shortAddress(linked.hlAddress)}</span>
-              <span className="text-faint">account value</span>
+            <div className="mt-3 flex flex-wrap items-center gap-3 text-[12.5px]">
+              <span className="rounded-[8px] bg-paper-2 px-2.5 py-1">{shortAddress(linked.hlAddress)}</span>
+              <span className="font-sans text-muted">Balance</span>
               <span className={funded ? "text-ink" : "text-trigger"}>{fmtUsd(s.venue?.accountValueUsd ?? 0, 2)}</span>
               {!funded && (
                 <a className="text-signal underline-offset-4 hover:underline" href={HL_APP[net]} target="_blank" rel="noopener noreferrer">
-                  Deposit on Hyperliquid {net} ↗
+                  Deposit on Hyperliquid ↗
                 </a>
               )}
             </div>
           ) : null}
           <div className="mt-3 flex flex-wrap gap-2">
             {!walletsReady ? (
-              <span className="font-mono text-[12px] text-faint">Loading wallets…</span>
+              <span className="text-[12px] text-faint">Loading wallets…</span>
             ) : wallets.length === 0 ? (
-              <span className="text-[13px] text-ink-2">No EVM wallet on your account yet. Sign in with MetaMask/Rabby, or use your Privy wallet.</span>
+              <span className="text-[13.5px] text-muted">No Ethereum wallet on your account yet. Sign in with MetaMask or Rabby.</span>
             ) : (
               wallets.map((w) => (
                 <button
@@ -108,33 +108,32 @@ function Setup() {
                     linked?.hlAddress.toLowerCase() === w.address.toLowerCase() ? "border-long bg-[var(--long-soft)] text-long" : "border-line text-ink-2 hover:border-ink hover:text-ink"
                   }`}
                 >
-                  {shortAddress(w.address)} · {w.walletClientType === "privy" ? "Privy wallet" : w.walletClientType}
+                  {shortAddress(w.address)} · {w.walletClientType === "privy" ? "Weft wallet" : w.walletClientType}
                 </button>
               ))
             )}
           </div>
         </Step>
 
-        <Step n={2} title={s.config.builder ? "Approve the Weft agent and builder fee" : "Approve the Weft agent"} done={agentOk && builderOk} active={!!linked}>
+        <Step n={2} title="Allow Weft to trade" done={agentOk && builderOk} active={!!linked}>
           <p className="text-[13.5px] leading-relaxed text-ink-2">
-            One signature in your wallet authorises Weft&apos;s agent for your account. It can place and cancel orders, nothing else: Hyperliquid
-            doesn&apos;t let agent wallets withdraw, and our key provider only lets it sign trades.
-            {s.config.builder ? ` A second signature allows a ${s.config.builderFeeBps} bps builder fee, which funds token buybacks.` : ""}
+            Sign once in your wallet. This gives Weft a trading-only key for your account: it can place and cancel orders, and nothing else.
+            {s.config.builder ? ` A second signature allows the ${(s.config.builderFeeBps ?? 0) / 100}% trading fee.` : ""}
           </p>
-          {s.agentAddress && <div className="mt-2 font-mono text-[11.5px] text-faint">agent {s.agentAddress}</div>}
+          {s.agentAddress && <div className="mt-2 font-mono text-[13px] text-faint">agent {s.agentAddress}</div>}
           <div className="mt-3 flex flex-wrap items-center gap-2">
             <Btn onClick={approve} disabled={!linked || busy != null || (agentOk && builderOk)} variant={agentOk && builderOk ? "ghost" : "ink"}>
-              {busy === "approve" ? "Waiting for your wallet…" : agentOk && builderOk ? "Approved" : "Approve in wallet"}
+              {busy === "approve" ? "Check your wallet…" : agentOk && builderOk ? "Approved" : "Approve in wallet"}
             </Btn>
-            {agentOk && <Pill tone="long">agent ✓</Pill>}
-            {s.config.builder && builderOk && <Pill tone="long">builder fee ✓</Pill>}
+            {agentOk && <Pill tone="long">Trading key approved</Pill>}
+            {s.config.builder && builderOk && <Pill tone="long">Fee approved</Pill>}
           </div>
           {linked && !signer && <p className="mt-2 text-[12.5px] text-trigger">Sign in with {shortAddress(linked.hlAddress)} to sign the approval.</p>}
         </Step>
 
-        <Step n={3} title="Go live from any strategy" done={s.ready} active={agentOk && builderOk}>
+        <Step n={3} title="Start a strategy live" done={s.ready} active={agentOk && builderOk}>
           <p className="text-[13.5px] leading-relaxed text-ink-2">
-            Open a strategy, choose <span className="font-medium text-ink">Live</span> in the run panel and confirm. Start small; you can kill it any time.
+            Open any strategy, switch the run panel to <span className="font-medium text-ink">Live</span> and confirm. Start small. You can stop it at any time.
           </p>
           {s.blockers.length > 0 && (
             <ul className="mt-2 space-y-1 text-[13px] text-trigger">
@@ -144,7 +143,7 @@ function Setup() {
             </ul>
           )}
           <div className="mt-3 flex gap-2">
-            <Btn href="/app/library" variant="ghost">Library</Btn>
+            <Btn href="/app/library" variant="ghost">Browse strategies</Btn>
             <Btn href="/app/new" variant="ghost">New strategy</Btn>
           </div>
         </Step>
@@ -153,24 +152,24 @@ function Setup() {
       <div className="space-y-4">
         <Card className="p-5">
           <div className="flex items-center justify-between">
-            <div className="text-[15px] font-semibold tracking-[-0.02em]">Network</div>
-            <Pill tone={net === "mainnet" ? "short" : "trigger"}>{net === "mainnet" ? "Mainnet · real money" : "Testnet · play money"}</Pill>
+            <div className="text-[15px] font-semibold tracking-[-0.015em]">{net === "mainnet" ? "Hyperliquid" : "Hyperliquid testnet"}</div>
+            <Pill tone={net === "mainnet" ? "short" : "trigger"}>{net === "mainnet" ? "Real money" : "Test money"}</Pill>
           </div>
           {net === "testnet" && (
             <p className="mt-2 text-[13px] leading-relaxed text-ink-2">
               Testnet uses test USDC from Hyperliquid&apos;s{" "}
-              <a className="text-signal underline-offset-4 hover:underline" href={`${HL_APP.testnet}/drip`} target="_blank" rel="noopener noreferrer">faucet</a>. Everything works like mainnet, without risk.
+              <a className="text-signal underline-offset-4 hover:underline" href={`${HL_APP.testnet}/drip`} target="_blank" rel="noopener noreferrer">faucet</a>. It works exactly like the real thing, without the risk.
             </p>
           )}
         </Card>
         <Card className="p-5">
-          <div className="text-[15px] font-semibold tracking-[-0.02em]">What the agent can do</div>
+          <div className="text-[15px] font-semibold tracking-[-0.015em]">What Weft can do</div>
           <ul className="mt-3 space-y-2 text-[13.5px]">
             {[
               [true, "Place, cancel and close orders"],
-              [true, "Set leverage within your caps"],
+              [true, "Set leverage within your limits"],
               [false, "Withdraw or transfer funds"],
-              [false, "Sign anything that isn't a Hyperliquid trade"],
+              [false, "Sign anything that isn’t a trade"],
             ].map(([ok, t]) => (
               <li key={t as string} className="flex items-center gap-2.5">
                 <span className={`grid h-5 w-5 place-items-center rounded-full ${ok ? "bg-[var(--long-soft)] text-long" : "bg-[var(--short-soft)] text-short"}`}>
@@ -181,25 +180,25 @@ function Setup() {
             ))}
           </ul>
         </Card>
-        <Card className="p-5 font-mono text-[12px]">
-          <div className="flex items-center gap-2 text-[10.5px] uppercase tracking-[0.14em] text-muted">
-            <IconShield size={12} /> Safety caps
+        <Card className="p-5 text-[13.5px]">
+          <div className="flex items-center gap-2 text-[15px] font-semibold tracking-[-0.015em] text-ink">
+            <IconShield size={14} /> Limits
           </div>
           <dl className="mt-3 grid grid-cols-2 gap-y-2">
-            <dt className="text-faint">Max per live run</dt>
-            <dd className="text-right">${s.config.maxAllocationUsd}</dd>
-            <dt className="text-faint">Max leverage</dt>
-            <dd className="text-right">{s.config.maxLeverage}×</dd>
-            <dt className="text-faint">Products</dt>
-            <dd className="text-right">HL perps + spot</dd>
+            <dt className="text-muted">Per live run</dt>
+            <dd className="tnum text-right">up to ${s.config.maxAllocationUsd.toLocaleString()}</dd>
+            <dt className="text-muted">Leverage</dt>
+            <dd className="tnum text-right">up to {s.config.maxLeverage}×</dd>
+            <dt className="text-muted">Markets</dt>
+            <dd className="text-right">Perps and spot</dd>
           </dl>
         </Card>
         <Card className="p-5 text-[13px] leading-relaxed text-ink-2">
           <div className="flex items-center gap-2 text-[15px] font-semibold tracking-[-0.02em] text-ink">
-            <IconKey size={14} /> Revoke any time
+            <IconKey size={14} /> Turn it off any time
           </div>
           <p className="mt-2">
-            On Hyperliquid, open <span className="font-mono">More → API</span> and remove the &quot;weft&quot; agent. Weft then can&apos;t trade for you at all.
+            On Hyperliquid, go to More → API and remove “weft”. Weft can’t trade for you after that.
           </p>
         </Card>
       </div>
@@ -211,16 +210,16 @@ export default function LivePage() {
   const auth = useAuth();
   return (
     <>
-      <PageHeader eyebrow="Live trading" title={<>Real trades, <span className="serif-em">your</span> keys.</>} sub="Connect your Hyperliquid account once. Strategies you approve then trade through an agent that can't withdraw." />
+      <PageHeader title="Live trading" sub="Trade with real money from your own Hyperliquid account. Weft can place trades for you, but can never withdraw." />
       <div className="px-5 py-6 lg:px-10">
         {!auth.enabled ? (
-          <Empty title="Live trading needs sign-in" sub="Set NEXT_PUBLIC_PRIVY_APP_ID to enable accounts." />
+          <Empty title="Live trading isn’t available here" sub="This server runs without accounts." />
         ) : !auth.authenticated ? (
-          <Empty title="Sign in to set up live trading" action={<Btn onClick={auth.login}>Sign in</Btn>} />
+          <Empty title="Sign in to set up live trading" sub="You’ll need the wallet you use on Hyperliquid." action={<Btn onClick={auth.login}>Sign in</Btn>} />
         ) : (
           <Setup />
         )}
-        <p className="mt-6 font-mono text-[11px] text-faint">
+        <p className="mt-6 text-[12.5px] text-faint">
           Not financial advice. Leverage can lose more than you expect. <Link href="/app/runs" className="hover:text-ink">Your runs →</Link>
         </p>
       </div>

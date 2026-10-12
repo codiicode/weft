@@ -202,3 +202,192 @@ export function strategyToSpec(s: Strategy, live: LiveOverlay = {}): { spec: Gra
   }
   return { spec: { nodes, edges }, runtime: { visible, met, active } };
 }
+
+/* ------------------------------------------------------------------ */
+/* Plain-English reading of a strategy                                  */
+/* ------------------------------------------------------------------ */
+
+export interface PlainRule {
+  id: string;
+  /** "all" = every condition must hold, "any" = one is enough */
+  match: "all" | "any";
+  when: string[];
+  hold?: string;
+  then: { text: string; tone: "long" | "short" | "exit" | "alert" }[];
+}
+
+function minutesLabel(m: number): string {
+  if (m >= 1440 && m % 1440 === 0) return `${m / 1440} day${m === 1440 ? "" : "s"}`;
+  if (m >= 60 && m % 60 === 0) return `${m / 60} hour${m === 60 ? "" : "s"}`;
+  return `${m} min`;
+}
+
+/** Readable names for signal fields, with the unit their numbers are in. */
+const FIELD: Record<string, [name: string, unit?: "%" | "$" | "pp" | "bps" | "h" | "min" | "prob"]> = {
+  price: ["price"],
+  change_5m_pct: ["5-min change", "%"],
+  change_1h_pct: ["1h change", "%"],
+  change_24h_pct: ["24h change", "%"],
+  change_24h_pp: ["24h change", "pp"],
+  change_1d: ["1-day change"],
+  change_5d: ["5-day change"],
+  change_7d: ["7-day change"],
+  rate_1h_pct: ["hourly funding", "%"],
+  rate_8h_pct: ["8h funding", "%"],
+  apr_pct: ["funding APR", "%"],
+  oi_zscore_30d: ["open interest vs 30-day normal"],
+  open_interest_usd: ["open interest", "$"],
+  volume_24h_usd: ["24h volume", "$"],
+  liquidity_usd: ["liquidity", "$"],
+  market_cap_usd: ["market cap", "$"],
+  depth_2pct_usd: ["order book depth", "$"],
+  spread_bps: ["spread", "bps"],
+  price_impact_bps_1k: ["price impact on $1k", "bps"],
+  prob: ["probability", "prob"],
+  sentiment: ["sentiment"],
+  mentions_1h: ["mentions per hour"],
+  mentions_change_1h_pct: ["change in mentions", "%"],
+  unique_authors_1h: ["people posting per hour"],
+  articles_1h: ["articles per hour"],
+  max_relevance: ["news relevance"],
+  holders: ["holders"],
+  holders_change_1h_pct: ["1h holder growth", "%"],
+  top10_holders_pct: ["top-10 holders’ share", "%"],
+  dev_sold_pct: ["dev wallet sold", "%"],
+  buy_sell_ratio_1h: ["buy/sell ratio"],
+  smart_wallet_buys_1h: ["smart-wallet buys per hour"],
+  bonding_curve_pct: ["bonding curve progress", "%"],
+  age_minutes: ["age", "min"],
+  mint_authority_revoked: ["mint authority revoked"],
+  freeze_authority_revoked: ["freeze authority revoked"],
+  lp_locked: ["liquidity locked"],
+  migrated: ["graduated from launchpad"],
+  matched: ["post matched"],
+  match_score: ["post match score"],
+  minutes_since_match: ["minutes since the post", "min"],
+  contradicted: ["contradicted"],
+  confidence: ["confidence"],
+  hours_until: ["hours until", "h"],
+  hours_since: ["hours since", "h"],
+  hours_open: ["hours open", "h"],
+  open: ["open"],
+  pnl_pct: ["profit", "%"],
+  pnl_usd: ["profit", "$"],
+  size_usd: ["size", "$"],
+  value: ["value"],
+};
+
+function withUnit(n: string, unit?: string): string {
+  const v = Number(n);
+  if (!Number.isFinite(v)) return n;
+  if (unit === "%") return `${n}%`;
+  if (unit === "prob") return `${Math.round(v * 100)}%`;
+  if (unit === "$") return `$${fmtNum(v)}`;
+  if (unit === "pp") return `${n} pts`;
+  if (unit === "bps") return `${(v / 100).toFixed(2).replace(/\.?0+$/, "")}%`;
+  if (unit === "h") return `${n}h`;
+  if (unit === "min") return `${n} min`;
+  return n;
+}
+
+/** Rewrites "px.change_24h_pct ≤ -5" into "BTC 24h change ≤ −5%" using signal titles and field names. */
+function humanize(line: string, titles: Map<string, string>): string {
+  const name = (sid: string, f: string) => {
+    const t = titles.get(sid);
+    const field = FIELD[f]?.[0] ?? f.replaceAll("_", " ");
+    return t ? `${t} ${field}` : field;
+  };
+  return line
+    .replace(/\b([a-z][a-z0-9_]*)\.([a-z][a-z0-9_]*)\s*([<>=≤≥≠])\s*(-?[\d.]+)/g, (_m, sid: string, f: string, op: string, n: string) => {
+      const unit = FIELD[f]?.[1];
+      return `${name(sid, f)} ${op} ${withUnit(n, unit).replace(/^-/, "−")}`;
+    })
+    .replace(/\b([a-z][a-z0-9_]*)\.([a-z][a-z0-9_]*) (crosses above|crosses below) (-?[\d.]+)/g, (_m, sid: string, f: string, op: string, n: string) => {
+      return `${name(sid, f)} ${op.replace("crosses", "rises").replace("rises below", "falls below")} ${withUnit(n, FIELD[f]?.[1]).replace(/^-/, "−")}`;
+    })
+    .replace(/\bNOT ([a-z][a-z0-9_]*)\.([a-z][a-z0-9_]*)\b(?!\s*[<>=≤≥≠])/g, (_m, sid: string, f: string) => `${name(sid, f)} is false`)
+    .replace(/\b([a-z][a-z0-9_]*)\.([a-z][a-z0-9_]*)\b/g, (m, sid: string, f: string) => (titles.has(sid) || FIELD[f] ? name(sid, f) : m))
+    .replace(/\bAND\b/g, "and")
+    .replace(/\bOR\b/g, "or")
+    .replace(/\bNOT\b/g, "not");
+}
+
+function sizePhrase(a: { size: Size }, quote?: string): string {
+  const s = a.size;
+  if (s.unit === "pct_equity") return `${s.value}% of the account`;
+  if (s.unit === "usd") return `$${s.value.toLocaleString("en-US", { maximumFractionDigits: 2 })}`;
+  return `${s.value}${quote ? ` ${quote}` : ""}`;
+}
+
+function exitPhrase(e: { takeProfit?: Level; stopLoss?: Level; trailingStopPct?: number; timeExitHours?: number }, sign: ["+" | "−", "+" | "−"]): string {
+  const parts: string[] = [];
+  const sl = levelLabel(e.stopLoss, sign[1]);
+  const tp = levelLabel(e.takeProfit, sign[0]);
+  if (sl) parts.push(`stop at ${sl}`);
+  if (tp) parts.push(`take profit at ${tp}`);
+  if (e.trailingStopPct) parts.push(`trail ${e.trailingStopPct}%`);
+  if (e.timeExitHours) parts.push(`exit after ${minutesLabel(e.timeExitHours * 60)}`);
+  return parts.join(", ");
+}
+
+/** The rules of a strategy as short sentences: "When … → Buy …". */
+export function describeStrategy(s: Strategy): { watches: string[]; rules: PlainRule[] } {
+  // On-chain signals are titled by mint; use the token's name when the strategy trades it.
+  const tokenName = (mint: string) => {
+    for (const a of s.actions) if (a.type === "open" && a.instrument.kind === "token" && a.instrument.mint === mint) return a.label ?? instrumentLabel(a.instrument);
+    return null;
+  };
+  const titleOf = (sig: Signal) => {
+    if (sig.kind === "token_onchain" && !sig.label) {
+      const n = tokenName(sig.params.mint);
+      if (n) return `${n} on-chain`;
+    }
+    return signalTitle(sig);
+  };
+  const titles = new Map(s.signals.map((sig) => [sig.id, titleOf(sig)]));
+  const watches = [
+    ...new Set(
+      s.signals.map((sig) => {
+        const t = titleOf(sig);
+        if (sig.kind === "price" && !/price/i.test(t)) return `${t} price`;
+        if (sig.kind === "funding" && !/funding/i.test(t)) return `${t} funding`;
+        if (sig.kind === "odds" && !/odds/i.test(t)) return `${t} odds`;
+        return t;
+      }),
+    ),
+  ];
+  const rules: PlainRule[] = s.triggers.map((t) => {
+    const c = clauses(t.when);
+    const then = s.actions
+      .filter((a) => a.on.includes(t.id))
+      .map((a): PlainRule["then"][number] => {
+        if (a.type === "open") {
+          const inst = a.label ?? instrumentLabel(a.instrument);
+          const longOnly = a.instrument.kind === "token" || a.instrument.kind === "outcome" || a.instrument.kind === "spot";
+          const verb = longOnly ? "Buy" : a.side === "long" ? "Go long" : "Go short";
+          const quote = a.instrument.kind === "token" ? a.instrument.quote : undefined;
+          const lev = a.leverage > 1 ? ` at ${a.leverage}×` : "";
+          const sign: ["+" | "−", "+" | "−"] = a.side === "long" ? ["+", "−"] : ["−", "+"];
+          const ex = exitPhrase(a.exits, sign);
+          return { text: `${verb} ${inst} with ${sizePhrase(a, quote)}${lev}${ex ? `; ${ex}` : ""}`, tone: a.side === "short" && !longOnly ? "short" : "long" };
+        }
+        if (a.type === "options") {
+          const ex = exitPhrase(a.exits, ["+", "−"]);
+          return { text: `Open ${a.label ?? `${a.legs[0]!.instrument.underlying} options (${a.legs.length} legs)`} with ${sizePhrase(a)}${ex ? `; ${ex}` : ""}`, tone: "long" };
+        }
+        if (a.type === "close") {
+          const what = a.target === "all" ? "every position" : instrumentLabel(a.target.instrument);
+          return { text: `${a.fraction < 1 ? `Close ${Math.round(a.fraction * 100)}% of` : "Close"} ${what}`, tone: "exit" };
+        }
+        return { text: `Send an alert: “${a.message}”`, tone: "alert" };
+      });
+    return {
+      id: t.id,
+      match: c.logic === "OR" ? "any" : "all",
+      when: c.lines.map((l) => humanize(l, titles)),
+      hold: t.forMinutes ? `for ${minutesLabel(t.forMinutes)}` : undefined,
+      then,
+    };
+  });
+  return { watches, rules };
+}

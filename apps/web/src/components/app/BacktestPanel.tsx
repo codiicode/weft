@@ -31,14 +31,14 @@ const STATUS_TONE: Record<CoverageStatus, "long" | "trigger" | "short" | "neutra
 
 function Segmented<T extends string | number>({ value, options, onChange, label, render }: { value: T; options: readonly T[]; onChange: (v: T) => void; label: string; render?: (v: T) => ReactNode }) {
   return (
-    <div role="radiogroup" aria-label={label} className="grid h-9 auto-cols-fr grid-flow-col rounded-xl border border-line bg-paper p-1">
+    <div role="radiogroup" aria-label={label} className="grid h-9 auto-cols-fr grid-flow-col rounded-[10px] bg-paper-2 p-0.5">
       {options.map((o) => (
         <button
           key={String(o)}
           role="radio"
           aria-checked={value === o}
           onClick={() => onChange(o)}
-          className={`rounded-lg px-2.5 font-mono text-[11.5px] transition-colors ${value === o ? "bg-ink text-paper" : "text-ink-2 hover:text-ink"}`}
+          className={`rounded-[8px] px-3 text-[13px] transition-colors ${value === o ? "bg-card font-medium text-ink shadow-[0_1px_2px_rgba(0,0,0,.08)]" : "text-muted hover:text-ink"}`}
         >
           {render ? render(o) : String(o)}
         </button>
@@ -49,9 +49,9 @@ function Segmented<T extends string | number>({ value, options, onChange, label,
 
 function Tile({ label, value, sub, tone }: { label: string; value: ReactNode; sub?: ReactNode; tone?: "long" | "short" }) {
   return (
-    <div className="min-w-0 rounded-2xl border border-line bg-card-2 p-3.5">
-      <div className="truncate font-mono text-[10px] uppercase tracking-[0.14em] text-muted">{label}</div>
-      <div className={`tnum mt-1.5 truncate font-mono text-[19px] tracking-[-0.02em] ${tone === "long" ? "text-long" : tone === "short" ? "text-short" : "text-ink"}`}>{value}</div>
+    <div className="min-w-0 rounded-[10px] border border-line p-3.5">
+      <div className="truncate text-[12.5px] text-muted">{label}</div>
+      <div className={`tnum mt-1 truncate text-[19px] font-medium tracking-[-0.02em] ${tone === "long" ? "text-long" : tone === "short" ? "text-short" : "text-ink"}`}>{value}</div>
       {sub && <div className="mt-0.5 truncate text-[11.5px] text-faint">{sub}</div>}
     </div>
   );
@@ -119,22 +119,19 @@ export function BacktestPanel({ strategy, strategyId, allocationUsd = 10_000 }: 
     <Card className="overflow-hidden" >
       <div className="flex flex-col gap-4 border-b border-line p-5">
         <div className="min-w-0">
-          <div className="flex items-center gap-2">
-            <div className="text-[15px] font-semibold tracking-[-0.02em]">Backtest</div>
-            <Pill tone="signal">Same engine</Pill>
-          </div>
-          <p className="mt-1 max-w-xl text-[13px] leading-relaxed text-ink-2">
-            How would this strategy have done? Replays real history through the live engine: fees, slippage, funding, stops and risk checks included.
+          <div className="text-[15px] font-semibold tracking-[-0.015em] text-ink">How would it have done?</div>
+          <p className="mt-1 max-w-xl text-[13.5px] leading-relaxed text-muted">
+            Replays real price history through the same engine that runs it live, with fees and stops.
           </p>
         </div>
         <div className="flex flex-wrap items-center gap-2">
           <div className="flex items-center gap-2">
-            <span className="font-mono text-[10.5px] uppercase tracking-[0.12em] text-muted">Last</span>
-            <Segmented label="Lookback" value={days} options={DAY_PRESETS} onChange={setDays} render={(d) => `${d}d`} />
+            <span className="text-[13px] text-muted">Period</span>
+            <Segmented label="Lookback" value={days} options={DAY_PRESETS} onChange={setDays} render={(d) => `${d} days`} />
           </div>
           <div className="flex items-center gap-2 sm:ml-1">
-            <span className="font-mono text-[10.5px] uppercase tracking-[0.12em] text-muted">Bars</span>
-            <Segmented label="Bar size" value={interval} options={INTERVALS} onChange={setInterval} />
+            <span className="text-[13px] text-muted">Detail</span>
+            <Segmented label="Bar size" value={interval} options={INTERVALS} onChange={setInterval} render={(v) => (v === "1h" ? "Hourly" : "15 min")} />
           </div>
           <Btn onClick={run} disabled={busy || (!strategy && !strategyId)} className="h-9 w-full min-w-[124px] sm:ml-auto sm:w-auto" variant="ink">
             {busy ? (
@@ -145,34 +142,32 @@ export function BacktestPanel({ strategy, strategyId, allocationUsd = 10_000 }: 
             ) : r ? (
               "Run again"
             ) : (
-              "Run backtest"
+              "Test it"
             )}
           </Btn>
         </div>
       </div>
 
       <div className="p-5">
-        {error && <pre className="mb-4 whitespace-pre-wrap rounded-xl bg-[var(--short-soft)] p-3 font-mono text-[11.5px] text-short">{error}</pre>}
+        {error && <pre className="mb-4 whitespace-pre-wrap rounded-[10px] bg-[var(--short-soft)] p-3 font-mono text-[13px] text-short">{error}</pre>}
 
         {!r && !busy && (
-          <div className="dot-grid grid place-items-center rounded-2xl border border-dashed border-line-2 px-6 py-10 text-center">
+          <div className="grid place-items-center rounded-[12px] border border-dashed border-line-2 px-6 py-10 text-center">
             <div className="max-w-sm">
-              <div className="text-[15px] font-semibold tracking-[-0.02em]">Run it over the last {days} days</div>
-              <p className="mt-1 text-[13px] text-ink-2">
-                Uses Hyperliquid candles and funding (perps, stocks, spot) and GeckoTerminal for Solana tokens. You’ll see exactly which signals had history.
-              </p>
+              <div className="text-[14.5px] font-medium text-ink">See how it would have traded over the last {days} days</div>
+              <p className="mt-1 text-[13.5px] text-muted">You’ll also see which of its signals have enough history to test.</p>
             </div>
           </div>
         )}
 
         {busy && !r && (
           <div className="space-y-3" aria-live="polite">
-            <div className="h-14 animate-pulse rounded-2xl bg-paper-2" />
+            <div className="h-14 animate-pulse rounded-[12px] bg-paper-2" />
             <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
-              {Array.from({ length: 6 }, (_, i) => <div key={i} className="h-[78px] animate-pulse rounded-2xl bg-paper-2" />)}
+              {Array.from({ length: 6 }, (_, i) => <div key={i} className="h-[78px] animate-pulse rounded-[12px] bg-paper-2" />)}
             </div>
-            <div className="h-[180px] animate-pulse rounded-2xl bg-paper-2" />
-            <div className="shimmer-text text-center font-mono text-[11px]">Fetching history and replaying {days} days…</div>
+            <div className="h-[180px] animate-pulse rounded-[12px] bg-paper-2" />
+            <div className="shimmer-text text-center text-[12.5px]">Fetching history and replaying {days} days…</div>
           </div>
         )}
 
@@ -180,13 +175,13 @@ export function BacktestPanel({ strategy, strategyId, allocationUsd = 10_000 }: 
           {r && s && q && (
             <motion.div key={`${r.period.end}-${r.period.frames}-${r.interval}-${days}`} initial={{ opacity: 0, y: 8 }} animate={{ opacity: busy ? 0.55 : 1, y: 0 }} exit={{ opacity: 0 }} className="space-y-4">
               {/* Coverage: the honest headline */}
-              <div className={`rounded-2xl border ${q.border} ${q.bg} p-4`} role="status">
+              <div className={`rounded-[12px] border ${q.border} ${q.bg} p-4`} role="status">
                 <div className={`flex items-start gap-2.5 ${q.text}`}>
                   <span className="mt-0.5 shrink-0"><Icon quality={r.coverage.quality} /></span>
                   <div className="min-w-0 flex-1">
                     <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
-                      <span className="font-mono text-[10.5px] uppercase tracking-[0.14em]">{q.label}</span>
-                      <span className="font-mono text-[10.5px] text-muted">
+                      <span className="text-[12.5px]">{q.label}</span>
+                      <span className="text-[12.5px] text-muted">
                         {fmtDay(r.period.start)} – {fmtDay(r.period.end)} · {r.period.frames.toLocaleString()} × {r.interval} bars
                       </span>
                     </div>
@@ -196,7 +191,7 @@ export function BacktestPanel({ strategy, strategyId, allocationUsd = 10_000 }: 
                         {r.coverage.notes.map((n) => <li key={n}>• {n}</li>)}
                       </ul>
                     )}
-                    <button onClick={() => setShowDetails((v) => !v)} className="mt-2 font-mono text-[10.5px] uppercase tracking-[0.12em] text-muted hover:text-ink" aria-expanded={showDetails}>
+                    <button onClick={() => setShowDetails((v) => !v)} className="mt-2 text-[12.5px] text-muted hover:text-ink" aria-expanded={showDetails}>
                       {showDetails ? "Hide data sources" : "Show data sources"}
                     </button>
                   </div>
@@ -204,13 +199,13 @@ export function BacktestPanel({ strategy, strategyId, allocationUsd = 10_000 }: 
                 {showDetails && (
                   <div className="mt-3 grid gap-3 border-t border-line pt-3 md:grid-cols-2">
                     <div>
-                      <div className="font-mono text-[10px] uppercase tracking-[0.14em] text-muted">Signals</div>
+                      <div className="text-[12px] text-muted">Signals</div>
                       <ul className="mt-1.5 space-y-1.5">
                         {r.coverage.signals.map((x) => (
                           <li key={x.id} className="flex items-start gap-2 text-[12.5px]">
                             <Pill tone={STATUS_TONE[x.status]}>{x.status === "engine" ? "engine" : x.status}</Pill>
                             <span className="min-w-0">
-                              <span className="font-medium text-ink">{x.label}</span> <span className="font-mono text-[11px] text-faint">{x.kind}</span>
+                              <span className="font-medium text-ink">{x.label}</span> <span className="text-[12.5px] text-faint">{x.kind}</span>
                               {x.fields.some((f) => f.availability > 0 && f.availability < 0.95) && (
                                 <span className="text-faint"> · {x.fields.map((f) => `${f.field} ${Math.round(f.availability * 100)}%`).join(", ")}</span>
                               )}
@@ -221,13 +216,13 @@ export function BacktestPanel({ strategy, strategyId, allocationUsd = 10_000 }: 
                       </ul>
                     </div>
                     <div>
-                      <div className="font-mono text-[10px] uppercase tracking-[0.14em] text-muted">Markets</div>
+                      <div className="text-[12px] text-muted">Markets</div>
                       <ul className="mt-1.5 space-y-1.5">
                         {r.coverage.instruments.map((x) => (
                           <li key={x.key} className="flex items-start gap-2 text-[12.5px]">
                             <Pill tone={x.status === "historical" ? "long" : "short"}>{x.status === "historical" ? "history" : x.status.replace("_", " ")}</Pill>
                             <span className="min-w-0">
-                              <span className="font-medium text-ink">{x.label}</span> <span className="font-mono text-[11px] text-faint">{x.role}</span>
+                              <span className="font-medium text-ink">{x.label}</span> <span className="text-[12.5px] text-faint">{x.role}</span>
                               <span className="block break-all text-[11.5px] text-ink-2">
                                 {x.status === "historical" ? `${x.bars != null ? `${x.bars.toLocaleString()} bars · ` : ""}${x.source ?? ""}` : x.reason}
                               </span>
@@ -245,15 +240,15 @@ export function BacktestPanel({ strategy, strategyId, allocationUsd = 10_000 }: 
                 <Tile label="Return" value={fmtPct(s.returnPct)} tone={s.returnPct > 0 ? "long" : s.returnPct < 0 ? "short" : undefined} sub={`${fmtUsd(s.endEquityUsd, 0)} end equity`} />
                 <Tile label="Max drawdown" value={s.maxDrawdownPct > 0 ? `−${s.maxDrawdownPct.toFixed(2)}%` : "0.00%"} tone={s.maxDrawdownPct > 0 ? "short" : undefined} sub="peak to trough" />
                 <Tile label="Trades" value={s.trades} sub={s.winRatePct != null ? `${s.winRatePct.toFixed(0)}% win rate` : s.openPositions ? `${s.openPositions} still open` : "no closed trades"} />
-                <Tile label="Fees" value={fmtUsd(s.feesUsd, 2)} sub="venue + builder" />
+                <Tile label="Fees" value={fmtUsd(s.feesUsd, 2)} sub="exchange and Weft" />
                 <Tile label="Funding" value={fmtUsd(Math.abs(s.fundingUsd) < 0.005 ? 0 : -s.fundingUsd, 2)} tone={s.fundingUsd > 0.005 ? "short" : s.fundingUsd < -0.005 ? "long" : undefined} sub={s.fundingUsd > 0.005 ? "paid" : s.fundingUsd < -0.005 ? "received" : "none"} />
-                <Tile label="Exposure" value={`${s.exposurePct.toFixed(1)}%`} sub="time in market" />
+                <Tile label="Time in market" value={`${s.exposurePct.toFixed(1)}%`} />
               </div>
 
               {/* Equity */}
-              <div className="rounded-2xl border border-line p-4">
+              <div className="rounded-[12px] border border-line p-4">
                 <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
-                  <div className="text-[13.5px] font-semibold tracking-[-0.01em]">Equity</div>
+                  <div className="text-[13.5px] font-semibold tracking-[-0.01em]">Value over time</div>
                   <div className="flex flex-wrap gap-1.5">
                     {r.coverage.triggers.map((t) => (
                       <Pill key={t.id} tone={t.fires ? "trigger" : "neutral"}>
@@ -263,7 +258,7 @@ export function BacktestPanel({ strategy, strategyId, allocationUsd = 10_000 }: 
                   </div>
                 </div>
                 <EquityChart points={r.equityCurve} base={r.allocationUsd} formatTime={fmtDayTime} emptyLabel="No equity samples" />
-                <div className="mt-1.5 flex justify-between font-mono text-[10.5px] text-faint">
+                <div className="mt-1.5 flex justify-between text-[12.5px] text-faint">
                   <span>{fmtDay(r.period.start)}</span>
                   <span>{entryFires ? `${entryFires} entry signal${entryFires === 1 ? "" : "s"}` : "no entry signals"}</span>
                   <span>{fmtDay(r.period.end)}</span>
@@ -271,38 +266,38 @@ export function BacktestPanel({ strategy, strategyId, allocationUsd = 10_000 }: 
               </div>
 
               {/* Fills */}
-              <div className="overflow-hidden rounded-2xl border border-line">
+              <div className="overflow-hidden rounded-[12px] border border-line">
                 <div className="flex items-center justify-between border-b border-line px-4 py-3">
-                  <div className="text-[13.5px] font-semibold tracking-[-0.01em]">Fills</div>
-                  <span className="font-mono text-[11px] text-faint">
+                  <div className="text-[13.5px] font-semibold tracking-[-0.01em]">Trades</div>
+                  <span className="text-[12.5px] text-faint">
                     {r.fills.length}
                     {r.fillsTruncated ? "+ (latest shown)" : ""}
                   </span>
                 </div>
                 {r.fills.length === 0 ? (
-                  <div className="px-4 py-6 text-center text-[13px] text-ink-2">No fills in this period.</div>
+                  <div className="px-4 py-6 text-center text-[13.5px] text-muted">No trades in this period.</div>
                 ) : (
                   <div className="max-h-[300px] overflow-auto">
                     <table className="w-full min-w-[560px] text-left text-[12.5px]">
-                      <thead className="sticky top-0 bg-card font-mono text-[10px] uppercase tracking-[0.12em] text-muted">
+                      <thead className="sticky top-0 bg-card text-[12px] text-muted">
                         <tr className="border-b border-line">
                           <th className="px-4 py-2 font-normal">Time</th>
                           <th className="px-2 py-2 font-normal">Side</th>
                           <th className="px-2 py-2 font-normal">Market</th>
                           <th className="px-2 py-2 text-right font-normal">Price</th>
                           <th className="px-2 py-2 font-normal">Reason</th>
-                          <th className="px-4 py-2 text-right font-normal">P&amp;L</th>
+                          <th className="px-4 py-2 text-right font-normal">Profit</th>
                         </tr>
                       </thead>
                       <tbody>
                         {[...r.fills].reverse().map((f, i) => (
                           <tr key={`${f.ts}-${i}`} className="border-b border-line last:border-0">
-                            <td className="whitespace-nowrap px-4 py-2 font-mono text-faint">{fmtDayTime(f.ts)}</td>
-                            <td className="px-2 py-2"><Pill tone={f.side === "buy" ? "long" : "short"}>{f.side}</Pill></td>
-                            <td className="max-w-[180px] truncate px-2 py-2 font-mono text-ink-2" title={f.instrumentKey}>{f.label}</td>
-                            <td className="tnum px-2 py-2 text-right font-mono">{fmtPrice(f.price)}</td>
-                            <td className="px-2 py-2 font-mono text-[11px] text-muted">{f.reason.replace(/_/g, " ")}</td>
-                            <td className={`tnum whitespace-nowrap px-4 py-2 text-right font-mono ${f.realizedPnlUsd == null ? "text-faint" : f.realizedPnlUsd >= 0 ? "text-long" : "text-short"}`}>
+                            <td className="whitespace-nowrap px-4 py-2 text-faint">{fmtDayTime(f.ts)}</td>
+                            <td className={`px-2 py-2 ${f.side === "buy" ? "text-long" : "text-short"}`}>{f.side === "buy" ? "Buy" : "Sell"}</td>
+                            <td className="max-w-[180px] truncate px-2 py-2 text-ink-2" title={f.instrumentKey}>{f.label}</td>
+                            <td className="tnum px-2 py-2 text-right">{fmtPrice(f.price)}</td>
+                            <td className="px-2 py-2 text-[12.5px] text-muted">{f.reason.replace(/_/g, " ")}</td>
+                            <td className={`tnum whitespace-nowrap px-4 py-2 text-right ${f.realizedPnlUsd == null ? "text-faint" : f.realizedPnlUsd >= 0 ? "text-long" : "text-short"}`}>
                               {f.realizedPnlUsd == null ? `fee ${fmtUsd(f.feeUsd, 2)}` : fmtUsd(f.realizedPnlUsd, 2)}
                             </td>
                           </tr>
@@ -313,7 +308,7 @@ export function BacktestPanel({ strategy, strategyId, allocationUsd = 10_000 }: 
                 )}
               </div>
 
-              <p className="font-mono text-[10.5px] leading-relaxed text-faint">
+              <p className="text-[12.5px] leading-relaxed text-faint">
                 Simulated on {fmtUsd(r.allocationUsd, 0)} · {r.period.days.toFixed(r.period.days < 10 ? 1 : 0)} days · history {(r.timing.historyMs / 1000).toFixed(1)}s, replay {(r.timing.replayMs / 1000).toFixed(1)}s. Past results don’t predict future returns.
               </p>
             </motion.div>

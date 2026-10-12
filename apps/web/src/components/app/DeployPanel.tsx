@@ -9,13 +9,31 @@ import Link from "next/link";
 import { Btn, Card } from "./AppShell";
 
 const INTERVALS = [
-  [15, "15s"],
-  [30, "30s"],
-  [60, "1m"],
-  [300, "5m"],
+  [15, "15 s"],
+  [30, "30 s"],
+  [60, "1 min"],
+  [300, "5 min"],
 ] as const;
 
-/** Start a paper deployment of a strategy and jump to its live run page. */
+function Segmented<T extends string | number>({ value, options, onChange, label }: { value: T; options: readonly (readonly [T, string])[]; onChange: (v: T) => void; label: string }) {
+  return (
+    <div role="radiogroup" aria-label={label} className="grid rounded-[10px] bg-paper-2 p-0.5" style={{ gridTemplateColumns: `repeat(${options.length}, minmax(0, 1fr))` }}>
+      {options.map(([v, l]) => (
+        <button
+          key={String(v)}
+          role="radio"
+          aria-checked={value === v}
+          onClick={() => onChange(v)}
+          className={`h-8 rounded-[8px] text-[13px] transition-colors ${value === v ? "bg-card font-medium text-ink shadow-[0_1px_2px_rgba(0,0,0,.08)]" : "text-muted hover:text-ink"}`}
+        >
+          {l}
+        </button>
+      ))}
+    </div>
+  );
+}
+
+/** Start a paper (or live) run of a strategy and jump to its run page. */
 export function DeployPanel({ strategy, strategyId, compact = false }: { strategy?: Strategy; strategyId?: string; compact?: boolean }) {
   const router = useRouter();
   const [allocation, setAllocation] = useState(10_000);
@@ -31,10 +49,11 @@ export function DeployPanel({ strategy, strategyId, compact = false }: { strateg
   const [confirm, setConfirm] = useState("");
   const isLive = mode === "live";
   const cap = live.data?.config.maxAllocationUsd ?? 100;
+  const network = live.data?.config.network;
 
   const deploy = async () => {
     if (!requireAuth()) return;
-    if (isLive && confirm.trim().toUpperCase() !== "GO LIVE") return setError('Type "GO LIVE" to confirm.');
+    if (isLive && confirm.trim().toUpperCase() !== "GO LIVE") return setError("Type GO LIVE to confirm.");
     setBusy(true);
     setError(null);
     try {
@@ -55,92 +74,85 @@ export function DeployPanel({ strategy, strategyId, compact = false }: { strateg
 
   return (
     <Card className={compact ? "p-4" : "p-5"}>
-      <div className="flex items-center justify-between">
-        <div className="text-[15px] font-semibold tracking-[-0.02em]">{isLive ? "Run it live" : "Run it on paper"}</div>
-        {auth.enabled && (
-          <div className="grid grid-cols-2 rounded-full border border-line p-0.5 font-mono text-[10.5px] uppercase tracking-[0.1em]">
-            {(["paper", "live"] as const).map((m) => (
-              <button
-                key={m}
-                onClick={() => {
-                  setMode(m);
-                  setError(null);
-                  if (m === "live") setAllocation((a) => Math.min(a, cap));
-                }}
-                className={`rounded-full px-2.5 py-1 ${mode === m ? (m === "live" ? "bg-short text-white" : "bg-ink text-paper") : "text-ink-2"}`}
-              >
-                {m}
-              </button>
-            ))}
-          </div>
-        )}
-      </div>
-      {isLive ? (
-        liveReady ? (
-          <p className="mt-1.5 text-[13px] leading-relaxed text-ink-2">
-            Real orders on Hyperliquid <span className="font-medium text-ink">{live.data?.config.network}</span> through your approved agent. Capped at ${cap}; perps and spot only.
-          </p>
-        ) : (
-          <p className="mt-1.5 text-[13px] leading-relaxed text-trigger">
-            Live isn&apos;t set up yet.{" "}
-            <Link href="/app/live" className="underline underline-offset-4">Connect your Hyperliquid account →</Link>
-          </p>
-        )
-      ) : (
-        <p className="mt-1.5 text-[13px] leading-relaxed text-ink-2">
-          Simulated fills against live market data, with fees, slippage, stops and risk checks. Nothing touches real funds.
-        </p>
+      <div className="text-[15px] font-semibold tracking-[-0.015em] text-ink">Run this strategy</div>
+      {auth.enabled && (
+        <div className="mt-3">
+          <Segmented
+            label="Trading mode"
+            value={mode}
+            options={[
+              ["paper", "Paper"],
+              ["live", "Live"],
+            ]}
+            onChange={(m) => {
+              setMode(m);
+              setError(null);
+              if (m === "live") setAllocation((a) => Math.min(a, cap));
+            }}
+          />
+        </div>
       )}
-      <div className="mt-4 grid grid-cols-2 gap-3">
-        <label className="block">
-          <span className="font-mono text-[10.5px] uppercase tracking-[0.12em] text-muted">Allocation</span>
-          <div className="mt-1.5 flex h-10 items-center rounded-xl border border-line bg-paper px-3 focus-within:border-ink">
-            <span className="text-faint">$</span>
-            <input
-              type="number"
-              min={100}
-              step={100}
-              value={allocation}
-              onChange={(e) => setAllocation(Math.max(100, Number(e.target.value) || 0))}
-              className="tnum w-full bg-transparent pl-1 font-mono text-[14px] outline-none"
-              aria-label="Paper allocation in USD"
-            />
-          </div>
-        </label>
-        <div>
-          <span className="font-mono text-[10.5px] uppercase tracking-[0.12em] text-muted">Check every</span>
-          <div className="mt-1.5 grid h-10 grid-cols-4 rounded-xl border border-line bg-paper p-1">
-            {INTERVALS.map(([v, l]) => (
-              <button
-                key={v}
-                onClick={() => setInterval(v)}
-                className={`rounded-lg font-mono text-[11.5px] transition-colors ${interval === v ? "bg-ink text-paper" : "text-ink-2 hover:text-ink"}`}
-              >
-                {l}
-              </button>
-            ))}
-          </div>
+      <p className="mt-3 text-[13.5px] leading-relaxed text-muted">
+        {isLive ? (
+          liveReady ? (
+            <>
+              Real orders on Hyperliquid{network === "testnet" ? " testnet" : ""}, from your own account. Up to ${cap.toLocaleString()} per run.
+            </>
+          ) : (
+            <>
+              Connect your Hyperliquid account first.{" "}
+              <Link href="/app/live" className="font-medium text-ink underline decoration-line-2 underline-offset-4 hover:decoration-ink">
+                Set up live trading
+              </Link>
+            </>
+          )
+        ) : (
+          "Practice with simulated money against live prices. Fees and slippage included."
+        )}
+      </p>
+
+      <label className="mt-5 block">
+        <span className="text-[13px] text-ink-2">Amount</span>
+        <div className="mt-1.5 flex h-10 items-center rounded-[10px] border border-line-2 bg-card px-3 focus-within:border-ink/40">
+          <span className="text-muted">$</span>
+          <input
+            type="number"
+            min={isLive ? 10 : 100}
+            max={isLive ? cap : undefined}
+            step={isLive ? 10 : 100}
+            value={allocation}
+            onChange={(e) => setAllocation(Math.max(isLive ? 10 : 100, Number(e.target.value) || 0))}
+            className="tnum w-full bg-transparent pl-1 text-[15px] text-ink outline-none"
+            aria-label="Amount in USD"
+          />
+        </div>
+      </label>
+      <div className="mt-4">
+        <span className="text-[13px] text-ink-2">Check the market every</span>
+        <div className="mt-1.5">
+          <Segmented label="Check interval" value={interval} options={INTERVALS} onChange={setInterval} />
         </div>
       </div>
+
       {isLive && liveReady && (
-        <label className="mt-3 block">
-          <span className="font-mono text-[10.5px] uppercase tracking-[0.12em] text-short">Type GO LIVE to confirm</span>
+        <label className="mt-4 block">
+          <span className="text-[13px] text-ink-2">
+            Type <span className="font-medium text-short">GO LIVE</span> to confirm
+          </span>
           <input
             value={confirm}
             onChange={(e) => setConfirm(e.target.value)}
             placeholder="GO LIVE"
-            className="mt-1.5 h-10 w-full rounded-xl border border-[color-mix(in_oklab,var(--short)_40%,transparent)] bg-paper px-3 font-mono text-[14px] outline-none focus:border-short"
+            className="mt-1.5 h-10 w-full rounded-[10px] border border-line-2 bg-card px-3 text-[15px] text-ink outline-none placeholder:text-faint focus:border-short"
             aria-label="Type GO LIVE to confirm live trading"
           />
         </label>
       )}
-      {error && <pre className="mt-3 whitespace-pre-wrap rounded-xl bg-[var(--short-soft)] p-3 font-mono text-[11.5px] text-short">{error}</pre>}
-      <Btn onClick={deploy} disabled={busy || (isLive && !liveReady)} variant={isLive ? "danger" : "volt"} className="mt-4 w-full">
-        {busy ? "Starting…" : isLive ? `Start LIVE trading (${live.data?.config.network ?? ""}) →` : "Start paper trading →"}
+      {error && <p className="mt-3 whitespace-pre-wrap rounded-[10px] bg-[var(--short-soft)] px-3 py-2.5 text-[13px] text-short">{error}</p>}
+      <Btn onClick={deploy} disabled={busy || (isLive && !liveReady)} variant={isLive ? "danger" : "ink"} className="mt-5 h-10 w-full">
+        {busy ? "Starting…" : isLive ? "Start live trading" : "Start on paper"}
       </Btn>
-      <p className="mt-2.5 text-center font-mono text-[10.5px] text-faint">
-        {isLive ? "Kill switch closes everything at market. Not financial advice." : "Switch to Live once your Hyperliquid account is connected."}
-      </p>
+      <p className="mt-2.5 text-center text-[12.5px] text-faint">You can pause or stop it at any time.</p>
     </Card>
   );
 }

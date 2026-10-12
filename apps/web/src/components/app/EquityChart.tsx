@@ -38,7 +38,7 @@ export function EquityChart({
 
   if (!geo) {
     return (
-      <div className="grid place-items-center rounded-xl border border-dashed border-line-2 font-mono text-[11px] text-faint" style={{ height }}>
+      <div className="grid place-items-center rounded-[10px] border border-dashed border-line-2 text-[12.5px] text-faint" style={{ height }}>
         {emptyLabel}
       </div>
     );
@@ -75,7 +75,7 @@ export function EquityChart({
         )}
       </svg>
       {h && (
-        <div className="pointer-events-none absolute right-2 top-2 rounded-lg border border-line bg-card/95 px-2.5 py-1.5 font-mono text-[11px] shadow-card">
+        <div className="pointer-events-none absolute right-2 top-2 rounded-[8px] border border-line bg-card/95 px-2.5 py-1.5 text-[12.5px]">
           <div className="text-ink">{fmtUsd(h[1], 2)}</div>
           <div className="text-faint">{formatTime(h[0])}</div>
         </div>

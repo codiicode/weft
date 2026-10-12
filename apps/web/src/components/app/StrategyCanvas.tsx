@@ -20,12 +20,12 @@ export function StrategyCanvas({
 }) {
   const { spec, runtime } = useMemo(() => strategyToSpec(strategy, live), [strategy, live]);
   return (
-    <div className={`dot-grid relative rounded-2xl border border-line bg-paper/60 px-3 py-6 sm:px-5 ${className}`}>
+    <div className={`relative rounded-[12px] border border-line bg-paper-2/40 px-3 py-5 sm:px-5 ${className}`}>
       {preset === "auto" && (
-        <div className="pointer-events-none mb-3 hidden gap-6 px-1 font-mono text-[10px] uppercase tracking-[0.16em] text-faint sm:flex">
-          <span className="flex items-center gap-1.5"><span className="h-1 w-1 rounded-full bg-signal" />Signals</span>
-          <span className="flex items-center gap-1.5"><span className="h-1 w-1 rounded-full bg-trigger" />Triggers</span>
-          <span className="flex items-center gap-1.5"><span className="h-1 w-1 rounded-full bg-long" />Actions</span>
+        <div className="pointer-events-none mb-4 hidden gap-5 px-1 text-[12.5px] text-muted sm:flex">
+          <span className="flex items-center gap-1.5"><span className="h-2 w-2 rounded-[3px] bg-signal" />Watches</span>
+          <span className="flex items-center gap-1.5"><span className="h-2 w-2 rounded-[3px] bg-trigger" />When</span>
+          <span className="flex items-center gap-1.5"><span className="h-2 w-2 rounded-[3px] bg-long" />Does</span>
         </div>
       )}
       <StrategyGraph

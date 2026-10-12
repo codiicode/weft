@@ -336,7 +336,7 @@ export async function runTick(s: Session): Promise<void> {
   const result = evaluate(strategy, { now: s.now, signals: snapshots, equityUsd: equity, positions: positionsForEval }, s.rt.evalState);
   s.rt.evalState = result.state;
   triggerEvents(s, result.triggers);
-  for (const i of result.intents) s.emit("intent", `${i.actionId}: ${describeIntent(i)} (trigger ${i.triggerId})`, { intent: i });
+  for (const i of result.intents) s.emit("intent", `${describeIntent(s, i)} (${ruleName(s, i.triggerId).toLowerCase()})`, { intent: i });
 
   // d. Risk.
   let approved: Intent[] = [];
@@ -359,7 +359,7 @@ export async function runTick(s: Session): Promise<void> {
       tokenFacts,
     });
     for (const r of risk.rejected) {
-      s.emit("rejected", `${r.intent.actionId} rejected: ${r.reasons.join("; ")}`, { intentKey: r.intent.key, reasons: r.reasons });
+      s.emit("rejected", `Blocked ${describeIntent(s, r.intent).toLowerCase()}: ${r.reasons.join("; ")}`, { intentKey: r.intent.key, reasons: r.reasons });
       s.intentKeys.push({ key: r.intent.key, ts: s.now });
     }
     approved = risk.approved;
@@ -375,7 +375,7 @@ export async function runTick(s: Session): Promise<void> {
   const eq = s.equity();
   s.emit(
     "tick",
-    `Tick: equity ${fmtUsd(eq)}, ${s.positions.size} open position${s.positions.size === 1 ? "" : "s"}`,
+    `Checked the market: value ${fmtUsd(eq)}, ${s.positions.size} open position${s.positions.size === 1 ? "" : "s"}`,
     { equityUsd: round2(eq), positions: s.positions.size, fired: result.triggers.filter((t) => t.fired).map((t) => t.id) },
     { key: "tick", gapMs: s.deps.tickEventIntervalMs }
   );
@@ -603,8 +603,8 @@ function signalValues(
 function triggerEvents(s: Session, results: TriggerResult[]) {
   const prev = new Map(s.rt.triggers.map((t) => [t.id, t]));
   for (const t of results) {
-    if (t.met && !prev.get(t.id)?.met) s.emit("trigger_met", `Trigger "${t.id}" is met`, { triggerId: t.id });
-    if (t.fired) s.emit("trigger_fired", `Trigger "${t.id}" fired`, { triggerId: t.id });
+    if (t.met && !prev.get(t.id)?.met) s.emit("trigger_met", `Conditions met: ${ruleName(s, t.id)}`, { triggerId: t.id });
+    if (t.fired) s.emit("trigger_fired", `${ruleName(s, t.id)} fired`, { triggerId: t.id });
   }
 }
 
@@ -761,28 +761,54 @@ async function executeOptions(s: Session, i: OptionsIntent, usdPrices: Record<st
 async function executeClose(s: Session, i: CloseIntent): Promise<void> {
   const targets = s.open().filter((p) => i.target === "all" || p.instrumentKey === i.target);
   if (!targets.length) {
-    s.emit("intent", `${i.actionId}: nothing to close (${i.target})`, { intentKey: i.key });
+    s.emit("intent", `Nothing to close: no open ${i.target === "all" ? "positions" : `${keyLabel(s, i.target)} position`}`, { intentKey: i.key });
     return;
   }
   for (const p of targets) await s.closePosition(p, i.fraction, "close_action", `${i.key}:${p.id}`, i.key);
 }
 
 function reject(s: Session, i: Intent, reason: string, pending = false): void {
-  s.emit("rejected", `${i.actionId} not executed: ${reason}`, { intentKey: i.key, reasons: [reason], ...(pending ? { pending: true } : {}) });
+  s.emit("rejected", `Didn’t ${describeIntent(s, i).toLowerCase()}: ${reason}`, { intentKey: i.key, reasons: [reason], ...(pending ? { pending: true } : {}) });
 }
 
 /* ---- formatting ---- */
 
-function describeIntent(i: Intent): string {
+/** "Rule 2" or the trigger's own label: the same names the app shows. */
+function ruleName(s: Session, triggerId: string): string {
+  const triggers = s.deployment.strategy.triggers;
+  const idx = triggers.findIndex((t) => t.id === triggerId);
+  const t = triggers[idx];
+  if (t?.label) return `Rule “${t.label}”`;
+  return idx >= 0 ? `Rule ${idx + 1}` : `Rule ${triggerId}`;
+}
+
+/** A readable name for an instrument key, from open positions or the strategy itself. */
+function keyLabel(s: Session, key: string): string {
+  const p = s.open().find((x) => x.instrumentKey === key);
+  if (p) return instrumentLabel(p.instrument);
+  for (const a of s.deployment.strategy.actions) if (a.type === "open" && instrumentKey(a.instrument) === key) return a.label ?? instrumentLabel(a.instrument);
+  const tail = key.split(":").pop() ?? key;
+  return tail.length > 16 ? `${tail.slice(0, 4)}…${tail.slice(-4)}` : tail;
+}
+
+function sizeText(size: { usd?: number | null; native?: number | null }, quote?: string): string {
+  return size.usd != null ? fmtUsd(size.usd) : `${size.native}${quote ? ` ${quote}` : ""}`;
+}
+
+function describeIntent(s: Session, i: Intent): string {
   switch (i.type) {
-    case "open":
-      return `${i.side} ${instrumentLabel(i.instrument)} ${i.size.usd != null ? fmtUsd(i.size.usd) : `${i.size.native} native`}${i.leverage > 1 ? ` ${i.leverage}×` : ""}`;
+    case "open": {
+      const longOnly = i.instrument.kind === "token" || i.instrument.kind === "outcome" || i.instrument.kind === "spot";
+      const verb = longOnly ? "Buy" : i.side === "long" ? "Go long" : "Go short";
+      const quote = i.instrument.kind === "token" ? i.instrument.quote : undefined;
+      return `${verb} ${instrumentLabel(i.instrument)} with ${sizeText(i.size, quote)}${i.leverage > 1 ? ` at ${i.leverage}×` : ""}`;
+    }
     case "options":
-      return `${i.legs.length}-leg options ${i.size.usd != null ? fmtUsd(i.size.usd) : `${i.size.native} native`}`;
+      return `Open a ${i.legs.length}-leg options position with ${sizeText(i.size)}`;
     case "close":
-      return `close ${i.target}${i.fraction < 1 ? ` (${Math.round(i.fraction * 100)}%)` : ""}`;
+      return `${i.fraction < 1 ? `Close ${Math.round(i.fraction * 100)}% of` : "Close"} ${i.target === "all" ? "every position" : keyLabel(s, i.target)}`;
     case "notify":
-      return `notify via ${i.channel}`;
+      return `Send a ${i.channel} alert`;
   }
 }
 

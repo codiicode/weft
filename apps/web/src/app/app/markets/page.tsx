@@ -9,11 +9,11 @@ import { PageHeader, Card, Btn, Pill, Empty } from "@/components/app/AppShell";
 import { IconX } from "@/components/graph/icons";
 
 const PRODUCTS: { id: Product; label: string; blurb: string }[] = [
-  { id: "perps", label: "Perps", blurb: "Hyperliquid perpetuals" },
-  { id: "stocks", label: "Stocks", blurb: "HIP-3 stock, index & commodity perps + tokenized stocks" },
-  { id: "predictions", label: "Predictions", blurb: "HIP-4 outcome markets & Jupiter prediction markets" },
-  { id: "tokens", label: "Solana tokens", blurb: "Anything on Solana by mint: memecoins, majors, xStocks" },
-  { id: "options", label: "Options", blurb: "Listed options, defined-risk strategies only" },
+  { id: "perps", label: "Perps", blurb: "Crypto perpetuals on Hyperliquid" },
+  { id: "stocks", label: "Stocks", blurb: "Shares, indices and commodities as perps on Hyperliquid, plus tokenized stocks on Solana" },
+  { id: "predictions", label: "Predictions", blurb: "Outcome markets on Hyperliquid and Jupiter" },
+  { id: "tokens", label: "Solana tokens", blurb: "Any Solana token, matched by contract address" },
+  { id: "options", label: "Options", blurb: "Listed options. Only strategies with a known worst case" },
 ];
 
 function thesisFor(r: MarketListing): string {
@@ -59,52 +59,51 @@ function Detail({ row, onClose }: { row: MarketListing; onClose: () => void }) {
       exit={{ x: 40, opacity: 0 }}
       transition={{ type: "spring", stiffness: 320, damping: 32 }}
       className="fixed inset-y-0 right-0 z-50 w-full max-w-[420px] overflow-y-auto border-l border-line bg-card p-6 shadow-window"
-     
     >
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">
-          <div className="font-mono text-[10.5px] uppercase tracking-[0.14em] text-muted">{row.venue}</div>
+          <div className="text-[12.5px] text-muted">{row.venue}</div>
           <div className="mt-1 text-[24px] font-semibold tracking-[-0.03em]">{row.label}</div>
           {row.name && <div className="text-[14px] text-ink-2">{row.name}</div>}
         </div>
-        <button onClick={onClose} className="grid h-9 w-9 place-items-center rounded-full border border-line" aria-label="Close"><IconX size={14} /></button>
+        <button onClick={onClose} className="grid h-9 w-9 place-items-center rounded-[10px] text-muted hover:bg-paper-2 hover:text-ink" aria-label="Close"><IconX size={14} /></button>
       </div>
       <div className="mt-5 grid grid-cols-2 gap-3">
-        <div className="rounded-xl border border-line p-3">
-          <div className="font-mono text-[10px] uppercase tracking-[0.12em] text-muted">Price</div>
-          <div className="tnum mt-1 font-mono text-[18px]">{fmtPrice(row.price)}</div>
+        <div className="rounded-[10px] border border-line p-3">
+          <div className="text-[12px] text-muted">Price</div>
+          <div className="tnum mt-1 text-[18px]">{fmtPrice(row.price)}</div>
         </div>
-        <div className="rounded-xl border border-line p-3">
-          <div className="font-mono text-[10px] uppercase tracking-[0.12em] text-muted">24h</div>
-          <div className={`tnum mt-1 font-mono text-[18px] ${(row.change24hPct ?? 0) >= 0 ? "text-long" : "text-short"}`}>{fmtPct(row.change24hPct)}</div>
+        <div className="rounded-[10px] border border-line p-3">
+          <div className="text-[12px] text-muted">24h</div>
+          <div className={`tnum mt-1 text-[18px] ${(row.change24hPct ?? 0) >= 0 ? "text-long" : "text-short"}`}>{fmtPct(row.change24hPct)}</div>
         </div>
       </div>
-      <div className="mt-5 rounded-xl border border-line p-4">
+      <div className="mt-5 rounded-[10px] border border-line p-4">
         <div className="flex items-center justify-between">
-          <span className="font-mono text-[10.5px] uppercase tracking-[0.12em] text-muted">Live quote</span>
-          <span className="font-mono text-[10.5px] text-faint">{quote?.source}</span>
+          <span className="text-[13px] font-medium text-ink">Quote for buying</span>
+          <span className="text-[12.5px] text-faint">{quote?.source}</span>
         </div>
         <div className="mt-3 flex items-center gap-2">
           {[100, 1000, 10000].map((v) => (
-            <button key={v} onClick={() => setSize(v)} className={`rounded-full px-3 py-1 font-mono text-[11.5px] ${size === v ? "bg-ink text-paper" : "border border-line text-ink-2"}`}>
+            <button key={v} onClick={() => setSize(v)} className={`rounded-[8px] px-3 py-1 text-[13px] ${size === v ? "bg-ink text-paper" : "border border-line text-ink-2"}`}>
               ${v.toLocaleString()}
             </button>
           ))}
         </div>
         {err ? (
-          <div className="mt-3 font-mono text-[12px] text-short">{err}</div>
+          <div className="mt-3 text-[12px] text-short">{err}</div>
         ) : quote ? (
-          <dl className="mt-3 grid grid-cols-2 gap-y-1.5 font-mono text-[12.5px]">
-            <dt className="text-faint">Mid</dt><dd className="text-right">{fmtPrice(quote.price)}</dd>
-            <dt className="text-faint">Fill (buy)</dt><dd className="text-right">{fmtPrice(quote.fillPrice ?? quote.ask ?? quote.price)}</dd>
-            <dt className="text-faint">Price impact</dt><dd className="text-right">{quote.priceImpactBps != null ? `${quote.priceImpactBps.toFixed(1)} bps` : "—"}</dd>
+          <dl className="mt-3 grid grid-cols-2 gap-y-1.5 text-[12.5px]">
+            <dt className="text-muted">Market price</dt><dd className="tnum text-right">{fmtPrice(quote.price)}</dd>
+            <dt className="text-muted">You’d pay</dt><dd className="tnum text-right">{fmtPrice(quote.fillPrice ?? quote.ask ?? quote.price)}</dd>
+            <dt className="text-muted">Price impact</dt><dd className="tnum text-right">{quote.priceImpactBps != null ? `${(quote.priceImpactBps / 100).toFixed(2)}%` : "—"}</dd>
           </dl>
         ) : (
-          <div className="mt-3 h-14 animate-pulse rounded-lg bg-paper-2" />
+          <div className="mt-3 h-14 animate-pulse rounded-[8px] bg-paper-2" />
         )}
       </div>
       {meta.length > 0 && (
-        <dl className="mt-5 grid grid-cols-2 gap-y-1.5 font-mono text-[12px]">
+        <dl className="mt-5 grid grid-cols-2 gap-y-1.5 text-[12px]">
           {meta.slice(0, 12).map(([k, v]) => (
             <div key={k} className="contents">
               <dt className="truncate text-faint">{k}</dt>
@@ -114,9 +113,9 @@ function Detail({ row, onClose }: { row: MarketListing; onClose: () => void }) {
         </dl>
       )}
       {row.instrument.kind === "token" && (
-        <div className="mt-4 break-all rounded-xl bg-paper-2 p-3 font-mono text-[11px] text-ink-2">mint {row.instrument.mint}</div>
+        <div className="mt-4 break-all rounded-[10px] bg-paper-2 p-3 font-mono text-[12px] text-ink-2"><span className="font-sans text-muted">Address </span>{row.instrument.mint}</div>
       )}
-      <Btn onClick={() => router.push(`/app/new?go=1&thesis=${encodeURIComponent(thesisFor(row))}`)} variant="volt" className="mt-6 w-full">
+      <Btn onClick={() => router.push(`/app/new?go=1&thesis=${encodeURIComponent(thesisFor(row))}`)} className="mt-6 h-10 w-full">
         Build a strategy on {row.label}
       </Btn>
     </motion.aside>
@@ -143,17 +142,17 @@ function Markets() {
 
   return (
     <>
-      <PageHeader eyebrow="Markets" title="Everything the agent can trade" sub="Live data from Hyperliquid, Jupiter and the options venues. Click any market to quote it or build a strategy around it." />
-      <div className="space-y-5 px-5 py-6 lg:px-10">
+      <PageHeader title="Markets" sub="Live prices. Pick any market to get a quote or build a strategy on it." />
+      <div className="space-y-4 px-5 pb-16 pt-6 lg:px-10">
         <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
-          <div className="no-scrollbar flex gap-1 overflow-x-auto rounded-full border border-line bg-card p-1">
+          <div className="no-scrollbar flex gap-1 overflow-x-auto">
             {PRODUCTS.map((p) => (
               <button
                 key={p.id}
                 onClick={() => router.replace(`/app/markets?p=${p.id}`)}
-                className={`relative shrink-0 rounded-full px-4 py-1.5 text-[13.5px] ${product === p.id ? "text-paper" : "text-ink-2 hover:text-ink"}`}
+                className={`relative h-8 shrink-0 rounded-[8px] px-3 text-[13.5px] ${product === p.id ? "font-medium text-ink" : "text-muted hover:text-ink"}`}
               >
-                {product === p.id && <motion.span layoutId="mk-tab" className="absolute inset-0 rounded-full bg-ink" transition={{ type: "spring", stiffness: 420, damping: 34 }} />}
+                {product === p.id && <motion.span layoutId="mk-tab" className="absolute inset-0 rounded-[8px] bg-paper-2" transition={{ type: "spring", stiffness: 420, damping: 34 }} />}
                 <span className="relative">{p.label}</span>
               </button>
             ))}
@@ -161,34 +160,34 @@ function Markets() {
           <input
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            placeholder={product === "tokens" ? "Search symbol, name or mint…" : "Search…"}
-            className="h-10 w-full rounded-full border border-line bg-card px-4 text-[14px] outline-none focus:border-ink md:w-72"
+            placeholder={product === "tokens" ? "Search name, ticker or address" : "Search"}
+            className="h-9 w-full rounded-[10px] border border-line-2 bg-card px-3.5 text-[14px] text-ink outline-none placeholder:text-faint focus:border-ink/40 md:w-72"
             aria-label="Search markets"
           />
         </div>
-        <p className="font-mono text-[11.5px] text-muted">{PRODUCTS.find((p) => p.id === product)?.blurb}</p>
+        <p className="text-[13px] text-muted">{PRODUCTS.find((p) => p.id === product)?.blurb}</p>
 
         {error && !rows.length ? (
-          <Empty title="Can't reach the market data API" sub={error.message} />
+          <Empty title="Market data is unavailable" sub="Can’t reach the Weft server. Try again in a moment." />
         ) : loading && !rows.length ? (
-          <div className="space-y-2">{Array.from({ length: 8 }).map((_, i) => <div key={i} className="h-12 animate-pulse rounded-xl bg-paper-2" />)}</div>
+          <div className="space-y-2">{Array.from({ length: 8 }).map((_, i) => <div key={i} className="h-12 animate-pulse rounded-[10px] bg-paper-2" />)}</div>
         ) : !rows.length ? (
           <Empty title="No markets found" sub={product === "options" ? "Options listings come from the options venue; try BTC or ETH." : "Try another search."} />
         ) : (
           <Card className="overflow-hidden">
             <div className="overflow-x-auto">
               <table className="w-full min-w-[720px] text-left text-[13.5px]">
-                <thead className="font-mono text-[10.5px] uppercase tracking-[0.12em] text-muted">
+                <thead className="text-[12.5px] text-muted">
                   <tr className="border-b border-line">
                     <th className="px-5 py-3 font-normal">Market</th>
                     <th className="px-3 py-3 text-right font-normal">Price</th>
                     <th className="px-3 py-3 text-right font-normal">24h</th>
                     {cols.vol && <th className="px-3 py-3 text-right font-normal">Volume</th>}
                     {cols.oi && <th className="px-3 py-3 text-right font-normal">Open interest</th>}
-                    {cols.fund && <th className="px-3 py-3 text-right font-normal">Funding/h</th>}
+                    {cols.fund && <th className="px-3 py-3 text-right font-normal">Funding / h</th>}
                     {cols.liq && <th className="px-3 py-3 text-right font-normal">Liquidity</th>}
-                    {cols.mcap && <th className="px-3 py-3 text-right font-normal">Mkt cap</th>}
-                    {cols.lev && <th className="px-5 py-3 text-right font-normal">Max lev.</th>}
+                    {cols.mcap && <th className="px-3 py-3 text-right font-normal">Market cap</th>}
+                    {cols.lev && <th className="px-5 py-3 text-right font-normal">Max leverage</th>}
                   </tr>
                 </thead>
                 <tbody>
@@ -202,14 +201,14 @@ function Markets() {
                         </div>
                         {r.name && <div className="truncate text-[12px] text-faint">{r.name}</div>}
                       </td>
-                      <td className="tnum px-3 py-3 text-right font-mono">{r.product === "predictions" && r.price != null ? `${Math.round(r.price * 100)}¢` : fmtPrice(r.price)}</td>
-                      <td className={`tnum px-3 py-3 text-right font-mono ${(r.change24hPct ?? 0) >= 0 ? "text-long" : "text-short"}`}>{fmtPct(r.change24hPct)}</td>
-                      {cols.vol && <td className="tnum px-3 py-3 text-right font-mono text-ink-2">{fmtCompact(r.volume24hUsd)}</td>}
-                      {cols.oi && <td className="tnum px-3 py-3 text-right font-mono text-ink-2">{fmtCompact(r.openInterestUsd)}</td>}
-                      {cols.fund && <td className={`tnum px-3 py-3 text-right font-mono ${(r.fundingHourlyPct ?? 0) >= 0 ? "text-ink-2" : "text-short"}`}>{r.fundingHourlyPct == null ? "—" : `${r.fundingHourlyPct.toFixed(4)}%`}</td>}
-                      {cols.liq && <td className="tnum px-3 py-3 text-right font-mono text-ink-2">{fmtCompact(r.liquidityUsd)}</td>}
-                      {cols.mcap && <td className="tnum px-3 py-3 text-right font-mono text-ink-2">{fmtCompact(r.marketCapUsd)}</td>}
-                      {cols.lev && <td className="tnum px-5 py-3 text-right font-mono text-ink-2">{r.maxLeverage ? `${r.maxLeverage}×` : "—"}</td>}
+                      <td className="tnum px-3 py-3 text-right">{r.product === "predictions" && r.price != null ? `${Math.round(r.price * 100)}¢` : fmtPrice(r.price)}</td>
+                      <td className={`tnum px-3 py-3 text-right ${(r.change24hPct ?? 0) >= 0 ? "text-long" : "text-short"}`}>{fmtPct(r.change24hPct)}</td>
+                      {cols.vol && <td className="tnum px-3 py-3 text-right text-ink-2">{fmtCompact(r.volume24hUsd)}</td>}
+                      {cols.oi && <td className="tnum px-3 py-3 text-right text-ink-2">{fmtCompact(r.openInterestUsd)}</td>}
+                      {cols.fund && <td className={`tnum px-3 py-3 text-right ${(r.fundingHourlyPct ?? 0) >= 0 ? "text-ink-2" : "text-short"}`}>{r.fundingHourlyPct == null ? "—" : `${r.fundingHourlyPct.toFixed(4)}%`}</td>}
+                      {cols.liq && <td className="tnum px-3 py-3 text-right text-ink-2">{fmtCompact(r.liquidityUsd)}</td>}
+                      {cols.mcap && <td className="tnum px-3 py-3 text-right text-ink-2">{fmtCompact(r.marketCapUsd)}</td>}
+                      {cols.lev && <td className="tnum px-5 py-3 text-right text-ink-2">{r.maxLeverage ? `${r.maxLeverage}×` : "—"}</td>}
                     </tr>
                   ))}
                 </tbody>
@@ -221,7 +220,7 @@ function Markets() {
       <AnimatePresence>
         {open && (
           <>
-            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={() => setOpen(null)} className="fixed inset-0 z-40 bg-[color-mix(in_oklab,var(--paper)_50%,transparent)] backdrop-blur-sm" />
+            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={() => setOpen(null)} className="fixed inset-0 z-40 bg-black/20" />
             <Detail key={open.instrumentKey} row={open} onClose={() => setOpen(null)} />
           </>
         )}

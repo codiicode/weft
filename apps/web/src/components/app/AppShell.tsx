@@ -2,26 +2,25 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import type { ReactNode } from "react";
-import { motion } from "motion/react";
-import { Logo, LogoMark } from "../ui/Logo";
+import { Logo } from "../ui/Logo";
 import { ThemeToggle } from "../ui/ThemeToggle";
 import { api, API_URL } from "@/lib/api";
 import { useApi } from "@/lib/use-api";
 import { useAuth } from "@/lib/auth";
 
 const NAV = [
-  { href: "/app", label: "Overview", icon: "M3 9.5 10 4l7 5.5V16a1 1 0 0 1-1 1h-4v-5H8v5H4a1 1 0 0 1-1-1z" },
-  { href: "/app/new", label: "New strategy", icon: "M10 4v12M4 10h12" },
-  { href: "/app/markets", label: "Markets", icon: "M4 15l4-5 3 3 5-7" },
-  { href: "/app/runs", label: "Runs", icon: "M5 4.5v11l10-5.5z" },
-  { href: "/app/live", label: "Live", icon: "M10 2.5 4 11h5l-1 6.5L16 9h-5z" },
-  { href: "/app/library", label: "Library", icon: "M4 4h4v12H4zM10 4h6v5h-6zM10 11h6v5h-6z" },
-  { href: "/app/leaderboard", label: "Leaderboard", icon: "M4 16V9M10 16V4M16 16v-5" },
+  { href: "/app", label: "Home", icon: "M3.5 9 10 4l6.5 5v7a.5.5 0 0 1-.5.5h-3.5V12h-5v4.5H4a.5.5 0 0 1-.5-.5z" },
+  { href: "/app/runs", label: "Runs", icon: "M6 4.5v11l9-5.5z" },
+  { href: "/app/library", label: "Strategies", icon: "M4 4.5h12M4 10h12M4 15.5h7" },
+  { href: "/app/markets", label: "Markets", icon: "M3.5 14.5 8 9.5l3 3 5.5-6.5" },
+  { href: "/app/leaderboard", label: "Leaderboard", icon: "M5 16V10M10 16V4.5M15 16v-4" },
 ];
+const ACCOUNT_NAV = [{ href: "/app/live", label: "Live trading", icon: "M10.5 3 5 11h4.5l-1 6 5.5-8H9.5z" }];
+const MOBILE_NAV = [NAV[0]!, NAV[1]!, { href: "/app/new", label: "New", icon: "M10 4.5v11M4.5 10h11" }, NAV[2]!, ACCOUNT_NAV[0]!];
 
 function NavIcon({ d }: { d: string }) {
   return (
-    <svg width="18" height="18" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+    <svg width="18" height="18" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
       <path d={d} />
     </svg>
   );
@@ -30,62 +29,56 @@ function NavIcon({ d }: { d: string }) {
 function ApiStatus() {
   const { data, error } = useApi(() => api.health(), [], { pollMs: 15_000 });
   const ok = !!data && !error;
-  const simulated = data ? Object.entries(data.signals).filter(([, m]) => m === "simulated").map(([k]) => k) : [];
   return (
-    <div className="rounded-2xl border border-line bg-card/60 p-3 text-[11.5px]" title={ok ? `API ${API_URL}` : `Cannot reach ${API_URL}`}>
-      <div className="flex items-center gap-2 font-mono uppercase tracking-[0.12em] text-muted">
-        <span className="relative flex h-2 w-2">
-          {ok && <span className="pulse-ring absolute inset-0 rounded-full bg-long" />}
-          <span className={`relative h-2 w-2 rounded-full ${ok ? "bg-long" : "bg-short"}`} />
-        </span>
-        {ok ? "Engine online" : "API offline"}
-      </div>
-      <div className="mt-1.5 leading-relaxed text-faint">
-        {ok ? (
-          <>
-            Paper trading · live market data{simulated.length ? <>; simulated: {simulated.join(", ")}</> : null}
-          </>
-        ) : (
-          <>Start it with <span className="font-mono text-ink-2">npm run dev -w @weft/api</span></>
-        )}
-      </div>
-    </div>
+    <span
+      className="inline-flex items-center gap-1.5 text-[12.5px] text-muted"
+      title={ok ? "Connected to live market data" : `Can't reach the Weft server at ${API_URL}`}
+    >
+      <span className={`h-1.5 w-1.5 rounded-full ${ok ? "bg-long" : "bg-short"}`} />
+      {ok ? "Live data" : "Offline"}
+    </span>
   );
 }
 
 function AccountButton({ compact = false }: { compact?: boolean }) {
   const auth = useAuth();
-  if (!auth.enabled) {
-    return compact ? null : (
-      <div className="rounded-2xl border border-dashed border-line-2 p-3 text-[11.5px] leading-relaxed text-faint">
-        <div className="font-mono uppercase tracking-[0.12em] text-muted">Local mode</div>
-        Sign-in turns on when <span className="font-mono text-ink-2">NEXT_PUBLIC_PRIVY_APP_ID</span> is set.
-      </div>
-    );
-  }
-  if (!auth.ready) return <div className={compact ? "h-9 w-20 animate-pulse rounded-full bg-paper-2" : "h-12 animate-pulse rounded-2xl bg-paper-2"} />;
+  if (!auth.enabled) return null;
+  if (!auth.ready) return <div className={compact ? "h-8 w-16 animate-pulse rounded-[8px] bg-paper-2" : "h-10 animate-pulse rounded-[10px] bg-paper-2"} />;
   if (!auth.authenticated) {
     return (
-      <button onClick={auth.login} className={`inline-flex items-center justify-center gap-2 rounded-full bg-ink font-medium text-paper ${compact ? "h-9 px-3.5 text-[13px]" : "h-11 w-full text-[14px]"}`}>
+      <button
+        onClick={auth.login}
+        className={compact ? "h-8 rounded-[8px] px-3 text-[13px] font-medium text-ink hover:bg-paper-2" : "h-10 w-full rounded-[10px] border border-line-2 text-[14px] font-medium text-ink transition-colors hover:border-ink/30"}
+      >
         Sign in
       </button>
     );
   }
   return (
-    <div className={`flex items-center gap-2 ${compact ? "" : "rounded-2xl border border-line bg-card/60 p-2.5"}`}>
-      <span className="grid h-8 w-8 shrink-0 place-items-center rounded-full bg-[var(--long-soft)] font-mono text-[11px] text-long">
+    <div className="group flex items-center gap-2.5">
+      <span className="grid h-7 w-7 shrink-0 place-items-center rounded-full bg-paper-2 text-[11px] font-medium uppercase text-ink-2">
         {(auth.label ?? "?").replace(/^0x/, "").slice(0, 2)}
       </span>
-      {!compact && (
-        <div className="min-w-0 flex-1">
-          <div className="truncate font-mono text-[12.5px] text-ink">{auth.label}</div>
-          <div className="text-[11px] text-faint">{auth.wallets.length} wallet{auth.wallets.length === 1 ? "" : "s"} · paper</div>
-        </div>
-      )}
-      <button onClick={() => auth.logout()} className="rounded-full px-2 py-1 font-mono text-[10.5px] uppercase tracking-[0.1em] text-muted hover:text-ink">
+      {!compact && <span className="min-w-0 flex-1 truncate text-[13.5px] text-ink">{auth.label}</span>}
+      <button onClick={() => auth.logout()} className="rounded-[6px] px-1.5 py-1 text-[12.5px] text-muted hover:text-ink">
         Sign out
       </button>
     </div>
+  );
+}
+
+function NavLink({ n, active }: { n: { href: string; label: string; icon: string }; active: boolean }) {
+  return (
+    <Link
+      href={n.href}
+      aria-current={active ? "page" : undefined}
+      className={`flex h-9 items-center gap-3 rounded-[8px] px-2.5 text-[14px] transition-colors ${active ? "bg-paper-2 font-medium text-ink" : "text-ink-2 hover:bg-paper-2/60 hover:text-ink"}`}
+    >
+      <span className={active ? "text-ink" : "text-muted"}>
+        <NavIcon d={n.icon} />
+      </span>
+      {n.label}
+    </Link>
   );
 }
 
@@ -93,40 +86,41 @@ export function AppShell({ children }: { children: ReactNode }) {
   const path = usePathname();
   const active = (href: string) => (href === "/app" ? path === "/app" || path === "/app/" : path.startsWith(href));
   return (
-    <div className="min-h-screen bg-paper lg:grid lg:grid-cols-[248px_minmax(0,1fr)]">
+    <div className="min-h-screen bg-paper lg:grid lg:grid-cols-[232px_minmax(0,1fr)]">
       {/* Sidebar */}
-      <aside className="sticky top-0 hidden h-screen flex-col gap-6 border-r border-line bg-paper-2/40 p-4 lg:flex">
-        <Link href="/" className="px-2 pt-1" aria-label="Weft home">
+      <aside className="sticky top-0 hidden h-screen flex-col border-r border-line px-3 pb-4 pt-5 lg:flex">
+        <Link href="/" className="px-2.5" aria-label="Weft home">
           <Logo />
         </Link>
-        <nav className="flex flex-col gap-0.5">
+        <Link href="/app/new" className="mx-0.5 mt-6 flex h-9 items-center justify-center gap-2 rounded-[10px] bg-ink text-[14px] font-medium text-paper transition-opacity hover:opacity-85">
+          <NavIcon d="M10 4.5v11M4.5 10h11" /> New strategy
+        </Link>
+        <nav className="mt-5 flex flex-col gap-0.5">
           {NAV.map((n) => (
-            <Link
-              key={n.href}
-              href={n.href}
-              className={`relative flex items-center gap-3 rounded-xl px-3 py-2 text-[14px] transition-colors ${active(n.href) ? "text-ink" : "text-ink-2 hover:bg-card/70 hover:text-ink"}`}
-            >
-              {active(n.href) && <motion.span layoutId="nav-active" className="absolute inset-0 rounded-xl border border-line bg-card shadow-card" transition={{ type: "spring", stiffness: 500, damping: 38 }} />}
-              <span className="relative"><NavIcon d={n.icon} /></span>
-              <span className="relative">{n.label}</span>
-            </Link>
+            <NavLink key={n.href} n={n} active={active(n.href)} />
           ))}
         </nav>
-        <div className="mt-auto space-y-3">
+        <p className="mt-6 px-2.5 text-[12px] text-faint">Account</p>
+        <nav className="mt-1.5 flex flex-col gap-0.5">
+          {ACCOUNT_NAV.map((n) => (
+            <NavLink key={n.href} n={n} active={active(n.href)} />
+          ))}
+        </nav>
+        <div className="mt-auto space-y-4 px-1">
           <AccountButton />
-          <ApiStatus />
-          <div className="flex items-center justify-between px-1">
-            <span className="font-mono text-[10.5px] text-faint">Paper mode · demo</span>
+          <div className="flex items-center justify-between pl-1.5">
+            <ApiStatus />
             <ThemeToggle />
           </div>
         </div>
       </aside>
 
       {/* Mobile top bar */}
-      <header className="sticky top-0 z-40 flex items-center justify-between border-b border-line bg-paper/85 px-4 py-3 backdrop-blur-xl lg:hidden">
-        <Link href="/app" aria-label="Weft app"><LogoMark size={26} /></Link>
-        <span className="font-mono text-[10.5px] uppercase tracking-[0.12em] text-muted">Paper mode</span>
-        <div className="flex items-center gap-2">
+      <header className="sticky top-0 z-40 flex h-14 items-center justify-between border-b border-line bg-paper/90 px-4 backdrop-blur-md lg:hidden">
+        <Link href="/app" aria-label="Weft app">
+          <Logo />
+        </Link>
+        <div className="flex items-center gap-1">
           <AccountButton compact />
           <ThemeToggle />
         </div>
@@ -135,9 +129,9 @@ export function AppShell({ children }: { children: ReactNode }) {
       <main className="min-w-0 pb-24 lg:pb-0">{children}</main>
 
       {/* Mobile bottom nav */}
-      <nav className="fixed inset-x-0 bottom-0 z-40 grid grid-cols-7 border-t border-line bg-paper/90 px-1 pb-[env(safe-area-inset-bottom)] backdrop-blur-xl lg:hidden">
-        {NAV.map((n) => (
-          <Link key={n.href} href={n.href} className={`flex flex-col items-center gap-1 py-2.5 text-[10px] ${active(n.href) ? "text-ink" : "text-muted"}`}>
+      <nav className="fixed inset-x-0 bottom-0 z-40 grid grid-cols-5 border-t border-line bg-paper/95 pb-[env(safe-area-inset-bottom)] backdrop-blur-md lg:hidden">
+        {MOBILE_NAV.map((n) => (
+          <Link key={n.href} href={n.href} className={`flex flex-col items-center gap-1 py-2.5 text-[11px] ${active(n.href) ? "text-ink" : "text-muted"}`}>
             <NavIcon d={n.icon} />
             <span className="truncate">{n.label.split(" ")[0]}</span>
           </Link>
@@ -147,13 +141,17 @@ export function AppShell({ children }: { children: ReactNode }) {
   );
 }
 
-export function PageHeader({ eyebrow, title, sub, actions }: { eyebrow?: string; title: ReactNode; sub?: ReactNode; actions?: ReactNode }) {
+export function PageHeader({ title, sub, actions, back }: { eyebrow?: string; title: ReactNode; sub?: ReactNode; actions?: ReactNode; back?: { href: string; label: string } }) {
   return (
-    <div className="flex flex-col gap-4 border-b border-line px-5 pb-6 pt-7 sm:flex-row sm:items-end sm:justify-between lg:px-10 lg:pt-10">
+    <div className="flex flex-col gap-4 px-5 pb-2 pt-8 sm:flex-row sm:items-end sm:justify-between lg:px-10 lg:pt-12">
       <div className="min-w-0">
-        {eyebrow && <div className="font-mono text-[11px] uppercase tracking-[0.16em] text-muted">{eyebrow}</div>}
-        <h1 className="mt-2 text-[clamp(1.7rem,3vw,2.4rem)] font-semibold leading-[1.05] tracking-[-0.04em]">{title}</h1>
-        {sub && <p className="mt-2 max-w-2xl text-[15px] leading-relaxed text-ink-2">{sub}</p>}
+        {back && (
+          <Link href={back.href} className="mb-3 inline-block text-[13.5px] text-muted hover:text-ink">
+            ← {back.label}
+          </Link>
+        )}
+        <h1 className="text-[26px] font-semibold leading-[1.15] tracking-[-0.03em] text-ink sm:text-[28px]">{title}</h1>
+        {sub && <p className="mt-1.5 max-w-2xl text-[15px] leading-relaxed text-muted">{sub}</p>}
       </div>
       {actions && <div className="flex shrink-0 flex-wrap items-center gap-2">{actions}</div>}
     </div>
@@ -161,24 +159,24 @@ export function PageHeader({ eyebrow, title, sub, actions }: { eyebrow?: string;
 }
 
 export function Card({ children, className = "" }: { children: ReactNode; className?: string }) {
-  return <div className={`rounded-[20px] border border-line bg-card shadow-card ${className}`}>{children}</div>;
+  return <div className={`rounded-[12px] border border-line bg-card ${className}`}>{children}</div>;
 }
 
 export function Stat({ label, value, sub, tone }: { label: string; value: ReactNode; sub?: ReactNode; tone?: "long" | "short" }) {
   return (
-    <Card className="p-4">
-      <div className="font-mono text-[10.5px] uppercase tracking-[0.14em] text-muted">{label}</div>
-      <div className={`tnum mt-2 font-mono text-[22px] tracking-[-0.02em] ${tone === "long" ? "text-long" : tone === "short" ? "text-short" : "text-ink"}`}>{value}</div>
-      {sub && <div className="mt-1 text-[12px] text-faint">{sub}</div>}
-    </Card>
+    <div className="min-w-0">
+      <div className="text-[13px] text-muted">{label}</div>
+      <div className={`tnum mt-1 text-[22px] font-medium tracking-[-0.02em] ${tone === "long" ? "text-long" : tone === "short" ? "text-short" : "text-ink"}`}>{value}</div>
+      {sub && <div className="mt-0.5 text-[12.5px] text-faint">{sub}</div>}
+    </div>
   );
 }
 
 export function Empty({ title, sub, action }: { title: string; sub?: ReactNode; action?: ReactNode }) {
   return (
-    <div className="dot-grid flex flex-col items-center justify-center rounded-[20px] border border-dashed border-line-2 px-6 py-14 text-center">
-      <div className="text-[17px] font-semibold tracking-[-0.02em]">{title}</div>
-      {sub && <p className="mt-1.5 max-w-sm text-[14px] text-ink-2">{sub}</p>}
+    <div className="flex flex-col items-center justify-center rounded-[12px] border border-dashed border-line-2 px-6 py-14 text-center">
+      <div className="text-[16px] font-semibold tracking-[-0.015em] text-ink">{title}</div>
+      {sub && <p className="mt-1.5 max-w-sm text-[14px] leading-relaxed text-muted">{sub}</p>}
       {action && <div className="mt-5">{action}</div>}
     </div>
   );
@@ -192,7 +190,7 @@ export function Pill({ children, tone = "neutral" }: { children: ReactNode; tone
     trigger: "bg-[var(--trigger-soft)] text-trigger",
     signal: "bg-[var(--signal-soft)] text-signal",
   }[tone];
-  return <span className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 font-mono text-[10.5px] uppercase tracking-[0.08em] ${cls}`}>{children}</span>;
+  return <span className={`inline-flex h-[22px] items-center gap-1 whitespace-nowrap rounded-[6px] px-2 text-[12px] font-medium ${cls}`}>{children}</span>;
 }
 
 export function Btn({
@@ -207,17 +205,18 @@ export function Btn({
   children: ReactNode;
   onClick?: () => void;
   href?: string;
-  variant?: "ink" | "ghost" | "volt" | "danger";
+  variant?: "ink" | "ghost" | "volt" | "danger" | "quiet";
   disabled?: boolean;
   type?: "button" | "submit";
   className?: string;
 }) {
-  const cls = `inline-flex h-10 items-center justify-center gap-2 rounded-full px-4 text-[14px] font-medium transition-[background-color,opacity,box-shadow] disabled:cursor-not-allowed disabled:opacity-40 ${
+  const cls = `inline-flex h-9 items-center justify-center gap-2 whitespace-nowrap rounded-[10px] px-3.5 text-[14px] font-medium transition-colors disabled:cursor-not-allowed disabled:opacity-40 ${
     {
-      ink: "bg-ink text-paper hover:shadow-[0_8px_24px_-10px_rgba(0,0,0,.5)]",
-      ghost: "border border-line-2 bg-card/60 text-ink hover:bg-card",
-      volt: "bg-volt text-[#0b0c0f] hover:shadow-[0_10px_30px_-10px_rgba(205,255,63,.7)]",
-      danger: "bg-short text-white",
+      ink: "bg-ink text-paper hover:bg-ink/85",
+      volt: "bg-ink text-paper hover:bg-ink/85",
+      ghost: "border border-line-2 bg-card text-ink hover:border-ink/30",
+      quiet: "text-ink-2 hover:bg-paper-2 hover:text-ink",
+      danger: "bg-short text-white hover:bg-short/90",
     }[variant]
   } ${className}`;
   if (href) return <Link href={href} className={cls}>{children}</Link>;
