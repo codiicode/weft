@@ -1,0 +1,13 @@
+{
+  "name": "@weft/engine",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Strategy runtime: tick loop, paper broker, exit monitoring, persistence.",
+  "type": "module",
+  "exports": { ".": "./src/index.ts" },
+  "scripts": {
+    "test": "vitest run",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": { "@weft/strategy": "*", "@weft/venues": "*" }
+}

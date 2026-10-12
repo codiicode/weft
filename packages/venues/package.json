@@ -1,0 +1,14 @@
+{
+  "name": "@weft/venues",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Market data, catalogs and signal providers for every venue Weft trades on.",
+  "type": "module",
+  "exports": { ".": "./src/index.ts" },
+  "scripts": {
+    "test": "vitest run",
+    "typecheck": "tsc --noEmit",
+    "smoke": "node scripts/smoke.ts"
+  },
+  "dependencies": { "@weft/strategy": "*" }
+}
