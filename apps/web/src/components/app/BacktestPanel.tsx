@@ -38,7 +38,7 @@ function Segmented<T extends string | number>({ value, options, onChange, label,
           role="radio"
           aria-checked={value === o}
           onClick={() => onChange(o)}
-          className={`rounded-[8px] px-3 text-[13px] transition-colors ${value === o ? "bg-card font-medium text-ink shadow-[0_1px_2px_rgba(0,0,0,.08)]" : "text-muted hover:text-ink"}`}
+          className={`rounded-[8px] px-3 text-[13px] transition-colors ${value === o ? "bg-raised font-medium text-ink shadow-[0_1px_2px_rgba(0,0,0,.08)]" : "text-muted hover:text-ink"}`}
         >
           {render ? render(o) : String(o)}
         </button>

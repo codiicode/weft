@@ -125,7 +125,7 @@ function Theme() {
           role="radio"
           aria-checked={theme === t}
           onClick={() => set(t)}
-          className={`h-8 rounded-[8px] px-4 text-[13px] capitalize ${theme === t ? "bg-card font-medium text-ink shadow-[0_1px_2px_rgba(0,0,0,.08)]" : "text-muted hover:text-ink"}`}
+          className={`h-8 rounded-[8px] px-4 text-[13px] capitalize ${theme === t ? "bg-raised font-medium text-ink shadow-[0_1px_2px_rgba(0,0,0,.08)]" : "text-muted hover:text-ink"}`}
         >
           {t}
         </button>

@@ -13,6 +13,7 @@
   --paper-2: #f1f1ee;
   --card: #ffffff;
   --card-2: #f7f7f5;
+  --raised: #ffffff;
   --ink: #121214;
   --ink-2: #44464c;
   --muted: #63666d;
@@ -54,6 +55,7 @@
   --paper-2: #151517;
   --card: #141416;
   --card-2: #19191c;
+  --raised: #2b2b30;
   --ink: #ededeb;
   --ink-2: #b4b5b9;
   --muted: #84868d;
@@ -97,6 +99,7 @@
   --color-paper-2: var(--paper-2);
   --color-card: var(--card);
   --color-card-2: var(--card-2);
+  --color-raised: var(--raised);
   --color-ink: var(--ink);
   --color-ink-2: var(--ink-2);
   --color-muted: var(--muted);
