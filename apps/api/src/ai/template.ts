@@ -17,8 +17,14 @@ const slug = (s: string) =>
   s.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "").slice(0, 48) || "strategy";
 const sid = (s: string) => s.toLowerCase().replace(/[^a-z0-9]+/g, "_").replace(/^_+|_+$/g, "").replace(/^(\d)/, "s_$1").slice(0, 30) || "x";
 
+/** First standalone number that isn't a percentage, a leverage ("3x") or a SOL size. */
 function firstNumber(text: string): number | undefined {
-  const m = text.match(/(?<![\w$])(\d+(?:[.,]\d+)?)(?!\s*%|\s*x\b|\s*sol\b)/i);
+  const m = text.match(/(?<![\w$.,])(\d+(?:[.,]\d+)?)(?![\d.,])(?!\s*(?:%|x\b|sol\b))/i);
+  return m ? Number(m[1]!.replace(",", ".")) : undefined;
+}
+/** "dips 10%", "drops 5 %", "down 8%" → 10, 5, 8 */
+function dipPct(text: string): number | undefined {
+  const m = text.match(/\b(?:dips?|drops?|falls?|down|dumps?)\s+(?:by\s+)?(\d+(?:[.,]\d+)?)\s*%/i);
   return m ? Number(m[1]!.replace(",", ".")) : undefined;
 }
 function solSize(text: string): number | undefined {
@@ -82,15 +88,21 @@ async function tokenStrategy(thesis: string, symbol: string, catalog: Catalog): 
   if (!row || row.instrument.kind !== "token") return null;
   const inst = { ...row.instrument, symbol };
   const mint = inst.mint;
-  const level = firstNumber(thesis.replace(/\$[A-Za-z0-9]+/g, ""));
+  const dip = dipPct(thesis);
+  const rawLevel = dip == null ? firstNumber(thesis.replace(/\$[A-Za-z0-9]+/g, "")) : undefined;
+  // Ignore numbers that can't be a price level for this token (e.g. "2 days", or 1000× the price).
+  const level = rawLevel != null && rawLevel > 0 && row.price != null && rawLevel < row.price * 50 ? rawLevel : undefined;
   const size = solSize(thesis) ?? 0.5;
-  const priceCond = level != null && row.price != null && level < row.price * 50
-    ? { op: "lte" as const, left: { ref: "px.price" }, right: { value: level } }
-    : { op: "gt" as const, left: { ref: "px.change_1h_pct" }, right: { value: 5 } };
+  const priceCond =
+    dip != null
+      ? { op: "lte" as const, left: { ref: "px.change_24h_pct" }, right: { value: -dip } }
+      : level != null
+        ? { op: "lte" as const, left: { ref: "px.price" }, right: { value: level } }
+        : { op: "gt" as const, left: { ref: "px.change_1h_pct" }, right: { value: 5 } };
   const s: StrategyInput = {
     schemaVersion: 1,
     id: slug(`${symbol}-momentum`),
-    name: `$${symbol} ${level != null ? "level" : "momentum"} + sentiment`,
+    name: `$${symbol} ${dip != null ? `dip ${dip}%` : level != null ? "level" : "momentum"} + sentiment`,
     thesis,
     tags: ["solana", "token"],
     signals: [
@@ -101,7 +113,7 @@ async function tokenStrategy(thesis: string, symbol: string, catalog: Catalog): 
     triggers: [
       {
         id: "entry",
-        label: level != null ? `Price ≤ ${level} & bullish` : "Breakout & bullish",
+        label: dip != null ? `Down ${dip}% & bullish` : level != null ? `Price ≤ ${level} & bullish` : "Breakout & bullish",
         when: { op: "and", args: [
           priceCond,
           { op: "gt", left: { ref: "social.sentiment" }, right: { value: 0.3 } },

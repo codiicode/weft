@@ -50,6 +50,14 @@ describe("template generator", () => {
     expect(r.strategy.signals.map((s) => s.kind).sort()).toEqual(["price", "social", "token_onchain"]);
   });
 
+  it("understands percentage dips and ignores SOL sizes as price levels", async () => {
+    const r = await templateStrategy("Buy $BONK when it dips 5% and sentiment turns bullish, 0.5 SOL", fakeCatalog);
+    const cond = JSON.stringify(r.strategy.triggers[0]!.when);
+    expect(cond).toContain('"ref":"px.change_24h_pct"');
+    expect(cond).toContain('"value":-5');
+    expect(cond).not.toContain('"ref":"px.price"');
+  });
+
   it("falls back to an alerts-only watcher when a token can't be resolved", async () => {
     const r = await templateStrategy("Ape into $NOPE before it rips", fakeCatalog);
     expect(r.strategy.actions.every((a) => a.type === "notify")).toBe(true);
