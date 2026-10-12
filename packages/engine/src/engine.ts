@@ -13,7 +13,7 @@ import type {
 } from "./types.ts";
 import type { DeploymentRuntime, Store } from "./store.ts";
 import { errMsg, PaperExecutor, type Executor } from "./executor.ts";
-import type { FeeOverrides } from "./fees.ts";
+import { resolveFees, type FeeOverrides } from "./fees.ts";
 import { marginOf, unrealizedOf } from "./positions.ts";
 import { fmtUsd, runTick, Session, type TickDeps } from "./tick.ts";
 
@@ -45,6 +45,12 @@ export interface EngineOptions {
   logger?: Logger;
   /** Order executor. Default: PaperExecutor over `marketData` with `fees`. */
   executor?: Executor;
+  /**
+   * Simulate perp funding payments (via `MarketData.getFundingRate`, if implemented)
+   * and liquidations at an estimated liquidation price. Default: true when the
+   * executor is a paper executor, false for live executors (the venue does both).
+   */
+  perpRealism?: boolean;
   /** Paper slippage model overrides, bps from mid per instrument kind. */
   slippageBps?: Partial<Record<Instrument["kind"], number>>;
   /** Per signal fetch. Default 10 s. */
@@ -88,6 +94,8 @@ export function createEngine(opts: EngineOptions): EngineRuntime {
     providers,
     tokenFacts: opts.tokenFacts,
     executor,
+    fees: resolveFees(opts.fees),
+    perpRealism: opts.perpRealism ?? executor.mode === "paper",
     signalTimeoutMs: opts.signalTimeoutMs ?? 10_000,
     quoteTimeoutMs: opts.quoteTimeoutMs ?? 10_000,
     usdPriceInstruments: opts.usdPriceInstruments ?? DEFAULT_USD_PRICE_INSTRUMENTS,
@@ -268,6 +276,7 @@ export function createEngine(opts: EngineOptions): EngineRuntime {
         equityCurve: await store.listEquity(id),
         feesUsd: rt.feesUsd,
         builderFeesUsd: rt.builderFeesUsd,
+        fundingUsd: rt.fundingUsd ?? 0,
       };
     },
 

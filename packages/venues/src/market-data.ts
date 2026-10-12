@@ -41,7 +41,10 @@ export class VenueMarketData implements MarketData {
 
   async perpMarkets(dex: string | null): Promise<PerpMarket[]> {
     const [raw, core] = await Promise.all([this.ctx.hl.metaAndAssetCtxs(dex ?? undefined), dex ? this.coreSymbols() : Promise.resolve(undefined)]);
-    return parsePerpMarkets(raw, dex, core);
+    const markets = parsePerpMarkets(raw, dex, core);
+    // Every OI observation feeds the sampler behind funding.oi_zscore_30d.
+    this.ctx.oi.observe(markets, this.ctx.now());
+    return markets;
   }
 
   async perpMarket(i: Pick<PerpInstrument, "symbol" | "dex">): Promise<PerpMarket> {
@@ -50,6 +53,23 @@ export class VenueMarketData implements MarketData {
     const m = markets.find((x) => x.coin === coin) ?? markets.find((x) => x.coin.toUpperCase() === coin.toUpperCase());
     if (!m) throw new Error(`hyperliquid: unknown perp ${coin}`);
     return m;
+  }
+
+  /**
+   * Current funding rate of a perp (core or HIP-3), as a fraction per hour
+   * (positive: longs pay shorts). Null for other instruments or when unknown.
+   */
+  async getFundingRate(i: Instrument): Promise<{ hourlyRate: number; ts: number } | null> {
+    if (i.kind !== "perp") return null;
+    const m = await this.perpMarket(i);
+    return m.funding != null ? { hourlyRate: m.funding, ts: this.ctx.now() } : null;
+  }
+
+  /** Venue max leverage of a perp (from meta). Null for other instruments or when unknown. */
+  async getMaxLeverage(i: Instrument): Promise<number | null> {
+    if (i.kind !== "perp") return null;
+    const m = await this.perpMarket(i);
+    return m.maxLeverage != null && m.maxLeverage > 0 ? m.maxLeverage : null;
   }
 
   /* ------------------------------------------------------------------ */

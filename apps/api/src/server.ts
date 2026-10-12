@@ -12,7 +12,7 @@ const PORT = Number(process.env.PORT ?? 8787);
 const DATA_DIR = process.env.WEFT_DATA_DIR ?? fileURLToPath(new URL("../.data/", import.meta.url));
 mkdirSync(DATA_DIR, { recursive: true });
 
-const venues = createVenues();
+const venues = createVenues({ oiHistoryPath: join(DATA_DIR, "oi-history.json") });
 const engine = createEngine({
   store: new SqliteStore(join(DATA_DIR, "engine.db")),
   marketData: venues.marketData,
@@ -54,6 +54,9 @@ for (const sig of ["SIGINT", "SIGTERM"] as const) {
     console.log("shutting down…");
     server.close();
     await engine.shutdown();
+    try {
+      await venues.ctx.oi.flush();
+    } catch {}
     library.close();
     process.exit(0);
   });

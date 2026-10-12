@@ -174,7 +174,7 @@ function Run() {
                 <div className="px-5 py-8 text-center text-[13.5px] text-ink-2">No open positions. The agent is waiting for its triggers.</div>
               ) : (
                 <div className="overflow-x-auto">
-                  <table className="w-full min-w-[640px] text-left text-[13px]">
+                  <table className="w-full min-w-[820px] text-left text-[13px]">
                     <thead className="font-mono text-[10.5px] uppercase tracking-[0.12em] text-muted">
                       <tr className="border-b border-line">
                         <th className="px-5 py-2.5 font-normal">Instrument</th>
@@ -182,6 +182,8 @@ function Run() {
                         <th className="px-3 py-2.5 text-right font-normal">Size</th>
                         <th className="px-3 py-2.5 text-right font-normal">Entry</th>
                         <th className="px-3 py-2.5 text-right font-normal">Mark</th>
+                        <th className="px-3 py-2.5 text-right font-normal">Liq.</th>
+                        <th className="px-3 py-2.5 text-right font-normal">Funding</th>
                         <th className="px-5 py-2.5 text-right font-normal">P&amp;L</th>
                       </tr>
                     </thead>
@@ -193,6 +195,8 @@ function Run() {
                           <td className="tnum px-3 py-3 text-right font-mono">{fmtUsd(p.sizeUsd, 2)}</td>
                           <td className="tnum px-3 py-3 text-right font-mono">{fmtPrice(p.entryPrice)}</td>
                           <td className="tnum px-3 py-3 text-right font-mono">{fmtPrice(p.markPrice)}</td>
+                          <td className="tnum px-3 py-3 text-right font-mono text-short/80">{p.liquidationPrice ? fmtPrice(p.liquidationPrice) : "—"}</td>
+                          <td className={`tnum px-3 py-3 text-right font-mono ${(p.fundingPaidUsd ?? 0) > 0 ? "text-short" : "text-ink-2"}`}>{p.fundingPaidUsd != null ? fmtUsd(-p.fundingPaidUsd, 2) : "—"}</td>
                           <td className={`tnum px-5 py-3 text-right font-mono ${p.unrealizedPnlUsd >= 0 ? "text-long" : "text-short"}`}>
                             {fmtUsd(p.unrealizedPnlUsd, 2)} <span className="text-[11px]">({fmtPct(p.unrealizedPnlPct)})</span>
                           </td>

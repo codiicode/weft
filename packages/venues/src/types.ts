@@ -33,6 +33,17 @@ export interface MarketData {
   getQuote(instrument: Instrument, req?: QuoteRequest): Promise<Quote>;
   /** Batch helper; implementations may optimise (e.g. one allMids call). */
   getQuotes?(instruments: Instrument[]): Promise<Map<string, Quote>>;
+  /**
+   * Optional (additive): current funding rate of a perp as a fraction per hour
+   * (0.0000125 = 0.00125 %/h; positive: longs pay shorts). Null for non-perps or
+   * when unknown. Used by the paper engine to accrue funding.
+   */
+  getFundingRate?(instrument: Instrument): Promise<{ hourlyRate: number; ts: number } | null>;
+  /**
+   * Optional (additive): the venue's max leverage for a perp, null if unknown.
+   * Used by the paper engine's liquidation model (maintenance = 1 / (2 × max)).
+   */
+  getMaxLeverage?(instrument: Instrument): Promise<number | null>;
 }
 
 /** One row in the markets explorer. */

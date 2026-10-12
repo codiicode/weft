@@ -33,6 +33,12 @@ One tick of one deployment, in order:
    mark, unrealized P&L and `peakPrice`, then run exits *before* anything else:
    stop-loss → trailing stop → take-profit → time exit. A position without a fresh quote this tick is not
    exited on stale data.
+1b. **Perps (paper).** Accrue funding on open perps for the time since the last accrual at the current hourly
+   rate (`MarketData.getFundingRate`, optional): `qty × mark × rate × hours`, longs pay when the rate is positive.
+   It is booked to cash and realized P&L at once (`Position.fundingPaidUsd`, snapshot `fundingUsd`, closing
+   `Fill.fundingUsd`), with a `notify` event (`data.funding`) at most once per clock hour per position. Then, before
+   any other exit, a position whose mark crossed its `liquidationPrice` is closed **at that price** with reason
+   `liquidation` (taker fee, no builder fee) plus a `warning` event (`data.liquidation`).
 2. **Signals.** Fetch every signal from the provider registered for its kind, in parallel with a timeout.
    Failures and timeouts become `warning` events (rate-limited) and the signal is unknown. The last good
    snapshot is carried forward, so a blip does not flip a trigger, while the evaluator's per-kind
@@ -138,9 +144,23 @@ and `JupiterExecutor` (Solana swaps, platform fee) will implement the same inter
 the venue client order id (Hyperliquid `cloid`) so a retried request can never fill twice, and live mode
 should persist the intent key before sending (paper commits it with the fill).
 
+## Perp funding & liquidation (`src/perps.ts`)
+
+On by default for paper executors (`createEngine({ perpRealism })`, off for live executors: the venue does both).
+
+- **Funding**: Hyperliquid pays hourly; the engine accrues continuously at the current rate. If the rate feed fails
+  the accrual waits and the next good rate covers the gap. Without `getFundingRate` nothing accrues. Positions
+  persisted before this existed start accruing on their next tick (no back-charge). Replays take
+  `ReplayFrame.funding` (rate per instrumentKey, carried forward).
+- **Liquidation**: isolated-margin estimate, `long: entry × (1 − 1/L) / (1 − mm)`, `short: entry × (1 + 1/L) / (1 + mm)`,
+  with maintenance `mm = 1 / (2 × max leverage)` (`MarketData.getMaxLeverage`, optional; 3 % if unknown). 1× longs
+  have none. Checked on the tick's mark (allMids), before stop-losses.
+
 ## Known gaps
 
-- No liquidation model for leveraged perps (risk requires stop-losses by default), no funding payments.
+- Liquidation is estimated per position (isolated): cross-margin sharing, funding eroding margin and Hyperliquid's
+  backstop liquidation are not modelled. Funding uses the mark rather than the oracle price, and the kill switch does
+  not accrue the few seconds since the last tick.
 - Limit orders do not rest; unfilled limits are skipped.
 - `native` sizes on non-token instruments are valued as `native × price` and treated as margin, matching
   `checkIntents`.

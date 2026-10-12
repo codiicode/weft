@@ -3,6 +3,7 @@ import { HyperliquidClient } from "./hyperliquid/client.ts";
 import { JupiterClient } from "./jupiter/client.ts";
 import { DeribitClient, DeriveClient } from "./options.ts";
 import { DexScreenerClient, SolanaRpcClient } from "./solana.ts";
+import { OiHistory, type OiHistoryOptions } from "./oi-history.ts";
 
 export interface VenueOptions extends HttpOptions {
   /** Share an existing Http instance (cache + coalescing) instead of creating one. */
@@ -26,6 +27,13 @@ export interface VenueOptions extends HttpOptions {
    * used when unknown. Default 0 (permissive); set 100 to fail closed.
    */
   devSoldPctWhenUnknown?: number;
+  /**
+   * Persist the open-interest sampler (for `funding.oi_zscore_30d`) to this JSON
+   * file. Default: in memory only (history restarts with the process).
+   */
+  oiHistoryPath?: string;
+  /** Sampler tuning (bucket width, window, minimum buckets for a z-score, flush interval). */
+  oiHistory?: Omit<OiHistoryOptions, "path" | "now">;
 }
 
 export interface VenueContext {
@@ -36,12 +44,15 @@ export interface VenueContext {
   rpc: SolanaRpcClient;
   deribit: DeribitClient;
   derive: DeriveClient;
+  /** Open-interest sampler fed by every metaAndAssetCtxs read. */
+  oi: OiHistory;
   now: () => number;
   opts: VenueOptions;
 }
 
 export function createContext(opts: VenueOptions = {}): VenueContext {
   const http = opts.http ?? new Http(opts);
+  const now = opts.now ?? Date.now;
   return {
     http,
     hl: new HyperliquidClient(http, { url: opts.hyperliquidUrl }),
@@ -50,7 +61,8 @@ export function createContext(opts: VenueOptions = {}): VenueContext {
     rpc: new SolanaRpcClient(http, opts.solanaRpcUrl),
     deribit: new DeribitClient(http, opts.deribitUrl),
     derive: new DeriveClient(http, opts.deriveUrl),
-    now: opts.now ?? Date.now,
+    oi: new OiHistory({ ...opts.oiHistory, path: opts.oiHistoryPath, now }),
+    now,
     opts,
   };
 }

@@ -16,6 +16,7 @@ export type { VenueQuote } from "./market-data.ts";
 export type { VenueTokenFacts } from "./tokens.ts";
 export { Http, HttpError, type FetchFn, type HttpOptions, type RequestOptions } from "./http.ts";
 export { VenueMarketData } from "./market-data.ts";
+export { OiHistory, type OiHistoryOptions, type OiSample } from "./oi-history.ts";
 export { VenueCatalog } from "./catalog.ts";
 export { VenueTokenFactsProvider } from "./tokens.ts";
 export { SignalRouter, createSignalProviders } from "./signals/index.ts";

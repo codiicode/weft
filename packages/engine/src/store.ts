@@ -12,6 +12,8 @@ export interface DeploymentRuntime {
   realizedPnlUsd: number;
   feesUsd: number;
   builderFeesUsd: number;
+  /** Optional (additive): net perp funding paid, USD (positive = paid). Included in realizedPnlUsd. */
+  fundingUsd?: number;
   /** UTC day (YYYY-MM-DD) the daily counters refer to. */
   day: string;
   dayStartEquityUsd: number;

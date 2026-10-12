@@ -24,7 +24,7 @@ await v.tokenFacts.getTokenFacts(mint, { sizeUsd: 1_000 });  // TokenFacts (+ `u
 | **tokens** catalog + quotes | live | Jupiter Tokens v2 (`toptrending/1h`, `search`), Price v3, Swap v1 `quote` (size-aware impact) |
 | **options** catalog + quotes | live | Deribit public (`get_book_summary_by_currency`, `get_instruments`, `ticker`, `get_order_book`): BTC/ETH inverse (premium × index → USD), SOL USDC-linear. Derive (`api.lyra.finance/public/get_ticker`) quotes for `venue: "derive"` |
 | `price` | live | HL mids + 1m candles (5m/1h change); Jupiter token stats; option/Jupiter outcome: price only |
-| `funding` | live | HL funding (hourly) → 1h/8h/APR; OI × mark. `oi_zscore_30d` = null (no public OI history) |
+| `funding` | live | HL funding (hourly) → 1h/8h/APR; OI × mark. `oi_zscore_30d` from our own OI sampler (below): null until 24 hourly samples |
 | `liquidity` | live | Book: depth ±2%, spread, $1k walk. Tokens: Jupiter quotes ($1k/$25k buy, $1k sell); depth ±2% is an **estimate** (impact ≈ a + b·size, capped at pool liquidity) |
 | `odds` | live | HIP-4 mid, 24h Δpp, volume; Jupiter mid (24h Δ null; volume only for single-market events) |
 | `token_onchain` | live | Jupiter Tokens v2 → DexScreener fallback → Solana RPC `getAccountInfo` for authorities. `lp_locked`, `dev_sold_pct`, `smart_wallet_buys_1h` = null |
@@ -40,6 +40,16 @@ await v.tokenFacts.getTokenFacts(mint, { sizeUsd: 1_000 });  // TokenFacts (+ `u
 - Spot: `"HYPE/USDC"`, `"HYPE"` or the HL coin `"@107"`.
 - Token prices are in USD (quoted against USDC), even when `quote: "SOL"`.
 - Quotes may include `depthExhausted: true` (`VenueQuote extends Quote`) when the visible book can't absorb the size.
+
+## Open-interest history (`src/oi-history.ts`)
+Hyperliquid has no public OI history, so every `metaAndAssetCtxs` read (catalog, quotes, signals; core and HIP-3) records
+each perp's OI × mark into a per-coin ring of hourly buckets (last value in the hour wins, 30 days kept). Pass
+`createVenues({ oiHistoryPath })` to persist it as JSON (atomic write, at most every 5 min); the default is in memory.
+`funding.oi_zscore_30d` = (latest OI − mean) / stdev over the window once ≥ 24 buckets exist, else null. Coverage is only
+as good as the process uptime: gaps simply mean fewer buckets. Tune with `oiHistory: { bucketMs, windowMs, minSamples, flushIntervalMs }`.
+
+`VenueMarketData` also implements the optional `MarketData.getFundingRate(instrument)` (hourly fraction, core + HIP-3)
+and `getMaxLeverage(instrument)` used by the engine's paper funding and liquidation model.
 
 ## HTTP, caching and rate limits
 `src/http.ts` is shared by every client. It provides a timeout (10s default), retries on network errors, 429 and 5xx (exponential backoff with jitter, honouring `Retry-After`), a TTL cache, coalescing of identical in-flight requests, and a cap of 6 concurrent requests per host. TTLs are 1s for books, 2s for mids, 5s for meta and quotes, 15–30s for catalogs and token info, 1h for macro, 6h for NOAA and 10m for instrument lists. A full catalog sweep of all five products takes about 60 requests.
@@ -57,7 +67,6 @@ await v.tokenFacts.getTokenFacts(mint, { sizeUsd: 1_000 });  // TokenFacts (+ `u
 - **Weft model** for `model`.
 - **Solana indexer** (Helius / Birdeye / GMGN / RugCheck) for `dev_sold_pct`, `lp_locked`, `smart_wallet_buys_1h`, holder history, and a private RPC.
 - **Earnings / economic calendar feed** to replace the static tables.
-- **OI history** (own recorder or a data vendor) for `oi_zscore_30d`.
 - **Turnkey** (or similar) wallets for execution. That is out of scope here: this package never signs.
 
 ## Token facts caveats

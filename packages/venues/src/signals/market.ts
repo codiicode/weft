@@ -99,15 +99,16 @@ export async function priceFields(md: VenueMarketData, i: Instrument, now: numbe
 /* funding                                                               */
 /* ------------------------------------------------------------------ */
 
-export function fundingFieldsFrom(m: { funding: number | null; openInterestUsd: number | null }): Fields {
+/** `oiZscore` comes from the OI sampler (null until it holds enough history). */
+export function fundingFieldsFrom(m: { funding: number | null; openInterestUsd: number | null }, oiZscore: number | null = null): Fields {
   const h = m.funding;
   return {
     rate_1h_pct: h != null ? h * 100 : null,
     rate_8h_pct: h != null ? h * 100 * 8 : null,
     apr_pct: h != null ? h * 100 * 24 * 365 : null,
     open_interest_usd: m.openInterestUsd,
-    // Needs 30d of OI history; Hyperliquid's public info API has no OI history endpoint.
-    oi_zscore_30d: null,
+    // Hyperliquid has no public OI history: our own sampler (src/oi-history.ts) provides it.
+    oi_zscore_30d: oiZscore,
   };
 }
 
@@ -172,7 +173,10 @@ export function marketProviders(md: VenueMarketData, onError?: OnError): SignalP
     defineProvider(
       ["funding"],
       "live",
-      async (s) => fundingFieldsFrom(await md.perpMarket(s.params.instrument)),
+      async (s) => {
+        const m = await md.perpMarket(s.params.instrument);
+        return fundingFieldsFrom(m, m.openInterestUsd != null ? md.ctx.oi.zscore(m.coin, m.openInterestUsd, md.ctx.now()) : null);
+      },
       onError
     ),
     defineProvider(["liquidity"], "live", (s) => liquidityFields(md, s.params.instrument), onError),

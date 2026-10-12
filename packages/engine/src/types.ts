@@ -45,6 +45,30 @@ export interface Position {
    * share `group.id` are monitored and exited together.
    */
   group?: PositionGroup;
+  /**
+   * Optional (additive), perps on paper: net funding paid by this position, USD
+   * (positive = paid, negative = received). Already booked to cash and to the
+   * deployment's realized P&L as it accrues; reduced pro rata on partial closes.
+   */
+  fundingPaidUsd?: number;
+  /**
+   * Optional (additive), leveraged perps on paper: estimated liquidation price
+   * (isolated margin, maintenance = 1 / (2 × venue max leverage), 3 % if unknown).
+   * The position is closed at this price with reason `liquidation` when the mark crosses it.
+   */
+  liquidationPrice?: number;
+  /** Optional (additive): engine bookkeeping for funding accrual. Not for display. */
+  fundingState?: PositionFundingState;
+}
+
+/** Funding accrual bookkeeping (additive, optional). */
+export interface PositionFundingState {
+  /** Funding has been accrued up to this time (ms). */
+  accruedAt: number;
+  /** Last time a funding event was emitted for this position (ms). */
+  lastEventAt: number;
+  /** Funding accrued since that event, USD (positive = paid). */
+  sinceEventUsd: number;
 }
 
 /** Multi-leg grouping for options positions (additive, optional). */
@@ -67,7 +91,9 @@ export type FillReason =
   | "time_exit"
   | "close_action"
   | "kill"
-  | "manual";
+  | "manual"
+  /** Paper perps: the mark crossed the estimated liquidation price; filled at that price. */
+  | "liquidation";
 
 export interface Fill {
   id: string;
@@ -83,6 +109,12 @@ export interface Fill {
   realizedPnlUsd?: number;
   reason: FillReason;
   ts: number;
+  /**
+   * Optional (additive), closing perp fills: funding paid by the closed part over
+   * its life, USD (positive = paid). Already included in the deployment's realized
+   * P&L as it accrued, so it is NOT subtracted again from `realizedPnlUsd`.
+   */
+  fundingUsd?: number;
 }
 
 export type EngineEventType =
@@ -129,6 +161,8 @@ export interface DeploymentSnapshot {
    * Solana platform fee). Funds token buybacks later.
    */
   builderFeesUsd?: number;
+  /** Optional (additive): net perp funding paid, USD (positive = paid, negative = received). Included in realizedPnlUsd. */
+  fundingUsd?: number;
 }
 
 export interface CreateDeploymentInput {

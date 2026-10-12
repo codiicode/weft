@@ -12,6 +12,8 @@ export interface ReplayFrame {
   signals: Record<string, SignalSnapshot | null | undefined>;
   /** Prices by instrumentKey (e.g. "hl:perp:SOL"): a number (mid) or a full quote. Missing keys keep their last price. */
   quotes: Record<string, number | Partial<Quote>>;
+  /** Optional: perp funding rates by instrumentKey, fraction per hour (positive: longs pay). Carried forward. */
+  funding?: Record<string, number>;
 }
 
 export interface ReplayOptions {
@@ -40,6 +42,7 @@ export async function replay(strategy: Strategy, timeline: ReplayFrame[], opts: 
   let clock = first?.now ?? 0;
   let frame: ReplayFrame | undefined = first;
   const lastQuotes = new Map<string, Quote>();
+  const lastFunding = new Map<string, number>();
 
   const marketData: MarketData = {
     async getQuote(i: Instrument): Promise<Quote> {
@@ -47,6 +50,10 @@ export async function replay(strategy: Strategy, timeline: ReplayFrame[], opts: 
       const q = lastQuotes.get(key);
       if (!q) throw new Error(`no recorded price for ${key}`);
       return q;
+    },
+    async getFundingRate(i: Instrument) {
+      const r = lastFunding.get(instrumentKey(i));
+      return r == null ? null : { hourlyRate: r, ts: clock };
     },
   };
 
@@ -85,6 +92,7 @@ export async function replay(strategy: Strategy, timeline: ReplayFrame[], opts: 
       const q: Quote = typeof v === "number" ? { instrumentKey: key, price: v, ts: f.now, source: "replay" } : { instrumentKey: key, ts: f.now, source: "replay", price: NaN, ...v };
       lastQuotes.set(key, q);
     }
+    for (const [key, r] of Object.entries(f.funding ?? {})) lastFunding.set(key, r);
     await engine.tick(d.id, f.now);
   }
   const snapshot = (await engine.getSnapshot(d.id))!;

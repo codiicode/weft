@@ -7,8 +7,8 @@ _Last updated by the build session. All numbers below were verified by running t
 | Part | What it does | Tests |
 |---|---|---|
 | `packages/strategy` | The strategy graph: schema (5 products, 13 signal kinds), validation, pure evaluator, risk checks, graph projection, JSON Schema | 38 |
-| `packages/venues` | Live market data, catalogs and signal providers: Hyperliquid (perps, HIP-3, spot, HIP-4), Jupiter (tokens, xStocks, prediction markets), Deribit/Derive options, NOAA, FRED, Frankfurter | 76 |
-| `packages/engine` | Runtime: tick loop, paper executor (fees, slippage), TP/SL/trailing/time exits, risk, SQLite persistence, replay, events | 34 |
+| `packages/venues` | Live market data, catalogs and signal providers: Hyperliquid (perps, HIP-3, spot, HIP-4), Jupiter (tokens, xStocks, prediction markets), Deribit/Derive options, NOAA, FRED, Frankfurter; OI history sampler for z-scores | 83 |
+| `packages/engine` | Runtime: tick loop, paper executor (fees, slippage), TP/SL/trailing/time exits, perp funding + liquidation, risk, SQLite persistence, replay, events | 47 |
 | `packages/execution` | Live execution: Hyperliquid agent-wallet signing (matches official Python + Rust SDK vectors; testnet confirmed the server recovers our agent address), Jupiter swap builder + transaction inspector, signer interface, Turnkey policy draft | 85 (+2 opt-in live) |
 | `apps/api` | HTTP API: markets, library (save/fork), thesis → strategy (Claude with tools, template fallback), paper deployments, leaderboard, SSE | 15 |
 | `apps/web` | Landing page + product app (`/app`): builder, markets, live runs with kill switch, library, leaderboard | typecheck + build |
@@ -24,7 +24,7 @@ npm install
 npm run dev -w @weft/api        # http://localhost:8787 (data in apps/api/.data)
 npm run dev -w @weft/web        # http://localhost:3000 → /app
 npm run seed -w @weft/api       # optional: 8 demo paper runs across all products
-npm test                        # 248 tests
+npm test                        # 268 tests
 ```
 
 Set `ANTHROPIC_API_KEY` before starting the API to get full AI generation (Claude Opus 5.5 with market
@@ -58,6 +58,6 @@ search and self-correcting validation). Without it, a deterministic template eng
 1. **Live mode in the app**: wallet connection, user signs `approveAgent` + `approveBuilderFee` (payloads
    already built in `@weft/execution`), route live deployments to `RoutingExecutor`, reconcile real fills.
 2. Live orders for HIP-4 outcomes (implemented, off by default), Jupiter prediction markets, options venues.
-3. Paper engine realism: funding payments and liquidation for perps; resting limit orders.
-4. OI history (for `oi_zscore_30d`), persisted dedupe for Solana swaps, Jupiter Swap V2 migration.
+3. Paper engine: resting limit orders; cross-margin liquidation model (today: isolated estimate).
+4. Persisted dedupe for Solana swaps, Jupiter Swap V2 migration. (`oi_zscore_30d` fills in ~24h after the API starts observing a market.)
 5. Hosting: the web app is a static export (Vercel), the API needs a long-running process (Fly, Railway, a VM).

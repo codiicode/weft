@@ -20,6 +20,8 @@ import type { DeploymentRecord, EngineEvent, EngineEventType, Fill, FillReason, 
 import type { DeploymentRuntime, StoreBatch } from "./store.ts";
 import { errMsg, withTimeout, type Executor } from "./executor.ts";
 import { dirOf, exitReason, exposureOf, groupExitReason, groupUnitValue, marginOf, markPosition, unrealizedOf } from "./positions.ts";
+import { computeFee, type FeeSchedule } from "./fees.ts";
+import { DEFAULT_MAINTENANCE_MARGIN, fundingPayment, HOUR_MS, liquidationCrossed, liquidationPrice, maintenanceMarginRate, needsLiquidationPrice } from "./perps.ts";
 
 /** Everything a tick needs from the outside world. Injected; the tick itself does no I/O. */
 export interface TickDeps {
@@ -28,6 +30,10 @@ export interface TickDeps {
   providers: ReadonlyMap<string, SignalProvider>;
   tokenFacts?: TokenFactsProvider;
   executor: Executor;
+  /** Fee schedule, for fills the engine books itself (paper liquidations). */
+  fees: FeeSchedule;
+  /** Simulate perp funding payments and liquidations (paper). */
+  perpRealism: boolean;
   signalTimeoutMs: number;
   quoteTimeoutMs: number;
   /** Quote assets priced for risk checks (native sizing), e.g. { SOL: <SOL perp>, USDC: <USDC token> }. */
@@ -116,9 +122,42 @@ export class Session {
       this.emit("error", `Could not close ${instrumentLabel(p.instrument)} (${reason}): ${res.reason}`, { positionId: p.id, reason });
       return false;
     }
+    this.bookClose(p, res, reason, fraction >= 1, intentKey);
+    return true;
+  }
+
+  /**
+   * Paper liquidation: close the whole position at its liquidation price (not at
+   * market), paying the venue taker fee (no builder fee on liquidations).
+   */
+  liquidate(p: Position): Fill {
+    const liq = p.liquidationPrice!;
+    const mark = p.markPrice;
+    const fee = computeFee(this.deps.fees, p.instrument, "close", p.qty * liq, p.qty);
+    const fill = this.bookClose(p, { qty: p.qty, price: liq, markPrice: mark, feeUsd: fee.feeUsd - fee.builderFeeUsd, builderFeeUsd: 0 }, "liquidation", true, undefined, "Liquidated: ");
+    this.emit(
+      "warning",
+      `${instrumentLabel(p.instrument)} ${p.leverage}× ${p.side} liquidated: mark ${fmtPx(mark)} crossed the liquidation price ${fmtPx(liq)} (entry ${fmtPx(p.entryPrice)}). Closed at ${fmtPx(liq)}, P&L ${fmtUsd(fill.realizedPnlUsd ?? 0)}`,
+      { liquidation: { positionId: p.id, instrumentKey: p.instrumentKey, side: p.side, leverage: p.leverage, entryPrice: p.entryPrice, liquidationPrice: liq, markPrice: mark }, fill }
+    );
+    return fill;
+  }
+
+  /** Book a closing fill: cash, realized P&L, the fill and its event, then shrink or remove the position. */
+  private bookClose(
+    p: Position,
+    res: { qty: number; price: number; markPrice: number; feeUsd: number; builderFeeUsd: number },
+    reason: FillReason,
+    full: boolean,
+    intentKey?: string,
+    prefix = ""
+  ): Fill {
+    const share = Math.min(1, res.qty / p.qty);
     const gross = res.qty * (res.price - p.entryPrice) * dirOf(p);
-    const released = p.sizeUsd * (res.qty / p.qty);
+    const released = p.sizeUsd * share;
     const net = gross - res.feeUsd;
+    // Funding was booked as it accrued; the closed part's share is only reported on the fill.
+    const funding = p.fundingPaidUsd != null ? p.fundingPaidUsd * share : null;
     this.rt.cashUsd += released + net;
     this.addRealized(net, res.feeUsd, res.builderFeeUsd);
     const fill: Fill = {
@@ -134,21 +173,26 @@ export class Session {
       realizedPnlUsd: net,
       reason,
       ts: this.now,
+      ...(funding != null ? { fundingUsd: funding } : {}),
     };
     this.fills.push(fill);
     this.forceSample = true;
-    this.emit("fill", `${fill.side === "buy" ? "Bought" : "Sold"} ${fmtQty(res.qty)} ${instrumentLabel(p.instrument)} @ ${fmtPx(res.price)} (${reason.replace("_", " ")}), P&L ${fmtUsd(net)}`, {
-      fill,
-    });
-    if (fraction >= 1 || p.qty - res.qty <= p.qty * 1e-9) {
+    const fundingNote = funding != null && Math.abs(funding) >= 0.005 ? `, funding ${fmtUsd(-funding)} (booked while open)` : "";
+    this.emit(
+      "fill",
+      `${prefix}${fill.side === "buy" ? "Bought" : "Sold"} ${fmtQty(res.qty)} ${instrumentLabel(p.instrument)} @ ${fmtPx(res.price)} (${reason.replace("_", " ")}), P&L ${fmtUsd(net)}${fundingNote}`,
+      { fill }
+    );
+    if (full || p.qty - res.qty <= p.qty * 1e-9) {
       this.remove(p);
     } else {
       p.qty -= res.qty;
       p.sizeUsd -= released;
+      if (p.fundingPaidUsd != null && funding != null) p.fundingPaidUsd -= funding;
       markPosition(p, res.markPrice, this.now);
       this.upsert(p);
     }
-    return true;
+    return fill;
   }
 
   /** Book an opening fill as a new position. */
@@ -161,6 +205,8 @@ export class Session {
     exits: Position["exits"];
     res: { qty: number; price: number; markPrice: number; feeUsd: number; builderFeeUsd: number };
     group?: Position["group"];
+    /** Perps: venue max leverage, for the liquidation estimate (null/undefined → default maintenance). */
+    maxLeverage?: number | null;
   }): Position {
     const { res } = args;
     const key = instrumentKey(args.instrument);
@@ -185,6 +231,14 @@ export class Session {
       peakPrice: res.price,
       ...(args.group ? { group: args.group } : {}),
     };
+    if (this.deps.perpRealism && args.instrument.kind === "perp") {
+      p.fundingPaidUsd = 0;
+      p.fundingState = { accruedAt: this.now, lastEventAt: this.now, sinceEventUsd: 0 };
+      if (needsLiquidationPrice(p)) {
+        const liq = liquidationPrice(p.side, p.entryPrice, p.leverage, maintenanceMarginRate(args.maxLeverage));
+        if (liq != null) p.liquidationPrice = liq;
+      }
+    }
     markPosition(p, res.markPrice, this.now);
     this.rt.cashUsd -= sizeUsd + res.feeUsd;
     this.addRealized(-res.feeUsd, res.feeUsd, res.builderFeeUsd);
@@ -210,6 +264,16 @@ export class Session {
       { fill }
     );
     return p;
+  }
+
+  /** Book a funding payment (positive = paid) to cash and realized P&L. */
+  bookFunding(p: Position, amountUsd: number) {
+    this.rt.cashUsd -= amountUsd;
+    this.rt.realizedPnlUsd -= amountUsd;
+    this.rt.realizedTodayUsd -= amountUsd;
+    this.rt.fundingUsd = (this.rt.fundingUsd ?? 0) + amountUsd;
+    p.fundingPaidUsd = (p.fundingPaidUsd ?? 0) + amountUsd;
+    this.markTouched(p);
   }
 
   private addRealized(net: number, fee: number, builder: number) {
@@ -257,6 +321,10 @@ export async function runTick(s: Session): Promise<void> {
   // a. Mark positions, exits first.
   await markAll(s);
   s.rollDay();
+  if (s.deps.perpRealism) {
+    await settleFunding(s);
+    await ensureLiquidationPrices(s);
+  }
   await runExits(s);
 
   // b. Signals.
@@ -368,6 +436,11 @@ async function runExits(s: Session): Promise<void> {
   for (const p of ps) {
     if (p.group || !s.positions.has(p.id)) continue;
     if (p.markedAt !== s.now) continue; // not marked this tick: no fresh price, no exit decision
+    // Liquidation first: on paper we can't tell whether a stop would have filled before it.
+    if (s.deps.perpRealism && liquidationCrossed(p)) {
+      s.liquidate(p);
+      continue;
+    }
     const reason = exitReason(p, s.now);
     if (reason) await s.closePosition(p, 1, reason, `${p.id}:${reason}`);
   }
@@ -375,6 +448,89 @@ async function runExits(s: Session): Promise<void> {
     if (legs.some((l) => l.markedAt !== s.now)) continue;
     const reason = groupExitReason(legs, s.now);
     if (reason) for (const l of legs) await s.closePosition(l, 1, reason, `${l.id}:${reason}`);
+  }
+}
+
+/* ---- a2. perps: funding & liquidation ---- */
+
+/**
+ * Accrue funding on open perps for the time since the last accrual at the
+ * current hourly rate (Hyperliquid pays hourly): notional × rate × hours,
+ * longs pay when the rate is positive. Booked to cash and realized P&L at once;
+ * a `notify` event (data.funding) summarises it at most once per clock hour per
+ * position. Without `MarketData.getFundingRate` nothing accrues. When the rate is
+ * unavailable the accrual waits, so the next good rate covers the gap.
+ */
+export async function settleFunding(s: Session): Promise<void> {
+  const md = s.deps.marketData;
+  const perps = s.open().filter((p) => p.instrument.kind === "perp");
+  if (!perps.length || !md.getFundingRate) return;
+  const byKey = new Map<string, Instrument>();
+  for (const p of perps) {
+    if (!p.fundingState) {
+      // Opened before funding was modelled: start accruing now (no back-charge).
+      p.fundingState = { accruedAt: s.now, lastEventAt: s.now, sinceEventUsd: 0 };
+      p.fundingPaidUsd ??= 0;
+      s.markTouched(p);
+      continue;
+    }
+    if (s.now > p.fundingState.accruedAt) byKey.set(p.instrumentKey, p.instrument);
+  }
+  if (!byKey.size) return;
+  const rates = new Map<string, number>();
+  await Promise.all(
+    [...byKey].map(async ([key, inst]) => {
+      try {
+        const r = await withTimeout(md.getFundingRate!(inst), s.deps.quoteTimeoutMs);
+        if (r && Number.isFinite(r.hourlyRate)) rates.set(key, r.hourlyRate);
+      } catch (e) {
+        s.warn(`funding:${key}`, `No funding rate for ${instrumentLabel(inst)}: ${errMsg(e)}`, { instrumentKey: key });
+      }
+    })
+  );
+  for (const p of perps) {
+    const st = p.fundingState;
+    const rate = rates.get(p.instrumentKey);
+    if (!st || rate == null || !s.positions.has(p.id) || !(p.markPrice > 0)) continue;
+    const hours = (s.now - st.accruedAt) / HOUR_MS;
+    if (!(hours > 0)) continue;
+    const amount = fundingPayment(p, rate, hours);
+    st.accruedAt = s.now;
+    st.sinceEventUsd += amount;
+    s.bookFunding(p, amount);
+    if (Math.floor(s.now / HOUR_MS) > Math.floor(st.lastEventAt / HOUR_MS) && Math.abs(st.sinceEventUsd) >= 0.005) {
+      const since = st.sinceEventUsd;
+      s.emit(
+        "notify",
+        `Funding ${since >= 0 ? "paid" : "received"} on ${instrumentLabel(p.instrument)} ${p.side}: ${fmtUsd(Math.abs(since))} (rate ${(rate * 100).toFixed(4)}%/h), net funding so far ${fmtUsd(-(p.fundingPaidUsd ?? 0))}`,
+        { funding: { positionId: p.id, instrumentKey: p.instrumentKey, side: p.side, amountUsd: since, totalUsd: p.fundingPaidUsd ?? 0, hourlyRate: rate, sinceTs: st.lastEventAt } }
+      );
+      st.lastEventAt = s.now;
+      st.sinceEventUsd = 0;
+    }
+  }
+}
+
+/** Venue max leverage for a perp, null when unknown (the default maintenance rate applies). */
+async function maxLeverageOf(s: Session, i: Instrument): Promise<number | null> {
+  const md = s.deps.marketData;
+  if (i.kind !== "perp" || !md.getMaxLeverage) return null;
+  try {
+    return await withTimeout(md.getMaxLeverage(i), s.deps.quoteTimeoutMs);
+  } catch (e) {
+    s.warn(`maxlev:${instrumentKey(i)}`, `No max leverage for ${instrumentLabel(i)} (using ${DEFAULT_MAINTENANCE_MARGIN * 100}% maintenance margin): ${errMsg(e)}`);
+    return null;
+  }
+}
+
+/** Positions opened before the liquidation model existed get their liquidation price now. */
+async function ensureLiquidationPrices(s: Session): Promise<void> {
+  for (const p of s.open()) {
+    if (p.liquidationPrice != null || !needsLiquidationPrice(p)) continue;
+    const liq = liquidationPrice(p.side, p.entryPrice, p.leverage, maintenanceMarginRate(await maxLeverageOf(s, p.instrument)));
+    if (liq == null) continue;
+    p.liquidationPrice = liq;
+    s.markTouched(p);
   }
 }
 
@@ -544,7 +700,8 @@ async function executeOpen(s: Session, i: OpenIntent, usdPrices: Record<string, 
     res = { status: "rejected" as const, reason: errMsg(e) };
   }
   if (res.status !== "filled") return reject(s, i, res.reason, res.status === "pending");
-  s.bookOpen({ instrument: i.instrument, side: i.side, leverage: i.leverage, actionId: i.actionId, intentKey: i.key, exits: i.exits, res });
+  const maxLeverage = s.deps.perpRealism && i.instrument.kind === "perp" && needsLiquidationPrice({ instrument: i.instrument, side: i.side, leverage: i.leverage }) ? await maxLeverageOf(s, i.instrument) : null;
+  s.bookOpen({ instrument: i.instrument, side: i.side, leverage: i.leverage, actionId: i.actionId, intentKey: i.key, exits: i.exits, res, maxLeverage });
 }
 
 async function executeOptions(s: Session, i: OptionsIntent, usdPrices: Record<string, number>): Promise<void> {
