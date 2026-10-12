@@ -520,3 +520,22 @@ describe("actions and controls", () => {
     ).rejects.toThrow(/paper/);
   });
 });
+
+describe("alerts-only mode", () => {
+  it("turns would-be trades into alerts and never fills", async () => {
+    const t = setup();
+    t.market.set(BTC, 100);
+    t.signals.set("go", { value: 1 });
+    const d = await t.engine.createDeployment({ strategy: perp("long", { stopLoss: { pct: 5 } }, 2), allocationUsd: 10_000, alertsOnly: true });
+    expect(d.alertsOnly).toBe(true);
+    await t.engine.tick(d.id);
+    expect(await t.engine.getFills(d.id)).toHaveLength(0);
+    const s = (await t.engine.getSnapshot(d.id))!;
+    expect(s.positions).toHaveLength(0);
+    expect(s.equityUsd).toBe(10_000);
+    const notes = (await t.engine.getEvents(d.id)).filter((e) => e.type === "notify");
+    expect(notes).toHaveLength(1);
+    expect(notes[0]!.message).toMatch(/^Rule 1: would go long BTC-PERP with \$1000\.00 at 2×$/);
+    expect(notes[0]!.data).toMatchObject({ alertsOnly: true, channel: "telegram" });
+  });
+});

@@ -242,8 +242,10 @@ export function createEngine(opts: EngineOptions): EngineRuntime {
         intervalSec: input.intervalSec ?? opts.defaultIntervalSec ?? 30,
         createdAt: t,
         updatedAt: t,
+        ...(input.alertsOnly ? { alertsOnly: true } : {}),
       };
-      const ev = event(d.id, "status", `Deployed "${d.strategy.name}" ${mode === "live" ? "LIVE" : "on paper"} with ${fmtUsd(d.allocationUsd)}`, { to: "running" }, t);
+      const how = d.alertsOnly ? "in alerts-only mode: it will message you instead of trading" : `${mode === "live" ? "LIVE" : "on paper"} with ${fmtUsd(d.allocationUsd)}`;
+      const ev = event(d.id, "status", `Started "${d.strategy.name}" ${how}`, { to: "running" }, t);
       await store.commit({
         deploymentId: d.id,
         deployment: d,

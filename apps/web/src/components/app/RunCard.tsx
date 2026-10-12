@@ -16,7 +16,11 @@ export function RunStatus({ s }: { s: Snapshot }) {
     <span className="inline-flex items-center gap-1.5 whitespace-nowrap text-[13px] text-ink-2">
       <span className={`h-1.5 w-1.5 rounded-full ${running ? "bg-long" : d.status === "paused" ? "bg-trigger" : "bg-faint"}`} />
       {STATUS[d.status] ?? d.status}
-      {d.mode === "live" ? <span className="rounded-[5px] bg-[var(--short-soft)] px-1.5 text-[11.5px] font-medium text-short">Live</span> : <span className="text-faint">· paper</span>}
+      {d.mode === "live" ? (
+        <span className="rounded-[5px] bg-[var(--short-soft)] px-1.5 text-[11.5px] font-medium text-short">Live</span>
+      ) : (
+        <span className="text-faint">· {d.alertsOnly ? "alerts only" : "paper"}</span>
+      )}
     </span>
   );
 }

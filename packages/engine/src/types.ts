@@ -17,6 +17,8 @@ export interface DeploymentRecord {
   intervalSec: number;
   createdAt: number;
   updatedAt: number;
+  /** Watch only: every trade the strategy would make becomes an alert instead. */
+  alertsOnly?: boolean;
 }
 
 export interface Position {
@@ -172,6 +174,8 @@ export interface CreateDeploymentInput {
   allocationUsd: number;
   caps?: RiskCaps;
   intervalSec?: number;
+  /** Watch only: trades become alerts, nothing is bought or sold. */
+  alertsOnly?: boolean;
 }
 
 export interface Engine {

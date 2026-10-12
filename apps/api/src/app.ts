@@ -50,6 +50,8 @@ const DeployBody = z.object({
   allocationUsd: z.number().positive().max(10_000_000).default(10_000),
   caps: RiskCaps.optional(),
   intervalSec: z.number().int().min(5).max(3_600).optional(),
+  /** Watch only: every trade becomes an alert. Paper engine; never live. */
+  alertsOnly: z.boolean().optional(),
 });
 
 const BacktestBody = z.object({
@@ -313,6 +315,7 @@ export function createApp(deps: AppDeps) {
       allocationUsd: body.allocationUsd,
       caps: body.caps,
       intervalSec: body.intervalSec,
+      alertsOnly: body.mode === "paper" && body.alertsOnly ? true : undefined,
     });
     accounts?.setDeploymentOwner(record.id, user.id);
     // First tick right away so the UI has data immediately.
@@ -446,7 +449,7 @@ export function createApp(deps: AppDeps) {
   /* ---------------- Leaderboard & stats ---------------- */
 
   app.get("/leaderboard", async (c) => {
-    const records = await engine.listDeployments();
+    const records = (await engine.listDeployments()).filter((d) => !d.alertsOnly);
     const snaps = (await Promise.all(records.map((d) => engine.getSnapshot(d.id)))).filter((s) => s != null);
     const rows = snaps
       .map((s) => ({

@@ -233,7 +233,15 @@ function Run() {
         )}
         {controlError && <div className="rounded-[12px] bg-[var(--short-soft)] px-4 py-3 text-[14px] text-short">{controlError}</div>}
 
-        <div className="grid grid-cols-2 gap-x-6 gap-y-5 border-y border-line py-5 sm:grid-cols-5">
+        {d.alertsOnly && (
+          <div className="rounded-[12px] border border-line bg-card px-4 py-3 text-[14px] text-ink-2">
+            Alerts only. This run never trades: when a rule would buy or sell, you get a message instead.{" "}
+            <Link href="/app/settings" className="text-ink underline decoration-line-2 underline-offset-4 hover:decoration-ink">
+              Alert settings
+            </Link>
+          </div>
+        )}
+        <div className={`grid grid-cols-2 gap-x-6 gap-y-5 border-y border-line py-5 sm:grid-cols-5 ${d.alertsOnly ? "hidden" : ""}`}>
           <Stat label="Value" value={fmtUsd(s.equityUsd, 2)} sub={`started with ${fmtUsd(d.allocationUsd, 0)}`} />
           <Stat label="Return" value={fmtPct(s.returnPct)} tone={tone(s.returnPct)} />
           <Stat label="Open profit" value={fmtUsd(s.unrealizedPnlUsd, 2)} tone={tone(s.unrealizedPnlUsd)} />
@@ -268,14 +276,14 @@ function Run() {
               {view === "rules" ? <StrategyRules strategy={d.strategy} met={metMap} /> : <StrategyCanvas strategy={d.strategy} live={live} animate={false} />}
             </section>
 
-            <section>
+            <section className={d.alertsOnly ? "hidden" : ""}>
               <h2 className="mb-3 text-[15px] font-semibold text-ink">Value over time</h2>
               <Card className="p-5">
                 <EquityChart points={s.equityCurve} base={d.allocationUsd} />
               </Card>
             </section>
 
-            <section>
+            <section className={d.alertsOnly ? "hidden" : ""}>
               <h2 className="mb-3 text-[15px] font-semibold text-ink">
                 Open positions <span className="font-normal text-muted">{s.positions.length || ""}</span>
               </h2>
@@ -320,7 +328,7 @@ function Run() {
               </Card>
             </section>
 
-            <section>
+            <section className={d.alertsOnly ? "hidden" : ""}>
               <h2 className="mb-3 text-[15px] font-semibold text-ink">
                 Trades <span className="font-normal text-muted">{fillList.length || ""}</span>
               </h2>

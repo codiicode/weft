@@ -112,7 +112,7 @@ function fakeEngine(): Engine & { created: DeploymentRecord[] } {
   return {
     created,
     async createDeployment(input) {
-      const d: DeploymentRecord = { id: `dep_${created.length + 1}`, strategy: input.strategy, mode: "paper", allocationUsd: input.allocationUsd, caps: input.caps ?? {}, status: "running", intervalSec: input.intervalSec ?? 30, createdAt: 1, updatedAt: 1 };
+      const d: DeploymentRecord = { id: `dep_${created.length + 1}`, strategy: input.strategy, mode: "paper", allocationUsd: input.allocationUsd, caps: input.caps ?? {}, status: "running", intervalSec: input.intervalSec ?? 30, createdAt: 1, updatedAt: 1, ...(input.alertsOnly ? { alertsOnly: true } : {}) };
       created.push(d);
       return d;
     },
@@ -209,6 +209,9 @@ describe("HTTP API", () => {
     const lb = (await (await call("/leaderboard")).json()) as { rows: { returnPct: number }[] };
     expect(lb.rows[0]!.returnPct).toBe(5);
     expect((await post("/deployments", { strategy: { nope: true }, allocationUsd: 1 })).status).toBe(422);
+    const watch = await post("/deployments", { strategyId: list.strategies[0]!.id, allocationUsd: 1_000, alertsOnly: true });
+    expect(watch.status).toBe(201);
+    expect(((await watch.json()) as { alertsOnly?: boolean }).alertsOnly).toBe(true);
   });
 
   it("lists markets per product and 404s unknown products", async () => {
@@ -217,3 +220,4 @@ describe("HTTP API", () => {
     expect((await call("/markets/bonds")).status).toBe(404);
   });
 });
+

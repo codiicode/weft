@@ -665,6 +665,17 @@ async function execute(s: Session, intent: Intent, usdPrices: Record<string, num
     return;
   }
   s.intentKeys.push({ key: intent.key, ts: s.now });
+  // Alerts only: say what it would do, and do nothing.
+  if (s.deployment.alertsOnly && intent.type !== "notify") {
+    if (intent.type === "close" && !s.open().length) return;
+    s.emit("notify", `${ruleName(s, intent.triggerId)}: would ${describeIntent(s, intent).replace(/^\w/, (c) => c.toLowerCase())}`, {
+      channel: "telegram",
+      actionId: intent.actionId,
+      intentKey: intent.key,
+      alertsOnly: true,
+    });
+    return;
+  }
   switch (intent.type) {
     case "open":
       return executeOpen(s, intent, usdPrices);

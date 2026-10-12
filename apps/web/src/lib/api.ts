@@ -267,7 +267,7 @@ export const api = {
   },
 
   deployments: () => req<{ deployments: Snapshot[] }>("/deployments"),
-  deploy: (body: { strategy?: Strategy; strategyId?: string; allocationUsd: number; intervalSec?: number; mode?: "paper" | "live"; confirm?: string }) =>
+  deploy: (body: { strategy?: Strategy; strategyId?: string; allocationUsd: number; intervalSec?: number; mode?: "paper" | "live"; confirm?: string; alertsOnly?: boolean }) =>
     req<DeploymentRecord>("/deployments", { method: "POST", json: body }),
   deployment: (id: string) => req<Snapshot>(`/deployments/${encodeURIComponent(id)}`),
   events: (id: string, since?: number) => req<{ events: EngineEvent[] }>(`/deployments/${encodeURIComponent(id)}/events${since ? `?since=${since}` : ""}`),

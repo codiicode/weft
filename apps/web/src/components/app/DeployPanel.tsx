@@ -45,9 +45,11 @@ export function DeployPanel({ strategy, strategyId, compact = false }: { strateg
   const auth = useAuth();
   const live = useApi(auth.enabled && auth.authenticated ? () => api.liveStatus() : null, [auth.enabled, auth.authenticated]);
   const liveReady = !!live.data?.ready;
-  const [mode, setMode] = useState<"paper" | "live">("paper");
+  const [mode, setMode] = useState<"paper" | "alerts" | "live">("paper");
   const [confirm, setConfirm] = useState("");
   const isLive = mode === "live";
+  const isAlerts = mode === "alerts";
+  const alerts = useApi(auth.enabled && auth.authenticated && isAlerts ? () => api.alertsMe() : null, [auth.enabled, auth.authenticated, isAlerts]);
   const cap = live.data?.config.maxAllocationUsd ?? 100;
   const network = live.data?.config.network;
 
@@ -62,7 +64,8 @@ export function DeployPanel({ strategy, strategyId, compact = false }: { strateg
         strategyId,
         allocationUsd: isLive ? Math.min(allocation, cap) : allocation,
         intervalSec: interval,
-        mode,
+        mode: isAlerts ? "paper" : mode,
+        ...(isAlerts ? { alertsOnly: true } : {}),
         ...(isLive ? { confirm: "GO LIVE" } : {}),
       });
       router.push(`/app/run?id=${encodeURIComponent(rec.id)}`);
@@ -75,23 +78,29 @@ export function DeployPanel({ strategy, strategyId, compact = false }: { strateg
   return (
     <Card className={compact ? "p-4" : "p-5"}>
       <div className="text-[15px] font-semibold tracking-[-0.015em] text-ink">Run this strategy</div>
-      {auth.enabled && (
-        <div className="mt-3">
-          <Segmented
-            label="Trading mode"
-            value={mode}
-            options={[
-              ["paper", "Paper"],
-              ["live", "Live"],
-            ]}
+      <div className="mt-3">
+        <Segmented
+          label="Mode"
+          value={mode}
+          options={
+            auth.enabled
+              ? [
+                  ["paper", "Paper"],
+                  ["alerts", "Alerts"],
+                  ["live", "Live"],
+                ]
+              : [
+                  ["paper", "Paper"],
+                  ["alerts", "Alerts"],
+                ]
+          }
             onChange={(m) => {
               setMode(m);
               setError(null);
-              if (m === "live") setAllocation((a) => Math.min(a, cap));
-            }}
-          />
-        </div>
-      )}
+            if (m === "live") setAllocation((a) => Math.min(a, cap));
+          }}
+        />
+      </div>
       <p className="mt-3 text-[13.5px] leading-relaxed text-muted">
         {isLive ? (
           liveReady ? (
@@ -106,12 +115,25 @@ export function DeployPanel({ strategy, strategyId, compact = false }: { strateg
               </Link>
             </>
           )
+        ) : isAlerts ? (
+          <>
+            Watch only. You get a message whenever it would trade; nothing is bought or sold.
+            {auth.enabled && alerts.data && !alerts.data.telegram && (
+              <>
+                {" "}
+                <Link href="/app/settings" className="font-medium text-ink underline decoration-line-2 underline-offset-4 hover:decoration-ink">
+                  Connect Telegram
+                </Link>{" "}
+                to get them on your phone.
+              </>
+            )}
+          </>
         ) : (
           "Practice with simulated money against live prices. Fees and slippage included."
         )}
       </p>
 
-      <label className="mt-5 block">
+      <label className={`mt-5 block ${isAlerts ? "hidden" : ""}`}>
         <span className="text-[13px] text-ink-2">Amount</span>
         <div className="mt-1.5 flex h-10 items-center rounded-[10px] border border-line-2 bg-card px-3 focus-within:border-ink/40">
           <span className="text-muted">$</span>
@@ -150,7 +172,7 @@ export function DeployPanel({ strategy, strategyId, compact = false }: { strateg
       )}
       {error && <p className="mt-3 whitespace-pre-wrap rounded-[10px] bg-[var(--short-soft)] px-3 py-2.5 text-[13px] text-short">{error}</p>}
       <Btn onClick={deploy} disabled={busy || (isLive && !liveReady)} variant={isLive ? "danger" : "ink"} className="mt-5 h-10 w-full">
-        {busy ? "Starting…" : isLive ? "Start live trading" : "Start on paper"}
+        {busy ? "Starting…" : isLive ? "Start live trading" : isAlerts ? "Start alerts" : "Start on paper"}
       </Btn>
       <p className="mt-2.5 text-center text-[12.5px] text-faint">You can pause or stop it at any time.</p>
     </Card>
