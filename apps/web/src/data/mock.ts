@@ -3,6 +3,7 @@
  * Swap these exports for live feeds later; components only read from this file.
  */
 import type { GraphSpec } from "@/components/graph/types";
+import { brand } from "@/config/brand";
 import { walk } from "@/lib/rng";
 
 /* ------------------------------------------------------------------ */
@@ -49,8 +50,32 @@ export const heroStrategy: Strategy = {
   ],
 };
 
+
+/** The Crypto Twitter classic: a memecoin thesis made measurable, with rug checks wired in. */
+export const memecoinStrategy: Strategy = {
+  id: "sub-penny-reload",
+  title: "Sub-Penny Reload",
+  category: "Memecoin",
+  thesis: "Buy $PUMP when it hits 0.004 and sentiment turns bullish. Get out the second the dev starts selling.",
+  author: "@bondingcurve_bo",
+  venues: ["Jupiter"],
+  mode: "Live",
+  stats: { ret30d: 15.2, winRate: 57, maxDD: -11.3, forks: 921, followers: 5210, daysLive: 27 },
+  nodes: [
+    { id: "s1", kind: "signal", type: "price", title: "PUMP price", source: "Jupiter", value: "$0.00412", delta: "−6.8% 24h", deltaDir: "down", spark: walk(301, 28, -0.4, 0.7) },
+    { id: "s2", kind: "signal", type: "onchain", title: "PUMP on-chain", source: "Solana · mint", value: "LP locked · top-10 22%", delta: "dev sold 0%", deltaDir: "up", spark: walk(302, 28, 0.1, 0.3) },
+    { id: "s3", kind: "signal", type: "social", title: "$PUMP sentiment", source: "X · 4.2k posts", value: "Sentiment +0.34", delta: "mentions +162%", deltaDir: "up", spark: walk(303, 28, 0.6, 0.8) },
+    { id: "t1", kind: "trigger", logic: "AND", conditions: ["Price ≤ 0.004", "Sentiment > 0.3", "Mentions +150% 24h"], met: true },
+    { id: "t2", kind: "trigger", logic: "IF", conditions: ["Dev sold > 20%"], met: false },
+    { id: "a1", kind: "action", side: "buy", asset: "PUMP", venue: "Jupiter", alloc: "0.5 SOL", tp: "+40%", sl: "−20%", pnl: 12.6, spark: walk(304, 30, 0.7, 0.8) },
+    { id: "x1", kind: "exit", title: "Exit to SOL", detail: "if the dev sells > 20%" },
+  ],
+  edges: [["s1", "t1"], ["s3", "t1"], ["s2", "t1"], ["s2", "t2"], ["t1", "a1"], ["t2", "x1"]],
+};
+
 export const strategies: Strategy[] = [
   heroStrategy,
+  memecoinStrategy,
   {
     id: "fed-pivot",
     title: "Fed Pivot Spread",
@@ -114,6 +139,26 @@ export const strategies: Strategy[] = [
     edges: [["s1", "t1"], ["s2", "t1"], ["s3", "t1"], ["s1", "t2"], ["t1", "a1"], ["t2", "x1"]],
   },
   {
+    id: "dip-ladder",
+    title: "Dip Ladder",
+    category: "Stocks",
+    thesis: "Accumulate tokenized NVIDIA on Solana: buy every 5% dip while analysts keep revising up. Never chase a gap up.",
+    author: "@index_ines",
+    venues: ["Jupiter", "Hyperliquid"],
+    mode: "Live",
+    stats: { ret30d: 6.8, winRate: 66, maxDD: -4.6, forks: 233, followers: 1390, daysLive: 74 },
+    nodes: [
+      { id: "s1", kind: "signal", type: "price", title: "NVDAx", source: "xStocks · Solana", value: "$183.90", delta: "−5.4% from high", deltaDir: "down", spark: walk(611, 28, -0.2, 0.4) },
+      { id: "s2", kind: "signal", type: "model", title: "Analyst revisions", source: "Estimates feed", value: "+3.1% 30d", delta: "14 up · 2 down", deltaDir: "up", spark: walk(612, 28, 0.4, 0.3) },
+      { id: "s3", kind: "signal", type: "price", title: "NVDA-PERP", source: "HIP-3", value: "$184.20", delta: "+0.6% 1h", deltaDir: "up", spark: walk(613, 28, 0.3, 0.4) },
+      { id: "t1", kind: "trigger", logic: "AND", conditions: ["Off 20d high ≥ 5%", "Revisions 30d > 0"], met: true },
+      { id: "t2", kind: "trigger", logic: "IF", conditions: ["Gap up > 4% at open"], met: false },
+      { id: "a1", kind: "action", side: "buy", asset: "NVDAx", venue: "Jupiter", alloc: "$250 / dip", tp: "+18%", sl: "−9%", pnl: 4.4, spark: walk(614, 30, 0.4, 0.4) },
+      { id: "x1", kind: "exit", title: "Pause the ladder", detail: "on a gap up > 4%" },
+    ],
+    edges: [["s1", "t1"], ["s2", "t1"], ["s3", "t2"], ["t1", "a1"], ["t2", "x1"]],
+  },
+  {
     id: "print-run",
     title: "Print Run",
     category: "Earnings",
@@ -155,6 +200,26 @@ export const strategies: Strategy[] = [
     edges: [["s1", "t1"], ["s2", "t1"], ["s3", "t1"], ["s1", "t2"], ["t1", "a1"], ["t1", "a2"], ["t2", "x1"]],
   },
   {
+    id: "capped-conviction",
+    title: "Capped Conviction",
+    category: "Options · soon",
+    thesis: "Bullish ETH into the upgrade, but I want my max loss known upfront. Buy the 4,800 / 5,200 call spread while vol is cheap.",
+    author: "@defined_risk_dan",
+    venues: ["Options (coming soon)", "Hyperliquid"],
+    mode: "Paper",
+    stats: { ret30d: 8.1, winRate: 54, maxDD: -2.0, forks: 142, followers: 760, daysLive: 16 },
+    nodes: [
+      { id: "s1", kind: "signal", type: "price", title: "ETH-PERP", source: "Hyperliquid", value: "$4,612.18", delta: "+2.4% 24h", deltaDir: "up", spark: walk(911, 28, 0.4, 0.5) },
+      { id: "s2", kind: "signal", type: "model", title: "ETH implied vol", source: "Options feed", value: "IV rank 31", delta: "cheap vs 90d", deltaDir: "down", spark: walk(912, 28, -0.3, 0.3) },
+      { id: "s3", kind: "signal", type: "calendar", title: "Upgrade date", source: "Calendar", value: "Nov 18 · mainnet", delta: "T−37 days", deltaDir: "up" },
+      { id: "t1", kind: "trigger", logic: "AND", conditions: ["IV rank < 40", "ETH > 20d average"], met: true },
+      { id: "t2", kind: "trigger", logic: "IF", conditions: ["Upgrade delayed"], met: false },
+      { id: "a1", kind: "action", side: "buy", asset: "ETH call spread", venue: "Options", alloc: "2%", tp: "+120%", sl: "max −2%", pnl: 0, spark: walk(913, 30, 0.3, 0.4) },
+      { id: "x1", kind: "exit", title: "Close the spread", detail: "if the upgrade slips" },
+    ],
+    edges: [["s1", "t1"], ["s2", "t1"], ["s3", "t2"], ["s3", "t1"], ["t1", "a1"], ["t2", "x1"]],
+  },
+  {
     id: "edge-finder",
     title: "Edge Finder",
     category: "Mispricing",
@@ -189,11 +254,11 @@ export const heroResearch = [
 ];
 
 export const thesisExamples = [
+  "Buy $PUMP when it hits 0.004 and sentiment turns bullish.",
   "El Niño is coming — what's the trade?",
-  "The Fed cuts in December and nobody's positioned for it.",
   "If @fab_insider says the license is approved, go long NVDA.",
+  "The Fed cuts in December and nobody's positioned for it.",
   "SOL longs are way too crowded. Fade them.",
-  "Hurricane season is underpriced in the prediction markets.",
 ];
 
 /* ------------------------------------------------------------------ */
@@ -214,6 +279,9 @@ export const tape = [
   { sym: "“Fed cuts Dec”", px: 0.68, ch: 9.1, odds: true },
   { sym: "“El Niño by winter”", px: 0.61, ch: 3.4, odds: true },
   { sym: "JUP", px: 1.214, ch: 3.02 },
+  { sym: "PUMP", px: 0.00412, ch: -6.8 },
+  { sym: "TSLAx", px: 262.04, ch: -0.79 },
+  { sym: "WIF", px: 1.382, ch: 5.12 },
   { sym: "COIN", px: 318.4, ch: 3.41 },
 ];
 
@@ -278,6 +346,213 @@ export const portfolio = {
 };
 
 /* ------------------------------------------------------------------ */
+/* Products: what you can trade                                        */
+/* ------------------------------------------------------------------ */
+
+/** How one example thesis compiles into the graph, in three nodes. */
+export interface CompiledLine {
+  signal: string;
+  trigger: string;
+  action: string;
+}
+
+export interface ProductMarket {
+  /** chip label */
+  sym: string;
+  name: string;
+  venue: string;
+  thesis: string;
+  graph: CompiledLine;
+  /** price-like products */
+  px?: number;
+  ch?: number;
+  seed?: number;
+  lev?: string;
+  /** prediction markets: YES price + Weft model probability, 0..1 */
+  yes?: number;
+  model?: number;
+  closes?: string;
+  /** options: payoff shape, strikes and premium as % of spot */
+  /** Options payoff in normalised spot units (x 0..1): strikes, premium paid, and the dollar value of that premium. */
+  payoff?: { kind: "call-spread" | "long-put" | "long-call"; k1: number; k2?: number; premium: number; lossUsd: number; maxGain: string; breakeven: string };
+}
+
+export interface Product {
+  id: "perps" | "stocks" | "predictions" | "tokens" | "options";
+  n: string;
+  name: string;
+  kicker: string;
+  venues: string[];
+  status: "live" | "soon";
+  markets: ProductMarket[];
+}
+
+export const products: Product[] = [
+  {
+    id: "perps",
+    n: "01",
+    name: "Perps",
+    kicker: "Crypto perpetuals with leverage, stops and targets on every order.",
+    venues: ["Hyperliquid"],
+    status: "live",
+    markets: [
+      { sym: "BTC", name: "Bitcoin", venue: "Hyperliquid", px: 118420.5, ch: 1.84, seed: 401, lev: "3×", thesis: "ETF inflows three days running? Get long BTC.", graph: { signal: "ETF net flows", trigger: "Inflows > 0 · 3d", action: "Long BTC 3×" } },
+      { sym: "ETH", name: "Ether", venue: "Hyperliquid", px: 4612.18, ch: 2.41, seed: 402, lev: "2×", thesis: "When ETH funding pins above 0.1%, fade the crowd.", graph: { signal: "ETH funding", trigger: "Funding > 0.10%", action: "Short ETH 2×" } },
+      { sym: "HYPE", name: "Hyperliquid", venue: "Hyperliquid", px: 58.94, ch: 4.63, seed: 403, lev: "3×", thesis: "Buy HYPE on a fee-revenue record with a tight stop.", graph: { signal: "Protocol revenue", trigger: "Revenue 7d at high", action: "Long HYPE 3×" } },
+    ],
+  },
+  {
+    id: "stocks",
+    n: "02",
+    name: "Stocks",
+    kicker: "Equities, indices and commodities as HIP-3 perps, plus tokenized stocks on Solana.",
+    venues: ["Hyperliquid HIP-3", "xStocks on Solana"],
+    status: "live",
+    markets: [
+      { sym: "NVDA", name: "NVIDIA · HIP-3 perp", venue: "Hyperliquid HIP-3", px: 184.2, ch: 0.62, seed: 411, lev: "3×", thesis: "If the export license is approved, long NVDA before the open.", graph: { signal: "@fab_insider", trigger: "Post matches thesis", action: "Long NVDA 3×" } },
+      { sym: "GOLD", name: "Gold · HIP-3 perp", venue: "Hyperliquid HIP-3", px: 3912.4, ch: 0.38, seed: 412, lev: "2×", thesis: "Real yields roll over and gold breaks out. Long into the cut.", graph: { signal: "US 10Y real yield", trigger: "Real yield 5d < −15bp", action: "Long GOLD 2×" } },
+      { sym: "TSLAx", name: "Tesla · tokenized", venue: "xStocks on Solana", px: 262.04, ch: -0.79, seed: 413, thesis: "Accumulate tokenized Tesla on every 5% dip before earnings.", graph: { signal: "TSLAx price", trigger: "Off 20d high ≥ 5%", action: "Buy TSLAx $250" } },
+    ],
+  },
+  {
+    id: "predictions",
+    n: "03",
+    name: "Predictions",
+    kicker: "Outcome markets where the agent buys the side its model thinks is mispriced.",
+    venues: ["Hyperliquid HIP-4", "Jupiter"],
+    status: "live",
+    markets: [
+      { sym: "Fed cut", name: "Fed cuts in December?", venue: "Hyperliquid HIP-4", yes: 0.64, model: 0.78, closes: "Dec 10", thesis: "The market is underpricing a December cut.", graph: { signal: "FOMC odds + 2Y", trigger: "Model − Mkt > 10pp", action: "Buy YES ≤ 70¢" } },
+      { sym: "El Niño", name: "El Niño by winter?", venue: "Jupiter · Polymarket", yes: 0.61, model: 0.84, closes: "Feb 28", thesis: "NOAA's models are ahead of the crowd on El Niño.", graph: { signal: "ENSO outlook", trigger: "Niño 3.4 > +1.5°C", action: "Buy YES ≤ 66¢" } },
+      { sym: "Landfall", name: "Cat 3+ US landfall in Oct?", venue: "Jupiter · Polymarket", yes: 0.22, model: 0.12, closes: "Oct 31", thesis: "Hurricane fear is overpriced this late in the season.", graph: { signal: "NHC model runs", trigger: "Mkt − Model > 8pp", action: "Buy NO ≤ 80¢" } },
+    ],
+  },
+  {
+    id: "tokens",
+    n: "04",
+    name: "Solana tokens",
+    kicker: "Anything on Solana by mint, memecoins included, routed through Jupiter with rug checks before every swap.",
+    venues: ["Jupiter", "pump.fun", "Meteora", "Raydium LaunchLab", "StonkFun"],
+    status: "live",
+    markets: [
+      { sym: "$PUMP", name: "Pump", venue: "Jupiter route", px: 0.00412, ch: -6.8, seed: 421, thesis: "Buy $PUMP when it hits 0.004 and sentiment turns bullish.", graph: { signal: "Price + sentiment", trigger: "≤ 0.004 · sent > 0.3", action: "Buy 0.5 SOL" } },
+      { sym: "$WIF", name: "dogwifhat", venue: "Jupiter route", px: 1.382, ch: 5.12, seed: 422, thesis: "Ride $WIF when buyers outnumber sellers 1.5 to 1.", graph: { signal: "Buy / sell ratio", trigger: "Ratio > 1.5 · 1h", action: "Buy 1 SOL" } },
+      { sym: "$LOOM", name: "Loom (3h old)", venue: "pump.fun → Jupiter", px: 0.000183, ch: 412.5, seed: 423, thesis: "Ape the next fresh launch if CT catches on early.", graph: { signal: "New launches", trigger: "Rug checks pass", action: "Buy 0.5 SOL" } },
+    ],
+  },
+  {
+    id: "options",
+    n: "05",
+    name: "Options",
+    kicker: "Defined risk only: spreads and bought calls or puts. Your max loss is known before you trade.",
+    venues: ["Defined risk only"],
+    status: "soon",
+    markets: [
+      { sym: "Call spread", name: "ETH 4,800 / 5,200", venue: "Defined risk", payoff: { kind: "call-spread", k1: 0.4, k2: 0.66, premium: 0.078, lossUsd: 120, maxGain: "+$280", breakeven: "4,920" }, thesis: "Bullish into the upgrade, max loss capped at $120.", graph: { signal: "ETH implied vol", trigger: "IV rank < 40", action: "Buy call spread" } },
+      { sym: "Long put", name: "BTC 110k put", venue: "Defined risk", payoff: { kind: "long-put", k1: 0.58, premium: 0.07, lossUsd: 310, maxGain: "+$1,640", breakeven: "106.9k" }, thesis: "Hedge the bag into CPI without a liquidation price.", graph: { signal: "CPI nowcast", trigger: "Nowcast > 3.0%", action: "Buy BTC put" } },
+      { sym: "Long call", name: "SOL 260 call", venue: "Defined risk", payoff: { kind: "long-call", k1: 0.46, premium: 0.06, lossUsd: 85, maxGain: "Uncapped", breakeven: "268.5" }, thesis: "If the ETF gets approved, I want upside, not liquidations.", graph: { signal: "ETF decision odds", trigger: "Odds > 70%", action: "Buy SOL call" } },
+    ],
+  },
+];
+
+/** Token identity + pre-trade rug checks for the Solana tokens tile and on-chain widget. */
+export interface RugCheck {
+  label: string;
+  value: string;
+  ok: boolean;
+}
+export interface TokenProfile {
+  sym: string;
+  mint: string;
+  origin: string;
+  holders: string;
+  liquidity: string;
+  sentiment: number;
+  mentions: string;
+  checks: RugCheck[];
+}
+
+export const tokenProfiles: Record<string, TokenProfile> = {
+  $PUMP: {
+    sym: "$PUMP",
+    mint: "pumpCm…H9Dfn",
+    origin: "Solana SPL · Jupiter",
+    holders: "82,410",
+    liquidity: "$18.4M",
+    sentiment: 0.34,
+    mentions: "+162%",
+    checks: [
+      { label: "Mint authority", value: "revoked", ok: true },
+      { label: "Freeze authority", value: "revoked", ok: true },
+      { label: "Top-10 holders", value: "22%", ok: true },
+      { label: "Liquidity", value: "$18.4M", ok: true },
+      { label: "Dev selling", value: "none · 30d", ok: true },
+      { label: "Price impact · 0.5 SOL", value: "0.04%", ok: true },
+    ],
+  },
+  $WIF: {
+    sym: "$WIF",
+    mint: "EKpQGS…65zcjm",
+    origin: "Solana SPL · Jupiter",
+    holders: "214,906",
+    liquidity: "$31.2M",
+    sentiment: 0.41,
+    mentions: "+38%",
+    checks: [
+      { label: "Mint authority", value: "revoked", ok: true },
+      { label: "Freeze authority", value: "revoked", ok: true },
+      { label: "Top-10 holders", value: "17%", ok: true },
+      { label: "Liquidity", value: "$31.2M", ok: true },
+      { label: "Dev selling", value: "none · 30d", ok: true },
+      { label: "Price impact · 1 SOL", value: "0.02%", ok: true },
+    ],
+  },
+  $LOOM: {
+    sym: "$LOOM",
+    mint: "Lm7f3q…Xpump",
+    origin: "pump.fun launch · 3h ago",
+    holders: "1,204",
+    liquidity: "$41.8K",
+    sentiment: 0.72,
+    mentions: "+2,310%",
+    checks: [
+      { label: "Mint authority", value: "revoked", ok: true },
+      { label: "Freeze authority", value: "revoked", ok: true },
+      { label: "Top-10 holders", value: "46%", ok: false },
+      { label: "Liquidity", value: "$41.8K", ok: false },
+      { label: "Dev selling", value: "sold 31%", ok: false },
+      { label: "Price impact · 0.5 SOL", value: "4.8%", ok: false },
+    ],
+  },
+};
+
+/** Live on-chain read-out for the Signals widget. */
+export const onchainToken = {
+  sym: "$PUMP",
+  mint: "pumpCm…H9Dfn",
+  px: 0.00412,
+  holders: 82_410,
+  holders24h: 1_184,
+  buySell: 1.38,
+  lpLocked: 100,
+  devSold: 0,
+  /** top-10 wallet shares, % of supply */
+  top10: [4.1, 3.3, 2.8, 2.4, 2.1, 1.9, 1.7, 1.4, 1.2, 1.1],
+  /** recent swaps: + buy, − sell, in SOL */
+  flows: [2.1, -0.6, 0.9, 4.2, -1.8, 0.4, 1.2, -0.3, 6.5, 0.8, -2.2, 1.6, 0.5, 3.1, -0.9, 0.7, 1.9, -0.4, 2.6, -1.1, 0.6, 5.2, -0.8, 1.4],
+};
+
+/* ------------------------------------------------------------------ */
+/* Alerts-only mode                                                    */
+/* ------------------------------------------------------------------ */
+
+export const alertSamples = [
+  { channel: "Telegram", strategy: "Sub-Penny Reload", title: "$PUMP trigger met", body: "Price 0.00398 ≤ 0.004 · sentiment +0.34 · mentions +162%. Rug checks 6/6.", cta: "Buy 0.5 SOL", ago: "now" },
+  { channel: "Push", strategy: "Post & Pounce", title: "@fab_insider just posted", body: "“License approved” matched your thesis (0.93). NVDA-PERP +0.6% in 1h.", cta: "Long NVDA 3×", ago: "2m" },
+  { channel: "Telegram", strategy: "Fed Pivot Spread", title: "Edge opened on Dec cut", body: "Market 64¢ vs model 78%. 2Y yield −14bp in 5 sessions.", cta: "Buy YES", ago: "9m" },
+];
+
+/* ------------------------------------------------------------------ */
 /* Leaderboard                                                          */
 /* ------------------------------------------------------------------ */
 
@@ -306,7 +581,7 @@ export const leaderboard: LeaderRow[] = [
   { id: "hurricane-alpha", name: "Landfall Odds", author: "@isobar_ines", category: "Weather", r7: 7.4, r30: 6.6, rAll: 19.1, winRate: 63, maxDD: -8.0, forks: 97, mode: "Paper", seed: 207 },
   { id: "print-run", name: "Print Run", author: "@iv_crush_ivy", category: "Earnings", r7: 1.1, r30: 5.3, rAll: 27.3, winRate: 55, maxDD: -3.1, forks: 196, mode: "Paper", seed: 208 },
   { id: "basis-hunter", name: "Basis Hunter", author: "@carry_on_cora", category: "Funding", r7: 0.8, r30: 4.4, rAll: 36.8, winRate: 79, maxDD: -1.9, forks: 241, mode: "Live", seed: 209 },
-  { id: "derby-day", name: "Derby Day", author: "@longshot_leo", category: "Sports", r7: -2.6, r30: 3.1, rAll: 9.4, winRate: 52, maxDD: -9.6, forks: 64, mode: "Paper", seed: 210 },
+  { id: "sub-penny-reload", name: "Sub-Penny Reload", author: "@bondingcurve_bo", category: "Memecoin", r7: 9.2, r30: 15.2, rAll: 41.3, winRate: 57, maxDD: -11.3, forks: 921, mode: "Live", seed: 210 },
 ];
 
 /* ------------------------------------------------------------------ */
@@ -341,26 +616,41 @@ export const buybackLedger = [
 
 export const comparison: { label: string; us: string; them: string }[] = [
   { label: "Who holds your funds", us: "You do. Your wallet, your venues.", them: "Usually the app, or its broker." },
-  { label: "What the agent can do", us: "Trade only. The key can’t withdraw.", them: "Whatever the custody terms allow." },
+  { label: "What the agent can do", us: "Trade only. It can’t withdraw or transfer out.", them: "Whatever the custody terms allow." },
+  { label: "What you can trade", us: "Perps, stocks, prediction markets and any Solana token by mint. Options next.", them: "Whatever the app decides to list." },
+  { label: "Memecoin safety", us: "Rug checks before every swap: authorities, holders, liquidity, dev wallet.", them: "You find out after the rug." },
   { label: "Strategy logic", us: "A public graph you can read node by node.", them: "A black box." },
   { label: "Track record", us: "On-chain fills, verifiable by anyone.", them: "Screenshots and marketing." },
   { label: "Fork a strategy", us: "One click, then make it yours.", them: "Not possible." },
-  { label: "Where fees go", us: "Builder fees buy back the token, publicly.", them: "To the company and its investors." },
+  { label: "Don’t want auto-trading?", us: "Alerts-only mode: Telegram or push when a trigger fires.", them: "All or nothing." },
+  { label: "Where fees go", us: `Hyperliquid builder fees and Jupiter swap fees buy back $${brand.ticker}, publicly.`, them: "To the company and its investors." },
   { label: "Default mode", us: "Paper trading, with approval before going live.", them: "Varies." },
 ];
 
 export const faqs = [
   {
-    q: "Is it really non-custodial?",
-    a: "Yes. Funds stay in your own accounts on Hyperliquid and Solana. You authorise a scoped trading key (an API/agent wallet) that can place and cancel orders but has no permission to withdraw or transfer. Revoke it any time.",
+    q: "What can I trade?",
+    a: "Five products, all driven by the same strategy graph: perps on Hyperliquid; stocks, indices and commodities as HIP-3 perps on Hyperliquid plus tokenized stocks (xStocks) on Solana; prediction markets on Hyperliquid HIP-4 and through Jupiter on Solana; any Solana token by mint address, including fresh launches from pump.fun, Meteora and Raydium LaunchLab, routed through Jupiter; and, coming soon, defined-risk options.",
   },
   {
-    q: "What venues does it trade on?",
-    a: "Hyperliquid for perps, HIP-3 stock and commodity perps, and HIP-4 prediction markets; Jupiter on Solana for swaps and prediction markets. More venues will follow when they support scoped, withdraw-proof keys.",
+    q: "Is it really non-custodial?",
+    a: "Yes. Funds stay in your own accounts. On Hyperliquid the agent uses an API (agent) wallet that can place and cancel orders but cannot withdraw. On Solana it signs through a policy-scoped wallet: it can only swap through allowed programs, and proceeds always land back in your wallet. Transfers out are blocked. Revoke either key any time.",
+  },
+  {
+    q: "Is it safe to trade memecoins with it?",
+    a: "Safer than doing it by hand, never safe. Tokens are identified by mint address, never by ticker alone, so a copycat can’t slip in. Before every swap the agent checks that mint and freeze authority are revoked, how concentrated the top-10 holders are, how deep the liquidity is, whether the dev wallet is selling, and the price impact of your size. If a check fails, the swap doesn’t happen. Memecoins can still go to zero.",
   },
   {
     q: "How does the AI turn a thesis into a strategy?",
-    a: "It researches the thesis across forecasts, market odds, prices, news and social feeds, then proposes a graph: signals feed triggers (with AND/OR logic and thresholds), and triggers fire actions with sizing, take-profit and stop-loss. You can edit every node before anything goes live.",
+    a: "It researches the thesis across forecasts, market odds, prices, on-chain data, news and social feeds, then proposes a graph: signals feed triggers (with AND/OR logic and thresholds), and triggers fire actions with sizing, take-profit and stop-loss. “Buy $PUMP at 0.004 when sentiment turns” becomes a price level, a sentiment score, a mentions spike and a set of rug checks. You can edit every node before anything goes live.",
+  },
+  {
+    q: "Can it just alert me instead of trading?",
+    a: "Yes. Any strategy can run in alerts-only mode: the graph watches the market and pings you on Telegram or with a push notification the moment a trigger fires. You decide whether to act.",
+  },
+  {
+    q: "Do you support options?",
+    a: "Coming soon, and defined-risk only: spreads and bought calls or puts, so your maximum loss is known before the trade. No naked selling.",
   },
   {
     q: "What stops it from blowing up my account?",
@@ -371,11 +661,11 @@ export const faqs = [
     a: "Because a strategy you can read is one you can trust, improve, or fork. The logic is public; your wallet and position sizes stay yours.",
   },
   {
-    q: "What does the token do?",
-    a: "The platform earns a small builder fee on executed trades. Those fees are used to buy back the token on the open market, and every buyback is published on-chain.",
+    q: `How does $${brand.ticker} launch, and what does it do?`,
+    a: `$${brand.ticker} launches on ${brand.chain} through a ${brand.launchpad} ${brand.launchCurve}. After that, the platform earns small fees on executed trades: Hyperliquid builder fees on perps and Jupiter platform fees on Solana swaps. Those fees buy back $${brand.ticker} on the open market, and every buyback is published on-chain.`,
   },
   {
     q: "Is this financial advice?",
-    a: "No. The agent executes the strategy you approve. Markets are risky, leverage amplifies losses, and past performance (paper or live) doesn’t predict future results.",
+    a: "No. The agent executes the strategy you approve. Markets are risky, leverage amplifies losses, memecoins can go to zero, and past performance (paper or live) doesn’t predict future results.",
   },
 ];

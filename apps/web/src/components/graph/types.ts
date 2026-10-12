@@ -9,7 +9,10 @@ export type SignalType =
   | "funding"
   | "calendar"
   | "model"
-  | "rates";
+  | "rates"
+  | "onchain"
+  | "liquidity"
+  | "position";
 
 export interface SignalNode {
   id: string;

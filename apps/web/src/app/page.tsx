@@ -2,6 +2,7 @@ import { Nav } from "@/components/sections/Nav";
 import { Hero } from "@/components/sections/Hero";
 import { Tape } from "@/components/sections/Tape";
 import { Manifesto } from "@/components/sections/Manifesto";
+import { Products } from "@/components/sections/Products";
 import { HowItWorks } from "@/components/sections/HowItWorks";
 import { Gallery } from "@/components/sections/Gallery";
 import { Signals } from "@/components/sections/Signals";
@@ -23,6 +24,7 @@ export default function Page() {
         <Hero />
         <Tape />
         <Manifesto />
+        <Products />
         <HowItWorks />
         <Gallery />
         <Signals />

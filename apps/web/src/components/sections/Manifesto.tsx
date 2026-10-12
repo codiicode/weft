@@ -48,9 +48,9 @@ export function Manifesto() {
         </div>
         <div className="mt-14 grid gap-px overflow-hidden rounded-2xl border border-line bg-line sm:grid-cols-3">
           {[
-            ["01", "Non-custodial", "Funds never leave your wallet. The agent's key can trade, never withdraw."],
+            ["01", "Non-custodial", "Funds never leave your wallet. The agent's keys can trade, never withdraw or transfer out."],
             ["02", "Public & forkable", "Every strategy is a readable graph with an on-chain track record. Fork it in one click."],
-            ["03", "Fees → buyback", `Builder fees buy back $${brand.ticker} on the open market, in public.`],
+            ["03", "Fees → buyback", `Hyperliquid builder fees and Jupiter swap fees buy back $${brand.ticker} on the open market, in public.`],
           ].map(([n, t, d], i) => (
             <Reveal key={n} delay={i * 0.08} className="bg-paper p-6 sm:p-7">
               <div className="font-mono text-[11px] text-faint">{n}</div>

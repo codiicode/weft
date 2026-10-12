@@ -75,6 +75,27 @@ export const IconRates = ({ size, ...p }: P) => (
   </svg>
 );
 
+/** On-chain token data: a block with holder rows. */
+export const IconChain = ({ size, ...p }: P) => (
+  <svg {...base(size)} {...p}>
+    <path d="M8 1.8 13.5 5v6L8 14.2 2.5 11V5Z" />
+    <path d="M2.5 5 8 8.2 13.5 5M8 8.2v6" />
+  </svg>
+);
+
+export const IconLiquidity = ({ size, ...p }: P) => (
+  <svg {...base(size)} {...p}>
+    <path d="M8 2.2c2.4 3 4 5.1 4 7.1a4 4 0 0 1-8 0c0-2 1.6-4.1 4-7.1z" />
+    <path d="M6 10a2 2 0 0 0 2 2" opacity=".6" />
+  </svg>
+);
+export const IconPosition = ({ size, ...p }: P) => (
+  <svg {...base(size)} {...p}>
+    <circle cx="8" cy="8" r="5.5" />
+    <circle cx="8" cy="8" r="2" />
+  </svg>
+);
+
 export const signalIcon: Record<SignalType, (p: P) => React.JSX.Element> = {
   forecast: IconForecast,
   odds: IconOdds,
@@ -85,6 +106,9 @@ export const signalIcon: Record<SignalType, (p: P) => React.JSX.Element> = {
   calendar: IconCalendar,
   model: IconModel,
   rates: IconRates,
+  onchain: IconChain,
+  liquidity: IconLiquidity,
+  position: IconPosition,
 };
 
 /* ----- Kind glyphs ----- */

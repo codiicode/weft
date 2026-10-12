@@ -62,7 +62,7 @@ export function Hero() {
           style={{ animationDelay: "0.32s" }}
           className="enter mx-auto mt-7 max-w-[34rem] text-[17px] leading-relaxed text-ink-2 text-pretty sm:text-[19px]"
         >
-          Write what you believe in plain English. Weft researches it, weaves it into a strategy graph you can read, and trades it for you on Hyperliquid and Jupiter.{" "}
+          Write what you believe in plain English. Weft researches it, weaves it into a strategy graph you can read, and trades it for you: perps, stocks, prediction markets and any Solana token, on Hyperliquid and Jupiter.{" "}
           <span className="text-ink">Your keys never leave your hands.</span>
         </p>
 

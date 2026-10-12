@@ -40,6 +40,23 @@ export interface Position {
   unrealizedPnlPct: number;
   /** Best price seen since entry, for trailing stops. */
   peakPrice: number;
+  /**
+   * Optional (additive): set on legs of a multi-leg options position. Legs that
+   * share `group.id` are monitored and exited together.
+   */
+  group?: PositionGroup;
+}
+
+/** Multi-leg grouping for options positions (additive, optional). */
+export interface PositionGroup {
+  /** Shared by every leg; equals the intent key that opened it. */
+  id: string;
+  /** Number of spread units opened (leg qty = units × ratio). */
+  units: number;
+  /** This leg's ratio within one unit. */
+  ratio: number;
+  /** Best net value per unit seen since entry, for trailing stops on the group. */
+  peakValue: number;
 }
 
 export type FillReason =
@@ -105,6 +122,13 @@ export interface DeploymentSnapshot {
   lastTickAt: number | null;
   /** Equity curve samples [ts, equityUsd]. */
   equityCurve: [number, number][];
+  /** Optional (additive): total fees paid, USD (venue + builder/platform + network). */
+  feesUsd?: number;
+  /**
+   * Optional (additive): Weft's share of fees, USD (Hyperliquid builder fee +
+   * Solana platform fee). Funds token buybacks later.
+   */
+  builderFeesUsd?: number;
 }
 
 export interface CreateDeploymentInput {

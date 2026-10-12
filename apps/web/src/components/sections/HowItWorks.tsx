@@ -14,8 +14,8 @@ const STEPS = [
   {
     n: "01",
     title: "Write the thesis",
-    body: "Say what you believe the way you'd say it to a friend. Weather, rates, earnings, a post you're waiting for. No indicators, no code.",
-    meta: ["Plain language", "Any market", "Any horizon"],
+    body: "Say what you believe the way you'd say it to a friend. A memecoin at a price, weather, rates, earnings, a post you're waiting for. No indicators, no code.",
+    meta: ["Plain language", "5 products", "Any horizon"],
   },
   {
     n: "02",
@@ -26,8 +26,8 @@ const STEPS = [
   {
     n: "03",
     title: "It runs on its own",
-    body: "Approve it and the graph watches the market around the clock, trading through a key that can't withdraw. Paper first, live when you say so.",
-    meta: ["24/7 checks", "Hyperliquid + Jupiter", "Kill switch"],
+    body: "Approve it and the graph watches the market around the clock, trading through keys that can't withdraw, with rug checks before every token swap. Paper first, live when you say so, or alerts-only if you'd rather pull the trigger yourself.",
+    meta: ["24/7 checks", "Hyperliquid + Solana", "Trade or alert"],
   },
 ];
 
@@ -57,14 +57,14 @@ function ThesisVisual({ active }: { active: boolean }) {
   const shown = reduce ? text : text.slice(0, len);
   const intents: Record<number, { k: string; v: string }[]> = {
     0: [
+      { k: "Horizon", v: "Hours to days" },
+      { k: "Markets", v: "$PUMP by mint" },
+      { k: "Needs", v: "Price · sentiment · rug checks" },
+    ],
+    1: [
       { k: "Horizon", v: "3–6 months" },
       { k: "Markets", v: "Grains · Softs · BRL" },
       { k: "Needs", v: "ENSO · odds · posts" },
-    ],
-    1: [
-      { k: "Horizon", v: "≤ 8 weeks" },
-      { k: "Markets", v: "BTC · ETH · Gold" },
-      { k: "Needs", v: "FOMC odds · 2Y" },
     ],
     2: [
       { k: "Horizon", v: "Event-driven" },
@@ -72,14 +72,14 @@ function ThesisVisual({ active }: { active: boolean }) {
       { k: "Needs", v: "1 account · wires" },
     ],
     3: [
+      { k: "Horizon", v: "≤ 8 weeks" },
+      { k: "Markets", v: "BTC · ETH · Gold" },
+      { k: "Needs", v: "FOMC odds · 2Y" },
+    ],
+    4: [
       { k: "Horizon", v: "Days" },
       { k: "Markets", v: "SOL perp" },
       { k: "Needs", v: "Funding · OI" },
-    ],
-    4: [
-      { k: "Horizon", v: "Season" },
-      { k: "Markets", v: "Prediction mkts" },
-      { k: "Needs", v: "NHC models" },
     ],
   };
   const done = reduce || (dir === -1 || len === text.length);
@@ -128,7 +128,7 @@ function ThesisVisual({ active }: { active: boolean }) {
 
 /* ---------- Visual 2: graph assembling ---------- */
 function GraphVisual({ active }: { active: boolean }) {
-  const spec = strategies[1];
+  const spec = strategies.find((x) => x.id === "sub-penny-reload") ?? strategies[1];
   const { runtime } = useGraphSequence(spec, active, 250);
   return (
     <div className="flex h-full flex-col justify-center p-5 sm:p-8">
@@ -136,20 +136,20 @@ function GraphVisual({ active }: { active: boolean }) {
         <span className="font-mono text-[10.5px] uppercase tracking-[0.14em] text-muted">{spec.title}</span>
         <span className="font-mono text-[10.5px] text-faint">{spec.nodes.length} nodes · {spec.edges.length} edges</span>
       </div>
-      <StrategyGraph spec={spec} runtime={runtime} preset="auto" wide="medium" stackBelow={520} interactive live ariaLabel="Fed pivot strategy graph" />
+      <StrategyGraph spec={spec} runtime={runtime} preset="auto" wide="medium" stackBelow={520} interactive live ariaLabel={`${spec.title} strategy graph`} />
     </div>
   );
 }
 
 /* ---------- Visual 3: execution log ---------- */
 const LOG = [
-  { t: "09:14:02", tag: "check", text: "3 signals fresh · funding 0.124%/8h", tone: "muted" },
-  { t: "09:14:32", tag: "trigger", text: "Funding > 0.10%/8h ✓  OI z 2.31 > 2.0 ✓", tone: "trigger" },
-  { t: "09:14:32", tag: "met", text: "T1 Crowded long → MET", tone: "long" },
-  { t: "09:14:33", tag: "order", text: "SHORT SOL-PERP 2× · $4,820 · Hyperliquid", tone: "short" },
-  { t: "09:14:33", tag: "fill", text: "Filled 241.37 · SL 251.03 · TP 219.65", tone: "ink" },
-  { t: "09:44:03", tag: "check", text: "Position −0.4% · stops intact", tone: "muted" },
-  { t: "11:02:44", tag: "exit", text: "TP hit · closed +9.0% · key idle", tone: "long" },
+  { t: "09:14:02", tag: "check", text: "3 signals fresh · PUMP 0.00412 · sent +0.29", tone: "muted" },
+  { t: "09:41:30", tag: "trigger", text: "≤ 0.004 ✓  sent 0.34 ✓  mentions +162% ✓", tone: "trigger" },
+  { t: "09:41:30", tag: "rug", text: "pumpCm…H9Dfn · 6/6 rug checks passed", tone: "long" },
+  { t: "09:41:31", tag: "order", text: "SWAP 0.5 SOL → PUMP · Jupiter · impact 0.04%", tone: "long" },
+  { t: "09:41:32", tag: "fill", text: "Filled 0.00398 · TP +40% · SL −20% · in your wallet", tone: "ink" },
+  { t: "10:11:32", tag: "check", text: "Position +3.1% · dev wallet idle · stops intact", tone: "muted" },
+  { t: "14:52:07", tag: "exit", text: "TP hit · swapped back to SOL · +40.0%", tone: "long" },
 ];
 
 function RunVisual({ active }: { active: boolean }) {
@@ -172,7 +172,7 @@ function RunVisual({ active }: { active: boolean }) {
             <span className="relative h-2.5 w-2.5 rounded-full bg-long" />
           </span>
           <div>
-            <div className="text-[13.5px] font-medium">Crowded Fade · running</div>
+            <div className="text-[13.5px] font-medium">Sub-Penny Reload · running</div>
             <div className="font-mono text-[10.5px] text-muted">checks every 30s · paper</div>
           </div>
         </div>

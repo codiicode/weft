@@ -13,6 +13,12 @@ import { IconCheck, IconCopy, IconEye, IconLock, IconPrice, IconReplay } from ".
 
 const EASE = [0.22, 1, 0.36, 1] as const;
 const FEE_PCT = brand.builderFeeBps / 100; // 5 bps -> 0.05
+const SWAP_FEE_PCT = brand.swapFeeBps / 100;
+/** "0.05%" when both fees match, "0.05–0.10%" otherwise. */
+const FEE_LABEL =
+  FEE_PCT === SWAP_FEE_PCT
+    ? `${FEE_PCT.toFixed(2)}%`
+    : `${Math.min(FEE_PCT, SWAP_FEE_PCT).toFixed(2)}–${Math.max(FEE_PCT, SWAP_FEE_PCT).toFixed(2)}%`;
 const TOKEN_PRICE = tokenStats.boughtBackUsd / tokenStats.boughtBackTokens;
 const LEDGER_MAX = 7;
 const VAULT_BALANCE = 1_912;
@@ -30,7 +36,7 @@ type FlowNode = { key: string; step: string; title: string; value: string; sub: 
 
 const FLOW: FlowNode[] = [
   { key: "trades", step: "01", title: "Every trade", value: compactUsd(tokenStats.volume24h), sub: "Hyperliquid · Jupiter", icon: "trades" },
-  { key: "fee", step: "02", title: "Builder fee", value: `${FEE_PCT.toFixed(2)}%`, sub: `${brand.builderFeeBps} bps per fill`, icon: "fee" },
+  { key: "fee", step: "02", title: "Trade fees", value: FEE_LABEL, sub: "HL builder · Jup swap", icon: "fee" },
   { key: "vault", step: "03", title: "Fee vault", value: compactUsd(tokenStats.fees24h), sub: "Public · last 24h", icon: "vault" },
   { key: "swap", step: "04", title: "Buyback", value: "Jupiter", sub: `USDC → ${$T}`, icon: "swap" },
   { key: "token", step: "05", title: $T, value: compactNum(tokenStats.boughtBackTokens), sub: "Bought back", icon: "token" },
@@ -133,7 +139,7 @@ const FlowSvg = memo(function FlowSvg({ vertical, playing, reduce, className }: 
       className={className}
       overflow="visible"
       role="img"
-      aria-label={`Fee flow: trades pay a ${FEE_PCT}% builder fee into a public vault, which buys back ${$T} on Jupiter`}
+      aria-label={`Fee flow: trades pay a ${FEE_LABEL} fee (Hyperliquid builder fees and Jupiter swap fees) into a public vault, which buys back ${$T} on Jupiter`}
     >
       <defs>
         <radialGradient id={`${id}-dot`}>
@@ -528,6 +534,69 @@ function Tile({ label, value, foot, children }: { label: string; value: ReactNod
   );
 }
 
+/* ------------------------------------------------------------------ */
+/* Launch card: bonding curve                                          */
+/* ------------------------------------------------------------------ */
+
+function LaunchCard() {
+  const reduce = !!useReducedMotion();
+  const svgRef = useRef<SVGSVGElement>(null);
+  const inView = useInView(svgRef, { rootMargin: "60px" });
+  useEffect(() => {
+    const svg = svgRef.current;
+    if (!svg || typeof svg.pauseAnimations !== "function") return;
+    if (inView && !reduce) svg.unpauseAnimations();
+    else svg.pauseAnimations();
+  }, [inView, reduce]);
+  const W = 300;
+  const H = 110;
+  // y = x^2 style curve, from launch to graduation
+  const pts = Array.from({ length: 31 }, (_, i) => {
+    const t = i / 30;
+    return [t * W, H - 8 - (H - 22) * t * t] as const;
+  });
+  const d = `M${pts.map(([x, y]) => `${x.toFixed(1)},${y.toFixed(1)}`).join(" L")}`;
+  return (
+    <div className="flex h-full flex-col rounded-[20px] border border-line bg-card p-5 shadow-card">
+      <div className="flex items-center justify-between gap-3">
+        <div className="font-mono text-[10px] font-medium uppercase tracking-[0.14em] text-faint">Launch · {brand.chain}</div>
+        <span className="rounded-full border border-line-2 px-2 py-0.5 font-mono text-[9.5px] uppercase tracking-[0.1em] text-ink-2">{brand.launchpad}</span>
+      </div>
+      <div className="mt-2 text-[17px] font-semibold tracking-[-0.02em] text-ink">
+        Launches on a {brand.launchpad} {brand.launchCurve}
+      </div>
+      <p className="mt-1.5 text-[13px] leading-relaxed text-ink-2">
+        Price rises along the curve as people buy, then the pool graduates to open liquidity. From there, trading fees fund buybacks.
+      </p>
+      <div className="relative mt-auto pt-4">
+        <svg ref={svgRef} viewBox={`0 0 ${W} ${H}`} className="h-auto w-full overflow-visible" aria-hidden>
+          <line x1={0} x2={W} y1={H - 8} y2={H - 8} style={{ stroke: "var(--line-2)" }} />
+          <line x1={W} x2={W} y1={8} y2={H - 8} style={{ stroke: "var(--line-2)" }} strokeDasharray="3 4" />
+          <path d={`${d} L${W},${H - 8} L0,${H - 8} Z`} style={{ fill: "color-mix(in oklab, var(--volt) 10%, transparent)" }} />
+          <motion.path
+            d={d}
+            fill="none"
+            style={{ stroke: "var(--volt)" }}
+            strokeWidth={2}
+            strokeLinecap="round"
+            initial={reduce ? false : { pathLength: 0 }}
+            whileInView={{ pathLength: 1 }}
+            viewport={{ once: true }}
+            transition={{ duration: 1.6, ease: EASE }}
+          />
+          {!reduce && (
+            <circle r={4} style={{ fill: "var(--volt)" }}>
+              <animateMotion dur="5s" repeatCount="indefinite" path={d} keyPoints="0;1" keyTimes="0;1" calcMode="linear" />
+            </circle>
+          )}
+          <text x={4} y={H - 14} className="fill-[var(--faint)] font-mono text-[9px] uppercase tracking-[0.1em]">launch</text>
+          <text x={W - 4} y={18} textAnchor="end" className="fill-[var(--volt)] font-mono text-[9px] uppercase tracking-[0.1em]">graduates</text>
+        </svg>
+      </div>
+    </div>
+  );
+}
+
 function ContractRow() {
   const [copied, setCopied] = useState(false);
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -618,16 +687,16 @@ export function Token() {
             }
             sub={
               <>
-                Every executed trade pays a small builder fee of {brand.builderFeeBps} bps ({FEE_PCT.toFixed(2)}%). Fees land in a public vault and buy back {$T} on Jupiter, on-chain, where anyone can watch it happen.
+                {$T} launches on {brand.chain} through a {brand.launchpad} {brand.launchCurve}. After that, every executed trade pays a small fee: a {brand.builderFeeBps} bps builder fee on Hyperliquid and a {brand.swapFeeBps} bps platform fee on Jupiter swaps. Fees land in a public vault and buy back {$T}, on-chain, where anyone can watch it happen.
               </>
             }
           />
           <Reveal delay={0.15} className="shrink-0">
             <div className="inline-flex items-center gap-3 rounded-full border border-line-2 bg-card/60 py-1.5 pl-1.5 pr-4 backdrop-blur">
               <span className="grid h-8 min-w-8 place-items-center rounded-full bg-volt px-2 font-mono text-[12px] font-semibold text-[#0b0c0f] tnum">
-                {FEE_PCT.toFixed(2)}%
+                {FEE_LABEL}
               </span>
-              <span className="font-mono text-[11.5px] text-ink-2">builder fee → 100% buyback</span>
+              <span className="font-mono text-[11.5px] text-ink-2">trade fees → 100% buyback</span>
             </div>
           </Reveal>
         </div>
@@ -663,7 +732,7 @@ export function Token() {
               </div>
               {/* tiles */}
               <div className="mt-px grid grid-cols-2 gap-px">
-                <Tile label="Fees · 24h" value={fmtUsd(tokenStats.fees24h)} foot={`${FEE_PCT.toFixed(2)}% of volume`}>
+                <Tile label="Fees · 24h" value={fmtUsd(tokenStats.fees24h)} foot={`${FEE_LABEL} of volume`}>
                   <Sparkline data={feesSpark} width={72} height={22} color="var(--volt)" className="absolute right-4 top-4 hidden opacity-80 sm:block" />
                 </Tile>
                 <Tile label="Volume · 24h" value={compactUsd(tokenStats.volume24h)} foot="Hyperliquid + Jupiter" />
@@ -699,9 +768,26 @@ export function Token() {
           </Reveal>
         </div>
 
-        <Reveal className="mt-6">
-          <ContractRow />
-        </Reveal>
+        <div className="mt-6 grid gap-6 lg:grid-cols-12">
+          <Reveal className="lg:col-span-5">
+            <LaunchCard />
+          </Reveal>
+          <Reveal delay={0.08} className="flex flex-col lg:col-span-7">
+            <ContractRow />
+            <div className="mt-4 grid flex-1 grid-cols-2 gap-px overflow-hidden rounded-[20px] border border-line bg-line shadow-card">
+              {[
+                ["Hyperliquid", `${brand.builderFeeBps} bps builder fee`, "perps · HIP-3 stocks · HIP-4"],
+                ["Jupiter", `${brand.swapFeeBps} bps platform fee`, "Solana tokens · xStocks"],
+              ].map(([venue, fee, scope]) => (
+                <div key={venue} className="flex flex-col justify-between bg-card px-5 py-4">
+                  <div className="font-mono text-[10px] font-medium uppercase tracking-[0.14em] text-faint">Fees from {venue}</div>
+                  <div className="mt-3 font-mono text-[16px] font-semibold sm:text-[clamp(1.1rem,2vw,1.45rem)] tracking-[-0.03em] text-ink">{fee}</div>
+                  <div className="mt-1 font-mono text-[11px] text-muted">{scope}</div>
+                </div>
+              ))}
+            </div>
+          </Reveal>
+        </div>
 
         <p className="mt-6 text-center font-mono text-[11px] text-faint">
           All figures shown are demo data for illustration. Live numbers will be read from the chain at launch.

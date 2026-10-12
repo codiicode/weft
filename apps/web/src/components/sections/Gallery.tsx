@@ -227,7 +227,7 @@ export function Gallery() {
                 Theses, <span className="serif-em">woven</span> into trades.
               </>
             }
-            sub="Seven strategies people are running right now: weather, rates, posts, funding, earnings, elections and pure mispricing. Hover to run one. Click to open it."
+            sub="Ten strategies people are running right now: memecoins, weather, rates, posts, funding, tokenized stocks, earnings, elections, defined-risk options and pure mispricing. Hover to run one. Click to open it."
           />
           <Reveal className="shrink-0">
             <div className="flex items-center gap-4 font-mono text-[11px] text-muted">

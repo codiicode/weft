@@ -6,17 +6,46 @@ import { IconCheck, IconKey, IconLock, IconPower, IconShield, IconX } from "../g
 import { ThreadField } from "../ui/ThreadField";
 import { useReducedMotion } from "@/lib/hooks";
 
-/* ---------- Trading key credential ---------- */
-const PERMS: { label: string; ok: boolean; note: string }[] = [
-  { label: "Place orders", ok: true, note: "perps · predictions · swaps" },
-  { label: "Cancel & amend", ok: true, note: "any open order" },
-  { label: "Set TP / SL", ok: true, note: "required on every action" },
-  { label: "Withdraw funds", ok: false, note: "not granted, ever" },
-  { label: "Transfer assets", ok: false, note: "not granted, ever" },
+/* ---------- Trading key credentials ---------- */
+type Perm = { label: string; ok: boolean; note: string };
+const KEYS: { id: "hl" | "sol"; tab: string; title: string; addr: string; scope: string; perms: Perm[]; foot: string }[] = [
+  {
+    id: "hl",
+    tab: "Hyperliquid",
+    title: "Agent (API) wallet",
+    addr: "0x7a3c · · · · f19c",
+    scope: "scoped · revocable · expires in 30d",
+    perms: [
+      { label: "Place orders", ok: true, note: "perps · HIP-3 · HIP-4" },
+      { label: "Cancel & amend", ok: true, note: "any open order" },
+      { label: "Set TP / SL", ok: true, note: "required on every action" },
+      { label: "Withdraw funds", ok: false, note: "not granted, ever" },
+      { label: "Transfer assets", ok: false, note: "not granted, ever" },
+    ],
+    foot: "Funds stay in your Hyperliquid account",
+  },
+  {
+    id: "sol",
+    tab: "Solana",
+    title: "Policy-scoped wallet",
+    addr: "7Fq2 · · · · Wm9K",
+    scope: "policy-bound · revocable · per-swap limits",
+    perms: [
+      { label: "Swap via allowed programs", ok: true, note: "Jupiter routes only" },
+      { label: "Proceeds back to you", ok: true, note: "destination is your wallet" },
+      { label: "Rug checks before signing", ok: true, note: "mint · holders · LP · dev" },
+      { label: "Transfer out", ok: false, note: "blocked by policy" },
+      { label: "Call unlisted programs", ok: false, note: "blocked by policy" },
+    ],
+    foot: "Tokens and SOL stay in your Solana wallet",
+  },
 ];
 
 function TradingKey() {
   const reduce = useReducedMotion();
+  const [k, setK] = useState<"hl" | "sol">("hl");
+  const key = KEYS.find((x) => x.id === k)!;
+  const PERMS = key.perms;
   return (
     <div className="relative overflow-hidden rounded-[24px] border border-line-2 bg-[linear-gradient(160deg,#16191f,#0c0d10_60%)] p-6 shadow-[0_40px_100px_-30px_rgba(0,0,0,.9),inset_0_1px_0_rgba(255,255,255,.06)]">
       {/* holographic sheen */}
@@ -28,13 +57,21 @@ function TradingKey() {
           transition={{ duration: 4.5, repeat: Infinity, ease: "linear", repeatDelay: 1.5 }}
         />
       )}
+      <div className="relative mb-5 inline-grid grid-cols-2 rounded-full border border-line bg-black/30 p-1 font-mono text-[10.5px] uppercase tracking-[0.12em]" role="group" aria-label="Venue">
+        {KEYS.map((x) => (
+          <button key={x.id} type="button" aria-pressed={k === x.id} onClick={() => setK(x.id)} className="relative z-10 rounded-full px-3.5 py-1.5">
+            {k === x.id && <motion.span layoutId="key-tab" className="absolute inset-0 -z-10 rounded-full bg-card-2 shadow-card" transition={{ type: "spring", stiffness: 500, damping: 36 }} />}
+            <span className={k === x.id ? "text-ink" : "text-muted"}>{x.tab}</span>
+          </button>
+        ))}
+      </div>
       <div className="relative flex items-start justify-between">
         <div>
           <div className="flex items-center gap-2 font-mono text-[10.5px] uppercase tracking-[0.16em] text-muted">
-            <IconKey size={13} className="text-volt" /> Agent trading key
+            <IconKey size={13} className="text-volt" /> {key.title}
           </div>
-          <div className="mt-3 font-mono text-[15px] tracking-wider text-ink">0x7a3c · · · · f19c</div>
-          <div className="mt-1 font-mono text-[11px] text-faint">scoped · revocable · expires in 30d</div>
+          <div className="mt-3 font-mono text-[15px] tracking-wider text-ink">{key.addr}</div>
+          <div className="mt-1 font-mono text-[11px] text-faint">{key.scope}</div>
         </div>
         <div className="grid h-12 w-12 place-items-center rounded-2xl border border-line-2 bg-card/50 text-volt">
           <IconShield size={22} />
@@ -43,7 +80,7 @@ function TradingKey() {
       <div className="relative mt-6 divide-y divide-[var(--line)] rounded-2xl border border-line bg-black/20">
         {PERMS.map((p, i) => (
           <motion.div
-            key={p.label}
+            key={`${k}-${p.label}`}
             initial={{ opacity: 0, x: -10 }}
             whileInView={{ opacity: 1, x: 0 }}
             viewport={{ once: true }}
@@ -61,7 +98,7 @@ function TradingKey() {
         ))}
       </div>
       <div className="relative mt-5 flex items-center justify-between font-mono text-[10.5px] text-faint">
-        <span className="max-w-[60%]">Funds stay in your wallet on Hyperliquid & Solana</span>
+        <span className="max-w-[60%]">{key.foot}</span>
         <span className="shrink-0 text-volt">Revoke anytime</span>
       </div>
     </div>
@@ -182,10 +219,61 @@ function PaperTile() {
   );
 }
 
+const RUG_RULES = [
+  { k: "Mint authority", v: "must be revoked" },
+  { k: "Freeze authority", v: "must be revoked" },
+  { k: "Top-10 holders", v: "≤ 30% of supply" },
+  { k: "Liquidity", v: "≥ $250k" },
+  { k: "Dev wallet", v: "sold < 20%" },
+  { k: "Price impact", v: "< 1% at your size" },
+];
+
+function RugTile() {
+  return (
+    <Tile
+      title="Rug checks on every token"
+      body="Solana tokens are matched by mint, never by ticker. Before any swap the agent checks the token itself. Fail one rule and the swap doesn't happen."
+    >
+      <ul className="grid gap-1.5 sm:grid-cols-2">
+        {RUG_RULES.map((r, i) => (
+          <motion.li
+            key={r.k}
+            initial={{ opacity: 0, y: 6 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true }}
+            transition={{ delay: 0.15 + i * 0.06, duration: 0.45 }}
+            className="flex items-center gap-2.5 rounded-lg border border-line bg-black/20 px-3 py-2 font-mono text-[11px]"
+          >
+            <span className="grid h-[18px] w-[18px] shrink-0 place-items-center rounded-full bg-[var(--long-soft)] text-long">
+              <IconCheck size={10} strokeWidth={2.4} />
+            </span>
+            <span className="text-ink">{r.k}</span>
+            <span className="ml-auto truncate text-faint">{r.v}</span>
+          </motion.li>
+        ))}
+      </ul>
+    </Tile>
+  );
+}
+
+function AlertsTile() {
+  const [alertsOnly, setAlertsOnly] = useState(false);
+  return (
+    <Tile title="Alerts-only mode" body="Any strategy can just notify you on Telegram or push instead of trading. The graph watches; you decide.">
+      <div className="flex items-center justify-between rounded-xl border border-line bg-black/20 px-3 py-2.5">
+        <span className="font-mono text-[11px] text-ink-2">{alertsOnly ? "Notify me, never trade" : "Trade when triggers fire"}</span>
+        <Toggle on={alertsOnly} onClick={() => setAlertsOnly(!alertsOnly)} label="Alerts-only mode" />
+      </div>
+      <div className="mt-2 h-4 font-mono text-[10.5px] text-volt">{alertsOnly ? "Telegram + push · no orders, no swaps" : ""}</div>
+    </Tile>
+  );
+}
+
 const POSITIONS = [
   { a: "LONG WHEAT 3×", pnl: "+4.2%" },
   { a: "BUY YES · El Niño", pnl: "+9.6%" },
   { a: "SHORT SOL 2×", pnl: "+5.2%" },
+  { a: "HOLD PUMP · 0.5 SOL", pnl: "+12.6%" },
 ];
 
 function KillTile() {
@@ -300,19 +388,21 @@ export function Safety() {
                 It <span className="serif-em text-volt">can&apos;t</span> withdraw.
               </>
             }
-            sub="The agent works through a scoped trading key: it can open and close positions, nothing else. Your funds never leave your wallet, and every guardrail is yours to set."
+            sub="On Hyperliquid the agent uses an API wallet that can trade but not withdraw. On Solana it signs through a policy-scoped wallet: swaps through allowed programs, straight back into your wallet, with transfers out blocked. Every guardrail is yours to set."
           />
           <Reveal delay={0.1}>
             <TradingKey />
           </Reveal>
         </div>
 
-        <div className="mt-16 grid gap-3 md:grid-cols-2 lg:grid-cols-[repeat(2,minmax(0,1fr))_minmax(0,1.05fr)] lg:grid-rows-2">
+        <div className="mt-16 grid gap-3 md:grid-cols-2 lg:grid-cols-[repeat(2,minmax(0,1fr))_minmax(0,1.05fr)]">
           <Reveal><ApprovalTile /></Reveal>
           <Reveal delay={0.05}><CapsTile /></Reveal>
           <Reveal delay={0.1} className="md:col-span-2 lg:col-span-1 lg:row-span-2"><KillTile /></Reveal>
           <Reveal delay={0.1}><StopsTile /></Reveal>
           <Reveal delay={0.15}><PaperTile /></Reveal>
+          <Reveal className="md:col-span-2"><RugTile /></Reveal>
+          <Reveal delay={0.08} className="md:col-span-2 lg:col-span-1"><AlertsTile /></Reveal>
         </div>
       </div>
     </section>

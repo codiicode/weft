@@ -1,0 +1,633 @@
+import {
+  checkIntents,
+  effectiveRisk,
+  evaluate,
+  exprRefs,
+  instrumentKey,
+  instrumentLabel,
+  type Instrument,
+  type Intent,
+  type OpenIntent,
+  type OptionsIntent,
+  type CloseIntent,
+  type Signal,
+  type SignalSnapshot,
+  type TokenFacts,
+  type TriggerResult,
+} from "@weft/strategy";
+import type { MarketData, Quote, SignalProvider, TokenFactsProvider } from "@weft/venues";
+import type { DeploymentRecord, EngineEvent, EngineEventType, Fill, FillReason, Position } from "./types.ts";
+import type { DeploymentRuntime, StoreBatch } from "./store.ts";
+import { errMsg, withTimeout, type Executor } from "./executor.ts";
+import { dirOf, exitReason, exposureOf, groupExitReason, groupUnitValue, marginOf, markPosition, unrealizedOf } from "./positions.ts";
+
+/** Everything a tick needs from the outside world. Injected; the tick itself does no I/O. */
+export interface TickDeps {
+  marketData: MarketData;
+  /** Provider per signal kind. `position` signals are produced by the engine. */
+  providers: ReadonlyMap<string, SignalProvider>;
+  tokenFacts?: TokenFactsProvider;
+  executor: Executor;
+  signalTimeoutMs: number;
+  quoteTimeoutMs: number;
+  /** Quote assets priced for risk checks (native sizing), e.g. { SOL: <SOL perp>, USDC: <USDC token> }. */
+  usdPriceInstruments: Record<string, Instrument>;
+  newId(): string;
+  /** Rate limiter for noisy events: true if an event with this key may be emitted now. */
+  allow(key: string, now: number, minGapMs: number): boolean;
+  hasIntentKey(deploymentId: string, key: string): Promise<boolean>;
+  warningIntervalMs: number;
+  tickEventIntervalMs: number;
+  equitySampleIntervalMs: number;
+}
+
+const DAY = (now: number) => new Date(now).toISOString().slice(0, 10);
+
+/**
+ * Mutable working copy of one deployment for the duration of a tick or a
+ * control action. Nothing is persisted until `toBatch()` is committed.
+ */
+export class Session {
+  readonly positions: Map<string, Position>;
+  private readonly deleted = new Set<string>();
+  private readonly touched = new Set<string>();
+  readonly fills: Fill[] = [];
+  readonly events: EngineEvent[] = [];
+  readonly intentKeys: { key: string; ts: number }[] = [];
+  private forceSample = false;
+  deployment: DeploymentRecord;
+  rt: DeploymentRuntime;
+  readonly deps: TickDeps;
+  readonly now: number;
+
+  constructor(deployment: DeploymentRecord, rt: DeploymentRuntime, positions: Position[], deps: TickDeps, now: number) {
+    this.deployment = deployment;
+    this.rt = rt;
+    this.deps = deps;
+    this.now = now;
+    this.positions = new Map(positions.map((p) => [p.id, p]));
+  }
+
+  get id() {
+    return this.deployment.id;
+  }
+  open(): Position[] {
+    return [...this.positions.values()];
+  }
+  equity(): number {
+    const ps = this.open();
+    return this.rt.cashUsd + marginOf(ps) + unrealizedOf(ps);
+  }
+
+  emit(type: EngineEventType, message: string, data?: Record<string, unknown>, rate?: { key: string; gapMs: number }): void {
+    if (rate && !this.deps.allow(`${this.id}:${rate.key}`, this.now, rate.gapMs)) return;
+    this.events.push({ id: this.deps.newId(), deploymentId: this.id, ts: this.now, type, message, ...(data ? { data } : {}) });
+  }
+  warn(key: string, message: string, data?: Record<string, unknown>) {
+    this.emit("warning", message, data, { key: `warn:${key}`, gapMs: this.deps.warningIntervalMs });
+  }
+
+  private upsert(p: Position) {
+    this.positions.set(p.id, p);
+    this.touched.add(p.id);
+  }
+  private remove(p: Position) {
+    this.positions.delete(p.id);
+    this.touched.delete(p.id);
+    this.deleted.add(p.id);
+  }
+  markTouched(p: Position) {
+    this.touched.add(p.id);
+  }
+
+  /** Close `fraction` of a position at market. Exits are never blocked by slippage limits. */
+  async closePosition(p: Position, fraction: number, reason: FillReason, clientId: string, intentKey?: string): Promise<boolean> {
+    const qty = fraction >= 1 ? p.qty : p.qty * fraction;
+    let res;
+    try {
+      res = await this.deps.executor.execute(
+        { clientId, instrument: p.instrument, instrumentKey: p.instrumentKey, side: p.side === "long" ? "sell" : "buy", phase: "close", qty, fallbackPrice: p.markPrice },
+        this.now
+      );
+    } catch (e) {
+      res = { status: "rejected" as const, reason: errMsg(e) };
+    }
+    if (res.status !== "filled") {
+      this.emit("error", `Could not close ${instrumentLabel(p.instrument)} (${reason}): ${res.reason}`, { positionId: p.id, reason });
+      return false;
+    }
+    const gross = res.qty * (res.price - p.entryPrice) * dirOf(p);
+    const released = p.sizeUsd * (res.qty / p.qty);
+    const net = gross - res.feeUsd;
+    this.rt.cashUsd += released + net;
+    this.addRealized(net, res.feeUsd, res.builderFeeUsd);
+    const fill: Fill = {
+      id: this.deps.newId(),
+      deploymentId: this.id,
+      positionId: p.id,
+      ...(intentKey ? { intentKey } : {}),
+      instrumentKey: p.instrumentKey,
+      side: p.side === "long" ? "sell" : "buy",
+      qty: res.qty,
+      price: res.price,
+      feeUsd: res.feeUsd,
+      realizedPnlUsd: net,
+      reason,
+      ts: this.now,
+    };
+    this.fills.push(fill);
+    this.forceSample = true;
+    this.emit("fill", `${fill.side === "buy" ? "Bought" : "Sold"} ${fmtQty(res.qty)} ${instrumentLabel(p.instrument)} @ ${fmtPx(res.price)} (${reason.replace("_", " ")}), P&L ${fmtUsd(net)}`, {
+      fill,
+    });
+    if (fraction >= 1 || p.qty - res.qty <= p.qty * 1e-9) {
+      this.remove(p);
+    } else {
+      p.qty -= res.qty;
+      p.sizeUsd -= released;
+      markPosition(p, res.markPrice, this.now);
+      this.upsert(p);
+    }
+    return true;
+  }
+
+  /** Book an opening fill as a new position. */
+  bookOpen(args: {
+    instrument: Instrument;
+    side: "long" | "short";
+    leverage: number;
+    actionId: string;
+    intentKey: string;
+    exits: Position["exits"];
+    res: { qty: number; price: number; markPrice: number; feeUsd: number; builderFeeUsd: number };
+    group?: Position["group"];
+  }): Position {
+    const { res } = args;
+    const key = instrumentKey(args.instrument);
+    const sizeUsd = (res.qty * res.price) / args.leverage;
+    const p: Position = {
+      id: this.deps.newId(),
+      deploymentId: this.id,
+      actionId: args.actionId,
+      instrument: args.instrument,
+      instrumentKey: key,
+      side: args.side,
+      qty: res.qty,
+      entryPrice: res.price,
+      sizeUsd,
+      leverage: args.leverage,
+      exits: args.exits,
+      openedAt: this.now,
+      markPrice: res.price,
+      markedAt: this.now,
+      unrealizedPnlUsd: 0,
+      unrealizedPnlPct: 0,
+      peakPrice: res.price,
+      ...(args.group ? { group: args.group } : {}),
+    };
+    markPosition(p, res.markPrice, this.now);
+    this.rt.cashUsd -= sizeUsd + res.feeUsd;
+    this.addRealized(-res.feeUsd, res.feeUsd, res.builderFeeUsd);
+    this.upsert(p);
+    const fill: Fill = {
+      id: this.deps.newId(),
+      deploymentId: this.id,
+      positionId: p.id,
+      intentKey: args.intentKey,
+      instrumentKey: key,
+      side: args.side === "long" ? "buy" : "sell",
+      qty: res.qty,
+      price: res.price,
+      feeUsd: res.feeUsd,
+      reason: "entry",
+      ts: this.now,
+    };
+    this.fills.push(fill);
+    this.forceSample = true;
+    this.emit(
+      "fill",
+      `${fill.side === "buy" ? "Bought" : "Sold"} ${fmtQty(res.qty)} ${instrumentLabel(args.instrument)} @ ${fmtPx(res.price)}${args.leverage > 1 ? ` (${args.leverage}×)` : ""}, fee ${fmtUsd(res.feeUsd)}`,
+      { fill }
+    );
+    return p;
+  }
+
+  private addRealized(net: number, fee: number, builder: number) {
+    this.rt.realizedPnlUsd += net;
+    this.rt.realizedTodayUsd += net;
+    this.rt.feesUsd += fee;
+    this.rt.builderFeesUsd += builder;
+  }
+
+  rollDay() {
+    const day = DAY(this.now);
+    if (this.rt.day !== day) {
+      this.rt.day = day;
+      this.rt.realizedTodayUsd = 0;
+      this.rt.dayStartEquityUsd = this.equity();
+    }
+  }
+
+  toBatch(extra: Partial<StoreBatch> = {}): StoreBatch {
+    const eq = this.equity();
+    const last = this.rt.lastEquitySampleAt ?? null;
+    const sample = this.forceSample || last == null || this.now - last >= this.deps.equitySampleIntervalMs;
+    if (sample) this.rt.lastEquitySampleAt = this.now;
+    return {
+      deploymentId: this.id,
+      runtime: this.rt,
+      upsertPositions: [...this.touched].map((id) => this.positions.get(id)!).filter(Boolean),
+      deletePositionIds: [...this.deleted],
+      fills: this.fills,
+      events: this.events,
+      intentKeys: this.intentKeys,
+      ...(sample ? { equitySample: [this.now, round2(eq)] as [number, number] } : {}),
+      ...extra,
+    };
+  }
+}
+
+/* ------------------------------------------------------------------ */
+/* The tick pipeline                                                    */
+/* ------------------------------------------------------------------ */
+
+export async function runTick(s: Session): Promise<void> {
+  const strategy = s.deployment.strategy;
+
+  // a. Mark positions, exits first.
+  await markAll(s);
+  s.rollDay();
+  await runExits(s);
+
+  // b. Signals.
+  const snapshots = await fetchSignals(s);
+
+  // c. Evaluate.
+  const positionsForEval = s.open().map((p) => ({ actionId: p.actionId, instrumentKey: p.instrumentKey, sizeUsd: p.sizeUsd }));
+  const equity = s.equity();
+  const result = evaluate(strategy, { now: s.now, signals: snapshots, equityUsd: equity, positions: positionsForEval }, s.rt.evalState);
+  s.rt.evalState = result.state;
+  triggerEvents(s, result.triggers);
+  for (const i of result.intents) s.emit("intent", `${i.actionId}: ${describeIntent(i)} (trigger ${i.triggerId})`, { intent: i });
+
+  // d. Risk.
+  let approved: Intent[] = [];
+  const usdPrices: Record<string, number> = {};
+  if (result.intents.length) {
+    // Quote-asset prices are only needed to size-check `native` orders.
+    const needsPricing = result.intents.some((i) => (i.type === "open" || i.type === "options") && i.size.native != null);
+    if (needsPricing) Object.assign(usdPrices, await fetchUsdPrices(s, result.intents));
+    const tokenFacts = await fetchTokenFacts(s, result.intents, usdPrices);
+    const ps = s.open();
+    const dayBase = s.rt.dayStartEquityUsd > 0 ? s.rt.dayStartEquityUsd : equity;
+    const dailyPnlPct = ((s.rt.realizedTodayUsd + unrealizedOf(ps)) / dayBase) * 100;
+    const risk = checkIntents(result.intents, {
+      risk: effectiveRisk(strategy.risk, s.deployment.caps),
+      equityUsd: equity,
+      exposureUsd: exposureOf(ps),
+      dailyPnlPct,
+      halted: s.deployment.status !== "running",
+      usdPrices,
+      tokenFacts,
+    });
+    for (const r of risk.rejected) {
+      s.emit("rejected", `${r.intent.actionId} rejected: ${r.reasons.join("; ")}`, { intentKey: r.intent.key, reasons: r.reasons });
+      s.intentKeys.push({ key: r.intent.key, ts: s.now });
+    }
+    approved = risk.approved;
+  }
+
+  // e. Execute.
+  for (const intent of approved) await execute(s, intent, usdPrices);
+
+  // f. Bookkeeping.
+  s.rt.triggers = result.triggers;
+  s.rt.signalValues = signalValues(strategy.triggers.flatMap((t) => exprRefs(t.when).map((r) => r.ref)), s.rt.lastSnapshots, s.rt.signalValues);
+  s.rt.lastTickAt = s.now;
+  const eq = s.equity();
+  s.emit(
+    "tick",
+    `Tick: equity ${fmtUsd(eq)}, ${s.positions.size} open position${s.positions.size === 1 ? "" : "s"}`,
+    { equityUsd: round2(eq), positions: s.positions.size, fired: result.triggers.filter((t) => t.fired).map((t) => t.id) },
+    { key: "tick", gapMs: s.deps.tickEventIntervalMs }
+  );
+}
+
+/* ---- a. marking & exits ---- */
+
+export async function markAll(s: Session): Promise<void> {
+  const ps = s.open();
+  if (!ps.length) return;
+  const byKey = new Map<string, Instrument>();
+  for (const p of ps) byKey.set(p.instrumentKey, p.instrument);
+  const quotes = await getQuotes(s, [...byKey.values()]);
+  for (const p of ps) {
+    const q = quotes.get(p.instrumentKey);
+    if (!q || !(q.price > 0)) continue;
+    markPosition(p, q.price, s.now);
+    s.markTouched(p);
+  }
+  // Group peaks for trailing stops on options spreads.
+  for (const legs of groups(ps).values()) {
+    const v = groupUnitValue(legs);
+    for (const l of legs) if (l.group) l.group.peakValue = Math.max(l.group.peakValue, v);
+  }
+}
+
+async function getQuotes(s: Session, instruments: Instrument[]): Promise<Map<string, Quote>> {
+  const md = s.deps.marketData;
+  if (md.getQuotes) {
+    try {
+      return await withTimeout(md.getQuotes(instruments), s.deps.quoteTimeoutMs);
+    } catch (e) {
+      s.warn("quotes", `Batch quotes failed, falling back to single quotes: ${errMsg(e)}`);
+    }
+  }
+  const out = new Map<string, Quote>();
+  await Promise.all(
+    instruments.map(async (i) => {
+      const key = instrumentKey(i);
+      try {
+        out.set(key, await withTimeout(md.getQuote(i), s.deps.quoteTimeoutMs));
+      } catch (e) {
+        s.warn(`quote:${key}`, `No quote for ${instrumentLabel(i)}: ${errMsg(e)}`, { instrumentKey: key });
+      }
+    })
+  );
+  return out;
+}
+
+function groups(ps: Position[]): Map<string, Position[]> {
+  const m = new Map<string, Position[]>();
+  for (const p of ps) if (p.group) m.set(p.group.id, [...(m.get(p.group.id) ?? []), p]);
+  return m;
+}
+
+async function runExits(s: Session): Promise<void> {
+  const ps = s.open();
+  for (const p of ps) {
+    if (p.group || !s.positions.has(p.id)) continue;
+    if (p.markedAt !== s.now) continue; // not marked this tick: no fresh price, no exit decision
+    const reason = exitReason(p, s.now);
+    if (reason) await s.closePosition(p, 1, reason, `${p.id}:${reason}`);
+  }
+  for (const legs of groups(ps).values()) {
+    if (legs.some((l) => l.markedAt !== s.now)) continue;
+    const reason = groupExitReason(legs, s.now);
+    if (reason) for (const l of legs) await s.closePosition(l, 1, reason, `${l.id}:${reason}`);
+  }
+}
+
+/* ---- b. signals ---- */
+
+async function fetchSignals(s: Session): Promise<Record<string, SignalSnapshot | undefined>> {
+  const strategy = s.deployment.strategy;
+  const out: Record<string, SignalSnapshot | undefined> = {};
+  await Promise.all(
+    strategy.signals.map(async (sig) => {
+      if (sig.kind === "position") {
+        out[sig.id] = positionSnapshot(s, sig);
+        return;
+      }
+      const provider = s.deps.providers.get(sig.kind);
+      let snap: SignalSnapshot | null = null;
+      if (!provider) {
+        s.warn(`noprovider:${sig.id}`, `No provider for ${sig.kind} signal "${sig.id}"`, { signalId: sig.id });
+      } else {
+        try {
+          snap = await withTimeout(provider.fetch(sig, s.now), s.deps.signalTimeoutMs);
+        } catch (e) {
+          s.warn(`signal:${sig.id}`, `Signal "${sig.id}" failed: ${errMsg(e)}`, { signalId: sig.id });
+        }
+      }
+      if (snap && Number.isFinite(snap.asOf)) s.rt.lastSnapshots[sig.id] = snap;
+      // Carry the last good snapshot forward: the evaluator's staleness budget decides if it still counts.
+      out[sig.id] = s.rt.lastSnapshots[sig.id];
+    })
+  );
+  return out;
+}
+
+function positionSnapshot(s: Session, sig: Extract<Signal, { kind: "position" }>): SignalSnapshot {
+  const key = sig.params.instrument ? instrumentKey(sig.params.instrument) : null;
+  const ps = s.open().filter((p) => key == null || p.instrumentKey === key);
+  const size = marginOf(ps);
+  const pnl = unrealizedOf(ps);
+  const opened = ps.length ? Math.min(...ps.map((p) => p.openedAt)) : null;
+  const snap: SignalSnapshot = {
+    asOf: s.now,
+    fields: {
+      open: ps.length > 0,
+      size_usd: size,
+      pnl_usd: pnl,
+      pnl_pct: size > 0 ? (pnl / size) * 100 : null,
+      hours_open: opened == null ? null : (s.now - opened) / 3_600_000,
+    },
+  };
+  s.rt.lastSnapshots[sig.id] = snap;
+  return snap;
+}
+
+function signalValues(
+  refs: string[],
+  snaps: Record<string, SignalSnapshot>,
+  prev: Record<string, number | boolean | null>
+): Record<string, number | boolean | null> {
+  const out: Record<string, number | boolean | null> = {};
+  for (const ref of new Set(refs)) {
+    const [sid, field] = ref.split(".") as [string, string];
+    const v = snaps[sid]?.fields[field];
+    out[ref] = v === undefined ? (prev[ref] ?? null) : v;
+  }
+  return out;
+}
+
+/* ---- c. trigger events ---- */
+
+function triggerEvents(s: Session, results: TriggerResult[]) {
+  const prev = new Map(s.rt.triggers.map((t) => [t.id, t]));
+  for (const t of results) {
+    if (t.met && !prev.get(t.id)?.met) s.emit("trigger_met", `Trigger "${t.id}" is met`, { triggerId: t.id });
+    if (t.fired) s.emit("trigger_fired", `Trigger "${t.id}" fired`, { triggerId: t.id });
+  }
+}
+
+/* ---- d. risk inputs ---- */
+
+async function fetchUsdPrices(s: Session, intents: Intent[]): Promise<Record<string, number>> {
+  const out: Record<string, number> = {};
+  const jobs: [string, Instrument][] = Object.entries(s.deps.usdPriceInstruments);
+  for (const i of intents)
+    if (i.type === "open" && i.size.native != null && i.instrument.kind !== "token") jobs.push([i.instrumentKey, i.instrument]);
+  await Promise.all(
+    jobs.map(async ([k, inst]) => {
+      try {
+        const q = await withTimeout(s.deps.marketData.getQuote(inst), s.deps.quoteTimeoutMs);
+        if (q.price > 0) out[k] = q.price;
+      } catch (e) {
+        s.warn(`usdprice:${k}`, `No USD price for ${k}: ${errMsg(e)}`);
+      }
+    })
+  );
+  // A dollar stablecoin is worth a dollar when its feed is down; SOL and others fail closed.
+  out.USDC ??= 1;
+  return out;
+}
+
+function intentUsd(i: OpenIntent | OptionsIntent, usdPrices: Record<string, number>): number | null {
+  if (i.size.usd != null) return i.size.usd;
+  const key = i.type === "open" ? (i.instrument.kind === "token" ? i.instrument.quote : i.instrumentKey) : null;
+  const px = key ? usdPrices[key] : undefined;
+  return px == null ? null : i.size.native! * px;
+}
+
+async function fetchTokenFacts(s: Session, intents: Intent[], usdPrices: Record<string, number>): Promise<Record<string, TokenFacts | undefined>> {
+  const out: Record<string, TokenFacts | undefined> = {};
+  const provider = s.deps.tokenFacts;
+  const buys = intents.filter((i): i is OpenIntent => i.type === "open" && i.instrument.kind === "token");
+  if (!provider || !buys.length) return out;
+  await Promise.all(
+    buys.map(async (i) => {
+      if (i.instrument.kind !== "token") return;
+      const mint = i.instrument.mint;
+      const sizeUsd = intentUsd(i, usdPrices) ?? undefined;
+      try {
+        out[mint] = (await withTimeout(provider.getTokenFacts(mint, { sizeUsd }), s.deps.signalTimeoutMs)) ?? undefined;
+      } catch (e) {
+        s.warn(`tokenfacts:${mint}`, `Token facts for ${mint} failed: ${errMsg(e)}`);
+      }
+    })
+  );
+  return out;
+}
+
+/* ---- e. execution ---- */
+
+async function execute(s: Session, intent: Intent, usdPrices: Record<string, number>): Promise<void> {
+  if (s.intentKeys.some((k) => k.key === intent.key) || (await s.deps.hasIntentKey(s.id, intent.key))) {
+    s.emit("warning", `Intent ${intent.key} was already executed; skipped`, { intentKey: intent.key });
+    return;
+  }
+  s.intentKeys.push({ key: intent.key, ts: s.now });
+  switch (intent.type) {
+    case "open":
+      return executeOpen(s, intent, usdPrices);
+    case "options":
+      return executeOptions(s, intent, usdPrices);
+    case "close":
+      return executeClose(s, intent);
+    case "notify":
+      s.emit("notify", intent.message, { channel: intent.channel, actionId: intent.actionId, intentKey: intent.key });
+      return;
+  }
+}
+
+async function executeOpen(s: Session, i: OpenIntent, usdPrices: Record<string, number>): Promise<void> {
+  const usd = intentUsd(i, usdPrices);
+  if (usd == null || !(usd > 0)) return reject(s, i, "cannot size order: no USD price");
+  if (s.rt.cashUsd < usd * 1.01) return reject(s, i, `insufficient cash: need ${fmtUsd(usd)}, have ${fmtUsd(s.rt.cashUsd)}`);
+  let res;
+  try {
+    res = await s.deps.executor.execute(
+      {
+        clientId: i.key,
+        instrument: i.instrument,
+        instrumentKey: i.instrumentKey,
+        side: i.side === "long" ? "buy" : "sell",
+        phase: "open",
+        notionalUsd: usd * i.leverage,
+        order: i.order,
+      },
+      s.now
+    );
+  } catch (e) {
+    res = { status: "rejected" as const, reason: errMsg(e) };
+  }
+  if (res.status !== "filled") return reject(s, i, res.reason, res.status === "pending");
+  s.bookOpen({ instrument: i.instrument, side: i.side, leverage: i.leverage, actionId: i.actionId, intentKey: i.key, exits: i.exits, res });
+}
+
+async function executeOptions(s: Session, i: OptionsIntent, usdPrices: Record<string, number>): Promise<void> {
+  const budget = intentUsd(i, usdPrices);
+  if (budget == null || !(budget > 0)) return reject(s, i, "cannot size options order: no USD budget");
+  const mids: number[] = [];
+  for (const leg of i.legs) {
+    try {
+      const q = await withTimeout(s.deps.marketData.getQuote(leg.instrument), s.deps.quoteTimeoutMs);
+      if (!(q.price > 0)) throw new Error(`invalid premium ${q.price}`);
+      mids.push(q.price);
+    } catch (e) {
+      return reject(s, i, `no quote for ${instrumentLabel(leg.instrument)}: ${errMsg(e)}`);
+    }
+  }
+  const sgn = (side: "buy" | "sell") => (side === "buy" ? 1 : -1);
+  const netDebit = i.legs.reduce((a, l, k) => a + sgn(l.side) * l.ratio * mids[k]!, 0);
+  const gross = i.legs.reduce((a, l, k) => a + l.ratio * mids[k]!, 0);
+  // Debit: budget buys this many spreads. Credit: budget is the max-loss budget; size conservatively on gross premium.
+  const units = netDebit > 0 ? budget / netDebit : budget / gross;
+  if (s.rt.cashUsd < units * gross * 1.01) return reject(s, i, `insufficient cash for ${units.toFixed(2)} spreads`);
+
+  const opened: Position[] = [];
+  for (const leg of i.legs) {
+    let res;
+    try {
+      res = await s.deps.executor.execute(
+        { clientId: `${i.key}:${leg.instrumentKey}`, instrument: leg.instrument, instrumentKey: leg.instrumentKey, side: leg.side, phase: "open", qty: units * leg.ratio, order: i.order },
+        s.now
+      );
+    } catch (e) {
+      res = { status: "rejected" as const, reason: errMsg(e) };
+    }
+    if (res.status !== "filled") {
+      for (const p of opened) await s.closePosition(p, 1, "manual", `${p.id}:unwind`, i.key);
+      return reject(s, i, `leg ${instrumentLabel(leg.instrument)}: ${res.reason}${opened.length ? " (filled legs unwound)" : ""}`);
+    }
+    opened.push(
+      s.bookOpen({
+        instrument: leg.instrument,
+        side: leg.side === "buy" ? "long" : "short",
+        leverage: 1,
+        actionId: i.actionId,
+        intentKey: i.key,
+        exits: i.exits,
+        res,
+        group: { id: i.key, units, ratio: leg.ratio, peakValue: 0 },
+      })
+    );
+  }
+  const v = groupUnitValue(opened);
+  for (const p of opened) p.group!.peakValue = v;
+}
+
+async function executeClose(s: Session, i: CloseIntent): Promise<void> {
+  const targets = s.open().filter((p) => i.target === "all" || p.instrumentKey === i.target);
+  if (!targets.length) {
+    s.emit("intent", `${i.actionId}: nothing to close (${i.target})`, { intentKey: i.key });
+    return;
+  }
+  for (const p of targets) await s.closePosition(p, i.fraction, "close_action", `${i.key}:${p.id}`, i.key);
+}
+
+function reject(s: Session, i: Intent, reason: string, pending = false): void {
+  s.emit("rejected", `${i.actionId} not executed: ${reason}`, { intentKey: i.key, reasons: [reason], ...(pending ? { pending: true } : {}) });
+}
+
+/* ---- formatting ---- */
+
+function describeIntent(i: Intent): string {
+  switch (i.type) {
+    case "open":
+      return `${i.side} ${instrumentLabel(i.instrument)} ${i.size.usd != null ? fmtUsd(i.size.usd) : `${i.size.native} native`}${i.leverage > 1 ? ` ${i.leverage}×` : ""}`;
+    case "options":
+      return `${i.legs.length}-leg options ${i.size.usd != null ? fmtUsd(i.size.usd) : `${i.size.native} native`}`;
+    case "close":
+      return `close ${i.target}${i.fraction < 1 ? ` (${Math.round(i.fraction * 100)}%)` : ""}`;
+    case "notify":
+      return `notify via ${i.channel}`;
+  }
+}
+
+const round2 = (n: number) => Math.round(n * 100) / 100;
+export const fmtUsd = (n: number) => `${n < 0 ? "-" : ""}$${Math.abs(n).toFixed(2)}`;
+const fmtPx = (n: number) => (Math.abs(n) >= 1 ? n.toFixed(4).replace(/\.?0+$/, "") : n.toPrecision(4));
+const fmtQty = (n: number) => (Math.abs(n) >= 1 ? n.toFixed(4).replace(/\.?0+$/, "") : n.toPrecision(4));

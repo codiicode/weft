@@ -7,6 +7,7 @@ import { ThemeToggle } from "../ui/ThemeToggle";
 import { IconArrowRight } from "../graph/icons";
 
 const links = [
+  ["Products", "#products"],
   ["How it works", "#how"],
   ["Strategies", "#gallery"],
   ["Safety", "#safety"],

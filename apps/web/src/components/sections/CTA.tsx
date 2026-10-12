@@ -30,7 +30,7 @@ export function CTA() {
             Your thesis deserves a <span className="serif-em text-volt">trade.</span>
           </h2>
           <p className="mx-auto mt-6 max-w-md text-[17px] leading-relaxed text-ink-2">
-            Join the waitlist. Early users get paper trading on day one and first access to live mode.
+            Join the waitlist. Early users get paper trading and alerts-only mode on day one, and first access to live trading across perps, stocks, predictions and Solana tokens.
           </p>
           <AnimatePresence mode="wait">
             {state === "done" ? (
@@ -80,7 +80,9 @@ export function CTA() {
             <span className="h-1 w-1 rounded-full bg-faint" />
             <span>Paper by default</span>
             <span className="h-1 w-1 rounded-full bg-faint" />
-            <span>${brand.ticker} on {brand.chain}</span>
+            <span>Alerts-only mode</span>
+            <span className="h-1 w-1 rounded-full bg-faint" />
+            <span>${brand.ticker} on {brand.chain} via {brand.launchpad}</span>
           </div>
         </div>
       </div>
