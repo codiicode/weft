@@ -70,6 +70,8 @@ export interface NotifierOptions {
   strategyName: (deploymentId: string) => Promise<string>;
   log?: (msg: string) => void;
   now?: () => number;
+  /** Also deliver each alert to the run owner's own chat (per-user Telegram). */
+  perUser?: { ownerOf: (deploymentId: string) => string | null; send: (userId: string, alert: Alert) => Promise<boolean> };
 }
 
 /** Maps an engine event to an alert, or null when it shouldn't alert. */
@@ -103,6 +105,14 @@ export function createNotifier(engine: Pick<Engine, "subscribe">, sinks: AlertSi
         } catch {
           log(`alert via ${sink.name} failed: ${(err as Error).message}`);
         }
+      }
+    }
+    const owner = opts.perUser && a.deploymentId !== "test" ? opts.perUser.ownerOf(a.deploymentId) : null;
+    if (owner) {
+      try {
+        await opts.perUser!.send(owner, a);
+      } catch (err) {
+        log(`alert to user ${owner} failed: ${(err as Error).message}`);
       }
     }
     sent.push(a);

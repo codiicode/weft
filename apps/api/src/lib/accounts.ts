@@ -69,6 +69,17 @@ export class Accounts {
         count INTEGER NOT NULL,
         PRIMARY KEY (user_id, day)
       );
+      CREATE TABLE IF NOT EXISTS telegram_links (
+        user_id TEXT PRIMARY KEY,
+        chat_id TEXT NOT NULL,
+        username TEXT,
+        linked_at INTEGER NOT NULL
+      );
+      CREATE TABLE IF NOT EXISTS telegram_codes (
+        code TEXT PRIMARY KEY,
+        user_id TEXT NOT NULL,
+        expires_at INTEGER NOT NULL
+      );
     `);
   }
 
@@ -144,6 +155,35 @@ export class Accounts {
   }
   kvSet(key: string, value: string) {
     this.db.prepare("INSERT OR REPLACE INTO kv (key, value) VALUES (?, ?)").run(key, value);
+  }
+
+  /* ---------------- telegram alerts ---------------- */
+
+  telegramLink(userId: string): { chatId: string; username: string | null; linkedAt: number } | null {
+    const r = this.db.prepare("SELECT chat_id, username, linked_at FROM telegram_links WHERE user_id = ?").get(userId) as
+      | { chat_id: string; username: string | null; linked_at: number }
+      | undefined;
+    return r ? { chatId: r.chat_id, username: r.username, linkedAt: r.linked_at } : null;
+  }
+  setTelegramLink(userId: string, chatId: string, username: string | null) {
+    this.db.prepare("DELETE FROM telegram_links WHERE chat_id = ? AND user_id != ?").run(chatId, userId);
+    this.db.prepare("INSERT OR REPLACE INTO telegram_links (user_id, chat_id, username, linked_at) VALUES (?, ?, ?, ?)").run(userId, chatId, username, Date.now());
+  }
+  removeTelegramLink(userId: string) {
+    this.db.prepare("DELETE FROM telegram_links WHERE user_id = ?").run(userId);
+  }
+  removeTelegramChat(chatId: string) {
+    this.db.prepare("DELETE FROM telegram_links WHERE chat_id = ?").run(chatId);
+  }
+  createTelegramCode(userId: string, code: string, ttlMs: number) {
+    this.db.prepare("DELETE FROM telegram_codes WHERE expires_at < ?").run(Date.now());
+    this.db.prepare("INSERT OR REPLACE INTO telegram_codes (code, user_id, expires_at) VALUES (?, ?, ?)").run(code, userId, Date.now() + ttlMs);
+  }
+  /** Single use: returns the user id and deletes the code. */
+  consumeTelegramCode(code: string): string | null {
+    const r = this.db.prepare("SELECT user_id, expires_at FROM telegram_codes WHERE code = ?").get(code) as { user_id: string; expires_at: number } | undefined;
+    this.db.prepare("DELETE FROM telegram_codes WHERE code = ?").run(code);
+    return r && r.expires_at >= Date.now() ? r.user_id : null;
   }
 
   /* ---------------- live trading ---------------- */

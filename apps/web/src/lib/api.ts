@@ -284,6 +284,10 @@ export const api = {
   leaderboard: () => req<{ rows: LeaderRow[] }>("/leaderboard"),
   stats: () => req<Stats>("/stats"),
 
+  alertsMe: () => req<{ available: boolean; telegram: { username: string | null; linkedAt: number } | null }>("/alerts/me"),
+  linkTelegram: () => req<{ url: string }>("/alerts/telegram/link", { method: "POST", json: {} }),
+  unlinkTelegram: () => req<{ ok: true }>("/alerts/telegram", { method: "DELETE" }),
+  testMyAlert: () => req<{ ok: true }>("/alerts/me/test", { method: "POST", json: {} }),
   /** Events from the signed-in user's own runs (token in the query: EventSource can't send headers). */
   subscribeMine(onEvent: (e: EngineEvent) => void): () => void {
     let es: EventSource | null = null;

@@ -14,6 +14,7 @@ const PAGES: [string, string][] = [
   ["Markets", "/app/markets"],
   ["Leaderboard", "/app/leaderboard"],
   ["Live trading", "/app/live"],
+  ["Settings", "/app/settings"],
 ];
 
 /** ⌘K: jump anywhere, open a strategy, or start drafting from whatever you typed. */

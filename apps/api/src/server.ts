@@ -13,6 +13,7 @@ import { AgentWallets, privyAgentApi } from "./live/agents.ts";
 import { LiveRouterExecutor, LiveService, liveConfigFromEnv } from "./live/service.ts";
 import { CompositeEngine } from "./live/composite.ts";
 import { Reconciler } from "./live/reconcile.ts";
+import { TelegramBot } from "./lib/telegram.ts";
 import { createApp } from "./app.ts";
 
 const PORT = Number(process.env.PORT ?? 8787);
@@ -46,7 +47,15 @@ const engine = new CompositeEngine(paperEngine, liveEngine);
 const library = new StrategyLibrary(join(DATA_DIR, "library.db"));
 const signalModes = Object.fromEntries(venues.signalProviders.flatMap((p) => p.kinds.map((k) => [k, p.mode] as const)));
 
+// One bot for everyone: users link their own chat from Settings. TELEGRAM_CHAT_ID (optional) still gets everything.
+const telegram = process.env.TELEGRAM_BOT_TOKEN
+  ? new TelegramBot(process.env.TELEGRAM_BOT_TOKEN, accounts, { username: process.env.TELEGRAM_BOT_USERNAME, log: (m) => console.warn(m) })
+  : null;
+telegram?.start();
 const notifier = createNotifier(engine, sinksFromEnv(), {
+  perUser: telegram
+    ? { ownerOf: (id) => accounts.deploymentOwner(id), send: (userId, a) => telegram.sendToUser(userId, `◆ ${a.strategyName}\n${a.text}`) }
+    : undefined,
   includeFills: process.env.WEFT_ALERT_FILLS === "1",
   strategyName: async (id) => (await engine.getSnapshot(id))?.deployment.strategy.name ?? id,
   log: (m) => console.warn(m),
@@ -63,6 +72,7 @@ const app = createApp({
   accounts,
   aiDailyLimit: Number(process.env.WEFT_AI_DAILY_LIMIT ?? 30),
   live: live ?? undefined,
+  telegram: telegram ?? undefined,
   backtest: { history: venues.history, tokenFacts: venues.tokenFacts, calendar: calendarFields },
 });
 engine.start();
@@ -75,7 +85,7 @@ reconcileTimer?.unref();
 const server = serve({ fetch: app.fetch, port: PORT }, (info) => {
   console.log(`weft api listening on http://localhost:${info.port}`);
   console.log(`  data: ${DATA_DIR}`);
-  console.log(`  alerts: ${notifier.sinks.length ? notifier.sinks.join(", ") : "off (set TELEGRAM_BOT_TOKEN + TELEGRAM_CHAT_ID or WEFT_ALERT_WEBHOOK_URL)"}`);
+  console.log(`  alerts: ${[telegram ? "Telegram per user" : null, ...notifier.sinks].filter(Boolean).join(", ") || "off (set TELEGRAM_BOT_TOKEN for per-user Telegram alerts)"}`);
   console.log(`  auth: ${auth.enabled ? `Privy (${auth.appId})` : "local mode (set PRIVY_APP_ID to require sign-in)"}`);
   console.log(
     `  live: ${live ? `${liveCfg.enabled ? "ON" : "off (WEFT_LIVE_ENABLED=1 to enable)"} · ${liveCfg.network} · agents ${agents ? "Privy" : "need PRIVY_APP_SECRET"} · cap $${liveCfg.maxAllocationUsd} · builder ${liveCfg.builder?.address ?? "none"}` : "unavailable (needs PRIVY_APP_ID)"}`

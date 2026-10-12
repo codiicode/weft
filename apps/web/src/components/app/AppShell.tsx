@@ -17,9 +17,12 @@ const NAV = [
   { href: "/app/markets", label: "Markets", icon: "M3.5 14.5 8 9.5l3 3 5.5-6.5" },
   { href: "/app/leaderboard", label: "Leaderboard", icon: "M5 16V10M10 16V4.5M15 16v-4" },
 ];
-const ACCOUNT_NAV = [{ href: "/app/live", label: "Live trading", icon: "M10.5 3 5 11h4.5l-1 6 5.5-8H9.5z" }];
+const ACCOUNT_NAV = [
+  { href: "/app/live", label: "Live trading", icon: "M10.5 3 5 11h4.5l-1 6 5.5-8H9.5z" },
+  { href: "/app/settings", label: "Settings", icon: "M10 12.5a2.5 2.5 0 1 0 0-5 2.5 2.5 0 0 0 0 5zM16 10l1.5-1-1.5-2.6-1.7.4a6 6 0 0 0-1.3-.8L12.5 4h-3l-.5 2a6 6 0 0 0-1.3.8L6 6.4 4.5 9 6 10l-1.5 1L6 13.6l1.7-.4c.4.3.8.6 1.3.8l.5 2h3l.5-2c.5-.2.9-.5 1.3-.8l1.7.4L17.5 11z" },
+];
 const MOBILE_NAV = [NAV[0]!, NAV[1]!, { href: "/app/new", label: "New", icon: "M10 4.5v11M4.5 10h11" }, NAV[2]!];
-const MORE_NAV = [NAV[3]!, NAV[4]!, ACCOUNT_NAV[0]!];
+const MORE_NAV = [NAV[3]!, NAV[4]!, ...ACCOUNT_NAV];
 
 function NavIcon({ d }: { d: string }) {
   return (

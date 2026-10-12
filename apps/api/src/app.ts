@@ -14,6 +14,7 @@ import { generateStrategy, GenerationError } from "./ai/generate.ts";
 import { runBacktest, type BacktestDeps } from "./backtest/run.ts";
 import type { Notifier } from "./lib/alerts.ts";
 import { AuthError, LOCAL_USER, type AuthUser, type Authenticator } from "./lib/auth.ts";
+import type { TelegramBot } from "./lib/telegram.ts";
 import type { Accounts } from "./lib/accounts.ts";
 import type { LiveService } from "./live/service.ts";
 
@@ -34,6 +35,8 @@ export interface AppDeps {
   aiDailyLimit?: number;
   /** Live trading on Hyperliquid. Absent: paper only. */
   live?: LiveService;
+  /** Per-user Telegram alerts (TELEGRAM_BOT_TOKEN). */
+  telegram?: TelegramBot;
 }
 
 const PRODUCTS = ["perps", "stocks", "predictions", "tokens", "options"] as const;
@@ -411,6 +414,29 @@ export function createApp(deps: AppDeps) {
       help: "Set TELEGRAM_BOT_TOKEN + TELEGRAM_CHAT_ID and/or WEFT_ALERT_WEBHOOK_URL, then restart the API.",
     })
   );
+  /* Per-user Telegram alerts */
+  app.get("/alerts/me", async (c) => {
+    const user = await requireUser(c);
+    const link = deps.accounts?.telegramLink(user.id) ?? null;
+    return c.json({ available: !!deps.telegram, telegram: link ? { username: link.username, linkedAt: link.linkedAt } : null });
+  });
+  app.post("/alerts/telegram/link", async (c) => {
+    const user = await requireUser(c);
+    if (!deps.telegram) return c.json({ error: "Telegram alerts aren’t set up on this server." }, 501);
+    return c.json({ url: await deps.telegram.linkUrl(user.id) });
+  });
+  app.delete("/alerts/telegram", async (c) => {
+    const user = await requireUser(c);
+    deps.accounts?.removeTelegramLink(user.id);
+    return c.json({ ok: true });
+  });
+  app.post("/alerts/me/test", async (c) => {
+    const user = await requireUser(c);
+    if (!deps.telegram) return c.json({ error: "Telegram alerts aren’t set up on this server." }, 501);
+    const ok = await deps.telegram.sendToUser(user.id, "◆ Weft\nTest alert. Alerts from your runs will look like this.");
+    return ok ? c.json({ ok: true }) : c.json({ error: "Connect Telegram first." }, 400);
+  });
+
   app.post("/alerts/test", async (c) => {
     if (!deps.notifier?.sinks.length) return c.json({ error: "no alert sinks configured" }, 400);
     await deps.notifier.test();
