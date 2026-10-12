@@ -5,6 +5,7 @@ import { serve } from "@hono/node-server";
 import { createVenues } from "@weft/venues";
 import { createEngine, SqliteStore } from "@weft/engine";
 import { StrategyLibrary } from "./lib/library.ts";
+import { resolvePlaceholders } from "./lib/resolve.ts";
 import { createApp } from "./app.ts";
 
 const PORT = Number(process.env.PORT ?? 8787);
@@ -29,6 +30,21 @@ const server = serve({ fetch: app.fetch, port: PORT }, (info) => {
   console.log(`  data: ${DATA_DIR}`);
   console.log(`  AI generation: ${process.env.ANTHROPIC_API_KEY ? "Claude (claude-opus-5-5)" : "template fallback (set ANTHROPIC_API_KEY for Claude)"}`);
 });
+
+// Swap placeholder instruments in seeded examples for real ones (best effort, in the background).
+(async () => {
+  for (const e of library.placeholderEntries()) {
+    try {
+      const { strategy, replaced } = await resolvePlaceholders(e.strategy, venues.catalog);
+      if (replaced.length) {
+        library.save(strategy, { author: e.author, replaceId: e.id });
+        console.log(`  resolved ${e.id}: ${replaced.join(", ")}`);
+      }
+    } catch (err) {
+      console.warn(`  could not resolve ${e.id}: ${(err as Error).message}`);
+    }
+  }
+})();
 
 let closing = false;
 for (const sig of ["SIGINT", "SIGTERM"] as const) {

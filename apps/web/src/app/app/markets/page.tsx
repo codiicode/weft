@@ -197,7 +197,7 @@ function Markets() {
                       <td className="max-w-[320px] px-5 py-3">
                         <div className="flex items-center gap-2">
                           <span className="truncate font-medium">{r.label}</span>
-                          {r.instrument.kind === "perp" && r.instrument.dex && <Pill tone="signal">HIP-3</Pill>}
+                          {r.instrument.kind === "perp" && r.instrument.dex && <Pill tone="signal">HIP-3 · {r.instrument.dex}</Pill>}
                           {r.instrument.kind === "token" && r.instrument.assetClass === "equity" && <Pill tone="signal">xStock</Pill>}
                         </div>
                         {r.name && <div className="truncate text-[12px] text-faint">{r.name}</div>}

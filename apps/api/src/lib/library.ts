@@ -95,6 +95,11 @@ export class StrategyLibrary {
     );
   }
 
+  /** Seeded examples still pointing at placeholder instruments. */
+  placeholderEntries(): LibraryEntry[] {
+    return this.list().filter((e) => JSON.stringify(e.strategy).includes("ExampLeMint") || /"market":"[a-z0-9-]+-20\d\d[a-z0-9-]*"/.test(JSON.stringify(e.strategy)));
+  }
+
   delete(id: string): boolean {
     return Number(this.db.prepare("DELETE FROM strategies WHERE id = ?").run(id).changes) > 0;
   }

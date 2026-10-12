@@ -73,9 +73,14 @@ function alertsOnly(thesis: string): StrategyInput {
 }
 
 async function tokenStrategy(thesis: string, symbol: string, catalog: Catalog): Promise<{ s: StrategyInput; notes: string[] } | null> {
-  const row = await find(catalog, "tokens", symbol, (r) => r.label.replace(/^\$/, "").toUpperCase() === symbol);
+  // Strict: a token must match the symbol exactly (tickers collide on Solana); never fall back to another token.
+  const norm = (x: string | undefined) => (x ?? "").replace(/^\$+/, "").toUpperCase();
+  const rows = await catalog.list("tokens", { search: symbol, limit: 20 }).catch(() => [] as MarketListing[]);
+  const row = rows
+    .filter((r) => r.instrument.kind === "token" && (norm(r.instrument.symbol) === symbol || norm(r.label) === symbol))
+    .sort((a, b) => (b.liquidityUsd ?? 0) - (a.liquidityUsd ?? 0))[0];
   if (!row || row.instrument.kind !== "token") return null;
-  const inst = row.instrument;
+  const inst = { ...row.instrument, symbol };
   const mint = inst.mint;
   const level = firstNumber(thesis.replace(/\$[A-Za-z0-9]+/g, ""));
   const size = solSize(thesis) ?? 0.5;

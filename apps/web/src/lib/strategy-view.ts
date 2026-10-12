@@ -146,7 +146,7 @@ export function strategyToSpec(s: Strategy, live: LiveOverlay = {}): { spec: Gra
       id: t.id,
       kind: "trigger",
       logic: c.logic,
-      conditions: c.lines.map((l) => l.replace(/\b([a-z0-9_]+)\.([a-z0-9_]+)/g, (_, _sig, f: string) => f.replaceAll("_", " "))),
+      conditions: c.lines.map((l) => l.replace(/\b([a-z][a-z0-9_]*)\.([a-z][a-z0-9_]*)/g, (_, _sig, f: string) => f.replaceAll("_", " "))),
       met: live.triggers?.find((x) => x.id === t.id)?.met ?? false,
     });
     for (const sid of new Set(exprRefs(t.when).map((r) => r.ref.split(".")[0]!))) edges.push([sid, t.id]);
