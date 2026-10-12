@@ -147,6 +147,11 @@ body {
   outline-offset: 2px;
   border-radius: 6px;
 }
+/* Text fields show focus with their own border. */
+input:focus-visible,
+textarea:focus-visible {
+  outline: none;
+}
 
 /* ---------- Type ---------- */
 .display {

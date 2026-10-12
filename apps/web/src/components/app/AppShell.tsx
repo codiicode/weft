@@ -7,6 +7,7 @@ import { ThemeToggle } from "../ui/ThemeToggle";
 import { api, API_URL } from "@/lib/api";
 import { useApi } from "@/lib/use-api";
 import { useAuth } from "@/lib/auth";
+import { CommandPalette } from "./CommandPalette";
 
 const NAV = [
   { href: "/app", label: "Home", icon: "M3.5 9 10 4l6.5 5v7a.5.5 0 0 1-.5.5h-3.5V12h-5v4.5H4a.5.5 0 0 1-.5-.5z" },
@@ -95,7 +96,15 @@ export function AppShell({ children }: { children: ReactNode }) {
         <Link href="/app/new" className="mx-0.5 mt-6 flex h-9 items-center justify-center gap-2 rounded-[10px] bg-ink text-[14px] font-medium text-paper transition-opacity hover:opacity-85">
           <NavIcon d="M10 4.5v11M4.5 10h11" /> New strategy
         </Link>
-        <nav className="mt-5 flex flex-col gap-0.5">
+        <button
+          onClick={() => window.dispatchEvent(new Event("weft:palette"))}
+          className="mx-0.5 mt-2 flex h-9 items-center gap-2.5 rounded-[10px] px-2.5 text-[14px] text-muted transition-colors hover:bg-paper-2/60 hover:text-ink"
+        >
+          <NavIcon d="M8.5 14a5.5 5.5 0 1 0 0-11 5.5 5.5 0 0 0 0 11zM16.5 16.5l-4-4" />
+          Search
+          <kbd className="ml-auto font-sans text-[12px] text-faint">⌘K</kbd>
+        </button>
+        <nav className="mt-4 flex flex-col gap-0.5">
           {NAV.map((n) => (
             <NavLink key={n.href} n={n} active={active(n.href)} />
           ))}
@@ -127,6 +136,7 @@ export function AppShell({ children }: { children: ReactNode }) {
       </header>
 
       <main className="min-w-0 pb-24 lg:pb-0">{children}</main>
+      <CommandPalette />
 
       {/* Mobile bottom nav */}
       <nav className="fixed inset-x-0 bottom-0 z-40 grid grid-cols-5 border-t border-line bg-paper/95 pb-[env(safe-area-inset-bottom)] backdrop-blur-md lg:hidden">
