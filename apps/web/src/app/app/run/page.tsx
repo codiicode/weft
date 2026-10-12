@@ -213,7 +213,7 @@ function Run() {
               Edit a copy
             </Btn>
             {(status === "running" || status === "paused") && (
-              <Btn variant="quiet" onClick={() => control("tick")} className="hidden sm:inline-flex">
+              <Btn variant="quiet" onClick={() => control("tick")} className="max-sm:hidden">
                 Check now
               </Btn>
             )}
