@@ -4,6 +4,7 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { api } from "@/lib/api";
 import { useApi } from "@/lib/use-api";
+import { useAuth } from "@/lib/auth";
 import { Card, Btn } from "@/components/app/AppShell";
 import { RunListHeader, RunRow } from "@/components/app/RunCard";
 import { IconSend } from "@/components/graph/icons";
@@ -30,7 +31,8 @@ function SectionHead({ title, href, link }: { title: string; href?: string; link
 export default function Home() {
   const router = useRouter();
   const [thesis, setThesis] = useState("");
-  const runs = useApi(() => api.deployments(), [], { pollMs: 8_000 });
+  const auth = useAuth();
+  const runs = useApi(() => api.deployments(), [auth.authenticated], { pollMs: 8_000 });
   const lib = useApi(() => api.strategies(), []);
   const alerts = useApi(() => api.alerts(), [], { pollMs: 30_000 });
   const go = (t: string) => router.push(`/app/new?go=1&thesis=${encodeURIComponent(t)}`);
@@ -83,12 +85,18 @@ export default function Home() {
         ) : (
           <Card className="flex flex-col items-start gap-4 px-5 py-6 sm:flex-row sm:items-center sm:justify-between">
             <div>
-              <p className="text-[14.5px] font-medium text-ink">Nothing running yet</p>
+              <p className="text-[14.5px] font-medium text-ink">{auth.enabled && !auth.authenticated ? "Sign in to see your runs" : "Nothing running yet"}</p>
               <p className="mt-0.5 text-[14px] text-muted">Write a thesis above, or start from one of the strategies below. Everything starts on paper.</p>
             </div>
-            <Btn href="/app/library" variant="ghost">
-              Browse strategies
-            </Btn>
+            {auth.enabled && !auth.authenticated ? (
+              <Btn onClick={auth.login} variant="ghost">
+                Sign in
+              </Btn>
+            ) : (
+              <Btn href="/app/library" variant="ghost">
+                Browse strategies
+              </Btn>
+            )}
           </Card>
         )}
       </section>

@@ -2,6 +2,7 @@
 import { useState } from "react";
 import { api } from "@/lib/api";
 import { useApi } from "@/lib/use-api";
+import { useAuth } from "@/lib/auth";
 import { PageHeader, Btn, Empty, Card } from "@/components/app/AppShell";
 import { RunListHeader, RunRow } from "@/components/app/RunCard";
 
@@ -12,7 +13,8 @@ const FILTERS = [
 ] as const;
 
 export default function RunsPage() {
-  const { data, loading, error } = useApi(() => api.deployments(), [], { pollMs: 6_000 });
+  const auth = useAuth();
+  const { data, loading, error } = useApi(() => api.deployments(), [auth.authenticated], { pollMs: 6_000 });
   const [filter, setFilter] = useState<(typeof FILTERS)[number][0]>("all");
   const runs = data?.deployments ?? [];
   const shown = runs.filter((s) =>
@@ -26,6 +28,8 @@ export default function RunsPage() {
           <Empty title="Can’t reach the Weft server" sub="Your runs will appear here once it’s back." />
         ) : loading && !runs.length ? (
           <div className="h-64 animate-pulse rounded-[12px] bg-paper-2" />
+        ) : !runs.length && auth.enabled && !auth.authenticated ? (
+          <Empty title="Sign in to see your runs" sub="Runs belong to your account, so they follow you to any device." action={<Btn onClick={auth.login}>Sign in</Btn>} />
         ) : !runs.length ? (
           <Empty title="Nothing running yet" sub="Write a thesis or start from a strategy someone else made." action={<Btn href="/app/new">Write a thesis</Btn>} />
         ) : (
