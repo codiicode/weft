@@ -228,6 +228,9 @@ export const api = {
   /** Replay a strategy over the last N days of history through the real engine. */
   backtest: (body: BacktestRequest, signal?: AbortSignal) => req<BacktestResult>("/backtest", { method: "POST", json: body, signal }),
 
+  alerts: () =>
+    req<{ sinks: string[]; configured: boolean; recent: { strategyName: string; text: string; ts: number; kind: string }[]; help: string }>("/alerts"),
+  testAlert: () => req<{ ok: true }>("/alerts/test", { method: "POST" }),
   leaderboard: () => req<{ rows: LeaderRow[] }>("/leaderboard"),
   stats: () => req<Stats>("/stats"),
 

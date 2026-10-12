@@ -22,6 +22,8 @@ export default function Overview() {
   const stats = useApi(() => api.stats(), [], { pollMs: 10_000 });
   const runs = useApi(() => api.deployments(), [], { pollMs: 8_000 });
   const lib = useApi(() => api.strategies(), []);
+  const alerts = useApi(() => api.alerts(), [], { pollMs: 20_000 });
+  const [tested, setTested] = useState<string | null>(null);
   const st = stats.data;
   return (
     <>
@@ -69,6 +71,27 @@ export default function Overview() {
             <Empty title={runs.error ? "Engine offline" : "Nothing running yet"} sub={runs.error ? "Start the API: npm run dev -w @weft/api" : "Start from a thesis or fork a strategy from the library."} action={<Btn href="/app/new">Write a thesis</Btn>} />
           )}
         </section>
+
+        <Card className="flex flex-col gap-4 p-5 md:flex-row md:items-center">
+          <div className="min-w-0 flex-1">
+            <div className="flex items-center gap-2 text-[15px] font-semibold tracking-[-0.02em]">
+              <span className={`h-2 w-2 rounded-full ${alerts.data?.configured ? "bg-long" : "bg-faint"}`} />
+              Alerts {alerts.data?.configured ? `· ${alerts.data.sinks.join(" + ")}` : "· off"}
+            </div>
+            <p className="mt-1 text-[13px] text-ink-2">
+              {alerts.data?.configured
+                ? alerts.data.recent[0]
+                  ? <>Last: <span className="text-ink">{alerts.data.recent[0].strategyName}</span>: {alerts.data.recent[0].text}</>
+                  : "Notify actions in your strategies will message you here."
+                : <>Get alerts-only strategies on your phone: <span className="font-mono text-[12px]">{alerts.data?.help ?? "set TELEGRAM_BOT_TOKEN + TELEGRAM_CHAT_ID"}</span></>}
+            </p>
+          </div>
+          {alerts.data?.configured && (
+            <Btn variant="ghost" onClick={async () => { try { await api.testAlert(); setTested("Sent ✓"); } catch (e) { setTested((e as Error).message); } }}>
+              {tested ?? "Send test alert"}
+            </Btn>
+          )}
+        </Card>
 
         {lib.data?.strategies.length ? (
           <section>

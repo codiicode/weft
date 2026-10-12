@@ -13,6 +13,11 @@ _Last updated by the build session. All numbers below were verified by running t
 | `apps/api` | HTTP API: markets, library (save/fork), thesis → strategy (Claude with tools, template fallback), paper deployments, leaderboard, SSE, alerts to Telegram/webhooks | 19 |
 | `apps/web` | Landing page + product app (`/app`): builder, markets, live runs with kill switch, library, leaderboard | typecheck + build |
 
+**Backtesting:** `POST /backtest` (and the Backtest panel in the app) replays up to 90 days of real
+history through the same engine. Perps, HIP-3 stocks and Solana tokens (GeckoTerminal) have price
+history; funding is historical for perps. Social/news/model/on-chain signals have no history, so the
+panel explains when a trigger couldn't fire. Predictions and options aren't backtestable yet.
+
 **Verified end to end on paper against live data:** BTC perp (2×), HIP-3 NVDA short, JUP token swap
 (2 SOL, rug gates passed), ETH call spread on Deribit, HIP-4 outcome (Champions League). Entries, fees,
 builder fees, take-profit and time exits all fired correctly.
