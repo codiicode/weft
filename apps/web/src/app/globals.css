@@ -15,8 +15,8 @@
   --card-2: #f7f7f5;
   --ink: #121214;
   --ink-2: #44464c;
-  --muted: #6d7077;
-  --faint: #a3a5aa;
+  --muted: #63666d;
+  --faint: #75777d;
   --line: rgba(18, 18, 20, 0.08);
   --line-2: rgba(18, 18, 20, 0.15);
   --grid-dot: rgba(18, 18, 20, 0.07);
@@ -57,7 +57,7 @@
   --ink: #ededeb;
   --ink-2: #b4b5b9;
   --muted: #84868d;
-  --faint: #56585e;
+  --faint: #808289;
   --line: rgba(255, 255, 255, 0.08);
   --line-2: rgba(255, 255, 255, 0.14);
   --grid-dot: rgba(255, 255, 255, 0.06);

@@ -5,7 +5,7 @@ export function Hero() {
   return (
     <section id="top" className="relative pt-32 sm:pt-40">
       <div className="mx-auto max-w-[1200px] px-5 sm:px-8">
-        <h1 className="display enter max-w-[12ch] text-[clamp(3rem,8.2vw,6.6rem)] leading-[0.98] text-ink">
+        <h1 className="display max-w-[12ch] text-[clamp(3rem,8.2vw,6.6rem)] leading-[0.98] text-ink">
           Trade the thesis, not the chart.
         </h1>
         <div className="mt-8 max-w-[34rem]">
