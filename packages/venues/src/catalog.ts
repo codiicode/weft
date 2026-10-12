@@ -14,7 +14,7 @@ import { mapLimit, matchesSearch, pctChange } from "./util.ts";
  *  stocks       HIP-3 builder-dex perps classified equity/index/commodity/fx/other + Solana xStocks (tokens)
  *  predictions  HIP-4 outcome markets + Jupiter Prediction (Polymarket/Kalshi-backed) markets
  *  tokens       trending / searched Solana tokens (Jupiter Tokens v2)
- *  options      Deribit BTC/ETH/SOL options, 3 nearest expiries, strikes within ±20% of spot
+ *  options      Deribit BTC/ETH/SOL options: 2 nearest expiries + first weekly and monthly, strikes within ±20% of spot
  */
 export class VenueCatalog implements Catalog {
   private readonly md: VenueMarketData;
@@ -134,11 +134,13 @@ export class VenueCatalog implements Catalog {
     const out: (MarketListing & { _rank?: number })[] = [];
     for (const u of ["BTC", "ETH", "SOL"]) {
       const mine = rows.filter((r) => r.parsed.underlying === u);
-      // 3 nearest expiries more than 12h away (Deribit expires 08:00 UTC)
-      const expiries = [...new Set(mine.map((r) => r.parsed.expiry))]
+      // Expiries more than 12h away (Deribit expires 08:00 UTC): the 2 nearest, plus the first
+      // weekly (≥ 7d) and monthly (≥ 28d) so multi-day strategies have something to trade.
+      const all = [...new Set(mine.map((r) => r.parsed.expiry))]
         .filter((e) => Date.parse(`${e}T08:00:00Z`) - now > 12 * 3_600_000)
-        .sort()
-        .slice(0, 3);
+        .sort();
+      const after = (days: number) => all.find((e) => Date.parse(`${e}T08:00:00Z`) - now >= days * 86_400_000);
+      const expiries = [...new Set([...all.slice(0, 2), after(7), after(28)].filter((e): e is string => !!e))];
       for (const r of mine) {
         if (!expiries.includes(r.parsed.expiry)) continue;
         const spot = r.underlyingPrice;

@@ -77,6 +77,7 @@ Rules that make strategies good:
 - For Solana tokens, add a token_onchain signal and guard entries with on-chain health (lp_locked, buy_sell_ratio_1h, dev_sold_pct) and add an exit when the dev sells or hype fades.
 - Always include an invalidation: a close action when the thesis is wrong (opposite signal, time stop or drawdown via a position signal).
 - Use forMinutes to avoid acting on one noisy tick for social or price spikes.
+- Order books differ by product: options and prediction outcomes are wide (set order.maxSlippageBps 500–1000 on those actions); memecoins need maxPriceImpactBps 100–300; perps are fine with the default.
 - ids: lowercase snake_case; strategy id: a short lowercase slug with dashes. Every signal should feed a trigger and every trigger should drive an action.
 - Respect the user's numbers (price levels, sizes, leverage) when they give them.
 

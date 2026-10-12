@@ -169,7 +169,8 @@ async function optionsStrategy(thesis: string, underlying: string, catalog: Cata
   const calls = rows.filter((r) => r.instrument.kind === "option" && r.instrument.right === (/\bput|bear|down|crash/i.test(thesis) ? "put" : "call"));
   if (!calls.length) return null;
   const spot = (await find(catalog, "perps", underlying))?.price ?? null;
-  const soon = Date.now() + 14 * 86_400_000;
+  // Prefer ~1–5 weeks out: long enough for the thesis to play out, short enough to be liquid.
+  const soon = Date.now() + 6 * 86_400_000;
   const byExpiry = new Map<string, MarketListing[]>();
   for (const r of calls) {
     if (r.instrument.kind !== "option" || Date.parse(r.instrument.expiry) < soon) continue;
@@ -201,6 +202,8 @@ async function optionsStrategy(thesis: string, underlying: string, catalog: Cata
           { instrument: far.instrument, side: "sell" },
         ],
         size: { unit: "usd", value: 500 },
+        // Option books are wide: allow up to 10% from mid per leg, the risk engine still caps size.
+        order: { maxSlippageBps: 1_000 },
         exits: { takeProfit: { pct: 100 }, stopLoss: { pct: 50 } },
       },
     ],
