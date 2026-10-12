@@ -29,7 +29,7 @@ describe("examples", () => {
     expect(g.nodes.filter((n) => n.kind === "signal")).toHaveLength(6);
     expect(g.edges).toContainEqual(["nino", "enso_mispriced"]);
     expect(g.edges).toContainEqual(["nino_model", "enso_mispriced"]);
-    expect(g.edges).toContainEqual(["grains_bid", "long_wheat"]);
+    expect(g.edges).toContainEqual(["supply_shock", "long_copper"]);
     expect(g.nodes.find((n) => n.id === "exit_all")?.kind).toBe("exit");
     const trig = g.nodes.find((n) => n.id === "enso_mispriced");
     expect(trig).toMatchObject({ kind: "trigger", logic: "AND", lines: ["nino.value > 1.5", "(nino_model.prob − nino_odds.prob) > 0.15"] });

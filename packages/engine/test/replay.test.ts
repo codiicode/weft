@@ -6,11 +6,11 @@ import { HOUR, MIN, T0, ZERO_SLIPPAGE } from "./fakes.ts";
 const snap = (now: number, fields: Record<string, number | boolean | null>) => ({ asOf: now, fields });
 
 describe("replay", () => {
-  it("El Niño: buys the mispriced outcome, adds grains after forMinutes, exits on TP prob and close-all", async () => {
+  it("El Niño: buys the mispriced outcome, adds copper after forMinutes, exits on TP prob and close-all", async () => {
     const YES = "hl:outcome:elnino-djf-2026:YES";
-    const WHEAT = "hl:perp:xyz:WHEAT";
-    const SUGAR = "hl:perp:xyz:SUGAR";
-    const frame = (h: number, o: { nino?: number; odds?: number; wheat?: number }): ReplayFrame => {
+    const COPPER = "hl:perp:xyz:COPPER";
+    const NATGAS = "hl:perp:xyz:NATGAS";
+    const frame = (h: number, o: { nino?: number; odds?: number; copper?: number }): ReplayFrame => {
       const now = T0 + h * HOUR;
       return {
         now,
@@ -18,27 +18,28 @@ describe("replay", () => {
           nino: snap(now, { value: o.nino ?? 1.8, change_7d: 0.2 }),
           nino_odds: snap(now, { prob: o.odds ?? 0.55, change_24h_pp: 0, volume_24h_usd: 1e6 }),
           nino_model: snap(now, { prob: 0.8, confidence: 0.7 }),
-          wheat: snap(now, { price: o.wheat ?? 6, change_24h_pct: 1.5, change_5m_pct: 0, change_1h_pct: 0, volume_24h_usd: 1e6 }),
+          copper: snap(now, { price: o.copper ?? 5, change_24h_pct: 1.5, change_5m_pct: 0, change_1h_pct: 0, volume_24h_usd: 1e6 }),
+          natgas: snap(now, { price: 3, change_24h_pct: 0.5, change_5m_pct: 0, change_1h_pct: 0, volume_24h_usd: 1e6 }),
           desks: snap(now, { sentiment: 0.5, mentions_1h: 40, mentions_change_1h_pct: 10, unique_authors_1h: 20 }),
-          usdbrl: snap(now, { value: 5.4, change_1d: 0, change_5d: 0 }),
         },
-        quotes: { [YES]: o.odds ?? 0.55, [WHEAT]: o.wheat ?? 6, [SUGAR]: 0.2 },
+        quotes: { [YES]: o.odds ?? 0.55, [COPPER]: o.copper ?? 5, [NATGAS]: 3 },
       };
     };
     const timeline = [
       frame(0, {}),
-      frame(1, {}), // grains_bid has held 60 min
-      frame(2, { odds: 0.7, wheat: 6.3 }),
-      frame(3, { odds: 0.93, wheat: 6.4 }), // YES take-profit at prob 0.92
-      frame(4, { nino: 0.4, odds: 0.93, wheat: 6.5 }), // ENSO fades: close all
-      frame(5, { nino: 0.4, odds: 0.93, wheat: 6.5 }),
+      frame(1, {}), // supply_shock has held 60 min
+      frame(2, { odds: 0.7, copper: 5.2 }),
+      frame(3, { odds: 0.93, copper: 5.3 }), // YES take-profit at prob 0.92
+      frame(4, { nino: 0.4, odds: 0.93, copper: 5.35 }), // ENSO fades: close all
+      frame(5, { nino: 0.4, odds: 0.93, copper: 5.35 }),
     ];
     const r = await replay(elNino, timeline, { allocationUsd: 10_000 });
 
     const byReason = (reason: string) => r.fills.filter((f) => f.reason === reason).map((f) => f.instrumentKey);
-    expect(byReason("entry")).toEqual(expect.arrayContaining([YES, WHEAT]));
+    expect(byReason("entry")).toEqual(expect.arrayContaining([YES, COPPER]));
+    expect(byReason("entry")).not.toContain(NATGAS); // natgas rose, so no mild-winter short
     expect(byReason("take_profit")).toEqual([YES]);
-    expect(byReason("close_action")).toEqual(expect.arrayContaining([WHEAT]));
+    expect(byReason("close_action")).toEqual(expect.arrayContaining([COPPER]));
     expect(r.snapshot.positions).toHaveLength(0);
     expect(r.snapshot.realizedPnlUsd).toBeGreaterThan(0);
     expect(r.snapshot.signalValues["nino.value"]).toBe(0.4);

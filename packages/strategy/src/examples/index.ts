@@ -12,7 +12,7 @@ import type { Strategy } from "../strategy.ts";
 export const PUMP_MINT = "PumpExampLeMint11111111111111111111111111111";
 export const NVDAX_MINT = "NVDAxExampLeMint1111111111111111111111111111";
 
-/** Weather → commodities perps + HIP-4 mispricing. */
+/** Weather → commodity perps (HIP-3) + prediction-market mispricing. */
 export const elNino = defineStrategy({
   schemaVersion: 1,
   id: "el-nino-harvest",
@@ -23,9 +23,9 @@ export const elNino = defineStrategy({
     { id: "nino", kind: "forecast", label: "ENSO outlook", params: { source: "noaa_cpc", series: "nino34_anomaly" } },
     { id: "nino_odds", kind: "odds", label: "El Niño by winter?", params: { instrument: { kind: "outcome", venue: "hyperliquid", market: "elnino-djf-2026", outcome: "YES", question: "El Niño by winter?" } } },
     { id: "nino_model", kind: "model", params: { question: "Will NOAA declare El Niño conditions for DJF 2026–27?" } },
-    { id: "wheat", kind: "price", params: { instrument: { kind: "perp", venue: "hyperliquid", dex: "xyz", symbol: "WHEAT", assetClass: "commodity" } } },
-    { id: "desks", kind: "social", label: "Ag-weather desks", params: { keywords: ["El Niño", "wheat crop"] } },
-    { id: "usdbrl", kind: "macro", params: { series: "USDBRL" } },
+    { id: "copper", kind: "price", label: "COPPER (HIP-3)", params: { instrument: { kind: "perp", venue: "hyperliquid", dex: "xyz", symbol: "COPPER", assetClass: "commodity" } } },
+    { id: "natgas", kind: "price", label: "NATGAS (HIP-3)", params: { instrument: { kind: "perp", venue: "hyperliquid", dex: "xyz", symbol: "NATGAS", assetClass: "commodity" } } },
+    { id: "desks", kind: "social", label: "Weather & mining desks", params: { keywords: ["El Niño", "Peru floods", "mild winter"] } },
   ],
   triggers: [
     {
@@ -40,25 +40,29 @@ export const elNino = defineStrategy({
       },
     },
     {
-      id: "grains_bid",
+      id: "supply_shock",
+      label: "Andean mining disruption",
       when: {
         op: "and",
         args: [
-          { op: "gt", left: { ref: "desks.sentiment" }, right: { value: 0.3 } },
-          { op: "gt", left: { ref: "wheat.change_24h_pct" }, right: { value: 0 } },
+          { op: "gt", left: { ref: "nino.value" }, right: { value: 1.5 } },
+          { op: "gt", left: { ref: "copper.change_24h_pct" }, right: { value: 0 } },
         ],
       },
       forMinutes: 60,
     },
     {
-      id: "brl_weak",
+      id: "mild_winter",
+      label: "Mild northern winter priced in",
       when: {
         op: "and",
         args: [
-          { op: "gt", left: { ref: "usdbrl.value" }, right: { value: 5.6 } },
-          { op: "gt", left: { ref: "desks.sentiment" }, right: { value: 0.4 } },
+          { op: "gt", left: { ref: "nino.value" }, right: { value: 1.5 } },
+          { op: "lt", left: { ref: "natgas.change_24h_pct" }, right: { value: 0 } },
+          { op: "gt", left: { ref: "desks.sentiment" }, right: { value: 0.2 } },
         ],
       },
+      forMinutes: 60,
     },
     { id: "enso_fades", when: { op: "lt", left: { ref: "nino.value" }, right: { value: 0.5 } } },
   ],
@@ -70,37 +74,28 @@ export const elNino = defineStrategy({
       instrument: { kind: "outcome", venue: "hyperliquid", market: "elnino-djf-2026", outcome: "YES" },
       side: "long",
       size: { unit: "pct_equity", value: 8 },
+      order: { maxSlippageBps: 800 },
       exits: { takeProfit: { prob: 0.92 }, stopLoss: { prob: 0.45 } },
     },
     {
-      id: "long_wheat",
+      id: "long_copper",
       type: "open",
-      on: ["grains_bid"],
-      instrument: { kind: "perp", venue: "hyperliquid", dex: "xyz", symbol: "WHEAT", assetClass: "commodity" },
+      on: ["supply_shock"],
+      instrument: { kind: "perp", venue: "hyperliquid", dex: "xyz", symbol: "COPPER", assetClass: "commodity" },
       side: "long",
       size: { unit: "pct_equity", value: 10 },
-      leverage: 3,
-      exits: { takeProfit: { pct: 16 }, stopLoss: { pct: 6 } },
-    },
-    {
-      id: "long_sugar",
-      type: "open",
-      on: ["grains_bid"],
-      instrument: { kind: "perp", venue: "hyperliquid", dex: "xyz", symbol: "SUGAR", assetClass: "commodity" },
-      side: "long",
-      size: { unit: "pct_equity", value: 6 },
       leverage: 2,
       exits: { takeProfit: { pct: 12 }, stopLoss: { pct: 5 } },
     },
     {
-      id: "short_brazil",
+      id: "short_natgas",
       type: "open",
-      on: ["brl_weak"],
-      instrument: { kind: "perp", venue: "hyperliquid", dex: "xyz", symbol: "BRAZIL50", assetClass: "index" },
+      on: ["mild_winter"],
+      instrument: { kind: "perp", venue: "hyperliquid", dex: "xyz", symbol: "NATGAS", assetClass: "commodity" },
       side: "short",
-      size: { unit: "pct_equity", value: 5 },
+      size: { unit: "pct_equity", value: 6 },
       leverage: 2,
-      exits: { takeProfit: { pct: 9 }, stopLoss: { pct: 4 } },
+      exits: { takeProfit: { pct: 15 }, stopLoss: { pct: 6 } },
     },
     { id: "exit_all", type: "close", on: ["enso_fades"], target: "all" },
   ],
