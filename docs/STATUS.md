@@ -10,7 +10,7 @@ _Last updated by the build session. All numbers below were verified by running t
 | `packages/venues` | Live market data, catalogs and signal providers: Hyperliquid (perps, HIP-3, spot, HIP-4), Jupiter (tokens, xStocks, prediction markets), Deribit/Derive options, NOAA, FRED, Frankfurter; OI history sampler for z-scores | 83 |
 | `packages/engine` | Runtime: tick loop, paper executor (fees, slippage), TP/SL/trailing/time exits, perp funding + liquidation, risk, SQLite persistence, replay, events | 47 |
 | `packages/execution` | Live execution: Hyperliquid agent-wallet signing (matches official Python + Rust SDK vectors; testnet confirmed the server recovers our agent address), Jupiter swap builder + transaction inspector, signer interface, Turnkey policy draft | 85 (+2 opt-in live) |
-| `apps/api` | HTTP API: markets, library (save/fork), thesis → strategy (Claude with tools, template fallback), paper deployments, leaderboard, SSE | 15 |
+| `apps/api` | HTTP API: markets, library (save/fork), thesis → strategy (Claude with tools, template fallback), paper deployments, leaderboard, SSE, alerts to Telegram/webhooks | 19 |
 | `apps/web` | Landing page + product app (`/app`): builder, markets, live runs with kill switch, library, leaderboard | typecheck + build |
 
 **Verified end to end on paper against live data:** BTC perp (2×), HIP-3 NVDA short, JUP token swap
@@ -52,6 +52,8 @@ search and self-correcting validation). Without it, a deterministic template eng
 6. **Hyperliquid builder address** and fee rate (default 5 bps), and the token-side platform fee (default 50 bps).
 7. **Legal review** before any live trading or the token launch (automated trading for others + fee buybacks).
 8. **Name**: still "Weft" in `apps/web/src/config/brand.ts`.
+9. **Telegram bot** for alerts: create one with @BotFather, then set `TELEGRAM_BOT_TOKEN` + `TELEGRAM_CHAT_ID`
+   (or `WEFT_ALERT_WEBHOOK_URL` for Discord/Slack). Alerts-only strategies then message you instead of trading.
 
 ## Not built yet (next steps, in order)
 
