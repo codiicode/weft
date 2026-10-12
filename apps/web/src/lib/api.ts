@@ -284,6 +284,26 @@ export const api = {
   leaderboard: () => req<{ rows: LeaderRow[] }>("/leaderboard"),
   stats: () => req<Stats>("/stats"),
 
+  /** Events from the signed-in user's own runs (token in the query: EventSource can't send headers). */
+  subscribeMine(onEvent: (e: EngineEvent) => void): () => void {
+    let es: EventSource | null = null;
+    let closed = false;
+    (async () => {
+      const t = tokenGetter ? await tokenGetter().catch(() => null) : null;
+      if (closed) return;
+      es = new EventSource(`${API_URL}/events/stream${t ? `?token=${encodeURIComponent(t)}` : ""}`);
+      const handler = (m: MessageEvent) => {
+        try {
+          onEvent(JSON.parse(m.data));
+        } catch {}
+      };
+      for (const ty of ["fill", "rejected", "notify", "status", "error", "warning"]) es.addEventListener(ty, handler as EventListener);
+    })();
+    return () => {
+      closed = true;
+      es?.close();
+    };
+  },
   /** Subscribe to live engine events (SSE). Returns an unsubscribe function. */
   subscribe(onEvent: (e: EngineEvent) => void, deploymentId?: string): () => void {
     const es = new EventSource(`${API_URL}/events/stream${deploymentId ? `?deploymentId=${encodeURIComponent(deploymentId)}` : ""}`);

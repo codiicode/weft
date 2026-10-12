@@ -12,6 +12,7 @@ import { Accounts } from "./lib/accounts.ts";
 import { AgentWallets, privyAgentApi } from "./live/agents.ts";
 import { LiveRouterExecutor, LiveService, liveConfigFromEnv } from "./live/service.ts";
 import { CompositeEngine } from "./live/composite.ts";
+import { Reconciler } from "./live/reconcile.ts";
 import { createApp } from "./app.ts";
 
 const PORT = Number(process.env.PORT ?? 8787);
@@ -65,6 +66,11 @@ const app = createApp({
   backtest: { history: venues.history, tokenFacts: venues.tokenFacts, calendar: calendarFields },
 });
 engine.start();
+
+// Every minute, check live runs against what Hyperliquid actually holds.
+const reconciler = liveEngine && liveCfg.enabled ? new Reconciler(liveEngine, accounts, liveCfg) : null;
+const reconcileTimer = reconciler ? setInterval(() => void reconciler.run().catch((e) => console.warn("reconcile failed:", (e as Error).message)), 60_000) : null;
+reconcileTimer?.unref();
 
 const server = serve({ fetch: app.fetch, port: PORT }, (info) => {
   console.log(`weft api listening on http://localhost:${info.port}`);

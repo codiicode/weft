@@ -151,3 +151,40 @@ describe("live trading", () => {
     expect(r2.status === "rejected" && r2.reason).toMatch(/switched off/);
   });
 });
+
+describe("live reconciliation", async () => {
+  const { Reconciler, diffPositions } = await import("../src/live/reconcile.ts");
+  it("diffs signed sizes with a 1% tolerance", () => {
+    const m = diffPositions(new Map([["BTC", 0.01], ["ETH", -1]]), new Map([["BTC", 0.01005], ["SOL", 3]]));
+    expect(m).toEqual([
+      { coin: "ETH", expected: -1, actual: 0 },
+      { coin: "SOL", expected: 0, actual: 3 },
+    ]);
+  });
+  it("notes a mismatch on the owning run once, and again only when it changes", async () => {
+    const { accounts } = setup();
+    accounts.setLiveAccount("u1", "testnet", userKey.address);
+    accounts.setDeploymentOwner("dep1", "u1");
+    const notes: string[] = [];
+    let venueSzi = "0";
+    const engine = {
+      listDeployments: async () => [{ id: "dep1", mode: "live", status: "running" }],
+      getSnapshot: async () => ({
+        deployment: { strategy: btcLong },
+        positions: [{ instrument: { kind: "perp", venue: "hyperliquid", symbol: "BTC" }, side: "long", qty: 0.002 }],
+      }),
+      note: async (_id: string, _t: string, m: string) => void notes.push(m),
+    } as never;
+    const fetchFn = (async () =>
+      new Response(JSON.stringify({ assetPositions: venueSzi === "0" ? [] : [{ position: { coin: "BTC", szi: venueSzi } }] }), { status: 200 })) as never;
+    const r = new Reconciler(engine, accounts, liveConfigFromEnv({ WEFT_LIVE_ENABLED: "1" }), fetchFn);
+    await r.run();
+    expect(notes).toHaveLength(1);
+    expect(notes[0]).toMatch(/Hyperliquid shows no BTC position, but this run expects long 0.002 BTC/);
+    await r.run();
+    expect(notes).toHaveLength(1); // unchanged: not repeated
+    venueSzi = "0.002";
+    await r.run();
+    expect(notes).toHaveLength(1); // matches now: nothing to say
+  });
+});

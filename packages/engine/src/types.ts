@@ -192,4 +192,6 @@ export interface Engine {
   shutdown(): Promise<void>;
   /** Live event stream (SSE in the API). Returns an unsubscribe function. */
   subscribe(listener: (e: EngineEvent) => void): () => void;
+  /** Record an outside observation on a deployment (e.g. venue reconciliation). */
+  note?(id: string, type: "warning" | "error" | "notify", message: string, data?: Record<string, unknown>): Promise<void>;
 }

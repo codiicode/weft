@@ -65,6 +65,11 @@ export class CompositeEngine implements Engine {
   async shutdown() {
     await Promise.all([this.paper.shutdown(), this.live?.shutdown()]);
   }
+  note(id: string, type: "warning" | "error" | "notify", message: string, data?: Record<string, unknown>) {
+    return this.on(id, async (e) => {
+      await e.note?.(id, type, message, data);
+    });
+  }
   subscribe(listener: (e: EngineEvent) => void) {
     const a = this.paper.subscribe(listener);
     const b = this.live?.subscribe(listener);

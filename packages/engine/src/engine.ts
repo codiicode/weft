@@ -332,6 +332,15 @@ export function createEngine(opts: EngineOptions): EngineRuntime {
       listeners.add(listener);
       return () => listeners.delete(listener);
     },
+
+    note(id: string, type: "warning" | "error" | "notify", message: string, data?: Record<string, unknown>): Promise<void> {
+      return withLock(id, async () => {
+        if (!(await store.getDeployment(id))) throw new Error(`unknown deployment ${id}`);
+        const ev = event(id, type, message, data);
+        await store.commit({ deploymentId: id, events: [ev] });
+        publish([ev]);
+      });
+    },
   };
   return engine;
 }
