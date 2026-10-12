@@ -42,6 +42,7 @@ export function Markets() {
   return (
     <Section
       id="markets"
+      layout="stack"
       label="Markets"
       title="What it can trade"
       lead="One strategy can watch a weather forecast and trade commodities, or watch X and buy a memecoin. Weft picks where to trade."

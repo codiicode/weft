@@ -43,6 +43,7 @@ export function Strategies() {
   return (
     <Section
       id="strategies"
+      layout="stack"
       label="Strategies"
       title="Start from someone else’s strategy"
       lead="Every strategy is public. Read exactly what it does, then copy it and make it yours. Your wallet and sizes stay private."
