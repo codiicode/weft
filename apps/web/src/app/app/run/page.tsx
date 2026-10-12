@@ -138,11 +138,12 @@ function Run() {
   return (
     <>
       <PageHeader
-        eyebrow={`Paper run · ${d.id}`}
+        eyebrow={`${d.mode === "live" ? "LIVE run" : "Paper run"} · ${d.id}`}
         title={d.strategy.name}
         sub={<span className="italic">“{d.strategy.thesis}”</span>}
         actions={
           <>
+            {d.mode === "live" && <Pill tone="short">● Live · real orders</Pill>}
             <Pill tone={status === "running" ? "long" : status === "killed" ? "short" : "neutral"}>
               {status === "running" && <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-long" />}
               {status}
@@ -275,7 +276,7 @@ function Run() {
 
         <div className="flex flex-wrap gap-3 font-mono text-[11px] text-faint">
           <Link href="/app/runs" className="hover:text-ink">← All runs</Link>
-          <span>Paper trading with live prices. Not financial advice.</span>
+          <span>{d.mode === "live" ? "Live trading on Hyperliquid through your agent." : "Paper trading with live prices."} Not financial advice.</span>
         </div>
       </div>
     </>

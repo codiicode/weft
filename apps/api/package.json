@@ -14,12 +14,15 @@
   "dependencies": {
     "@anthropic-ai/sdk": "^0.133.0",
     "@hono/node-server": "^2.1.4",
+    "@privy-io/node": "^0.35.0",
     "@weft/engine": "*",
     "@weft/strategy": "*",
     "@weft/venues": "*",
     "hono": "^4.13.13",
     "jose": "^6.2.12",
-    "zod": "^4.6.6"
+    "viem": "^2.57.5",
+    "zod": "^4.6.6",
+    "@weft/execution": "*"
   },
   "devDependencies": {
     "@types/node": "^26.6.5",

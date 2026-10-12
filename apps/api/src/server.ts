@@ -9,6 +9,9 @@ import { resolvePlaceholders } from "./lib/resolve.ts";
 import { createNotifier, sinksFromEnv } from "./lib/alerts.ts";
 import { createAuthenticator } from "./lib/auth.ts";
 import { Accounts } from "./lib/accounts.ts";
+import { AgentWallets, privyAgentApi } from "./live/agents.ts";
+import { LiveRouterExecutor, LiveService, liveConfigFromEnv } from "./live/service.ts";
+import { CompositeEngine } from "./live/composite.ts";
 import { createApp } from "./app.ts";
 
 const PORT = Number(process.env.PORT ?? 8787);
@@ -16,12 +19,29 @@ const DATA_DIR = process.env.WEFT_DATA_DIR ?? fileURLToPath(new URL("../.data/",
 mkdirSync(DATA_DIR, { recursive: true });
 
 const venues = createVenues({ oiHistoryPath: join(DATA_DIR, "oi-history.json") });
-const engine = createEngine({
+const accounts = new Accounts(join(DATA_DIR, "accounts.db"));
+const paperEngine = createEngine({
   store: new SqliteStore(join(DATA_DIR, "engine.db")),
   marketData: venues.marketData,
   signalProviders: venues.signalProviders,
   tokenFacts: venues.tokenFacts,
 });
+
+// Live trading: per-user Privy agent wallets → Hyperliquid. A separate engine and store, so paper
+// and live money never share an executor. Off unless WEFT_LIVE_ENABLED=1; testnet by default.
+const liveCfg = liveConfigFromEnv();
+const agents = process.env.PRIVY_APP_ID && process.env.PRIVY_APP_SECRET ? new AgentWallets(privyAgentApi(process.env.PRIVY_APP_ID, process.env.PRIVY_APP_SECRET), accounts) : null;
+const live = process.env.PRIVY_APP_ID ? new LiveService(liveCfg, accounts, agents) : null;
+const liveEngine = live
+  ? createEngine({
+      store: new SqliteStore(join(DATA_DIR, "engine-live.db")),
+      marketData: venues.marketData,
+      signalProviders: venues.signalProviders,
+      tokenFacts: venues.tokenFacts,
+      executor: new LiveRouterExecutor(live, (id) => accounts.deploymentOwner(id)),
+    })
+  : null;
+const engine = new CompositeEngine(paperEngine, liveEngine);
 const library = new StrategyLibrary(join(DATA_DIR, "library.db"));
 const signalModes = Object.fromEntries(venues.signalProviders.flatMap((p) => p.kinds.map((k) => [k, p.mode] as const)));
 
@@ -31,7 +51,6 @@ const notifier = createNotifier(engine, sinksFromEnv(), {
   log: (m) => console.warn(m),
 });
 const auth = createAuthenticator({ appId: process.env.PRIVY_APP_ID, verificationKey: process.env.PRIVY_VERIFICATION_KEY });
-const accounts = new Accounts(join(DATA_DIR, "accounts.db"));
 const app = createApp({
   catalog: venues.catalog,
   marketData: venues.marketData,
@@ -42,6 +61,7 @@ const app = createApp({
   auth,
   accounts,
   aiDailyLimit: Number(process.env.WEFT_AI_DAILY_LIMIT ?? 30),
+  live: live ?? undefined,
   backtest: { history: venues.history, tokenFacts: venues.tokenFacts, calendar: calendarFields },
 });
 engine.start();
@@ -51,6 +71,9 @@ const server = serve({ fetch: app.fetch, port: PORT }, (info) => {
   console.log(`  data: ${DATA_DIR}`);
   console.log(`  alerts: ${notifier.sinks.length ? notifier.sinks.join(", ") : "off (set TELEGRAM_BOT_TOKEN + TELEGRAM_CHAT_ID or WEFT_ALERT_WEBHOOK_URL)"}`);
   console.log(`  auth: ${auth.enabled ? `Privy (${auth.appId})` : "local mode (set PRIVY_APP_ID to require sign-in)"}`);
+  console.log(
+    `  live: ${live ? `${liveCfg.enabled ? "ON" : "off (WEFT_LIVE_ENABLED=1 to enable)"} · ${liveCfg.network} · agents ${agents ? "Privy" : "need PRIVY_APP_SECRET"} · cap $${liveCfg.maxAllocationUsd} · builder ${liveCfg.builder?.address ?? "none"}` : "unavailable (needs PRIVY_APP_ID)"}`
+  );
   console.log(`  AI generation: ${process.env.ANTHROPIC_API_KEY ? "Claude (claude-opus-5-5)" : "template fallback (set ANTHROPIC_API_KEY for Claude)"}`);
 });
 

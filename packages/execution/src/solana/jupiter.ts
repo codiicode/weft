@@ -79,7 +79,9 @@ const b58 = (k: PublicKey | string) => (typeof k === "string" ? k : k.toBase58()
  */
 export class JupiterSwapBuilder {
   private readonly baseUrl: string;
-  constructor(private readonly o: JupiterSwapBuilderOptions = {}) {
+  private readonly o: JupiterSwapBuilderOptions;
+  constructor(o: JupiterSwapBuilderOptions = {}) {
+    this.o = o;
     this.baseUrl = (o.baseUrl ?? JUPITER_LITE_SWAP_V1).replace(/\/$/, "");
   }
 

@@ -13,6 +13,15 @@ export interface Account {
   displayName: string | null;
 }
 
+export interface LiveAccount {
+  userId: string;
+  network: "testnet" | "mainnet";
+  /** The user's Hyperliquid master account (their own wallet address). */
+  hlAddress: `0x${string}`;
+  agentApprovedAt: number | null;
+  builderApprovedAt: number | null;
+}
+
 export class Accounts {
   private db: DatabaseSync;
 
@@ -35,6 +44,24 @@ export class Accounts {
       CREATE TABLE IF NOT EXISTS strategy_owners (
         strategy_id TEXT PRIMARY KEY,
         user_id TEXT NOT NULL
+      );
+      CREATE TABLE IF NOT EXISTS kv (
+        key TEXT PRIMARY KEY,
+        value TEXT NOT NULL
+      );
+      CREATE TABLE IF NOT EXISTS agent_wallets (
+        user_id TEXT PRIMARY KEY,
+        wallet_id TEXT NOT NULL,
+        address TEXT NOT NULL,
+        created_at INTEGER NOT NULL
+      );
+      CREATE TABLE IF NOT EXISTS live_accounts (
+        user_id TEXT PRIMARY KEY,
+        network TEXT NOT NULL,
+        hl_address TEXT NOT NULL,
+        agent_approved_at INTEGER,
+        builder_approved_at INTEGER,
+        updated_at INTEGER NOT NULL
       );
       CREATE TABLE IF NOT EXISTS ai_usage (
         user_id TEXT NOT NULL,
@@ -107,6 +134,50 @@ export class Accounts {
     this.db
       .prepare("INSERT INTO ai_usage (user_id, day, count) VALUES (?, ?, 1) ON CONFLICT(user_id, day) DO UPDATE SET count = count + 1")
       .run(userId, day);
+  }
+
+  /* ---------------- key/value ---------------- */
+
+  kvGet(key: string): string | null {
+    const r = this.db.prepare("SELECT value FROM kv WHERE key = ?").get(key) as { value: string } | undefined;
+    return r?.value ?? null;
+  }
+  kvSet(key: string, value: string) {
+    this.db.prepare("INSERT OR REPLACE INTO kv (key, value) VALUES (?, ?)").run(key, value);
+  }
+
+  /* ---------------- live trading ---------------- */
+
+  agentWallet(userId: string): { walletId: string; address: `0x${string}` } | null {
+    const r = this.db.prepare("SELECT wallet_id, address FROM agent_wallets WHERE user_id = ?").get(userId) as { wallet_id: string; address: string } | undefined;
+    return r ? { walletId: r.wallet_id, address: r.address as `0x${string}` } : null;
+  }
+  setAgentWallet(userId: string, w: { walletId: string; address: string }) {
+    this.db.prepare("INSERT OR REPLACE INTO agent_wallets (user_id, wallet_id, address, created_at) VALUES (?, ?, ?, ?)").run(userId, w.walletId, w.address, Date.now());
+  }
+
+  liveAccount(userId: string): LiveAccount | null {
+    const r = this.db.prepare("SELECT * FROM live_accounts WHERE user_id = ?").get(userId) as Record<string, unknown> | undefined;
+    if (!r) return null;
+    return {
+      userId,
+      network: r.network as "testnet" | "mainnet",
+      hlAddress: r.hl_address as `0x${string}`,
+      agentApprovedAt: (r.agent_approved_at as number | null) ?? null,
+      builderApprovedAt: (r.builder_approved_at as number | null) ?? null,
+    };
+  }
+  /** Linking a (new) Hyperliquid account resets approvals: they are per account and network. */
+  setLiveAccount(userId: string, network: "testnet" | "mainnet", hlAddress: string) {
+    const cur = this.liveAccount(userId);
+    if (cur && cur.network === network && cur.hlAddress.toLowerCase() === hlAddress.toLowerCase()) return;
+    this.db
+      .prepare("INSERT OR REPLACE INTO live_accounts (user_id, network, hl_address, agent_approved_at, builder_approved_at, updated_at) VALUES (?, ?, ?, NULL, NULL, ?)")
+      .run(userId, network, hlAddress, Date.now());
+  }
+  markApproved(userId: string, kind: "agent" | "builder", at = Date.now()) {
+    const col = kind === "agent" ? "agent_approved_at" : "builder_approved_at";
+    this.db.prepare(`UPDATE live_accounts SET ${col} = ?, updated_at = ? WHERE user_id = ?`).run(at, at, userId);
   }
 
   close() {

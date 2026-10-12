@@ -15,6 +15,7 @@ import { runBacktest, type BacktestDeps } from "./backtest/run.ts";
 import type { Notifier } from "./lib/alerts.ts";
 import { AuthError, LOCAL_USER, type AuthUser, type Authenticator } from "./lib/auth.ts";
 import type { Accounts } from "./lib/accounts.ts";
+import type { LiveService } from "./live/service.ts";
 
 export interface AppDeps {
   catalog: Catalog;
@@ -31,11 +32,16 @@ export interface AppDeps {
   accounts?: Accounts;
   /** AI generations per user per UTC day when auth is enabled (cost control). */
   aiDailyLimit?: number;
+  /** Live trading on Hyperliquid. Absent: paper only. */
+  live?: LiveService;
 }
 
 const PRODUCTS = ["perps", "stocks", "predictions", "tokens", "options"] as const;
 
 const DeployBody = z.object({
+  mode: z.enum(["paper", "live"]).default("paper"),
+  /** Live only: the user typed this to confirm real-money trading. */
+  confirm: z.string().optional(),
   strategy: z.unknown().optional(),
   strategyId: z.string().optional(),
   allocationUsd: z.number().positive().max(10_000_000).default(10_000),
@@ -260,9 +266,27 @@ export function createApp(deps: AppDeps) {
     if (!raw && body.strategyId) raw = library.get(body.strategyId)?.strategy;
     const v = validateStrategy(raw);
     if (!v.ok) return c.json({ error: "invalid strategy", issues: v.errors }, 422);
+    if (body.mode === "live") {
+      if (!deps.live) return c.json({ error: "live trading is not configured on this server" }, 501);
+      if (body.confirm !== "GO LIVE") return c.json({ error: 'type "GO LIVE" to confirm real-money trading' }, 400);
+      // Instruments already traded by this user's other live runs (positions would net on the venue).
+      const mine = accounts ? accounts.deploymentsOf(user.id) : new Set<string>();
+      const others = new Set<string>();
+      for (const d of await engine.listDeployments()) {
+        if (d.mode !== "live" || !mine.has(d.id) || d.status === "stopped" || d.status === "killed") continue;
+        for (const a of d.strategy.actions)
+          if (a.type === "open" && (a.instrument.kind === "perp" || a.instrument.kind === "spot"))
+            others.add(a.instrument.kind === "perp" ? `hl:perp:${a.instrument.dex ? `${a.instrument.dex}:` : ""}${a.instrument.symbol}` : `hl:spot:${a.instrument.symbol}`);
+      }
+      try {
+        deps.live.assertDeployable(user.id, v.strategy, body.allocationUsd, others);
+      } catch (e) {
+        return c.json({ error: (e as Error).message }, 409);
+      }
+    }
     const record = await engine.createDeployment({
       strategy: v.strategy,
-      mode: "paper",
+      mode: body.mode,
       allocationUsd: body.allocationUsd,
       caps: body.caps,
       intervalSec: body.intervalSec,
@@ -324,6 +348,37 @@ export function createApp(deps: AppDeps) {
       }
       unsub();
     });
+  });
+
+  /* ---------------- Live trading (Hyperliquid) ---------------- */
+
+  app.get("/live/status", async (c) => {
+    if (!deps.live) return c.json({ error: "live trading is not configured on this server" }, 501);
+    const user = await requireUser(c);
+    return c.json(await deps.live.status(user.id));
+  });
+  app.post("/live/account", async (c) => {
+    if (!deps.live) return c.json({ error: "live trading is not configured on this server" }, 501);
+    const user = await requireUser(c);
+    const { hlAddress } = z.object({ hlAddress: z.string().regex(/^0x[0-9a-fA-F]{40}$/) }).parse(await c.req.json());
+    deps.live.linkAccount(user.id, hlAddress);
+    return c.json(await deps.live.status(user.id));
+  });
+  app.post("/live/approvals/prepare", async (c) => {
+    if (!deps.live) return c.json({ error: "live trading is not configured on this server" }, 501);
+    const user = await requireUser(c);
+    const { signatureChainId } = z.object({ signatureChainId: z.string().regex(/^0x[0-9a-fA-F]+$/) }).parse(await c.req.json());
+    return c.json(await deps.live.prepareApprovals(user.id, signatureChainId));
+  });
+  app.post("/live/approvals/submit", async (c) => {
+    if (!deps.live) return c.json({ error: "live trading is not configured on this server" }, 501);
+    const user = await requireUser(c);
+    const { kind, signature } = z.object({ kind: z.enum(["agent", "builder"]), signature: z.string().regex(/^0x[0-9a-fA-F]{130}$/) }).parse(await c.req.json());
+    try {
+      return c.json(await deps.live.submitApproval(user.id, kind, signature as `0x${string}`));
+    } catch (e) {
+      return c.json({ error: (e as Error).message }, 422);
+    }
   });
 
   /* ---------------- Alerts (Telegram / webhook) ---------------- */

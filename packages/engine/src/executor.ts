@@ -31,6 +31,10 @@ export interface OrderRequest {
   order?: Partial<OrderSpec>;
   /** Paper only: price to use if no quote is available (kill switch on a dead feed). */
   fallbackPrice?: number;
+  /** The deployment placing the order; live executors use it to pick the user's account and agent. */
+  deploymentId?: string;
+  /** Opens on perps: the leverage to set on the venue before trading. */
+  leverage?: number;
 }
 
 export type ExecutionResult =

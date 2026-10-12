@@ -41,7 +41,10 @@ export class JupiterExecutor implements Executor {
   private readonly sent = new Map<string, string>();
   private readonly decimalsCache = new Map<string, number>();
 
-  constructor(private readonly cfg: JupiterExecutorConfig) {}
+  private readonly cfg: JupiterExecutorConfig;
+  constructor(cfg: JupiterExecutorConfig) {
+    this.cfg = cfg;
+  }
 
   private async decimals(mint: PublicKey): Promise<number> {
     const k = mint.toBase58();

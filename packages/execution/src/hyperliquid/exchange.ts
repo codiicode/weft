@@ -52,7 +52,9 @@ export class HlExchangeClient {
   readonly baseUrl: string;
   private lastNonce = 0;
 
-  constructor(private readonly opts: ExchangeClientOptions) {
+  private readonly opts: ExchangeClientOptions;
+  constructor(opts: ExchangeClientOptions) {
+    this.opts = opts;
     this.isMainnet = opts.isMainnet;
     this.baseUrl = opts.baseUrl ?? (opts.isMainnet ? HL_MAINNET_URL : HL_TESTNET_URL);
     if (!opts.isMainnet && this.baseUrl === HL_MAINNET_URL) throw new Error("testnet client pointed at the mainnet URL");

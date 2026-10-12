@@ -14,6 +14,7 @@ const NAV = [
   { href: "/app/new", label: "New strategy", icon: "M10 4v12M4 10h12" },
   { href: "/app/markets", label: "Markets", icon: "M4 15l4-5 3 3 5-7" },
   { href: "/app/runs", label: "Runs", icon: "M5 4.5v11l10-5.5z" },
+  { href: "/app/live", label: "Live", icon: "M10 2.5 4 11h5l-1 6.5L16 9h-5z" },
   { href: "/app/library", label: "Library", icon: "M4 4h4v12H4zM10 4h6v5h-6zM10 11h6v5h-6z" },
   { href: "/app/leaderboard", label: "Leaderboard", icon: "M4 16V9M10 16V4M16 16v-5" },
 ];
@@ -134,7 +135,7 @@ export function AppShell({ children }: { children: ReactNode }) {
       <main className="min-w-0 pb-24 lg:pb-0">{children}</main>
 
       {/* Mobile bottom nav */}
-      <nav className="fixed inset-x-0 bottom-0 z-40 grid grid-cols-6 border-t border-line bg-paper/90 px-1 pb-[env(safe-area-inset-bottom)] backdrop-blur-xl lg:hidden">
+      <nav className="fixed inset-x-0 bottom-0 z-40 grid grid-cols-7 border-t border-line bg-paper/90 px-1 pb-[env(safe-area-inset-bottom)] backdrop-blur-xl lg:hidden">
         {NAV.map((n) => (
           <Link key={n.href} href={n.href} className={`flex flex-col items-center gap-1 py-2.5 text-[10px] ${active(n.href) ? "text-ink" : "text-muted"}`}>
             <NavIcon d={n.icon} />

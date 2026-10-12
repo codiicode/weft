@@ -112,7 +112,9 @@ export class HyperliquidExecutor implements Executor {
   private readonly info: HlInfo;
   private builderChecked = new Map<string, boolean>();
 
-  constructor(private readonly cfg: HyperliquidExecutorConfig) {
+  private readonly cfg: HyperliquidExecutorConfig;
+  constructor(cfg: HyperliquidExecutorConfig) {
+    this.cfg = cfg;
     const signer = cfg.agentSigner ?? (cfg.agentPrivateKey ? signerFromPrivateKey(cfg.agentPrivateKey) : null);
     if (!signer) throw new Error("HyperliquidExecutor needs an agent wallet (agentPrivateKey or agentSigner)");
     if (signer.address.toLowerCase() === cfg.userAddress.toLowerCase())
@@ -428,6 +430,13 @@ export class HyperliquidExecutor implements Executor {
         const st = (await this.info.orderStatus(this.cfg.vaultAddress ?? this.cfg.userAddress, cloid)) as { status?: string; order?: { status?: string } };
         if (st?.status && st.status !== "unknownOid")
           return { status: "rejected", reason: `duplicate: order ${cloid} for ${req.clientId} already exists (${st.order?.status ?? st.status}); reconcile instead of resending` };
+      }
+
+      // Set the venue leverage before a perp open (the engine sizes notional as margin × leverage).
+      if (req.phase === "open" && req.instrument.kind === "perp" && req.leverage != null && req.leverage >= 1 && !this.cfg.dryRun) {
+        const lev = await this.setLeverage(req.instrument, req.leverage);
+        const st = lev as { status?: string; response?: unknown };
+        if (st?.status && st.status !== "ok") return { status: "rejected", reason: `could not set leverage: ${JSON.stringify(st.response ?? st).slice(0, 200)}` };
       }
 
       const isLimit = req.phase === "open" && req.order?.type === "limit" && req.order.limitPrice != null;

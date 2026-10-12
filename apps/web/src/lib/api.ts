@@ -172,7 +172,27 @@ export interface Me {
   ai: { usedToday: number; dailyLimit: number | null } | null;
 }
 
+export interface LiveStatus {
+  config: { enabled: boolean; network: "testnet" | "mainnet"; builder: string | null; builderFeeBps: number | null; maxAllocationUsd: number; maxLeverage: number };
+  account: { userId: string; network: string; hlAddress: string; agentApprovedAt: number | null; builderApprovedAt: number | null } | null;
+  agentAddress: string | null;
+  venue: { accountValueUsd: number | null; withdrawableUsd: number | null; agentApprovedOnVenue: boolean | null; builderMaxFeeTenthsBps: number | null } | null;
+  ready: boolean;
+  blockers: string[];
+}
+
+export interface ApprovalRequests {
+  agentAddress: string;
+  network: "testnet" | "mainnet";
+  requests: { kind: "agent" | "builder"; typedData: Record<string, unknown> }[];
+}
+
 export const api = {
+  liveStatus: () => req<LiveStatus>("/live/status"),
+  linkLive: (hlAddress: string) => req<LiveStatus>("/live/account", { method: "POST", json: { hlAddress } }),
+  prepareApprovals: (signatureChainId: string) => req<ApprovalRequests>("/live/approvals/prepare", { method: "POST", json: { signatureChainId } }),
+  submitApproval: (kind: "agent" | "builder", signature: string) => req<{ ok: true }>("/live/approvals/submit", { method: "POST", json: { kind, signature } }),
+
   me: () => req<Me>("/me"),
   reportProfile: (body: { wallets?: string[]; displayName?: string | null }) => req<Me["user"]>("/me", { method: "POST", json: body }),
 
@@ -239,7 +259,7 @@ export const api = {
   },
 
   deployments: () => req<{ deployments: Snapshot[] }>("/deployments"),
-  deploy: (body: { strategy?: Strategy; strategyId?: string; allocationUsd: number; intervalSec?: number }) =>
+  deploy: (body: { strategy?: Strategy; strategyId?: string; allocationUsd: number; intervalSec?: number; mode?: "paper" | "live"; confirm?: string }) =>
     req<DeploymentRecord>("/deployments", { method: "POST", json: body }),
   deployment: (id: string) => req<Snapshot>(`/deployments/${encodeURIComponent(id)}`),
   events: (id: string, since?: number) => req<{ events: EngineEvent[] }>(`/deployments/${encodeURIComponent(id)}/events${since ? `?since=${since}` : ""}`),

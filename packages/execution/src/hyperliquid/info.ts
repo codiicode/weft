@@ -70,10 +70,12 @@ export interface HlInfo {
 }
 
 export class HttpHlInfo implements HlInfo {
-  constructor(
-    private readonly baseUrl: string = HL_MAINNET_URL,
-    private readonly fetchFn: FetchLike = globalThis.fetch as unknown as FetchLike
-  ) {}
+  private readonly baseUrl: string;
+  private readonly fetchFn: FetchLike;
+  constructor(baseUrl: string = HL_MAINNET_URL, fetchFn: FetchLike = globalThis.fetch as unknown as FetchLike) {
+    this.baseUrl = baseUrl;
+    this.fetchFn = fetchFn;
+  }
   private post<T>(body: unknown) {
     return postJson<T>(this.fetchFn, `${this.baseUrl}/info`, body);
   }
@@ -155,10 +157,12 @@ export class AssetResolver {
   private dexCache: Promise<PerpDexs> | null = null;
   private outcomeCache: Promise<OutcomeMeta> | null = null;
 
-  constructor(
-    private readonly info: HlInfo,
-    private readonly opts: { outcomeSzDecimals?: number } = {}
-  ) {}
+  private readonly info: HlInfo;
+  private readonly opts: { outcomeSzDecimals?: number };
+  constructor(info: HlInfo, opts: { outcomeSzDecimals?: number } = {}) {
+    this.info = info;
+    this.opts = opts;
+  }
 
   refresh(): void {
     this.perpCache.clear();

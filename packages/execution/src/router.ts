@@ -8,7 +8,10 @@ import type { ExecutionResult, Executor, OrderRequest } from "./types.ts";
  */
 export class RoutingExecutor implements Executor {
   readonly mode = "live" as const;
-  constructor(private readonly routes: { hyperliquid?: Executor; solana?: Executor }) {}
+  private readonly routes: { hyperliquid?: Executor; solana?: Executor };
+  constructor(routes: { hyperliquid?: Executor; solana?: Executor }) {
+    this.routes = routes;
+  }
 
   route(req: OrderRequest): Executor | null {
     const i = req.instrument;

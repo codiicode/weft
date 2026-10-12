@@ -112,7 +112,7 @@ export class Session {
     let res;
     try {
       res = await this.deps.executor.execute(
-        { clientId, instrument: p.instrument, instrumentKey: p.instrumentKey, side: p.side === "long" ? "sell" : "buy", phase: "close", qty, fallbackPrice: p.markPrice },
+        { clientId, instrument: p.instrument, instrumentKey: p.instrumentKey, side: p.side === "long" ? "sell" : "buy", phase: "close", qty, fallbackPrice: p.markPrice, deploymentId: this.deployment.id },
         this.now
       );
     } catch (e) {
@@ -693,6 +693,8 @@ async function executeOpen(s: Session, i: OpenIntent, usdPrices: Record<string, 
         phase: "open",
         notionalUsd: usd * i.leverage,
         order: i.order,
+        deploymentId: s.deployment.id,
+        leverage: i.leverage,
       },
       s.now
     );
@@ -729,7 +731,7 @@ async function executeOptions(s: Session, i: OptionsIntent, usdPrices: Record<st
     let res;
     try {
       res = await s.deps.executor.execute(
-        { clientId: `${i.key}:${leg.instrumentKey}`, instrument: leg.instrument, instrumentKey: leg.instrumentKey, side: leg.side, phase: "open", qty: units * leg.ratio, order: i.order },
+        { clientId: `${i.key}:${leg.instrumentKey}`, instrument: leg.instrument, instrumentKey: leg.instrumentKey, side: leg.side, phase: "open", qty: units * leg.ratio, order: i.order, deploymentId: s.deployment.id },
         s.now
       );
     } catch (e) {

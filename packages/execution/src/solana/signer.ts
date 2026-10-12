@@ -17,10 +17,11 @@ export type Cluster = "devnet" | "testnet" | "localnet" | "mainnet-beta";
 /** Devnet / localnet / tests only. Refuses to exist for mainnet. */
 export class LocalKeypairSigner implements Signer {
   readonly publicKey: PublicKey;
-  constructor(
-    private readonly keypair: Keypair,
-    readonly cluster: Exclude<Cluster, "mainnet-beta">
-  ) {
+  private readonly keypair: Keypair;
+  readonly cluster: Exclude<Cluster, "mainnet-beta">;
+  constructor(keypair: Keypair, cluster: Exclude<Cluster, "mainnet-beta">) {
+    this.keypair = keypair;
+    this.cluster = cluster;
     if ((cluster as Cluster) === "mainnet-beta") throw new Error("LocalKeypairSigner is for devnet/tests only; use a policy signer on mainnet");
     this.publicKey = keypair.publicKey;
   }
@@ -46,10 +47,9 @@ export interface TurnkeyStamper {
  */
 export class TurnkeyApiKeyStamper implements TurnkeyStamper {
   private readonly key: ReturnType<typeof createPrivateKey>;
-  constructor(
-    private readonly publicKeyHex: string,
-    privateKeyHex: string
-  ) {
+  private readonly publicKeyHex: string;
+  constructor(publicKeyHex: string, privateKeyHex: string) {
+    this.publicKeyHex = publicKeyHex;
     const ecdh = createECDH("prime256v1");
     ecdh.setPrivateKey(Buffer.from(privateKeyHex, "hex"));
     const pub = ecdh.getPublicKey(); // 0x04 ‖ x ‖ y
@@ -98,7 +98,9 @@ export function turnkeySignTransactionBody(o: { organizationId: string; signWith
  */
 export class TurnkeySigner implements Signer {
   readonly publicKey: PublicKey;
-  constructor(private readonly o: TurnkeySignerOptions) {
+  private readonly o: TurnkeySignerOptions;
+  constructor(o: TurnkeySignerOptions) {
+    this.o = o;
     this.publicKey = o.publicKey;
   }
 

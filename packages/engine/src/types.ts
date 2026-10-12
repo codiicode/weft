@@ -167,7 +167,8 @@ export interface DeploymentSnapshot {
 
 export interface CreateDeploymentInput {
   strategy: Strategy;
-  mode?: "paper";
+  /** Must match the engine's executor ("paper" by default). */
+  mode?: "paper" | "live";
   allocationUsd: number;
   caps?: RiskCaps;
   intervalSec?: number;

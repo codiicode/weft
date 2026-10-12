@@ -13,6 +13,7 @@ export function RunCard({ s }: { s: Snapshot }) {
     <Link href={`/app/run?id=${encodeURIComponent(d.id)}`} className="group block">
       <Card className="h-full p-5 transition-shadow duration-300 group-hover:shadow-lift">
         <div className="flex items-center gap-2">
+          {d.mode === "live" && <Pill tone="short">Live</Pill>}
           <Pill tone={d.status === "running" ? "long" : d.status === "killed" ? "short" : "neutral"}>
             {d.status === "running" && <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-long" />}
             {d.status}

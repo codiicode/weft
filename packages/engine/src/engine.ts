@@ -226,14 +226,16 @@ export function createEngine(opts: EngineOptions): EngineRuntime {
     async createDeployment(input: CreateDeploymentInput): Promise<DeploymentRecord> {
       const v = validateStrategy(input.strategy);
       if (!v.ok) throw new Error(`invalid strategy: ${v.errors.map((e) => `${e.path}: ${e.message}`).join("; ")}`);
-      if ((input.mode ?? "paper") !== "paper") throw new Error("only paper deployments are supported");
+      // An engine runs one kind of money: its executor decides. Paper engines never take live deployments.
+      const mode = input.mode ?? executor.mode;
+      if (mode !== executor.mode) throw new Error(`this engine runs ${executor.mode} deployments, not ${mode}`);
       if (!(input.allocationUsd > 0) || !Number.isFinite(input.allocationUsd)) throw new Error("allocationUsd must be a positive number");
       const caps = RiskCaps.parse(input.caps ?? {});
       const t = now();
       const d: DeploymentRecord = {
         id: newId(),
         strategy: v.strategy,
-        mode: "paper",
+        mode,
         allocationUsd: input.allocationUsd,
         caps,
         status: "running",
@@ -241,7 +243,7 @@ export function createEngine(opts: EngineOptions): EngineRuntime {
         createdAt: t,
         updatedAt: t,
       };
-      const ev = event(d.id, "status", `Deployed "${d.strategy.name}" on paper with ${fmtUsd(d.allocationUsd)}`, { to: "running" }, t);
+      const ev = event(d.id, "status", `Deployed "${d.strategy.name}" ${mode === "live" ? "LIVE" : "on paper"} with ${fmtUsd(d.allocationUsd)}`, { to: "running" }, t);
       await store.commit({
         deploymentId: d.id,
         deployment: d,
