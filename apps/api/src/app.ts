@@ -9,6 +9,7 @@ import type { Catalog, MarketData, Product } from "@weft/venues";
 import type { Engine, EngineEvent } from "@weft/engine";
 import type { StrategyLibrary } from "./lib/library.ts";
 import { generateStrategy, GenerationError } from "./ai/generate.ts";
+import type { Notifier } from "./lib/alerts.ts";
 
 export interface AppDeps {
   catalog: Catalog;
@@ -17,6 +18,7 @@ export interface AppDeps {
   library: StrategyLibrary;
   /** "live" | "simulated" per signal kind, from the venues providers. */
   signalModes: Record<string, "live" | "simulated">;
+  notifier?: Notifier;
 }
 
 const PRODUCTS = ["perps", "stocks", "predictions", "tokens", "options"] as const;
@@ -197,6 +199,22 @@ export function createApp(deps: AppDeps) {
       }
       unsub();
     });
+  });
+
+  /* ---------------- Alerts (Telegram / webhook) ---------------- */
+
+  app.get("/alerts", (c) =>
+    c.json({
+      sinks: deps.notifier?.sinks ?? [],
+      configured: (deps.notifier?.sinks.length ?? 0) > 0,
+      recent: deps.notifier?.recent().slice(0, 20) ?? [],
+      help: "Set TELEGRAM_BOT_TOKEN + TELEGRAM_CHAT_ID and/or WEFT_ALERT_WEBHOOK_URL, then restart the API.",
+    })
+  );
+  app.post("/alerts/test", async (c) => {
+    if (!deps.notifier?.sinks.length) return c.json({ error: "no alert sinks configured" }, 400);
+    await deps.notifier.test();
+    return c.json({ ok: true });
   });
 
   /* ---------------- Leaderboard & stats ---------------- */

@@ -6,6 +6,7 @@ import { createVenues } from "@weft/venues";
 import { createEngine, SqliteStore } from "@weft/engine";
 import { StrategyLibrary } from "./lib/library.ts";
 import { resolvePlaceholders } from "./lib/resolve.ts";
+import { createNotifier, sinksFromEnv } from "./lib/alerts.ts";
 import { createApp } from "./app.ts";
 
 const PORT = Number(process.env.PORT ?? 8787);
@@ -22,12 +23,18 @@ const engine = createEngine({
 const library = new StrategyLibrary(join(DATA_DIR, "library.db"));
 const signalModes = Object.fromEntries(venues.signalProviders.flatMap((p) => p.kinds.map((k) => [k, p.mode] as const)));
 
-const app = createApp({ catalog: venues.catalog, marketData: venues.marketData, engine, library, signalModes });
+const notifier = createNotifier(engine, sinksFromEnv(), {
+  includeFills: process.env.WEFT_ALERT_FILLS === "1",
+  strategyName: async (id) => (await engine.getSnapshot(id))?.deployment.strategy.name ?? id,
+  log: (m) => console.warn(m),
+});
+const app = createApp({ catalog: venues.catalog, marketData: venues.marketData, engine, library, signalModes, notifier });
 engine.start();
 
 const server = serve({ fetch: app.fetch, port: PORT }, (info) => {
   console.log(`weft api listening on http://localhost:${info.port}`);
   console.log(`  data: ${DATA_DIR}`);
+  console.log(`  alerts: ${notifier.sinks.length ? notifier.sinks.join(", ") : "off (set TELEGRAM_BOT_TOKEN + TELEGRAM_CHAT_ID or WEFT_ALERT_WEBHOOK_URL)"}`);
   console.log(`  AI generation: ${process.env.ANTHROPIC_API_KEY ? "Claude (claude-opus-5-5)" : "template fallback (set ANTHROPIC_API_KEY for Claude)"}`);
 });
 
