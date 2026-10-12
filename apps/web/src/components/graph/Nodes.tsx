@@ -40,7 +40,7 @@ function Header({ node, met, right }: { node: GraphNode; met: boolean; right?: R
   return (
     <div className="flex h-[22px] items-center gap-2">
       <Chip node={node} met={met} />
-      <span className="font-mono text-[9.5px] font-medium uppercase tracking-[0.14em] text-muted">
+      <span className="text-[11px] font-medium text-muted">
         {KIND_LABEL[node.kind]}
       </span>
       <span className="ml-auto flex min-w-0 items-center">{right}</span>
@@ -52,7 +52,7 @@ function StatusPill({ met }: { met: boolean }) {
   return (
     <motion.span
       layout
-      className="relative inline-flex h-[20px] items-center gap-1 overflow-hidden whitespace-nowrap rounded-full px-2 font-mono text-[9.5px] font-medium uppercase tracking-[0.08em]"
+      className="relative inline-flex h-[20px] items-center gap-1 overflow-hidden whitespace-nowrap rounded-[6px] px-1.5 text-[10.5px] font-medium"
       style={{
         background: met ? "var(--long-soft)" : "var(--paper-2)",
         color: met ? "var(--met)" : "var(--muted)",
@@ -78,7 +78,7 @@ function StatusPill({ met }: { met: boolean }) {
             animate={{ y: 0, opacity: 1 }}
             exit={{ y: -12, opacity: 0 }}
           >
-            <span className="h-[6px] w-[6px] rounded-full border border-current" /> Not met
+            <span className="h-[6px] w-[6px] rounded-full border border-current" /> Waiting
           </motion.span>
         )}
       </AnimatePresence>
@@ -93,17 +93,17 @@ function SignalBody({ node, preset }: { node: SignalNode; preset: LayoutPreset }
       <Header
         node={node}
         met={false}
-        right={<span className="truncate font-mono text-[9.5px] text-faint">{node.source}</span>}
+        right={<span className="truncate text-[10.5px] text-faint">{node.source}</span>}
       />
       <div className="mt-[7px] truncate text-[13px] font-semibold leading-[17px] tracking-[-0.01em] text-ink">
         {node.title}
       </div>
       <div className="mt-[5px] flex items-end justify-between gap-2">
         <div className="min-w-0">
-          <div className="tnum truncate font-mono text-[11.5px] leading-[15px] text-ink-2">{node.value}</div>
+          <div className="tnum truncate text-[12px] leading-[15px] text-ink-2">{node.value}</div>
           {node.delta && (
             <div
-              className="tnum truncate font-mono text-[10px] leading-[13px]"
+              className="tnum truncate text-[10.5px] leading-[13px]"
               style={{ color: node.deltaDir === "down" ? "var(--short)" : "var(--long)" }}
             >
               {node.delta}
@@ -127,15 +127,15 @@ function TriggerBody({ node, met }: { node: TriggerNode; met: boolean }) {
           <div key={i} className="flex h-[20px] items-center gap-1.5">
             {i > 0 ? (
               <span
-                className="shrink-0 rounded-[4px] px-1 font-mono text-[8.5px] font-semibold leading-[14px] tracking-wider transition-colors duration-500"
+                className="shrink-0 rounded-[4px] px-1 text-[9px] font-semibold leading-[14px] tracking-wide transition-colors duration-500"
                 style={{ background: nodeSoft(node, met), color: nodeColor(node, met) }}
               >
                 {node.logic}
               </span>
             ) : (
-              <span className="shrink-0 font-mono text-[8.5px] font-semibold tracking-wider text-faint">IF</span>
+              <span className="shrink-0 text-[9px] font-semibold tracking-wide text-faint">IF</span>
             )}
-            <span className="tnum truncate font-mono text-[11px] text-ink-2">{c}</span>
+            <span className="tnum truncate text-[11.5px] text-ink-2">{c}</span>
           </div>
         ))}
       </div>
@@ -146,32 +146,32 @@ function TriggerBody({ node, met }: { node: TriggerNode; met: boolean }) {
 function ActionBody({ node, active, preset, width }: { node: ActionNode; active: boolean; preset: LayoutPreset; width: number }) {
   const color = sideColor(node.side);
   const params = [
-    ["Alloc", node.alloc],
+    ["Size", node.alloc],
     node.tp ? ["TP", node.tp] : null,
-    node.sl ? ["SL", node.sl] : null,
+    node.sl ? ["Stop", node.sl] : null,
   ].filter(Boolean) as [string, string][];
   return (
     <>
       <Header
         node={node}
         met={false}
-        right={<span className="truncate font-mono text-[9.5px] text-faint">{node.venue}</span>}
+        right={<span className="truncate text-[10.5px] text-faint">{node.venue}</span>}
       />
       <div className="mt-[7px] flex h-[20px] items-center gap-1.5">
         <span
-          className="rounded-[5px] px-1.5 font-mono text-[9.5px] font-semibold uppercase leading-[18px] tracking-[0.06em]"
+          className="rounded-[5px] px-1.5 text-[10.5px] font-semibold leading-[18px]"
           style={{ background: sideSoft(node.side), color }}
         >
           {sideLabel(node.side)}
         </span>
         <span className="truncate text-[13px] font-semibold tracking-[-0.01em] text-ink">{node.asset}</span>
-        {node.lev && <span className="font-mono text-[10.5px] text-muted">{node.lev}</span>}
+        {node.lev && <span className="tnum text-[11px] text-muted">{node.lev}</span>}
         <span className="ml-auto shrink-0">
           {active && node.pnl != null ? (
             <motion.span
               initial={{ opacity: 0, x: 6 }}
               animate={{ opacity: 1, x: 0 }}
-              className="tnum font-mono text-[11px] font-medium"
+              className="tnum text-[11.5px] font-medium"
               style={{ color: node.pnl >= 0 ? "var(--long)" : "var(--short)" }}
             >
               <CountUp value={node.pnl} from={0} format={(v) => fmtPct(v, 1)} duration={1.6} />
@@ -183,7 +183,7 @@ function ActionBody({ node, active, preset, width }: { node: ActionNode; active:
         {params.slice(0, preset === "stack" ? 2 : 3).map(([k, v]) => (
           <span
             key={k}
-            className="tnum rounded-[5px] border border-line px-1.5 font-mono text-[9.5px] leading-[16px] text-ink-2"
+            className="tnum rounded-[5px] border border-line px-1.5 text-[10.5px] leading-[16px] text-ink-2"
           >
             <span className="text-faint">{k} </span>
             {v}
@@ -191,7 +191,7 @@ function ActionBody({ node, active, preset, width }: { node: ActionNode; active:
         ))}
       </div>
       {node.spark && (
-        <div className="pointer-events-none absolute inset-x-0 bottom-0 h-[26px] overflow-hidden rounded-b-[14px]">
+        <div className="pointer-events-none absolute inset-x-0 bottom-0 h-[26px] overflow-hidden rounded-b-[10px]">
           {active ? (
             <Sparkline
               data={node.spark}
@@ -220,18 +220,18 @@ function ExitBody({ node, active }: { node: ExitNode; active: boolean }) {
         met={false}
         right={
           <span
-            className="rounded-full px-2 font-mono text-[9.5px] uppercase leading-[20px] tracking-[0.08em]"
+            className="rounded-[6px] px-1.5 text-[10.5px] font-medium leading-[20px]"
             style={{
               background: active ? "var(--short-soft)" : "var(--paper-2)",
               color: active ? "var(--short)" : "var(--muted)",
             }}
           >
-            {active ? "Fired" : "Armed"}
+            {active ? "Triggered" : "Watching"}
           </span>
         }
       />
       <div className="mt-[7px] truncate text-[13px] font-semibold tracking-[-0.01em] text-ink">{node.title}</div>
-      <div className="mt-[3px] truncate font-mono text-[10.5px] text-muted">{node.detail}</div>
+      <div className="mt-[3px] truncate text-[11.5px] text-muted">{node.detail}</div>
     </>
   );
 }
@@ -255,7 +255,7 @@ export function NodeContent({ node, preset, met, active, width }: NodeViewProps)
     return (
       <div className="flex h-full items-center gap-2 px-2">
         <Chip node={node} met={met} size={20} />
-        <span className="min-w-0 flex-1 truncate font-mono text-[10.5px] text-ink-2">{compactLabel(node)}</span>
+        <span className="min-w-0 flex-1 truncate text-[11.5px] text-ink-2">{compactLabel(node)}</span>
         {node.kind !== "signal" && (
           <span
             className="h-1.5 w-1.5 shrink-0 rounded-full transition-colors duration-500"

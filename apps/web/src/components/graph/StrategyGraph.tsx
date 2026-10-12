@@ -181,7 +181,7 @@ function StrategyGraphImpl({
               return (
                 <motion.div
                   key={`g-${n.id}`}
-                  className="pointer-events-none absolute rounded-[14px] border border-dashed border-line-2"
+                  className="pointer-events-none absolute rounded-[10px] border border-dashed border-line-2"
                   style={{ left: b.x, top: b.y, width: b.w, height: b.h }}
                   initial={{ opacity: 0 }}
                   animate={{ opacity: rt.visible[n.id] ? 0 : reduce ? 0.8 : [0.35, 0.9, 0.35] }}
@@ -205,23 +205,23 @@ function StrategyGraphImpl({
                 key={n.id}
                 className="absolute"
                 style={{ left: box.x, top: box.y, width: box.w, height: box.h, zIndex: hover === n.id ? 3 : 1 }}
-                initial={instant ? false : { opacity: 0, y: 10, scale: 0.94, filter: "blur(6px)" }}
+                initial={instant ? false : { opacity: 0, y: 6, scale: 0.98 }}
                 animate={
                   visible
-                    ? { opacity: dim ? 0.32 : 1, y: 0, scale: 1, filter: "blur(0px)" }
-                    : { opacity: 0, y: 10, scale: 0.94, filter: "blur(6px)" }
+                    ? { opacity: dim ? 0.32 : 1, y: 0, scale: 1 }
+                    : { opacity: 0, y: 6, scale: 0.98 }
                 }
                 transition={{ duration: 0.55, ease: EASE }}
                 onMouseEnter={interactive ? () => setHover(n.id) : undefined}
               >
                 <motion.div
                   className={`relative h-full overflow-hidden border bg-card transition-[border-color,box-shadow] duration-500 ${
-                    resolved === "compact" ? "rounded-[10px]" : "rounded-[14px]"
+                    resolved === "compact" ? "rounded-[8px]" : "rounded-[10px]"
                   } ${interactive ? "cursor-default" : ""}`}
                   style={{
                     borderColor: lit ? `color-mix(in oklab, ${color} 55%, transparent)` : "var(--line)",
                     boxShadow: lit
-                      ? `0 0 0 4px color-mix(in oklab, ${color} 12%, transparent), 0 10px 30px -10px color-mix(in oklab, ${color} 45%, transparent)`
+                      ? `0 0 0 3px color-mix(in oklab, ${color} 10%, transparent)`
                       : "var(--shadow-card)",
                   }}
                   whileHover={interactive ? { y: -2, transition: { type: "spring", stiffness: 400, damping: 26 } } : undefined}
@@ -233,7 +233,7 @@ function StrategyGraphImpl({
                   {lit && !instant && !reduce && (
                     <motion.span
                       className="pointer-events-none absolute inset-0"
-                      style={{ background: `radial-gradient(120% 90% at 0% 50%, color-mix(in oklab, ${color} 30%, transparent), transparent 70%)` }}
+                      style={{ background: `radial-gradient(120% 90% at 0% 50%, color-mix(in oklab, ${color} 14%, transparent), transparent 70%)` }}
                       initial={{ opacity: 1 }}
                       animate={{ opacity: 0 }}
                       transition={{ duration: 1.4, ease: "easeOut" }}

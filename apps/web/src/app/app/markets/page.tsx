@@ -59,7 +59,7 @@ function Detail({ row, onClose }: { row: MarketListing; onClose: () => void }) {
       exit={{ x: 40, opacity: 0 }}
       transition={{ type: "spring", stiffness: 320, damping: 32 }}
       className="fixed inset-y-0 right-0 z-50 w-full max-w-[420px] overflow-y-auto border-l border-line bg-card p-6 shadow-window"
-      data-lenis-prevent
+     
     >
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">

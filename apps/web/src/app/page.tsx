@@ -1,39 +1,27 @@
-import { Nav } from "@/components/sections/Nav";
-import { Hero } from "@/components/sections/Hero";
-import { Tape } from "@/components/sections/Tape";
-import { Manifesto } from "@/components/sections/Manifesto";
-import { Products } from "@/components/sections/Products";
-import { HowItWorks } from "@/components/sections/HowItWorks";
-import { Gallery } from "@/components/sections/Gallery";
-import { Signals } from "@/components/sections/Signals";
-import { Leaderboard } from "@/components/sections/Leaderboard";
-import { Token } from "@/components/sections/Token";
-import { Safety } from "@/components/sections/Safety";
-import { Compare } from "@/components/sections/Compare";
-import { FAQ } from "@/components/sections/FAQ";
-import { CTA } from "@/components/sections/CTA";
-import { Footer } from "@/components/sections/Footer";
-import { SmoothScroll } from "@/components/ui/SmoothScroll";
+import { Nav } from "@/components/landing/Nav";
+import { Hero } from "@/components/landing/Hero";
+import { HowItWorks } from "@/components/landing/HowItWorks";
+import { Markets } from "@/components/landing/Markets";
+import { Safety } from "@/components/landing/Safety";
+import { Strategies } from "@/components/landing/Strategies";
+import { Token } from "@/components/landing/Token";
+import { FAQ } from "@/components/landing/FAQ";
+import { Closing } from "@/components/landing/Closing";
+import { Footer } from "@/components/landing/Footer";
 
 export default function Page() {
   return (
     <>
-      <SmoothScroll />
       <Nav />
       <main>
         <Hero />
-        <Tape />
-        <Manifesto />
-        <Products />
         <HowItWorks />
-        <Gallery />
-        <Signals />
+        <Markets />
         <Safety />
-        <Leaderboard />
+        <Strategies />
         <Token />
-        <Compare />
         <FAQ />
-        <CTA />
+        <Closing />
       </main>
       <Footer />
     </>
