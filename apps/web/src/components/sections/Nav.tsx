@@ -46,6 +46,9 @@ export function Nav() {
         <div className="ml-auto flex items-center gap-2">
           <ThemeToggle />
           <span className="hidden sm:inline-flex">
+            <a href="/app" className="mr-1 hidden rounded-full px-3 py-2 text-[13.5px] font-medium text-ink-2 transition-colors hover:text-ink md:inline-flex">
+              Open app
+            </a>
             <Button href="#waitlist" size="md">
               Join waitlist <IconArrowRight size={14} />
             </Button>
@@ -82,6 +85,9 @@ export function Nav() {
                 {l}
               </a>
             ))}
+            <a href="/app" className="mt-1 block rounded-2xl border border-line px-4 py-3 text-[16px] font-medium text-ink">
+              Open the app (paper trading) →
+            </a>
             <a href="#waitlist" onClick={() => setOpen(false)} className="mt-1 block rounded-2xl bg-ink px-4 py-3 text-[16px] font-medium text-paper">
               Join the waitlist →
             </a>

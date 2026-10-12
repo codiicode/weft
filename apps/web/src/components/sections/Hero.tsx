@@ -73,8 +73,8 @@ export function Hero() {
           <Button href="#waitlist" size="lg">
             Join the waitlist <IconArrowRight size={15} />
           </Button>
-          <Button href="#gallery" size="lg" variant="ghost">
-            Explore strategies
+          <Button href="/app/new" size="lg" variant="ghost">
+            Try it on paper
           </Button>
         </div>
       </motion.div>
