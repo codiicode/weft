@@ -80,12 +80,11 @@ function Builder() {
   useEffect(() => {
     const from = params.get("from");
     if (from) {
-      api
-        .strategy(from)
-        .then((e) => {
-          setThesis(e.strategy.thesis);
-          setResult({ strategy: e.strategy, warnings: [], rationale: "", source: "template", notes: [], graph: undefined as never });
-          setJson(JSON.stringify(e.strategy, null, 2));
+      (from.startsWith("run:") ? api.deployment(from.slice(4)).then((r) => r.deployment.strategy) : api.strategy(from).then((e) => e.strategy))
+        .then((st) => {
+          setThesis(st.thesis);
+          setResult({ strategy: st, warnings: [], rationale: "", source: "template", notes: [], graph: undefined as never });
+          setJson(JSON.stringify(st, null, 2));
           setStatus("done");
         })
         .catch((e) => setError((e as Error).message));

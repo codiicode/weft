@@ -208,6 +208,9 @@ function Run() {
         }
         actions={
           <>
+            <Btn variant="quiet" href={`/app/new?from=${encodeURIComponent(`run:${d.id}`)}`}>
+              Edit a copy
+            </Btn>
             {(status === "running" || status === "paused") && (
               <Btn variant="quiet" onClick={() => control("tick")}>
                 Check now
