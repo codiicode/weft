@@ -1,0 +1,42 @@
+{
+ "provider": "polymarket",
+ "marketId": "POLY-5430457-0",
+ "status": "open",
+ "result": null,
+ "marketResultPubkey": null,
+ "title": "BNK FEARX",
+ "openTime": 1791469819,
+ "closeTime": 1791822600,
+ "isTeamMarket": true,
+ "resolveAt": null,
+ "pricing": {
+  "buyYesPriceUsd": 830000,
+  "sellYesPriceUsd": 820000,
+  "sellNoPriceUsd": 0,
+  "buyNoPriceUsd": 0,
+  "volume": 1357260
+ },
+ "imageUrl": "https://polymarket-upload.s3.us-east-2.amazonaws.com/league-of-legends-61a4f083a6.png",
+ "team": {
+  "name": "BNK FEARX",
+  "imageUrl": "https://polymarket-upload.s3.us-east-2.amazonaws.com/team_logos/esports/lol/league-of-legends_bnk fearx_134115.png",
+  "color": "#c4b35f",
+  "abbreviation": "fox1"
+ },
+ "outcomes": [
+  "BNK FEARX",
+  "JD Gaming"
+ ],
+ "marketOptions": [
+  {
+   "label": "BNK FEARX",
+   "buyYes": true
+  }
+ ],
+ "sportsMarketType": "moneyline",
+ "sportsLine": null,
+ "periodType": null,
+ "periodNumber": null,
+ "gameNumber": null,
+ "eventId": "POLY-1153957"
+}

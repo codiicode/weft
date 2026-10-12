@@ -5,7 +5,7 @@ import Link from "next/link";
 import { api } from "@/lib/api";
 import { useApi, fmtUsd, fmtCompact } from "@/lib/use-api";
 import { PageHeader, Card, Btn, Stat, Empty } from "@/components/app/AppShell";
-import { RunCard } from "./runs/page";
+import { RunCard } from "@/components/app/RunCard";
 import { IconModel, IconSend } from "@/components/graph/icons";
 
 const PRODUCT_TILES = [

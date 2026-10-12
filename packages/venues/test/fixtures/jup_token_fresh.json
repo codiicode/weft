@@ -1,0 +1,51 @@
+[
+ {
+  "id": "EMfPZndupU56AimQhnvPoKSXX8fHDgHi6psL6xfNpump",
+  "name": "Pull Terminal ",
+  "symbol": "Pulls",
+  "decimals": 6,
+  "dev": "JE7oTdb4gmRcA1ioQsFv73cp5ZNE9UhhTT6ShhaGTKta",
+  "circSupply": 1000000000,
+  "totalSupply": 1000000000,
+  "tokenProgram": "TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCXEpPxuEb",
+  "launchpad": "pump.fun",
+  "fdv": 3360.0044866342687,
+  "mcap": 3360.0044866342687,
+  "usdPrice": 3.360004486634269e-06,
+  "priceBlockId": 456057199,
+  "stats5m": {
+   "buyVolume": 279.179629417687,
+   "numBuys": 3
+  },
+  "stats1h": {
+   "buyVolume": 279.179629417687,
+   "numBuys": 3
+  },
+  "stats6h": {
+   "buyVolume": 279.179629417687,
+   "numBuys": 3
+  },
+  "stats24h": {
+   "buyVolume": 279.179629417687,
+   "numBuys": 3
+  },
+  "firstPool": {
+   "id": "EMfPZndupU56AimQhnvPoKSXX8fHDgHi6psL6xfNpump",
+   "createdAt": "2026-10-12T13:06:12Z"
+  },
+  "audit": {
+   "mintAuthorityDisabled": true,
+   "freezeAuthorityDisabled": true,
+   "devBalancePercentage": 3.7376878476239,
+   "devMints": 1
+  },
+  "organicScore": 0,
+  "organicScoreLabel": "low",
+  "tags": [
+   "token-2022",
+   "unknown"
+  ],
+  "createdAt": "2026-10-12T13:06:12Z",
+  "updatedAt": "2026-10-12T13:06:13.72900305Z"
+ }
+]

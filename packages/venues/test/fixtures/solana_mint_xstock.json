@@ -1,0 +1,31 @@
+{
+ "jsonrpc": "2.0",
+ "result": {
+  "context": {
+   "apiVersion": "4.3.0",
+   "slot": 456061203
+  },
+  "value": {
+   "data": {
+    "parsed": {
+     "info": {
+      "decimals": 8,
+      "freezeAuthority": "JDq14BWvqCRFNu1krb12bcRpbGtJZ1FLEakMw6FdxJNs",
+      "isInitialized": true,
+      "mintAuthority": "7pt9tkctJPK7PPNQJ77GKg8ZffSF6QxoMiCFYHxrtaCj",
+      "supply": "32126368225718"
+     },
+     "type": "mint"
+    },
+    "program": "spl-token-2022",
+    "space": 679
+   },
+   "executable": false,
+   "lamports": 621944468,
+   "owner": "TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCXEpPxuEb",
+   "rentEpoch": 18446744073709551615,
+   "space": 679
+  }
+ },
+ "id": 1
+}

@@ -55,6 +55,18 @@ describe("checkIntents", () => {
   });
 });
 
+describe("tokenized stocks", () => {
+  it("skip issuer-controlled rug gates but keep liquidity and impact gates", () => {
+    const x = token(0.5);
+    if (x.type !== "open" || x.instrument.kind !== "token") throw new Error();
+    x.instrument = { ...x.instrument, assetClass: "equity" };
+    const facts = { ...healthy, mint_authority_revoked: false, freeze_authority_revoked: false, top10_holders_pct: 73 };
+    expect(checkIntents([x], ctx({ usdPrices: { SOL: 180 }, tokenFacts: { [PUMP_MINT]: facts } })).approved).toHaveLength(1);
+    const thin = checkIntents([x], ctx({ usdPrices: { SOL: 180 }, tokenFacts: { [PUMP_MINT]: { ...facts, liquidity_usd: 1_000 } } }));
+    expect(thin.rejected[0]!.reasons[0]).toMatch(/liquidity/);
+  });
+});
+
 describe("effectiveRisk", () => {
   it("the stricter of strategy and user caps wins, absent caps change nothing", () => {
     const strat = RiskPolicy.parse({ maxLeverage: 10, maxPositionPct: 20 });

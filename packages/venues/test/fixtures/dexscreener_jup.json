@@ -1,0 +1,61 @@
+[
+ {
+  "chainId": "solana",
+  "dexId": "orca",
+  "url": "https://dexscreener.com/solana/c1mglojnlwbkadvu9bhdtgzz1ozx4dz5zgdgcgvvw8wz",
+  "pairAddress": "C1MgLojNLWBKADvu9BHdtgzz1oZX4dZ5zGdGcgvvW8Wz",
+  "labels": [
+   "wp"
+  ],
+  "baseToken": {
+   "address": "JUPyiwrYJFskUPiHa7hkeR8VUtAeFoSYbKedZNsDvCN",
+   "name": "Jupiter",
+   "symbol": "JUP"
+  },
+  "quoteToken": {
+   "address": "So11111111111111111111111111111111111111112",
+   "name": "Wrapped SOL",
+   "symbol": "SOL"
+  },
+  "priceNative": "0.003201",
+  "priceUsd": "0.3524",
+  "txns": {
+   "m5": {
+    "buys": 28,
+    "sells": 21
+   },
+   "h1": {
+    "buys": 341,
+    "sells": 382
+   },
+   "h6": {
+    "buys": 1560,
+    "sells": 1450
+   },
+   "h24": {
+    "buys": 9413,
+    "sells": 10040
+   }
+  },
+  "volume": {
+   "h24": 2275612.81,
+   "h6": 288550.08,
+   "h1": 64087.84,
+   "m5": 4335.39
+  },
+  "priceChange": {
+   "m5": -0.26,
+   "h1": -0.88,
+   "h6": -1.96,
+   "h24": -3.37
+  },
+  "liquidity": {
+   "usd": 786547.42,
+   "base": 1059364,
+   "quote": 3752.3684
+  },
+  "fdv": 2467397255,
+  "marketCap": 1170032523,
+  "pairCreatedAt": 1706675725000
+ }
+]

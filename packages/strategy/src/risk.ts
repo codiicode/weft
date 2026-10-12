@@ -102,11 +102,14 @@ export function tokenGateReasons(intent: OpenIntent, ctx: RiskContext): string[]
   if (!f) return ["no on-chain safety data for this token"];
   const out: string[] = [];
   if (f.liquidity_usd < g.minLiquidityUsd) out.push(`liquidity $${Math.round(f.liquidity_usd)} below $${g.minLiquidityUsd}`);
-  if (f.top10_holders_pct > g.maxTop10HoldersPct) out.push(`top-10 holders own ${f.top10_holders_pct}% (max ${g.maxTop10HoldersPct}%)`);
-  if (g.requireMintAuthorityRevoked && !f.mint_authority_revoked) out.push("mint authority not revoked");
-  if (g.requireFreezeAuthorityRevoked && !f.freeze_authority_revoked) out.push("freeze authority not revoked");
+  // Tokenized stocks (xStocks) are issuer-controlled by design: the issuer keeps mint/freeze authority
+  // and custodial wallets hold most supply. Rug gates don't apply; liquidity and impact gates still do.
+  const issuerBacked = intent.instrument.assetClass === "equity";
+  if (!issuerBacked && f.top10_holders_pct > g.maxTop10HoldersPct) out.push(`top-10 holders own ${f.top10_holders_pct}% (max ${g.maxTop10HoldersPct}%)`);
+  if (!issuerBacked && g.requireMintAuthorityRevoked && !f.mint_authority_revoked) out.push("mint authority not revoked");
+  if (!issuerBacked && g.requireFreezeAuthorityRevoked && !f.freeze_authority_revoked) out.push("freeze authority not revoked");
   if (f.age_minutes < g.minAgeMinutes) out.push(`token is ${f.age_minutes} min old (min ${g.minAgeMinutes})`);
-  if (f.dev_sold_pct > g.blockIfDevSoldPctAbove) out.push(`dev sold ${f.dev_sold_pct}% (max ${g.blockIfDevSoldPctAbove}%)`);
+  if (!issuerBacked && f.dev_sold_pct > g.blockIfDevSoldPctAbove) out.push(`dev sold ${f.dev_sold_pct}% (max ${g.blockIfDevSoldPctAbove}%)`);
   const maxImpact = intent.order.maxPriceImpactBps ?? g.maxPriceImpactBps;
   if (f.price_impact_bps == null) out.push("no price-impact quote for this size");
   else if (f.price_impact_bps > maxImpact) out.push(`price impact ${f.price_impact_bps} bps above ${maxImpact} bps`);

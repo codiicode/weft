@@ -1,0 +1,55 @@
+{
+ "inputMint": "JUPyiwrYJFskUPiHa7hkeR8VUtAeFoSYbKedZNsDvCN",
+ "inAmount": "28000000000",
+ "outputMint": "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v",
+ "outAmount": "9870376215",
+ "otherAmountThreshold": "9821024334",
+ "swapMode": "ExactIn",
+ "slippageBps": 50,
+ "platformFee": null,
+ "priceImpactPct": "0",
+ "routePlan": [
+  {
+   "swapInfo": {
+    "ammKey": "Et6HnPjetV8AzmxNAfzKJ6ax5VM82ZB7phY465Ns5iZW",
+    "label": "ZeroFi",
+    "inputMint": "JUPyiwrYJFskUPiHa7hkeR8VUtAeFoSYbKedZNsDvCN",
+    "outputMint": "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v",
+    "inAmount": "13160000000",
+    "outAmount": "4639202015",
+    "updateContextSlot": "456061207"
+   },
+   "percent": 47,
+   "bps": null
+  },
+  {
+   "swapInfo": {
+    "ammKey": "AkxuRa1soguFpVRjnDrRsXAcfTkZjRv1XyNXySzVivmC",
+    "label": "GoonFi V2",
+    "inputMint": "JUPyiwrYJFskUPiHa7hkeR8VUtAeFoSYbKedZNsDvCN",
+    "outputMint": "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v",
+    "inAmount": "14840000000",
+    "outAmount": "5231174200",
+    "updateContextSlot": "456061208"
+   },
+   "percent": 53,
+   "bps": null
+  }
+ ],
+ "contextSlot": 456061209,
+ "timeTaken": 0.231146244,
+ "swapUsdValue": "9868.036948041834282481005",
+ "mostReliableAmmsQuoteReport": {
+  "info": {
+   "BZtgQEyS6eXUXicYPHecYQ7PybqodXQMvkjUbP4R8mUU": "9858858704",
+   "C8Gr6AUuq9hEdSYJzoEpNcdjpojPZwqG5MtQbeouNNwg": "89483670115"
+  }
+ },
+ "longtailMarketQuoteReport": null,
+ "useIncurredSlippageForQuoting": null,
+ "useRewards": null,
+ "otherRoutePlans": null,
+ "loadedLongtailToken": false,
+ "instructionVersion": null,
+ "transactionVersion": 0
+}
