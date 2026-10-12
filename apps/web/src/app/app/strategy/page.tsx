@@ -6,6 +6,7 @@ import { useApi } from "@/lib/use-api";
 import { PageHeader, Card, Btn, Pill, Empty } from "@/components/app/AppShell";
 import { StrategyCanvas } from "@/components/app/StrategyCanvas";
 import { DeployPanel } from "@/components/app/DeployPanel";
+import { BacktestPanel } from "@/components/app/BacktestPanel";
 
 function StrategyView() {
   const id = useSearchParams().get("id") ?? "";
@@ -41,6 +42,7 @@ function StrategyView() {
           ) : (
             <StrategyCanvas strategy={s} />
           )}
+          <BacktestPanel strategyId={e.id} />
         </div>
         <div className="space-y-4">
           <DeployPanel strategyId={e.id} />

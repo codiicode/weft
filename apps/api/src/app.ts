@@ -9,6 +9,7 @@ import type { Catalog, MarketData, Product } from "@weft/venues";
 import type { Engine, EngineEvent } from "@weft/engine";
 import type { StrategyLibrary } from "./lib/library.ts";
 import { generateStrategy, GenerationError } from "./ai/generate.ts";
+import { runBacktest, type BacktestDeps } from "./backtest/run.ts";
 import type { Notifier } from "./lib/alerts.ts";
 
 export interface AppDeps {
@@ -19,6 +20,8 @@ export interface AppDeps {
   /** "live" | "simulated" per signal kind, from the venues providers. */
   signalModes: Record<string, "live" | "simulated">;
   notifier?: Notifier;
+  /** History provider (+ token facts, calendar) for POST /backtest. Absent: 501. */
+  backtest?: BacktestDeps;
 }
 
 const PRODUCTS = ["perps", "stocks", "predictions", "tokens", "options"] as const;
@@ -29,6 +32,14 @@ const DeployBody = z.object({
   allocationUsd: z.number().positive().max(10_000_000).default(10_000),
   caps: RiskCaps.optional(),
   intervalSec: z.number().int().min(5).max(3_600).optional(),
+});
+
+const BacktestBody = z.object({
+  strategy: z.unknown().optional(),
+  strategyId: z.string().optional(),
+  days: z.number().int().min(1).max(90).default(30),
+  allocationUsd: z.number().positive().max(10_000_000).default(10_000),
+  interval: z.enum(["1h", "15m"]).default("1h"),
 });
 
 export function createApp(deps: AppDeps) {
@@ -126,6 +137,24 @@ export function createApp(deps: AppDeps) {
         await stream.writeSSE({ event: "error", data: JSON.stringify({ error: (e as Error).message }) });
       }
     });
+  });
+
+  /* ---------------- Backtest ---------------- */
+
+  /** Replays the strategy through the real engine over the last N days of history. */
+  app.post("/backtest", async (c) => {
+    if (!deps.backtest) return c.json({ error: "backtesting is not configured" }, 501);
+    const body = BacktestBody.parse(await c.req.json());
+    let raw = body.strategy;
+    if (!raw && body.strategyId) {
+      raw = library.get(body.strategyId)?.strategy;
+      if (!raw) return c.json({ error: `strategy ${body.strategyId} not found` }, 404);
+    }
+    if (!raw) return c.json({ error: "strategy or strategyId is required" }, 400);
+    const v = validateStrategy(raw);
+    if (!v.ok) return c.json({ error: "invalid strategy", issues: v.errors }, 422);
+    const result = await runBacktest({ strategy: v.strategy, days: body.days, allocationUsd: body.allocationUsd, interval: body.interval }, deps.backtest);
+    return c.json(result);
   });
 
   /* ---------------- Deployments (paper) ---------------- */

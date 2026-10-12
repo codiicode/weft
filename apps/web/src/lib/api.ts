@@ -81,6 +81,81 @@ export interface Stats {
   builderFeesUsd: number;
 }
 
+/* ---------------- Backtest (mirrors apps/api/src/backtest/run.ts) ---------------- */
+
+export type BacktestInterval = "1h" | "15m";
+export type CoverageStatus = "historical" | "partial" | "unknown" | "engine" | "unused";
+
+export interface BacktestFill {
+  ts: number;
+  instrumentKey: string;
+  label: string;
+  side: "buy" | "sell";
+  qty: number;
+  price: number;
+  notionalUsd: number;
+  feeUsd: number;
+  realizedPnlUsd: number | null;
+  fundingUsd: number | null;
+  reason: Fill["reason"];
+}
+
+export interface BacktestCoverage {
+  quality: "full" | "partial" | "none";
+  note: string;
+  notes: string[];
+  signals: { id: string; kind: string; label: string; status: CoverageStatus; fields: { field: string; availability: number }[]; note?: string }[];
+  instruments: {
+    key: string;
+    label: string;
+    role: "traded" | "signal" | "reference";
+    status: "historical" | "unsupported" | "error" | "no_data";
+    source?: string;
+    bars?: number;
+    firstBarAt?: number;
+    lastBarAt?: number;
+    reason?: string;
+  }[];
+  triggers: { id: string; label: string; fires: number; entry: boolean; unknownRefs: string[] }[];
+}
+
+export interface BacktestResult {
+  strategyId: string;
+  name: string;
+  interval: BacktestInterval;
+  period: { requestedStart: number; start: number; end: number; days: number; frames: number };
+  allocationUsd: number;
+  stats: {
+    endEquityUsd: number;
+    returnPct: number;
+    maxDrawdownPct: number;
+    trades: number;
+    closedTrades: number;
+    winRatePct: number | null;
+    feesUsd: number;
+    builderFeesUsd: number;
+    fundingUsd: number;
+    exposurePct: number;
+    openPositions: number;
+    rejectedOrders: number;
+  };
+  equityCurve: [number, number][];
+  fills: BacktestFill[];
+  fillsTruncated: boolean;
+  triggerFires: Record<string, number>;
+  rejections: { message: string; count: number }[];
+  coverage: BacktestCoverage;
+  timing: { historyMs: number; replayMs: number };
+}
+
+export interface BacktestRequest {
+  strategy?: Strategy;
+  strategyId?: string;
+  days?: number;
+  allocationUsd?: number;
+  interval?: BacktestInterval;
+}
+
 export const api = {
   health: () => req<{ ok: boolean; ts: number; signals: Record<string, "live" | "simulated"> }>("/health"),
 
@@ -149,6 +224,9 @@ export const api = {
   fills: (id: string) => req<{ fills: Fill[] }>(`/deployments/${encodeURIComponent(id)}/fills`),
   control: (id: string, action: "pause" | "resume" | "stop" | "kill" | "tick") =>
     req<Snapshot>(`/deployments/${encodeURIComponent(id)}/${action}`, { method: "POST" }),
+
+  /** Replay a strategy over the last N days of history through the real engine. */
+  backtest: (body: BacktestRequest, signal?: AbortSignal) => req<BacktestResult>("/backtest", { method: "POST", json: body, signal }),
 
   leaderboard: () => req<{ rows: LeaderRow[] }>("/leaderboard"),
   stats: () => req<Stats>("/stats"),

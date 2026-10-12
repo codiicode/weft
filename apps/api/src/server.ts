@@ -2,7 +2,7 @@ import { mkdirSync } from "node:fs";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { serve } from "@hono/node-server";
-import { createVenues } from "@weft/venues";
+import { calendarFields, createVenues } from "@weft/venues";
 import { createEngine, SqliteStore } from "@weft/engine";
 import { StrategyLibrary } from "./lib/library.ts";
 import { resolvePlaceholders } from "./lib/resolve.ts";
@@ -28,7 +28,15 @@ const notifier = createNotifier(engine, sinksFromEnv(), {
   strategyName: async (id) => (await engine.getSnapshot(id))?.deployment.strategy.name ?? id,
   log: (m) => console.warn(m),
 });
-const app = createApp({ catalog: venues.catalog, marketData: venues.marketData, engine, library, signalModes, notifier });
+const app = createApp({
+  catalog: venues.catalog,
+  marketData: venues.marketData,
+  engine,
+  library,
+  signalModes,
+  notifier,
+  backtest: { history: venues.history, tokenFacts: venues.tokenFacts, calendar: calendarFields },
+});
 engine.start();
 
 const server = serve({ fetch: app.fetch, port: PORT }, (info) => {

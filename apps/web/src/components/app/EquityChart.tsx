@@ -3,7 +3,20 @@ import { useId, useMemo, useState } from "react";
 import { fmtUsd } from "@/lib/use-api";
 
 /** Equity curve with a hover crosshair. Colors by sign of the period return. */
-export function EquityChart({ points, base, height = 180 }: { points: [number, number][]; base?: number; height?: number }) {
+export function EquityChart({
+  points,
+  base,
+  height = 180,
+  formatTime = (ts) => new Date(ts).toLocaleTimeString(),
+  emptyLabel = "Equity curve appears after a few ticks",
+}: {
+  points: [number, number][];
+  base?: number;
+  height?: number;
+  /** Hover label for a sample's timestamp (default: local time of day). */
+  formatTime?: (ts: number) => string;
+  emptyLabel?: string;
+}) {
   const id = useId().replace(/[^a-z0-9]/gi, "");
   const [hover, setHover] = useState<number | null>(null);
   const W = 800;
@@ -26,7 +39,7 @@ export function EquityChart({ points, base, height = 180 }: { points: [number, n
   if (!geo) {
     return (
       <div className="grid place-items-center rounded-xl border border-dashed border-line-2 font-mono text-[11px] text-faint" style={{ height }}>
-        Equity curve appears after a few ticks
+        {emptyLabel}
       </div>
     );
   }
@@ -64,7 +77,7 @@ export function EquityChart({ points, base, height = 180 }: { points: [number, n
       {h && (
         <div className="pointer-events-none absolute right-2 top-2 rounded-lg border border-line bg-card/95 px-2.5 py-1.5 font-mono text-[11px] shadow-card">
           <div className="text-ink">{fmtUsd(h[1], 2)}</div>
-          <div className="text-faint">{new Date(h[0]).toLocaleTimeString()}</div>
+          <div className="text-faint">{formatTime(h[0])}</div>
         </div>
       )}
     </div>

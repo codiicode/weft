@@ -51,6 +51,18 @@ as good as the process uptime: gaps simply mean fewer buckets. Tune with `oiHist
 `VenueMarketData` also implements the optional `MarketData.getFundingRate(instrument)` (hourly fraction, core + HIP-3)
 and `getMaxLeverage(instrument)` used by the engine's paper funding and liquidation model.
 
+## Historical data for backtests (`src/history.ts`)
+`createVenues().history` (`VenueHistory`, implements `HistoryProvider`) serves `candles(instrument, interval, start, end)` and
+`funding(instrument, start, end)`; the raw fetchers are exported too (`fetchHlCandles`, `fetchHlFunding`, `fetchGeckoOhlcv`, `resolveSolanaPool`).
+
+| Product | Source | Notes |
+| --- | --- | --- |
+| perps, HIP-3 stocks (`xyz:NVDA`), spot (`@107`) | Hyperliquid `candleSnapshot` + `fundingHistory` | Only the most recent ~5000 bars exist per coin/interval (1h ≈ 208 d, 15m ≈ 52 d, 5m ≈ 17 d); funding pages 500 rows |
+| Solana tokens | GeckoTerminal `/networks/solana/pools/{pool}/ohlcv/*` (free, keyless) | Pool = deepest DexScreener pair with the mint as base (GeckoTerminal token pools as fallback). ≈30 req/min: a page that gets rate limited yields a shorter history (`PartialHistoryError`) instead of none |
+| outcomes, options | unsupported | `unsupportedReason()` says so |
+
+Series are cached in memory as merged ranges (only missing head/tail bars are fetched; the newest bars refresh at most every 60 s).
+
 ## HTTP, caching and rate limits
 `src/http.ts` is shared by every client. It provides a timeout (10s default), retries on network errors, 429 and 5xx (exponential backoff with jitter, honouring `Retry-After`), a TTL cache, coalescing of identical in-flight requests, and a cap of 6 concurrent requests per host. TTLs are 1s for books, 2s for mids, 5s for meta and quotes, 15–30s for catalogs and token info, 1h for macro, 6h for NOAA and 10m for instrument lists. A full catalog sweep of all five products takes about 60 requests.
 

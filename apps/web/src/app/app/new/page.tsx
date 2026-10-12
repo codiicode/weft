@@ -8,6 +8,7 @@ import { api, ApiError, type GenerateProgress, type GenerateResult } from "@/lib
 import { PageHeader, Card, Btn, Pill } from "@/components/app/AppShell";
 import { StrategyCanvas } from "@/components/app/StrategyCanvas";
 import { DeployPanel } from "@/components/app/DeployPanel";
+import { BacktestPanel } from "@/components/app/BacktestPanel";
 import { IconModel, IconSend, IconCheck } from "@/components/graph/icons";
 
 const SUGGESTIONS = [
@@ -236,6 +237,8 @@ function Builder() {
                   </ul>
                 </Card>
               )}
+
+              <BacktestPanel strategy={strategy} />
             </div>
 
             <div className="space-y-4">

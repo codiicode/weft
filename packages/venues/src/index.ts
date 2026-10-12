@@ -9,6 +9,7 @@ import { VenueMarketData } from "./market-data.ts";
 import { VenueCatalog } from "./catalog.ts";
 import { VenueTokenFactsProvider } from "./tokens.ts";
 import { createSignalProviders, SignalRouter } from "./signals/index.ts";
+import { VenueHistory } from "./history.ts";
 
 export type * from "./types.ts";
 export type { VenueOptions, VenueContext } from "./context.ts";
@@ -23,6 +24,27 @@ export { SignalRouter, createSignalProviders } from "./signals/index.ts";
 export { walkBook, bookTop, depthWithin, type Book, type Level } from "./book.ts";
 export { classifyHip3 } from "./hyperliquid/classify.ts";
 export { USDC_MINT, WSOL_MINT } from "./jupiter/client.ts";
+export { calendarFields } from "./signals/calendar.ts";
+export {
+  VenueHistory,
+  INTERVAL_MS,
+  GECKOTERMINAL_URL,
+  fetchHlCandles,
+  fetchHlFunding,
+  fetchGeckoOhlcv,
+  resolveSolanaPool,
+  PartialHistoryError,
+  parseHlCandles,
+  parseHlFunding,
+  parseGeckoOhlcv,
+  mergeCandles,
+  type Candle,
+  type CandleInterval,
+  type CandleSeries,
+  type FundingPoint,
+  type HistoryProvider,
+  type VenueHistoryOptions,
+} from "./history.ts";
 
 export interface Venues {
   /** Implements MarketData; quotes also carry `depthExhausted`. */
@@ -33,6 +55,8 @@ export interface Venues {
   /** Convenience dispatcher over `signalProviders` (by kind). */
   signals: SignalRouter;
   tokenFacts: VenueTokenFactsProvider;
+  /** Historical candles + funding for backtests (Hyperliquid, GeckoTerminal), cached. */
+  history: VenueHistory;
   /** Shared clients + HTTP cache (stats, clearCache). */
   ctx: VenueContext;
 }
@@ -51,6 +75,7 @@ export function createVenues(opts: VenueOptions = {}): Venues {
     signalProviders,
     signals: new SignalRouter(signalProviders),
     tokenFacts: new VenueTokenFactsProvider(marketData),
+    history: new VenueHistory(ctx.http, marketData, { hyperliquidUrl: opts.hyperliquidUrl, dexscreenerUrl: opts.dexscreenerUrl, now: ctx.now }),
     ctx,
   };
 }
