@@ -226,6 +226,26 @@ export function createApp(deps: AppDeps) {
     });
   });
 
+  /** Change an existing strategy with a plain-language instruction; streams progress like /ai/generate/stream. */
+  app.post("/ai/refine/stream", async (c) => {
+    const user = await requireUser(c);
+    const body = z.object({ strategy: z.unknown(), instruction: z.string().min(2).max(1_000) }).parse(await c.req.json());
+    const base = validateStrategy(body.strategy);
+    if (!base.ok) return c.json({ error: "invalid strategy", issues: base.errors }, 400);
+    checkAiQuota(user);
+    return streamSSE(c, async (stream) => {
+      try {
+        const r = await generateStrategy(base.strategy.thesis, {
+          catalog,
+          onProgress: (p) => void stream.writeSSE({ event: "progress", data: JSON.stringify(p) }),
+        }, { base: base.strategy, instruction: body.instruction });
+        await stream.writeSSE({ event: "result", data: JSON.stringify({ ...r, graph: toGraph(r.strategy) }) });
+      } catch (e) {
+        await stream.writeSSE({ event: "error", data: JSON.stringify({ error: (e as Error).message }) });
+      }
+    });
+  });
+
   /* ---------------- Backtest ---------------- */
 
   /** Replays the strategy through the real engine over the last N days of history. */

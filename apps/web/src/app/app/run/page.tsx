@@ -5,7 +5,7 @@ import { AnimatePresence, motion } from "motion/react";
 import Link from "next/link";
 import type { EngineEvent } from "@weft/engine";
 import { instrumentLabel } from "@weft/strategy";
-import { api } from "@/lib/api";
+import { api, type Snapshot } from "@/lib/api";
 import { useRequireAuth } from "@/lib/auth";
 import { useApi, fmtUsd, fmtPct, fmtPrice, ago } from "@/lib/use-api";
 import { PageHeader, Card, Btn, Stat, Empty } from "@/components/app/AppShell";
@@ -26,6 +26,27 @@ const EVENT: Record<string, [label: string, color: string]> = {
   status: ["Status", "var(--muted)"],
   tick: ["Check", "var(--line-2)"],
 };
+
+/** Older engine events used raw ids; rewrite them with the names the page shows. */
+function readable(msg: string, strategy: Snapshot["deployment"]["strategy"]): string {
+  const rule = (id: string) => {
+    const i = strategy.triggers.findIndex((t) => t.id === id);
+    return i >= 0 ? `Rule ${i + 1}` : id.replaceAll("_", " ");
+  };
+  const token = (key: string) => {
+    for (const a of strategy.actions) if (a.type === "open" && a.instrument.kind === "token" && key.endsWith(a.instrument.mint)) return a.label ?? instrumentLabel(a.instrument);
+    const tail = key.split(":").pop() ?? key;
+    return tail.length > 16 ? `${tail.slice(0, 4)}…${tail.slice(-4)}` : tail;
+  };
+  return msg
+    .replace(/^Trigger "([^"]+)" is met$/, (_m, id: string) => `Conditions met: ${rule(id)}`)
+    .replace(/^Trigger "([^"]+)" fired$/, (_m, id: string) => `${rule(id)} fired`)
+    .replace(/\(trigger ([a-z0-9_-]+)\)/g, (_m, id: string) => `(${rule(id).toLowerCase()})`)
+    .replace(/^[a-z0-9_-]+: nothing to close \(([^)]+)\)$/, (_m, k: string) => `Nothing to close: no open ${k === "all" ? "positions" : `${token(k)} position`}`)
+    .replace(/^[a-z0-9_-]+: close ((?:sol|hl):\S+)/, (_m, k: string) => `Close ${token(k)}`)
+    .replace(/^Tick: equity/, "Checked the market: value")
+    .replace(/(?:sol|hl):(?:token|perp|spot):(\S+)/g, (m) => token(m));
+}
 
 function HoldToKill({ onKill }: { onKill: () => void }) {
   const [p, setP] = useState(0);
@@ -317,7 +338,7 @@ function Run() {
                           <span className="font-medium text-ink-2">{label}</span>
                           <span className="tnum ml-auto text-faint">{new Date(e.ts).toLocaleTimeString([], { hour12: false })}</span>
                         </div>
-                        <p className="mt-1 break-words pl-3.5 text-[13.5px] leading-relaxed text-ink">{e.message}</p>
+                        <p className="mt-1 break-words pl-3.5 text-[13.5px] leading-relaxed text-ink">{readable(e.message, d.strategy)}</p>
                       </motion.li>
                     );
                   })}

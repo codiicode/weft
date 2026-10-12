@@ -59,8 +59,8 @@ export default function Home() {
       </form>
       <div className="mt-3 flex flex-wrap gap-x-5 gap-y-1.5 text-[13.5px]">
         {IDEAS.map((t) => (
-          <button key={t} onClick={() => go(t)} className="text-muted transition-colors hover:text-ink">
-            {t} →
+          <button key={t} onClick={() => go(t)} className="text-left text-muted underline decoration-line-2 underline-offset-4 transition-colors hover:text-ink hover:decoration-ink">
+            {t}
           </button>
         ))}
       </div>

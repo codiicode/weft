@@ -113,9 +113,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         loginMethods: ["wallet", "email", "google"],
         appearance: {
           theme: dark ? "dark" : "light",
-          accentColor: dark ? "#CDFF3F" : "#0B0C0F",
+          accentColor: dark ? "#EDEDEB" : "#121214",
           landingHeader: "Sign in to Weft",
-          loginMessage: "Paper trading is free. Live trading needs your approval later.",
+          loginMessage: "Free on paper. Nothing trades without your approval.",
           showWalletLoginFirst: true,
           walletChainType: "ethereum-and-solana",
         },

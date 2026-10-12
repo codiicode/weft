@@ -92,3 +92,26 @@ describe("generateStrategy with Claude", () => {
     await expect(generateStrategy("x", { catalog, client })).rejects.toBeInstanceOf(GenerationError);
   });
 });
+
+describe("refine by rules (offline)", async () => {
+  const { refineByRules } = await import("../src/ai/refine.ts");
+  const { pumpMomentum, elNino } = await import("@weft/strategy/examples");
+  it("changes stop, target, size and leverage from plain words", () => {
+    const r = refineByRules(pumpMomentum, "stop at 8% and take profit at 25%, use 2 SOL");
+    const buy = r.strategy.actions.find((a) => a.type === "open")!;
+    expect(buy.type === "open" && buy.exits.stopLoss).toEqual({ pct: 8 });
+    expect(buy.type === "open" && buy.exits.takeProfit).toEqual({ pct: 25 });
+    expect(buy.type === "open" && buy.size).toEqual({ unit: "native", value: 2 });
+    expect(r.rationale).toMatch(/stop-loss set to 8%/);
+    const lev = refineByRules(elNino, "go 3x on the perps");
+    expect(lev.strategy.actions.filter((a) => a.type === "open" && a.instrument.kind === "perp").every((a) => a.type === "open" && a.leverage === 3)).toBe(true);
+  });
+  it("tightens stops without a number, and refuses what it can't do", () => {
+    const before = pumpMomentum.actions.find((a) => a.type === "open")!;
+    const r = refineByRules(pumpMomentum, "make the stop tighter");
+    const after = r.strategy.actions.find((a) => a.type === "open")!;
+    const pct = (a: typeof before) => (a.type === "open" && a.exits.stopLoss && "pct" in a.exits.stopLoss ? a.exits.stopLoss.pct : 0);
+    expect(pct(after)).toBeCloseTo(pct(before) / 2);
+    expect(() => refineByRules(pumpMomentum, "also watch what Elon posts")).toThrow(/needs Claude/);
+  });
+});

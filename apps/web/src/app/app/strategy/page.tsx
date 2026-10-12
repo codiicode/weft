@@ -46,6 +46,9 @@ function StrategyView() {
             >
               {copied ? "Link copied" : "Share"}
             </Btn>
+            <Btn variant="quiet" href={`/app/new?from=${encodeURIComponent(e.id)}`}>
+              Edit
+            </Btn>
             <Btn
               variant="ghost"
               onClick={async () => {

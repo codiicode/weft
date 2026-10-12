@@ -3,6 +3,7 @@ import { validateStrategy, type Issue, type Strategy } from "@weft/strategy";
 import type { Catalog, Product } from "@weft/venues";
 import { SYSTEM_PROMPT } from "./prompt.ts";
 import { templateStrategy } from "./template.ts";
+import { refineByRules } from "./refine.ts";
 
 export const MODEL = "claude-opus-5-5";
 const MAX_TURNS = 10;
@@ -78,22 +79,32 @@ async function runSearch(catalog: Catalog, input: { product?: string; query?: st
  */
 export async function generateStrategy(
   thesis: string,
-  deps: { catalog: Catalog; client?: Anthropic; onProgress?: Progress }
+  deps: { catalog: Catalog; client?: Anthropic; onProgress?: Progress },
+  edit?: { base: Strategy; instruction: string }
 ): Promise<GenerateResult> {
   const progress = deps.onProgress ?? (() => {});
   if (!deps.client && !hasCredentials()) {
+    if (edit) {
+      progress({ type: "fallback", message: "Applying the change without Claude" });
+      return refineByRules(edit.base, edit.instruction);
+    }
     progress({ type: "fallback", message: "No Anthropic credentials configured: using the built-in template generator." });
     return templateStrategy(thesis, deps.catalog);
   }
 
   const client = deps.client ?? new Anthropic();
   const messages: Anthropic.Beta.BetaMessageParam[] = [
-    { role: "user", content: `Thesis: ${thesis}\n\nResearch the markets you need, then submit the strategy.` },
+    {
+      role: "user",
+      content: edit
+        ? `Here is the user's current strategy:\n${JSON.stringify(edit.base)}\n\nThey want this change: ${edit.instruction}\n\nChange only what the request needs and keep everything else (ids, thesis, sizes, risk) as it is. Look up markets only if the change needs a new instrument, then submit the full updated strategy. In the rationale, say in one or two plain sentences what you changed.`
+        : `Thesis: ${thesis}\n\nResearch the markets you need, then submit the strategy.`,
+    },
   ];
 
   try {
     for (let turn = 0; turn < MAX_TURNS; turn++) {
-      progress({ type: "thinking", message: turn === 0 ? "Reading the thesis" : "Refining the graph" });
+      progress({ type: "thinking", message: turn === 0 ? (edit ? "Reading your change" : "Reading the thesis") : "Refining the graph" });
       const response = await client.beta.messages.create({
         model: MODEL,
         max_tokens: 16_000,
@@ -132,7 +143,7 @@ export async function generateStrategy(
           }
         } else if (use.name === "submit_strategy") {
           progress({ type: "submit", message: "Validating the strategy graph" });
-          const v = validateStrategy({ ...(input.strategy as object), thesis: (input.strategy as { thesis?: string })?.thesis || thesis });
+          const v = validateStrategy({ ...(input.strategy as object), thesis: (input.strategy as { thesis?: string })?.thesis || edit?.base.thesis || thesis });
           if (v.ok) {
             accepted = {
               strategy: v.strategy,
@@ -163,10 +174,12 @@ export async function generateStrategy(
     if (e instanceof GenerationError) throw e;
     if (e instanceof Anthropic.AuthenticationError || e instanceof Anthropic.PermissionDeniedError) {
       progress({ type: "fallback", message: "Anthropic credentials rejected: using the template generator." });
+      if (edit) return refineByRules(edit.base, edit.instruction);
       return { ...(await templateStrategy(thesis, deps.catalog)), notes: ["Anthropic credentials were rejected; generated from a template."] };
     }
     if (e instanceof Anthropic.RateLimitError || e instanceof Anthropic.APIConnectionError || (e instanceof Anthropic.APIError && (e.status ?? 0) >= 500)) {
       progress({ type: "fallback", message: "Claude is unavailable right now: using the template generator." });
+      if (edit) return refineByRules(edit.base, edit.instruction);
       return { ...(await templateStrategy(thesis, deps.catalog)), notes: [`Claude unavailable (${(e as Error).message}); generated from a template.`] };
     }
     throw e;

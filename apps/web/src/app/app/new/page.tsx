@@ -21,6 +21,16 @@ const SUGGESTIONS = [
   "SOL longs are too crowded. Fade them.",
 ];
 
+/** "Half the size" as an instruction the offline editor also understands. */
+function halfSize(s: Strategy): string {
+  const a = s.actions.find((x) => x.type === "open");
+  if (!a || a.type !== "open") return "half the size";
+  const v = +(a.size.value / 2).toPrecision(3);
+  if (a.size.unit === "native" && a.instrument.kind === "token") return `use ${v} ${a.instrument.quote}`;
+  if (a.size.unit === "usd") return `use $${v}`;
+  return `use ${v}% of the account`;
+}
+
 function Builder() {
   const params = useSearchParams();
   const [thesis, setThesis] = useState(params.get("thesis") ?? "");
@@ -33,6 +43,11 @@ function Builder() {
   const [jsonMsg, setJsonMsg] = useState<{ ok: boolean; text: string } | null>(null);
   const [saved, setSaved] = useState<string | null>(null);
   const abort = useRef<AbortController | null>(null);
+  const [history, setHistory] = useState<GenerateResult[]>([]);
+  const [change, setChange] = useState("");
+  const [changing, setChanging] = useState(false);
+  const [changeNote, setChangeNote] = useState<string | null>(null);
+  const [changeError, setChangeError] = useState<string | null>(null);
 
   const strategy: Strategy | null = result?.strategy ?? null;
 
@@ -47,6 +62,9 @@ function Builder() {
     setResult(null);
     setError(null);
     setSaved(null);
+    setHistory([]);
+    setChangeNote(null);
+    setChangeError(null);
     try {
       const r = await api.generateStream(t.trim(), (p) => setSteps((s) => [...s, p]), abort.current.signal);
       setResult(r);
@@ -60,6 +78,19 @@ function Builder() {
   };
 
   useEffect(() => {
+    const from = params.get("from");
+    if (from) {
+      api
+        .strategy(from)
+        .then((e) => {
+          setThesis(e.strategy.thesis);
+          setResult({ strategy: e.strategy, warnings: [], rationale: "", source: "template", notes: [], graph: undefined as never });
+          setJson(JSON.stringify(e.strategy, null, 2));
+          setStatus("done");
+        })
+        .catch((e) => setError((e as Error).message));
+      return;
+    }
     if (params.get("thesis") && params.get("go") === "1") generate(params.get("thesis")!);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
@@ -76,6 +107,34 @@ function Builder() {
     }
   };
 
+  const applyChange = async (text = change) => {
+    if (!result || text.trim().length < 2 || !requireAuth()) return;
+    setChanging(true);
+    setChangeError(null);
+    try {
+      const r = await api.refineStream(result.strategy, text.trim(), () => {});
+      setHistory((h) => [...h, result]);
+      setResult({ ...r, rationale: result.rationale });
+      setJson(JSON.stringify(r.strategy, null, 2));
+      setChangeNote(r.rationale || "Updated.");
+      setChange("");
+      setSaved(null);
+    } catch (e) {
+      setChangeError((e as Error).message);
+    } finally {
+      setChanging(false);
+    }
+  };
+  const undo = () => {
+    const prev = history.at(-1);
+    if (!prev) return;
+    setHistory((h) => h.slice(0, -1));
+    setResult(prev);
+    setJson(JSON.stringify(prev.strategy, null, 2));
+    setChangeNote(null);
+    setSaved(null);
+  };
+
   const save = async () => {
     if (!strategy || !requireAuth()) return;
     const entry = await api.saveStrategy(strategy);
@@ -85,7 +144,7 @@ function Builder() {
   const running = status === "running";
   return (
     <>
-      <PageHeader title="New strategy" sub="Describe a trade in your own words. Weft drafts the rules, and nothing runs until you say so." />
+      <PageHeader title={params.get("from") ? "Edit strategy" : "New strategy"} sub="Describe a trade in your own words. Weft drafts the rules, and nothing runs until you say so." />
       <div className="space-y-8 px-5 pb-16 pt-6 lg:px-10">
         <form
           onSubmit={(e) => {
@@ -169,7 +228,7 @@ function Builder() {
           <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} className="grid gap-8 xl:grid-cols-[minmax(0,1fr)_340px]">
             <div className="min-w-0 space-y-5">
               <div>
-                <p className="text-[13px] text-muted">{result.source === "claude" ? "Drafted by Claude" : "Drafted from a template"}</p>
+                <p className="text-[13px] text-muted">{params.get("from") && !history.length && !result.rationale ? "Editing a copy" : result.source === "claude" ? "Drafted by Claude" : "Drafted from a template"}</p>
                 <h2 className="mt-1 text-[24px] font-semibold tracking-[-0.025em] text-ink">{strategy.name}</h2>
                 {result.rationale && <p className="mt-2 max-w-3xl text-[15px] leading-relaxed text-ink-2">{result.rationale}</p>}
               </div>
@@ -215,6 +274,51 @@ function Builder() {
                   </div>
                 </div>
               )}
+
+              <form
+                onSubmit={(e) => {
+                  e.preventDefault();
+                  applyChange();
+                }}
+                className="rounded-[12px] border border-line bg-card p-4"
+              >
+                <label htmlFor="change" className="text-[14px] font-medium text-ink">
+                  Change something
+                </label>
+                <div className="mt-2 flex items-center gap-2">
+                  <input
+                    id="change"
+                    value={change}
+                    onChange={(e) => setChange(e.target.value)}
+                    disabled={changing}
+                    placeholder="e.g. use a tighter stop, or also exit if BTC drops 5%"
+                    className="h-10 min-w-0 flex-1 rounded-[10px] border border-line-2 bg-card px-3 text-[14.5px] text-ink outline-none placeholder:text-faint focus:border-ink/40 disabled:opacity-60"
+                  />
+                  <Btn type="submit" disabled={changing || change.trim().length < 2} className="h-10">
+                    {changing ? "Updating…" : "Update"}
+                  </Btn>
+                </div>
+                <div className="mt-2.5 flex flex-wrap items-center gap-x-4 gap-y-1.5 text-[13px]">
+                  {["Tighter stop", "Take profit at 20%", "Half the size"].map((q) => (
+                    <button
+                      key={q}
+                      type="button"
+                      disabled={changing}
+                      onClick={() => applyChange(q === "Half the size" ? halfSize(result.strategy) : q.toLowerCase())}
+                      className="text-muted underline decoration-line-2 underline-offset-4 hover:text-ink hover:decoration-ink"
+                    >
+                      {q}
+                    </button>
+                  ))}
+                  {history.length > 0 && (
+                    <button type="button" onClick={undo} disabled={changing} className="ml-auto text-ink-2 hover:text-ink">
+                      Undo
+                    </button>
+                  )}
+                </div>
+                {changeNote && !changeError && <p className="mt-3 text-[13.5px] text-long">{changeNote}</p>}
+                {changeError && <p className="mt-3 text-[13.5px] text-short">{changeError}</p>}
+              </form>
 
               {(result.warnings.length > 0 || result.notes.length > 0) && (
                 <div className="rounded-[12px] border border-line px-5 py-4">

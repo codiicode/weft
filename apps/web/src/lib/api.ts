@@ -187,6 +187,44 @@ export interface ApprovalRequests {
   requests: { kind: "agent" | "builder"; typedData: Record<string, unknown> }[];
 }
 
+async function streamResult(path: string, body: unknown, onProgress: (p: GenerateProgress) => void, signal?: AbortSignal): Promise<GenerateResult> {
+  const res = await fetch(`${API_URL}${path}`, {
+    method: "POST",
+    headers: { "content-type": "application/json", ...(await authHeader()) },
+    body: JSON.stringify(body),
+    signal,
+  });
+  if (!res.ok || !res.body) {
+    const err = await res.json().catch(() => null);
+    throw new ApiError(err?.error ?? `HTTP ${res.status}`, res.status);
+  }
+  const reader = res.body.getReader();
+  const dec = new TextDecoder();
+  let buf = "";
+  for (;;) {
+    const { value, done } = await reader.read();
+    if (done) break;
+    buf += dec.decode(value, { stream: true });
+    let idx: number;
+    while ((idx = buf.indexOf("\n\n")) >= 0) {
+      const chunk = buf.slice(0, idx);
+      buf = buf.slice(idx + 2);
+      const event = /^event: (.*)$/m.exec(chunk)?.[1];
+      const data = chunk
+        .split("\n")
+        .filter((l) => l.startsWith("data: "))
+        .map((l) => l.slice(6))
+        .join("\n");
+      if (!data) continue;
+      const payload = JSON.parse(data);
+      if (event === "progress") onProgress(payload);
+      else if (event === "result") return payload as GenerateResult;
+      else if (event === "error") throw new ApiError(payload.error, 422);
+    }
+  }
+  throw new ApiError("stream ended without a result", 500);
+}
+
 export const api = {
   liveStatus: () => req<LiveStatus>("/live/status"),
   linkLive: (hlAddress: string) => req<LiveStatus>("/live/account", { method: "POST", json: { hlAddress } }),
@@ -220,42 +258,12 @@ export const api = {
   generate: (thesis: string) => req<GenerateResult>("/ai/generate", { method: "POST", json: { thesis } }),
 
   /** Streams progress events while the strategy is generated. */
-  async generateStream(thesis: string, onProgress: (p: GenerateProgress) => void, signal?: AbortSignal): Promise<GenerateResult> {
-    const res = await fetch(`${API_URL}/ai/generate/stream`, {
-      method: "POST",
-      headers: { "content-type": "application/json", ...(await authHeader()) },
-      body: JSON.stringify({ thesis }),
-      signal,
-    });
-    if (!res.ok || !res.body) {
-      const err = await res.json().catch(() => null);
-      throw new ApiError(err?.error ?? `HTTP ${res.status}`, res.status);
-    }
-    const reader = res.body.getReader();
-    const dec = new TextDecoder();
-    let buf = "";
-    for (;;) {
-      const { value, done } = await reader.read();
-      if (done) break;
-      buf += dec.decode(value, { stream: true });
-      let idx: number;
-      while ((idx = buf.indexOf("\n\n")) >= 0) {
-        const chunk = buf.slice(0, idx);
-        buf = buf.slice(idx + 2);
-        const event = /^event: (.*)$/m.exec(chunk)?.[1];
-        const data = chunk
-          .split("\n")
-          .filter((l) => l.startsWith("data: "))
-          .map((l) => l.slice(6))
-          .join("\n");
-        if (!data) continue;
-        const payload = JSON.parse(data);
-        if (event === "progress") onProgress(payload);
-        else if (event === "result") return payload as GenerateResult;
-        else if (event === "error") throw new ApiError(payload.error, 422);
-      }
-    }
-    throw new ApiError("stream ended without a result", 500);
+  generateStream(thesis: string, onProgress: (p: GenerateProgress) => void, signal?: AbortSignal): Promise<GenerateResult> {
+    return streamResult("/ai/generate/stream", { thesis }, onProgress, signal);
+  },
+  /** Change a strategy with a plain-language instruction ("stop at 5%", "add an exit if…"). */
+  refineStream(strategy: Strategy, instruction: string, onProgress: (p: GenerateProgress) => void, signal?: AbortSignal): Promise<GenerateResult> {
+    return streamResult("/ai/refine/stream", { strategy, instruction }, onProgress, signal);
   },
 
   deployments: () => req<{ deployments: Snapshot[] }>("/deployments"),
