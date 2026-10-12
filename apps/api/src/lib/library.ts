@@ -34,6 +34,14 @@ export class StrategyLibrary {
     if (count === 0) {
       const authors = ["@monsoon_maria", "@pump_hunter", "@basis_point_bea", "@contrarian_kai", "@iv_crush_ivy", "@tape_reader"];
       examples.forEach((s, i) => this.save(s, { author: authors[i % authors.length]! }));
+    } else {
+      // Keep seeded examples' wording in step with the code (instruments may have been resolved since).
+      const upd = this.db.prepare("UPDATE strategies SET doc = ?, updated_at = ? WHERE id = ? AND forked_from IS NULL");
+      for (const ex of examples) {
+        const cur = this.get(ex.id);
+        if (cur && (cur.strategy.thesis !== ex.thesis || cur.strategy.name !== ex.name))
+          upd.run(JSON.stringify({ ...cur.strategy, thesis: ex.thesis, name: ex.name }), Date.now(), ex.id);
+      }
     }
   }
 
