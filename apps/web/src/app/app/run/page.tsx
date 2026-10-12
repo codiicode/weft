@@ -23,9 +23,39 @@ const EVENT: Record<string, [label: string, color: string]> = {
   warning: ["Warning", "var(--trigger)"],
   notify: ["Alert", "var(--signal)"],
   intent: ["Order", "var(--ink)"],
+  noop: ["Nothing to do", "var(--muted)"],
   status: ["Status", "var(--muted)"],
   tick: ["Check", "var(--line-2)"],
 };
+
+/**
+ * One rule firing produces several engine events (conditions met, fired, the
+ * order, its outcome). Keep only the most telling one per rule and moment.
+ */
+function condense(events: EngineEvent[]): EngineEvent[] {
+  type D = { intentKey?: string; triggerId?: string; noop?: boolean; intent?: { key: string; triggerId: string }; fill?: { intentKey?: string } };
+  const d = (e: EngineEvent) => (e.data ?? {}) as D;
+  const isNoop = (e: EngineEvent) => e.type === "intent" && (d(e).noop || /nothing to close/i.test(e.message));
+  const bucket = (ts: number) => Math.round(ts / 5000);
+  const outcomes = new Set<string>();
+  const acted = new Set<string>();
+  const fired = new Set<string>();
+  for (const e of events) {
+    const x = d(e);
+    if (e.type === "fill" && x.fill?.intentKey) outcomes.add(x.fill.intentKey);
+    if ((e.type === "rejected" || isNoop(e)) && x.intentKey) outcomes.add(x.intentKey);
+    const tid = x.intent?.triggerId ?? (isNoop(e) ? x.triggerId : undefined);
+    if (tid) for (const k of [-1, 0, 1]) acted.add(`${tid}@${bucket(e.ts) + k}`);
+    if (e.type === "trigger_fired" && x.triggerId) for (const k of [-1, 0, 1]) fired.add(`${x.triggerId}@${bucket(e.ts) + k}`);
+  }
+  return events.filter((e) => {
+    const x = d(e);
+    if (e.type === "intent" && x.intent && outcomes.has(x.intent.key)) return false;
+    if ((e.type === "trigger_fired" || e.type === "trigger_met") && x.triggerId && acted.has(`${x.triggerId}@${bucket(e.ts)}`)) return false;
+    if (e.type === "trigger_met" && x.triggerId && fired.has(`${x.triggerId}@${bucket(e.ts)}`)) return false;
+    return true;
+  });
+}
 
 /** Older engine events used raw ids; rewrite them with the names the page shows. */
 function readable(msg: string, strategy: Snapshot["deployment"]["strategy"]): string {
@@ -158,7 +188,7 @@ function Run() {
     snap.refresh();
     fills.refresh();
   };
-  const shown = showTicks ? events : events.filter((e) => e.type !== "tick");
+  const shown = condense(showTicks ? events : events.filter((e) => e.type !== "tick"));
 
   const metMap = Object.fromEntries(s.triggers.map((t) => [t.id, t.met]));
   const tone = (v: number) => (v > 0 ? "long" : v < 0 ? "short" : undefined);
@@ -215,18 +245,20 @@ function Run() {
           <div className="min-w-0 space-y-8">
             <section>
               <div className="mb-3 flex items-center justify-between">
-                <h2 className="text-[15px] font-semibold text-ink">Rules</h2>
-                <div className="flex gap-1">
+                <h2 className="text-[15px] font-semibold text-ink">How it trades</h2>
+                <div role="tablist" className="flex gap-4 text-[13.5px]">
                   {(
                     [
-                      ["rules", "Text"],
+                      ["rules", "Rules"],
                       ["graph", "Diagram"],
                     ] as const
                   ).map(([k, l]) => (
                     <button
                       key={k}
+                      role="tab"
+                      aria-selected={view === k}
                       onClick={() => setView(k)}
-                      className={`h-7 rounded-[7px] px-2.5 text-[13px] ${view === k ? "bg-paper-2 font-medium text-ink" : "text-muted hover:text-ink"}`}
+                      className={`border-b-2 pb-1 transition-colors ${view === k ? "border-ink font-medium text-ink" : "border-transparent text-muted hover:text-ink"}`}
                     >
                       {l}
                     </button>
@@ -330,7 +362,7 @@ function Run() {
               <ol className="divide-y divide-line">
                 <AnimatePresence initial={false}>
                   {shown.slice(0, 200).map((e) => {
-                    const [label, color] = EVENT[e.type] ?? [e.type, "var(--muted)"];
+                    const [label, color] = EVENT[e.type === "intent" && /nothing to close|matched, but/i.test(e.message) ? "noop" : e.type] ?? [e.type, "var(--muted)"];
                     return (
                       <motion.li key={e.id} initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="px-4 py-3">
                         <div className="flex items-center gap-2 text-[12.5px]">

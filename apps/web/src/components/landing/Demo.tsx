@@ -95,12 +95,7 @@ export function Demo() {
     <div ref={root} className="overflow-hidden rounded-[14px] border border-line bg-card shadow-window">
       {/* Window bar */}
       <div className="flex h-12 items-center gap-4 border-b border-line px-4">
-        <div className="flex gap-1.5" aria-hidden>
-          <span className="h-2.5 w-2.5 rounded-full bg-line-2" />
-          <span className="h-2.5 w-2.5 rounded-full bg-line-2" />
-          <span className="h-2.5 w-2.5 rounded-full bg-line-2" />
-        </div>
-        <ol className="mx-auto hidden items-center gap-6 text-[13px] sm:flex">
+        <ol className="flex items-center gap-4 text-[13px] sm:gap-6">
           {STEPS.map((s, i) => (
             <li key={s.label} className={`flex items-center gap-2 transition-colors duration-300 ${i === active ? "text-ink" : i < active ? "text-ink-2" : "text-faint"}`}>
               <span
@@ -110,11 +105,11 @@ export function Demo() {
               >
                 {i < active || (i === active && approved) ? <IconCheck size={10} strokeWidth={2.6} /> : i + 1}
               </span>
-              {s.label}
+              <span className={i === active ? "" : "hidden sm:inline"}>{s.label}</span>
             </li>
           ))}
         </ol>
-        <button onClick={play} className="ml-auto inline-flex h-8 items-center gap-1.5 rounded-[8px] px-2.5 text-[12.5px] text-muted transition-colors hover:bg-paper-2 hover:text-ink sm:ml-0" aria-label="Replay demo">
+        <button onClick={play} className="ml-auto inline-flex h-8 items-center gap-1.5 rounded-[8px] px-2.5 text-[12.5px] text-muted transition-colors hover:bg-paper-2 hover:text-ink" aria-label="Replay demo">
           <IconReplay size={13} /> Replay
         </button>
       </div>
@@ -169,7 +164,25 @@ export function Demo() {
       </div>
 
       {/* Graph */}
-      <div className="relative border-t border-line bg-paper/60 px-3 pb-6 pt-6 sm:px-6">
+      <div className="relative border-t border-line bg-paper/60 px-4 py-5 md:hidden">
+        {graphShown ? (
+          <motion.dl initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-3 text-[14px]">
+            {[
+              ["Watch", "NOAA’s El Niño forecast, the prediction market on it, wheat prices, ag-weather posts on X", "var(--signal)"],
+              ["When", "El Niño strengthens while the market still prices it low", "var(--trigger)"],
+              ["Do", "Buy YES on “El Niño by winter”, go long wheat and sugar, short Brazil", "var(--long)"],
+            ].map(([k, v, c]) => (
+              <div key={k} className="rounded-[10px] border border-line bg-card px-3.5 py-3" style={{ boxShadow: `inset 2px 0 0 ${c}` }}>
+                <dt className="text-[12.5px] text-muted">{k}</dt>
+                <dd className="mt-0.5 leading-snug text-ink">{v}</dd>
+              </div>
+            ))}
+          </motion.dl>
+        ) : (
+          <p className="grid h-[260px] place-items-center text-[13px] text-muted">{phase === "research" ? "Drafting a strategy…" : "The strategy appears here"}</p>
+        )}
+      </div>
+      <div className="relative hidden border-t border-line bg-paper/60 px-3 pb-6 pt-6 sm:px-6 md:block">
         <div className="relative mx-auto max-w-[1070px]">
           <StrategyGraph
             spec={spec}
@@ -177,7 +190,6 @@ export function Demo() {
             preset="auto"
             stackBelow={640}
             live
-            ghost={phase !== "idle" && phase !== "typing"}
             ariaLabel="Strategy graph: four signals feed three triggers that open long and short positions"
           />
           <AnimatePresence>
@@ -202,7 +214,7 @@ export function Demo() {
           <span className="mx-1 text-faint">·</span> <span className="text-ink">5</span> actions
         </span>
         <span className="hidden text-muted sm:inline">
-          Worst case at stops <span className="tnum text-ink">−4.1%</span>
+          Worst case if every stop hits <span className="tnum text-ink">−4.1%</span>
         </span>
         <motion.button
           ref={approveRef}

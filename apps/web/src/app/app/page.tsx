@@ -37,7 +37,7 @@ export default function Home() {
   const list = runs.data?.deployments ?? [];
 
   return (
-    <div className="mx-auto max-w-[1100px] px-5 pb-16 pt-10 lg:px-10 lg:pt-16">
+    <div className="max-w-[1100px] px-5 pb-16 pt-10 lg:px-10 lg:pt-14">
       <h1 className="display text-[clamp(2.2rem,4vw,3.2rem)] leading-[1.05] text-ink">What’s your thesis?</h1>
       <form
         onSubmit={(e) => {
@@ -112,12 +112,16 @@ export default function Home() {
       ) : null}
 
       <section className="mt-14 flex flex-wrap items-center justify-between gap-3 border-t border-line pt-6 text-[13.5px]">
-        <span className="inline-flex items-center gap-2 text-muted">
-          <span className={`h-1.5 w-1.5 rounded-full ${alerts.data?.configured ? "bg-long" : "bg-faint"}`} />
-          {alerts.data?.configured ? `Alerts go to ${alerts.data.sinks.join(" and ")}` : "Alerts are off"}
-        </span>
+        {alerts.data?.configured ? (
+          <span className="inline-flex items-center gap-2 text-muted">
+            <span className="h-1.5 w-1.5 rounded-full bg-long" />
+            Alerts go to {alerts.data.sinks.join(" and ")}
+          </span>
+        ) : (
+          <span className="text-muted">Everything here runs on paper.</span>
+        )}
         <Link href="/app/live" className="text-muted hover:text-ink">
-          Set up live trading →
+          Ready for real money? Set up live trading →
         </Link>
       </section>
     </div>

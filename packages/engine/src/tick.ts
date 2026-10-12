@@ -761,7 +761,7 @@ async function executeOptions(s: Session, i: OptionsIntent, usdPrices: Record<st
 async function executeClose(s: Session, i: CloseIntent): Promise<void> {
   const targets = s.open().filter((p) => i.target === "all" || p.instrumentKey === i.target);
   if (!targets.length) {
-    s.emit("intent", `Nothing to close: no open ${i.target === "all" ? "positions" : `${keyLabel(s, i.target)} position`}`, { intentKey: i.key });
+    s.emit("intent", `${ruleName(s, i.triggerId)} matched, but there was no open ${i.target === "all" ? "position" : `${keyLabel(s, i.target)} position`} to close`, { intentKey: i.key, triggerId: i.triggerId, noop: true });
     return;
   }
   for (const p of targets) await s.closePosition(p, i.fraction, "close_action", `${i.key}:${p.id}`, i.key);

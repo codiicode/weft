@@ -8,7 +8,7 @@ export function EquityChart({
   base,
   height = 180,
   formatTime = (ts) => new Date(ts).toLocaleTimeString(),
-  emptyLabel = "Equity curve appears after a few ticks",
+  emptyLabel = "The chart appears after a few checks",
 }: {
   points: [number, number][];
   base?: number;
@@ -36,10 +36,11 @@ export function EquityChart({
     return { pts, line, area: `${line} L${W},${H} L0,${H} Z`, refY: sy(ref), up: ys.at(-1)! >= ref };
   }, [points, base, H]);
 
-  if (!geo) {
+  const flat = points.length > 1 && points.every((p) => p[1] === points[0]![1]);
+  if (!geo || flat) {
     return (
       <div className="grid place-items-center rounded-[10px] border border-dashed border-line-2 text-[12.5px] text-faint" style={{ height }}>
-        {emptyLabel}
+        {flat ? "No change yet. The chart starts moving after the first trade." : emptyLabel}
       </div>
     );
   }

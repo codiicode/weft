@@ -4,6 +4,7 @@ import { api } from "@/lib/api";
 import { useApi, fmtUsd, fmtPct, ago } from "@/lib/use-api";
 import { PageHeader, Card, Empty, Btn } from "@/components/app/AppShell";
 import { Sparkline } from "@/components/ui/Sparkline";
+import { trendColor } from "@/components/app/RunCard";
 
 export default function LeaderboardPage() {
   const { data, loading, error } = useApi(() => api.leaderboard(), [], { pollMs: 10_000 });
@@ -35,7 +36,7 @@ export default function LeaderboardPage() {
                 <tbody>
                   {rows.map((r, i) => (
                     <tr key={r.deploymentId} className="relative border-b border-line transition-colors last:border-0 hover:bg-paper-2/40">
-                      <td className="tnum px-5 py-3.5 text-muted">{i + 1}</td>
+                      <td className="tnum px-5 py-3.5 text-muted">{r.returnPct === 0 ? "–" : i + 1}</td>
                       <td className="px-3 py-3.5">
                         <Link href={`/app/run?id=${encodeURIComponent(r.deploymentId)}`} className="font-medium text-ink after:absolute after:inset-0">
                           {r.name}
@@ -45,11 +46,11 @@ export default function LeaderboardPage() {
                           {r.tags.slice(0, 3).join(", ")}
                         </div>
                       </td>
-                      <td className={`tnum px-3 py-3.5 text-right font-medium ${r.returnPct === 0 ? "text-ink-2" : r.returnPct > 0 ? "text-long" : "text-short"}`}>{fmtPct(r.returnPct)}</td>
+                      <td className={`tnum px-3 py-3.5 text-right ${r.returnPct === 0 ? "text-[13px] text-muted" : r.returnPct > 0 ? "font-medium text-long" : "font-medium text-short"}`}>{r.returnPct === 0 ? "No change yet" : fmtPct(r.returnPct)}</td>
                       <td className="tnum px-3 py-3.5 text-right text-ink-2">{fmtUsd(r.equityUsd, 0)}</td>
                       <td className="px-3 py-3.5">
                         <div className="flex justify-end">
-                          {r.equityCurve.length > 1 && <Sparkline data={r.equityCurve.map((p) => p[1])} width={96} height={26} strokeWidth={1.4} color={r.returnPct >= 0 ? "var(--long)" : "var(--short)"} />}
+                          {r.equityCurve.length > 1 && <Sparkline data={r.equityCurve.map((p) => p[1])} width={96} height={26} strokeWidth={1.4} color={trendColor(r.returnPct)} />}
                         </div>
                       </td>
                       <td className="px-5 py-3.5 text-right text-[13px] text-muted">{ago(r.since)}</td>

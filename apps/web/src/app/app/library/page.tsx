@@ -62,10 +62,10 @@ export default function LibraryPage() {
   };
   return (
     <>
-      <PageHeader title="Strategies" sub="Shared by people using Weft. Read the rules, then make a copy and adjust it." actions={<Btn href="/app/new">New strategy</Btn>} />
+      <PageHeader title="Strategies" sub="Shared by people using Weft. Read the rules, then make a copy and adjust it." />
       <div className="space-y-4 px-5 pb-16 pt-6 lg:px-10">
         <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
-          <div className="no-scrollbar flex gap-1 overflow-x-auto">
+          <div className="no-scrollbar fade-r flex gap-1 overflow-x-auto">
             {[null, ...tags].map((t) => (
               <button
                 key={t ?? "all"}

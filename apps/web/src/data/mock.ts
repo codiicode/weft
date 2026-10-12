@@ -31,18 +31,18 @@ export const heroStrategy: Strategy = {
   mode: "Paper",
   stats: { ret30d: 18.4, winRate: 67, maxDD: -5.8, forks: 412, followers: 2310, daysLive: 41 },
   nodes: [
-    { id: "s1", kind: "signal", type: "forecast", title: "ENSO outlook", source: "NOAA CPC", value: "Niño 3.4  +1.7°C", delta: "+0.4°C w/w", deltaDir: "up", spark: walk(11, 28, 0.6, 0.35) },
-    { id: "s2", kind: "signal", type: "odds", title: "El Niño by winter?", source: "Prediction mkt", value: "Mkt 61% · Model 84%", delta: "23pp edge", deltaDir: "up", spark: walk(4, 28, 0.25, 0.4) },
-    { id: "s3", kind: "signal", type: "price", title: "WHEAT-PERP", source: "HIP-3", value: "$5.842", delta: "+2.1% 24h", deltaDir: "up", spark: walk(23, 28, 0.3, 0.5) },
-    { id: "s4", kind: "signal", type: "social", title: "Ag-weather desks", source: "X · 38 accts", value: "Sentiment +0.46", delta: "1,240 posts", deltaDir: "up", spark: walk(91, 28, 0.2, 0.6) },
-    { id: "t1", kind: "trigger", logic: "AND", conditions: ["Niño 3.4 > +1.5°C", "Model − Mkt > 15pp"], met: true },
-    { id: "t2", kind: "trigger", logic: "OR", conditions: ["Wheat 20d trend > 0", "AUS crop est. cut ≥ 5%"], met: true },
-    { id: "t3", kind: "trigger", logic: "AND", conditions: ["USD/BRL > 5.60", "Desk sentiment > +0.40"], met: false },
-    { id: "a1", kind: "action", side: "buy", asset: "YES · El Niño", venue: "Jupiter", alloc: "12%", tp: "92¢", sl: "48¢", pnl: 9.6, spark: walk(5, 30, 0.6, 0.4) },
+    { id: "s1", kind: "signal", type: "forecast", title: "El Niño forecast", source: "NOAA", value: "Pacific +1.7°C", delta: "+0.4°C this week", deltaDir: "up", spark: walk(11, 28, 0.6, 0.35) },
+    { id: "s2", kind: "signal", type: "odds", title: "El Niño by winter?", source: "Prediction market", value: "Market 61%, model 84%", delta: "model 23 pts higher", deltaDir: "up", spark: walk(4, 28, 0.25, 0.4) },
+    { id: "s3", kind: "signal", type: "price", title: "Wheat", source: "Hyperliquid", value: "$5.842", delta: "+2.1% today", deltaDir: "up", spark: walk(23, 28, 0.3, 0.5) },
+    { id: "s4", kind: "signal", type: "social", title: "Ag-weather desks", source: "X", value: "Mood +0.46", delta: "1,240 posts", deltaDir: "up", spark: walk(91, 28, 0.2, 0.6) },
+    { id: "t1", kind: "trigger", logic: "AND", conditions: ["Pacific above +1.5°C", "Model 15+ pts over market"], met: true },
+    { id: "t2", kind: "trigger", logic: "OR", conditions: ["Wheat trending up", "Australia cuts crop 5%+"], met: true },
+    { id: "t3", kind: "trigger", logic: "AND", conditions: ["USD/BRL above 5.60", "Desk mood above +0.4"], met: false },
+    { id: "a1", kind: "action", side: "buy", asset: "El Niño: YES", venue: "Jupiter", alloc: "12%", tp: "92¢", sl: "48¢", pnl: 9.6, spark: walk(5, 30, 0.6, 0.4) },
     { id: "a2", kind: "action", side: "long", asset: "WHEAT", lev: "3×", venue: "Hyperliquid", alloc: "18%", tp: "+16%", sl: "−6%", pnl: 4.2, spark: walk(8, 30, 0.45, 0.5) },
     { id: "a3", kind: "action", side: "long", asset: "SUGAR", lev: "2×", venue: "Hyperliquid", alloc: "10%", tp: "+12%", sl: "−5%", pnl: 2.7, spark: walk(31, 30, 0.35, 0.55) },
     { id: "a4", kind: "action", side: "short", asset: "BRAZIL-50", lev: "2×", venue: "Hyperliquid", alloc: "8%", tp: "−9%", sl: "+4%", pnl: 0, spark: walk(17, 30, -0.3, 0.4) },
-    { id: "x1", kind: "exit", title: "Close all positions", detail: "if Niño 3.4 < +0.5°C" },
+    { id: "x1", kind: "exit", title: "Close everything", detail: "if the Pacific cools below +0.5°C" },
   ],
   edges: [
     ["s1", "t1"], ["s2", "t1"], ["s3", "t2"], ["s4", "t2"], ["s4", "t3"],
@@ -246,11 +246,11 @@ export const strategies: Strategy[] = [
 /* ------------------------------------------------------------------ */
 
 export const heroResearch = [
-  { label: "NOAA CPC · ENSO diagnostic", detail: "Niño 3.4 at +1.7°C, 4 weeks rising" },
+  { label: "NOAA El Niño forecast", detail: "Pacific +1.7°C, rising for 4 weeks" },
   { label: "Prediction markets", detail: "“El Niño by winter” trades 61¢" },
-  { label: "HIP-3 commodity perps", detail: "WHEAT, SUGAR, BRAZIL-50 liquid" },
-  { label: "1,240 posts · 38 ag desks", detail: "Sentiment skewing bullish grains" },
-  { label: "Backtest · 6 El Niño years", detail: "Wheat +11.8% median, 90d" },
+  { label: "Commodity prices", detail: "Wheat, sugar, Brazil index" },
+  { label: "1,240 posts on X", detail: "Ag-weather accounts lean bullish on grains" },
+  { label: "6 past El Niño years", detail: "Wheat +11.8% median over 90 days" },
 ];
 
 export const thesisExamples = [

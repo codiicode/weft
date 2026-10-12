@@ -11,7 +11,7 @@ const faqs = [
   },
   {
     q: "Does Weft hold my money?",
-    a: "No. Funds stay in your own Hyperliquid account or Solana wallet. Weft gets a key that can trade but can’t withdraw or transfer. You can revoke it from Hyperliquid at any time.",
+    a: "No. Funds stay in your own Hyperliquid account. Weft gets a key that can trade but can’t withdraw or transfer, and you can revoke it from Hyperliquid at any time. Live trading on Solana works the same way and comes next.",
   },
   {
     q: "What does it cost?",
@@ -34,8 +34,8 @@ const faqs = [
 export function FAQ() {
   const [open, setOpen] = useState<number | null>(0);
   return (
-    <Section id="faq" label="Questions" title="Good questions to ask first.">
-      <ul className="border-t border-line">
+    <Section id="faq" title="Questions">
+      <ul className="border-t border-line lg:ml-auto lg:max-w-[760px]">
         {faqs.map((f, i) => {
           const isOpen = open === i;
           return (

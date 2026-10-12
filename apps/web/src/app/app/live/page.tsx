@@ -219,9 +219,7 @@ export default function LivePage() {
         ) : (
           <Setup />
         )}
-        <p className="mt-6 text-[12.5px] text-faint">
-          Not financial advice. Leverage can lose more than you expect. <Link href="/app/runs" className="hover:text-ink">Your runs →</Link>
-        </p>
+        <p className="mt-6 text-[12.5px] text-faint">Not financial advice. Leverage can lose more than you expect.</p>
       </div>
     </>
   );

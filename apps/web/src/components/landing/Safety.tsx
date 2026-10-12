@@ -1,7 +1,7 @@
 import { Section } from "./Section";
 import { IconCheck } from "../graph/icons";
 
-const can = ["Place and cancel orders", "Set stops and targets", "Swap on Solana, back into your wallet"];
+const can = ["Place and cancel orders", "Set stops and targets", "Set leverage within your limits"];
 const cannot = ["Withdraw your funds", "Send money to another address", "Trade above the limits you set"];
 
 const guards = [
@@ -17,7 +17,7 @@ export function Safety() {
       label="Safety"
       className="night"
       title="It can trade. It can’t withdraw."
-      lead="Your money stays in your own Hyperliquid account or Solana wallet. Weft gets a trading-only key that you can revoke at any time."
+      lead="Your money stays in your own Hyperliquid account. Weft gets a trading-only key that you can revoke at any time. Solana live trading follows next."
     >
       <div className="grid gap-px overflow-hidden rounded-[14px] border border-line bg-line sm:grid-cols-2">
         <div className="bg-paper p-6 sm:p-8">

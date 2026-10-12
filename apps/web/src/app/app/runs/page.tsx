@@ -20,7 +20,7 @@ export default function RunsPage() {
   );
   return (
     <>
-      <PageHeader title="Runs" sub="Every strategy you’ve started, on paper or live." actions={<Btn href="/app/new">New strategy</Btn>} />
+      <PageHeader title="Runs" sub="Every strategy you’ve started, on paper or live." />
       <div className="px-5 pb-16 pt-6 lg:px-10">
         {error && !runs.length ? (
           <Empty title="Can’t reach the Weft server" sub="Your runs will appear here once it’s back." />

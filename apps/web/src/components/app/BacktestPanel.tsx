@@ -130,7 +130,7 @@ export function BacktestPanel({ strategy, strategyId, allocationUsd = 10_000 }: 
             <Segmented label="Lookback" value={days} options={DAY_PRESETS} onChange={setDays} render={(d) => `${d} days`} />
           </div>
           <div className="flex items-center gap-2 sm:ml-1">
-            <span className="text-[13px] text-muted">Detail</span>
+            <span className="text-[13px] text-muted">Price steps</span>
             <Segmented label="Bar size" value={interval} options={INTERVALS} onChange={setInterval} render={(v) => (v === "1h" ? "Hourly" : "15 min")} />
           </div>
           <Btn onClick={run} disabled={busy || (!strategy && !strategyId)} className="h-9 w-full min-w-[124px] sm:ml-auto sm:w-auto" variant="ink">

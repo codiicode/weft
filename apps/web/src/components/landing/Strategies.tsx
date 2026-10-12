@@ -44,7 +44,7 @@ export function Strategies() {
     <Section
       id="strategies"
       label="Strategies"
-      title="Start from a strategy someone already wrote."
+      title="Start from someone else’s strategy"
       lead="Every strategy is public. Read exactly what it does, then copy it and make it yours. Your wallet and sizes stay private."
     >
       <div className="grid gap-4 md:grid-cols-3">

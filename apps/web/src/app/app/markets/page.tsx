@@ -145,7 +145,7 @@ function Markets() {
       <PageHeader title="Markets" sub="Live prices. Pick any market to get a quote or build a strategy on it." />
       <div className="space-y-4 px-5 pb-16 pt-6 lg:px-10">
         <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
-          <div className="no-scrollbar flex gap-1 overflow-x-auto">
+          <div className="no-scrollbar fade-r flex gap-1 overflow-x-auto">
             {PRODUCTS.map((p) => (
               <button
                 key={p.id}
@@ -176,18 +176,18 @@ function Markets() {
         ) : (
           <Card className="overflow-hidden">
             <div className="overflow-x-auto">
-              <table className="w-full min-w-[720px] text-left text-[13.5px]">
+              <table className="w-full text-left text-[13.5px] sm:min-w-[720px]">
                 <thead className="text-[12.5px] text-muted">
                   <tr className="border-b border-line">
                     <th className="px-5 py-3 font-normal">Market</th>
                     <th className="px-3 py-3 text-right font-normal">Price</th>
                     <th className="px-3 py-3 text-right font-normal">24h</th>
-                    {cols.vol && <th className="px-3 py-3 text-right font-normal">Volume</th>}
-                    {cols.oi && <th className="px-3 py-3 text-right font-normal">Open interest</th>}
-                    {cols.fund && <th className="px-3 py-3 text-right font-normal">Funding / h</th>}
-                    {cols.liq && <th className="px-3 py-3 text-right font-normal">Liquidity</th>}
-                    {cols.mcap && <th className="px-3 py-3 text-right font-normal">Market cap</th>}
-                    {cols.lev && <th className="px-5 py-3 text-right font-normal">Max leverage</th>}
+                    {cols.vol && <th className="hidden sm:table-cell px-3 py-3 text-right font-normal">Volume</th>}
+                    {cols.oi && <th className="hidden sm:table-cell px-3 py-3 text-right font-normal">Open interest</th>}
+                    {cols.fund && <th className="hidden sm:table-cell px-3 py-3 text-right font-normal">Funding / h</th>}
+                    {cols.liq && <th className="hidden sm:table-cell px-3 py-3 text-right font-normal">Liquidity</th>}
+                    {cols.mcap && <th className="hidden sm:table-cell px-3 py-3 text-right font-normal">Market cap</th>}
+                    {cols.lev && <th className="hidden sm:table-cell px-5 py-3 text-right font-normal">Max leverage</th>}
                   </tr>
                 </thead>
                 <tbody>
@@ -203,12 +203,12 @@ function Markets() {
                       </td>
                       <td className="tnum px-3 py-3 text-right">{r.product === "predictions" && r.price != null ? `${Math.round(r.price * 100)}¢` : fmtPrice(r.price)}</td>
                       <td className={`tnum px-3 py-3 text-right ${(r.change24hPct ?? 0) >= 0 ? "text-long" : "text-short"}`}>{fmtPct(r.change24hPct)}</td>
-                      {cols.vol && <td className="tnum px-3 py-3 text-right text-ink-2">{fmtCompact(r.volume24hUsd)}</td>}
-                      {cols.oi && <td className="tnum px-3 py-3 text-right text-ink-2">{fmtCompact(r.openInterestUsd)}</td>}
-                      {cols.fund && <td className={`tnum px-3 py-3 text-right ${(r.fundingHourlyPct ?? 0) >= 0 ? "text-ink-2" : "text-short"}`}>{r.fundingHourlyPct == null ? "—" : `${r.fundingHourlyPct.toFixed(4)}%`}</td>}
-                      {cols.liq && <td className="tnum px-3 py-3 text-right text-ink-2">{fmtCompact(r.liquidityUsd)}</td>}
-                      {cols.mcap && <td className="tnum px-3 py-3 text-right text-ink-2">{fmtCompact(r.marketCapUsd)}</td>}
-                      {cols.lev && <td className="tnum px-5 py-3 text-right text-ink-2">{r.maxLeverage ? `${r.maxLeverage}×` : "—"}</td>}
+                      {cols.vol && <td className="hidden sm:table-cell tnum px-3 py-3 text-right text-ink-2">{fmtCompact(r.volume24hUsd)}</td>}
+                      {cols.oi && <td className="hidden sm:table-cell tnum px-3 py-3 text-right text-ink-2">{fmtCompact(r.openInterestUsd)}</td>}
+                      {cols.fund && <td className={`hidden sm:table-cell tnum px-3 py-3 text-right ${(r.fundingHourlyPct ?? 0) >= 0 ? "text-ink-2" : "text-short"}`}>{r.fundingHourlyPct == null ? "—" : `${r.fundingHourlyPct.toFixed(4)}%`}</td>}
+                      {cols.liq && <td className="hidden sm:table-cell tnum px-3 py-3 text-right text-ink-2">{fmtCompact(r.liquidityUsd)}</td>}
+                      {cols.mcap && <td className="hidden sm:table-cell tnum px-3 py-3 text-right text-ink-2">{fmtCompact(r.marketCapUsd)}</td>}
+                      {cols.lev && <td className="hidden sm:table-cell tnum px-5 py-3 text-right text-ink-2">{r.maxLeverage ? `${r.maxLeverage}×` : "—"}</td>}
                     </tr>
                   ))}
                 </tbody>

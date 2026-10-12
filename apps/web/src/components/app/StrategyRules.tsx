@@ -25,16 +25,32 @@ export function StrategyRules({ strategy, met }: { strategy: Strategy; met?: Rec
             )}
           </span>
           <div className="min-w-0 space-y-2.5">
-            <p className="text-[14.5px] leading-relaxed text-ink">
-              <span className="text-muted">When </span>
-              {r.when.map((w, j) => (
-                <span key={j}>
-                  {j > 0 && <span className="text-muted"> {r.match === "any" ? "or" : "and"} </span>}
-                  <span className="tnum">{w}</span>
-                </span>
-              ))}
-              {r.hold && <span className="text-muted"> {r.hold}</span>}
-            </p>
+            {r.when.length > 2 ? (
+              <div className="text-[14.5px] leading-relaxed text-ink">
+                <p className="text-muted">
+                  When {r.match === "any" ? "any of these is" : "all of these are"} true{r.hold ? ` ${r.hold}` : ""}:
+                </p>
+                <ul className="mt-1 space-y-0.5">
+                  {r.when.map((w, j) => (
+                    <li key={j} className="tnum flex gap-2">
+                      <span className="text-faint">·</span>
+                      {w}
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            ) : (
+              <p className="text-[14.5px] leading-relaxed text-ink">
+                <span className="text-muted">When </span>
+                {r.when.map((w, j) => (
+                  <span key={j}>
+                    {j > 0 && <span className="text-muted"> {r.match === "any" ? "or" : "and"} </span>}
+                    <span className="tnum">{w}</span>
+                  </span>
+                ))}
+                {r.hold && <span className="text-muted"> {r.hold}</span>}
+              </p>
+            )}
             <ul className="space-y-1.5">
               {r.then.map((t) => (
                 <li key={t.text} className="flex gap-2.5 text-[14.5px] leading-relaxed text-ink">

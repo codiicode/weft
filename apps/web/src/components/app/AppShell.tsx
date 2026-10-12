@@ -1,7 +1,7 @@
 "use client";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import type { ReactNode } from "react";
+import { useState, type ReactNode } from "react";
 import { Logo } from "../ui/Logo";
 import { ThemeToggle } from "../ui/ThemeToggle";
 import { api, API_URL } from "@/lib/api";
@@ -17,7 +17,8 @@ const NAV = [
   { href: "/app/leaderboard", label: "Leaderboard", icon: "M5 16V10M10 16V4.5M15 16v-4" },
 ];
 const ACCOUNT_NAV = [{ href: "/app/live", label: "Live trading", icon: "M10.5 3 5 11h4.5l-1 6 5.5-8H9.5z" }];
-const MOBILE_NAV = [NAV[0]!, NAV[1]!, { href: "/app/new", label: "New", icon: "M10 4.5v11M4.5 10h11" }, NAV[2]!, ACCOUNT_NAV[0]!];
+const MOBILE_NAV = [NAV[0]!, NAV[1]!, { href: "/app/new", label: "New", icon: "M10 4.5v11M4.5 10h11" }, NAV[2]!];
+const MORE_NAV = [NAV[3]!, NAV[4]!, ACCOUNT_NAV[0]!];
 
 function NavIcon({ d }: { d: string }) {
   return (
@@ -36,7 +37,7 @@ function ApiStatus() {
       title={ok ? "Connected to live market data" : `Can't reach the Weft server at ${API_URL}`}
     >
       <span className={`h-1.5 w-1.5 rounded-full ${ok ? "bg-long" : "bg-short"}`} />
-      {ok ? "Live data" : "Offline"}
+      {ok ? "Prices connected" : "Offline"}
     </span>
   );
 }
@@ -85,6 +86,7 @@ function NavLink({ n, active }: { n: { href: string; label: string; icon: string
 
 export function AppShell({ children }: { children: ReactNode }) {
   const path = usePathname();
+  const [more, setMore] = useState(false);
   const active = (href: string) => (href === "/app" ? path === "/app" || path === "/app/" : path.startsWith(href));
   return (
     <div className="min-h-screen bg-paper lg:grid lg:grid-cols-[232px_minmax(0,1fr)]">
@@ -139,13 +141,50 @@ export function AppShell({ children }: { children: ReactNode }) {
       <CommandPalette />
 
       {/* Mobile bottom nav */}
-      <nav className="fixed inset-x-0 bottom-0 z-40 grid grid-cols-5 border-t border-line bg-paper/95 pb-[env(safe-area-inset-bottom)] backdrop-blur-md lg:hidden">
+      {more && (
+        <div className="fixed inset-0 z-40 bg-black/20 lg:hidden" onClick={() => setMore(false)}>
+          <nav
+            className="absolute inset-x-0 bottom-0 rounded-t-[16px] border-t border-line bg-card px-3 pb-[calc(76px+env(safe-area-inset-bottom))] pt-3"
+            onClick={(e) => e.stopPropagation()}
+          >
+            {MORE_NAV.map((n) => (
+              <Link key={n.href} href={n.href} onClick={() => setMore(false)} className="flex h-12 items-center gap-3 rounded-[10px] px-3 text-[15px] text-ink hover:bg-paper-2">
+                <span className="text-muted">
+                  <NavIcon d={n.icon} />
+                </span>
+                {n.label}
+              </Link>
+            ))}
+            <button
+              onClick={() => {
+                setMore(false);
+                window.dispatchEvent(new Event("weft:palette"));
+              }}
+              className="flex h-12 w-full items-center gap-3 rounded-[10px] px-3 text-[15px] text-ink hover:bg-paper-2"
+            >
+              <span className="text-muted">
+                <NavIcon d="M8.5 14a5.5 5.5 0 1 0 0-11 5.5 5.5 0 0 0 0 11zM16.5 16.5l-4-4" />
+              </span>
+              Search
+            </button>
+          </nav>
+        </div>
+      )}
+      <nav className="fixed inset-x-0 bottom-0 z-50 grid grid-cols-5 border-t border-line bg-paper/95 pb-[env(safe-area-inset-bottom)] backdrop-blur-md lg:hidden">
         {MOBILE_NAV.map((n) => (
-          <Link key={n.href} href={n.href} className={`flex flex-col items-center gap-1 py-2.5 text-[11px] ${active(n.href) ? "text-ink" : "text-muted"}`}>
+          <Link key={n.href} href={n.href} onClick={() => setMore(false)} className={`flex flex-col items-center gap-1 py-2.5 text-[11px] ${active(n.href) && !more ? "text-ink" : "text-muted"}`}>
             <NavIcon d={n.icon} />
             <span className="truncate">{n.label.split(" ")[0]}</span>
           </Link>
         ))}
+        <button
+          onClick={() => setMore((m) => !m)}
+          aria-expanded={more}
+          className={`flex flex-col items-center gap-1 py-2.5 text-[11px] ${more || MORE_NAV.some((n) => active(n.href)) ? "text-ink" : "text-muted"}`}
+        >
+          <NavIcon d="M5 10h.01M10 10h.01M15 10h.01" />
+          <span>More</span>
+        </button>
       </nav>
     </div>
   );

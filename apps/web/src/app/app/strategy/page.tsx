@@ -69,7 +69,6 @@ function StrategyView() {
               [
                 ["rules", "Rules"],
                 ["graph", "Diagram"],
-                ["json", "JSON"],
               ] as const
             ).map(([t, l]) => (
               <button
@@ -82,6 +81,12 @@ function StrategyView() {
                 {l}
               </button>
             ))}
+            <button
+              onClick={() => setView(view === "json" ? "rules" : "json")}
+              className={`-mb-px ml-auto border-b-2 pb-2.5 text-[13px] transition-colors ${view === "json" ? "border-ink text-ink" : "border-transparent text-muted hover:text-ink"}`}
+            >
+              {view === "json" ? "Close JSON" : "View JSON"}
+            </button>
           </div>
           {view === "rules" ? (
             <StrategyRules strategy={s} />

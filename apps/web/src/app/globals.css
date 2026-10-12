@@ -189,6 +189,12 @@ textarea:focus-visible {
 .hairline {
   border-color: var(--line);
 }
+/* Horizontal scrollers hint that there is more on small screens. */
+@media (max-width: 767px) {
+  .fade-r {
+    mask-image: linear-gradient(to right, black 82%, transparent);
+  }
+}
 .no-scrollbar::-webkit-scrollbar {
   display: none;
 }

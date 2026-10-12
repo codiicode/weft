@@ -42,8 +42,8 @@ export function Markets() {
     <Section
       id="markets"
       label="Markets"
-      title="One idea. Five kinds of market."
-      lead="The same strategy can watch a weather forecast and buy a wheat perp, or watch X and buy a memecoin. Weft picks the venue."
+      title="What it can trade"
+      lead="One strategy can watch a weather forecast and trade commodities, or watch X and buy a memecoin. Weft picks where to trade."
     >
       <div className="grid gap-10 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)] lg:gap-14">
         <ul className="border-t border-line">
@@ -58,7 +58,7 @@ export function Markets() {
                 <span className={`text-[22px] font-semibold tracking-[-0.025em] transition-colors sm:text-[26px] ${sel === i ? "text-ink" : "text-faint group-hover:text-ink-2"}`}>
                   {x.id === "predictions" ? "Prediction markets" : x.name}
                 </span>
-                {x.status === "soon" && <span className="text-[13px] text-muted">Soon</span>}
+                {x.status === "soon" && <span className="text-[13px] text-muted">Paper only for now</span>}
                 <span className="ml-auto hidden text-[13px] text-muted sm:inline">{x.venues.slice(0, 2).join(", ")}</span>
               </button>
               <AnimatePresence initial={false}>

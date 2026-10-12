@@ -297,7 +297,13 @@ function humanize(line: string, titles: Map<string, string>): string {
     const field = FIELD[f]?.[0] ?? f.replaceAll("_", " ");
     return t ? `${t} ${field}` : field;
   };
+  const title = (sid: string) => titles.get(sid) ?? sid;
   return line
+    // Time to/since calendar events read as "in 2–48 hours", "less than 1 hour away".
+    .replace(/(-?[\d.]+) ≤ ([a-z][a-z0-9_]*)\.hours_until ≤ (-?[\d.]+)/g, (_m, a: string, sid: string, b: string) => `${title(sid)} is ${a}–${b} hours away`)
+    .replace(/([a-z][a-z0-9_]*)\.hours_until ([<≤]) (-?[\d.]+)/g, (_m, sid: string, _op: string, n: string) => `${title(sid)} is less than ${n} hour${n === "1" ? "" : "s"} away`)
+    .replace(/([a-z][a-z0-9_]*)\.hours_since ([<≤]) (-?[\d.]+)/g, (_m, sid: string, _op: string, n: string) => `${title(sid)} happened less than ${n} hour${n === "1" ? "" : "s"} ago`)
+    .replace(/(-?[\d.]+) ≤ ([a-z][a-z0-9_]*)\.([a-z][a-z0-9_]*) ≤ (-?[\d.]+)/g, (_m, a: string, sid: string, f: string, b: string) => `${name(sid, f)} between ${withUnit(a, FIELD[f]?.[1])} and ${withUnit(b, FIELD[f]?.[1])}`)
     .replace(/\b([a-z][a-z0-9_]*)\.([a-z][a-z0-9_]*)\s*([<>=≤≥≠])\s*(-?[\d.]+)/g, (_m, sid: string, f: string, op: string, n: string) => {
       const unit = FIELD[f]?.[1];
       return `${name(sid, f)} ${op} ${withUnit(n, unit).replace(/^-/, "−")}`;
@@ -325,7 +331,7 @@ function exitPhrase(e: { takeProfit?: Level; stopLoss?: Level; trailingStopPct?:
   const tp = levelLabel(e.takeProfit, sign[0]);
   if (sl) parts.push(`stop at ${sl}`);
   if (tp) parts.push(`take profit at ${tp}`);
-  if (e.trailingStopPct) parts.push(`trail ${e.trailingStopPct}%`);
+  if (e.trailingStopPct) parts.push(`trailing stop ${e.trailingStopPct}%`);
   if (e.timeExitHours) parts.push(`exit after ${minutesLabel(e.timeExitHours * 60)}`);
   return parts.join(", ");
 }

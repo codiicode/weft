@@ -238,7 +238,6 @@ function Builder() {
                   [
                     ["rules", "Rules"],
                     ["graph", "Diagram"],
-                    ["json", "JSON"],
                   ] as const
                 ).map(([t, l]) => (
                   <button
@@ -251,6 +250,12 @@ function Builder() {
                     {l}
                   </button>
                 ))}
+                <button
+                  onClick={() => setTab(tab === "json" ? "rules" : "json")}
+                  className={`-mb-px ml-auto border-b-2 pb-2.5 text-[13px] transition-colors ${tab === "json" ? "border-ink text-ink" : "border-transparent text-muted hover:text-ink"}`}
+                >
+                  {tab === "json" ? "Close JSON" : "View JSON"}
+                </button>
               </div>
 
               {tab === "rules" ? (

@@ -147,7 +147,7 @@ function ActionBody({ node, active, preset, width }: { node: ActionNode; active:
   const color = sideColor(node.side);
   const params = [
     ["Size", node.alloc],
-    node.tp ? ["TP", node.tp] : null,
+    node.tp ? ["Target", node.tp] : null,
     node.sl ? ["Stop", node.sl] : null,
   ].filter(Boolean) as [string, string][];
   return (

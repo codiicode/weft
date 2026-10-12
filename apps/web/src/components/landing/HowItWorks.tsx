@@ -17,6 +17,16 @@ function Step({ n, title, body, children }: { n: number; title: string; body: st
   );
 }
 
+function Arrow() {
+  return (
+    <div className="hidden h-[188px] items-center md:flex" aria-hidden>
+      <svg width="28" height="12" viewBox="0 0 28 12" fill="none" className="text-faint">
+        <path d="M0 6h26M21 1l5 5-5 5" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round" />
+      </svg>
+    </div>
+  );
+}
+
 function Rule({ k, children }: { k: string; children: React.ReactNode }) {
   return (
     <div className="grid grid-cols-[52px_1fr] gap-2 py-1.5 text-[13.5px]">
@@ -31,13 +41,14 @@ export function HowItWorks() {
     <Section
       id="how"
       label="How it works"
-      title="You write the idea. Weft does the wiring."
-      lead="No indicators, no code. Nothing trades until you approve it, and you can stop it at any time."
+      title="How it works"
+      lead="No indicators and no code. Nothing trades until you approve it, and you can stop it at any time."
     >
-      <div className="grid gap-10 md:grid-cols-3 md:gap-6">
+      <div className="grid gap-10 md:grid-cols-[1fr_auto_1fr_auto_1fr] md:gap-4">
         <Step n={1} title="Write it" body="Say what you think will happen, the way you'd text a friend. Any market, any time frame.">
           <p className="display text-[22px] leading-[1.3] text-ink">“Buy $PUMP if it dips to 0.004 and sentiment turns bullish.”</p>
         </Step>
+        <Arrow />
         <Step n={2} title="Check it" body="Weft researches the idea and drafts plain rules: what to watch, when to act, how much to risk. Change anything.">
           <div className="divide-y divide-line">
             <Rule k="Watch">PUMP price, X sentiment</Rule>
@@ -49,6 +60,7 @@ export function HowItWorks() {
             </Rule>
           </div>
         </Step>
+        <Arrow />
         <Step n={3} title="Run it" body="Test on paper against live prices. When you're happy, switch it to live from your own account.">
           <div className="flex items-center justify-between text-[13px]">
             <span className="inline-flex items-center gap-1.5 text-ink-2">

@@ -5,6 +5,8 @@ import { fmtUsd, fmtPct, ago } from "@/lib/use-api";
 import { Card } from "./AppShell";
 import { Sparkline } from "@/components/ui/Sparkline";
 
+export const trendColor = (v: number) => (v > 0 ? "var(--long)" : v < 0 ? "var(--short)" : "var(--faint)");
+
 const STATUS: Record<string, string> = { running: "Running", paused: "Paused", stopped: "Stopped", killed: "Stopped" };
 
 export function RunStatus({ s }: { s: Snapshot }) {
@@ -39,7 +41,7 @@ export function RunRow({ s }: { s: Snapshot }) {
       <div className={`tnum text-right text-[14.5px] font-medium ${s.returnPct === 0 ? "text-ink-2" : up ? "text-long" : "text-short"}`}>{fmtPct(s.returnPct)}</div>
       <div className="tnum hidden text-right text-[13.5px] text-ink-2 sm:block">{fmtUsd(s.equityUsd, 0)}</div>
       <div className="hidden justify-end sm:flex">
-        {curve.length > 1 ? <Sparkline data={curve} width={96} height={26} color={up ? "var(--long)" : "var(--short)"} strokeWidth={1.4} /> : <span className="text-[12px] text-faint">—</span>}
+        {curve.length > 1 ? <Sparkline data={curve} width={96} height={26} color={trendColor(s.returnPct)} strokeWidth={1.4} /> : <span className="text-[12px] text-faint">—</span>}
       </div>
     </Link>
   );
@@ -72,12 +74,12 @@ export function RunCard({ s }: { s: Snapshot }) {
         <div className="mt-0.5 line-clamp-1 text-[13.5px] text-muted">{d.strategy.thesis}</div>
         <div className="mt-4 flex items-end justify-between gap-3">
           <div>
-            <div className={`tnum text-[22px] font-medium tracking-[-0.02em] ${up ? "text-long" : "text-short"}`}>{fmtPct(s.returnPct)}</div>
+            <div className={`tnum text-[22px] font-medium tracking-[-0.02em] ${s.returnPct === 0 ? "text-ink" : up ? "text-long" : "text-short"}`}>{fmtPct(s.returnPct)}</div>
             <div className="tnum text-[12.5px] text-faint">
               {fmtUsd(s.equityUsd, 2)} · {s.positions.length} open
             </div>
           </div>
-          {curve.length > 1 && <Sparkline data={curve} width={120} height={36} color={up ? "var(--long)" : "var(--short)"} />}
+          {curve.length > 1 && <Sparkline data={curve} width={120} height={36} color={trendColor(s.returnPct)} />}
         </div>
       </Card>
     </Link>
