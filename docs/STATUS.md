@@ -10,8 +10,16 @@ _Last updated by the build session. All numbers below were verified by running t
 | `packages/venues` | Live market data, catalogs and signal providers: Hyperliquid (perps, HIP-3, spot, HIP-4), Jupiter (tokens, xStocks, prediction markets), Deribit/Derive options, NOAA, FRED, Frankfurter; OI history sampler for z-scores | 83 |
 | `packages/engine` | Runtime: tick loop, paper executor (fees, slippage), TP/SL/trailing/time exits, perp funding + liquidation, risk, SQLite persistence, replay, events | 47 |
 | `packages/execution` | Live execution: Hyperliquid agent-wallet signing (matches official Python + Rust SDK vectors; testnet confirmed the server recovers our agent address), Jupiter swap builder + transaction inspector, signer interface, Turnkey policy draft | 85 (+2 opt-in live) |
-| `apps/api` | HTTP API: markets, library (save/fork), thesis → strategy (Claude with tools, template fallback), paper + live deployments, Privy sign-in and ownership, live trading on Hyperliquid, leaderboard, SSE, alerts to Telegram/webhooks | 42 |
-| `apps/web` | Landing page + product app (`/app`): sign-in (Privy), builder, markets, runs with kill switch, live setup (`/app/live`), library, leaderboard | typecheck + build |
+| `apps/api` | HTTP API: markets, library (save/fork), thesis → strategy and plain-language edits (Claude with tools, offline fallback), paper + live deployments, Privy sign-in and ownership, live trading on Hyperliquid with venue reconciliation, leaderboard, SSE, per-user Telegram alerts | 48 |
+| `apps/web` | Landing page + product app (`/app`): sign-in (Privy), builder with plain-English rules and "change something", runs, strategies, markets, leaderboard, live setup, settings, ⌘K, notices | typecheck + build |
+
+**Design (Oct 13):** the landing page and app were redesigned to look and read like a hand-made
+product: 8 landing sections instead of 15, Inter for UI with Newsreader for display headings, mono only
+for addresses, neutral palette where colour means something (blue watches, amber conditions, green and
+red trades), no glows, neon, marquee or invented metrics. Strategies are shown as sentences
+("When BTC 24h change > 3% → Go long BTC with 8% of the account; stop at −5%") everywhere, with the
+diagram and JSON one click away. Engine events are written in plain language. Lighthouse (landing):
+accessibility 100, best practices 100, SEO 100, performance 97 desktop / 79 mobile (simulated slow 4G).
 
 **Backtesting:** `POST /backtest` (and the Backtest panel in the app) replays up to 90 days of real
 history through the same engine. Perps, HIP-3 stocks and Solana tokens (GeckoTerminal) have price
@@ -22,7 +30,8 @@ panel explains when a trigger couldn't fire. Predictions and options aren't back
 Privy (we never see the key). A Privy policy only lets it sign Hyperliquid L1 actions; a withdraw-style
 signature is refused ("policy violation", verified). The user links their Hyperliquid account on
 `/app/live`, signs `approveAgent` (+ `approveBuilderFee` if a builder is set) in their own wallet, and can
-then pick **Live** in the run panel and type `GO LIVE`. Guards: $100 per live run, 3× max leverage, HL
+then pick **Live** in the run panel and type `GO LIVE`. Every minute the API compares live runs with
+the positions Hyperliquid reports and notes any mismatch on the run. Guards: $100 per live run (default; `WEFT_LIVE_MAX_ALLOCATION_USD`), 3× max leverage, HL
 perps + spot only, one live strategy per coin (positions net per account), owner-only controls.
 Revoke any time on Hyperliquid (More → API). Switch with `WEFT_LIVE_ENABLED`, `WEFT_HL_NETWORK`.
 
@@ -37,7 +46,7 @@ npm install
 npm run dev -w @weft/api        # http://localhost:8787 (data in apps/api/.data)
 npm run dev -w @weft/web        # http://localhost:3000 → /app
 npm run seed -w @weft/api       # optional: 8 demo paper runs across all products
-npm test                        # 268 tests
+npm test                        # 310 tests
 ```
 
 Set `ANTHROPIC_API_KEY` before starting the API to get full AI generation (Claude Opus 5.5 with market
@@ -66,13 +75,13 @@ search and self-correcting validation). Without it, a deterministic template eng
    rate (default 5 bps), and the token-side platform fee (default 50 bps).
 7. **Legal review** before any live trading or the token launch (automated trading for others + fee buybacks).
 8. **Name**: still "Weft" in `apps/web/src/config/brand.ts`.
-9. **Telegram bot** for alerts: create one with @BotFather, then set `TELEGRAM_BOT_TOKEN` + `TELEGRAM_CHAT_ID`
-   (or `WEFT_ALERT_WEBHOOK_URL` for Discord/Slack). Alerts-only strategies then message you instead of trading.
+9. **Telegram bot** for alerts: create one with @BotFather and set `TELEGRAM_BOT_TOKEN` in `apps/api/.env`.
+   Each user then connects their own chat in Settings. `TELEGRAM_CHAT_ID` (optional) receives everything.
 
 ## Not built yet (next steps, in order)
 
-1. **Live, next**: first real testnet run by a person end to end; reconcile fills from the venue
-   (`userFills`) instead of trusting order responses; mainnet only after that and legal review.
+1. **Live, next**: first real testnet run by a person end to end (position reconciliation is in; fill-level
+   reconciliation from `userFills` is next); mainnet only after that and legal review.
    Solana live via Privy session signers with a policy.
 2. Live orders for HIP-4 outcomes (implemented, off by default), Jupiter prediction markets, options venues.
 3. Paper engine: resting limit orders; cross-margin liquidation model (today: isolated estimate).
