@@ -7,7 +7,7 @@ export const brand = {
   ticker: "WEFT",
   tagline: "Trade the thesis.",
   description:
-    "Weft turns a market thesis written in plain language into a live, visual trading strategy for perps, stocks, prediction markets and any Solana token. It runs non-custodially on Hyperliquid and Solana (via Jupiter). Strategies are public and forkable; trading fees buy back $WEFT.",
+    "Write a market view in plain English. Weft turns it into rules you can read, tests them on paper, and trades them from your own wallet: perps, stocks, prediction markets and Solana tokens.",
   domain: "weft.trade",
   url: "https://weft.trade",
   contractAddress: "PLACEHOLDER_CONTRACT_ADDRESS_SOLANA",
