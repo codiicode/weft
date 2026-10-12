@@ -3,6 +3,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import type { Strategy } from "@weft/strategy";
 import { api, ApiError } from "@/lib/api";
+import { useRequireAuth } from "@/lib/auth";
 import { Btn, Card } from "./AppShell";
 
 const INTERVALS = [
@@ -20,7 +21,9 @@ export function DeployPanel({ strategy, strategyId, compact = false }: { strateg
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  const requireAuth = useRequireAuth();
   const deploy = async () => {
+    if (!requireAuth()) return;
     setBusy(true);
     setError(null);
     try {

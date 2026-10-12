@@ -7,6 +7,7 @@ import { Logo, LogoMark } from "../ui/Logo";
 import { ThemeToggle } from "../ui/ThemeToggle";
 import { api, API_URL } from "@/lib/api";
 import { useApi } from "@/lib/use-api";
+import { useAuth } from "@/lib/auth";
 
 const NAV = [
   { href: "/app", label: "Overview", icon: "M3 9.5 10 4l7 5.5V16a1 1 0 0 1-1 1h-4v-5H8v5H4a1 1 0 0 1-1-1z" },
@@ -51,6 +52,42 @@ function ApiStatus() {
   );
 }
 
+function AccountButton({ compact = false }: { compact?: boolean }) {
+  const auth = useAuth();
+  if (!auth.enabled) {
+    return compact ? null : (
+      <div className="rounded-2xl border border-dashed border-line-2 p-3 text-[11.5px] leading-relaxed text-faint">
+        <div className="font-mono uppercase tracking-[0.12em] text-muted">Local mode</div>
+        Sign-in turns on when <span className="font-mono text-ink-2">NEXT_PUBLIC_PRIVY_APP_ID</span> is set.
+      </div>
+    );
+  }
+  if (!auth.ready) return <div className={compact ? "h-9 w-20 animate-pulse rounded-full bg-paper-2" : "h-12 animate-pulse rounded-2xl bg-paper-2"} />;
+  if (!auth.authenticated) {
+    return (
+      <button onClick={auth.login} className={`inline-flex items-center justify-center gap-2 rounded-full bg-ink font-medium text-paper ${compact ? "h-9 px-3.5 text-[13px]" : "h-11 w-full text-[14px]"}`}>
+        Sign in
+      </button>
+    );
+  }
+  return (
+    <div className={`flex items-center gap-2 ${compact ? "" : "rounded-2xl border border-line bg-card/60 p-2.5"}`}>
+      <span className="grid h-8 w-8 shrink-0 place-items-center rounded-full bg-[var(--long-soft)] font-mono text-[11px] text-long">
+        {(auth.label ?? "?").replace(/^0x/, "").slice(0, 2)}
+      </span>
+      {!compact && (
+        <div className="min-w-0 flex-1">
+          <div className="truncate font-mono text-[12.5px] text-ink">{auth.label}</div>
+          <div className="text-[11px] text-faint">{auth.wallets.length} wallet{auth.wallets.length === 1 ? "" : "s"} · paper</div>
+        </div>
+      )}
+      <button onClick={() => auth.logout()} className="rounded-full px-2 py-1 font-mono text-[10.5px] uppercase tracking-[0.1em] text-muted hover:text-ink">
+        Sign out
+      </button>
+    </div>
+  );
+}
+
 export function AppShell({ children }: { children: ReactNode }) {
   const path = usePathname();
   const active = (href: string) => (href === "/app" ? path === "/app" || path === "/app/" : path.startsWith(href));
@@ -75,6 +112,7 @@ export function AppShell({ children }: { children: ReactNode }) {
           ))}
         </nav>
         <div className="mt-auto space-y-3">
+          <AccountButton />
           <ApiStatus />
           <div className="flex items-center justify-between px-1">
             <span className="font-mono text-[10.5px] text-faint">Paper mode · demo</span>
@@ -87,7 +125,10 @@ export function AppShell({ children }: { children: ReactNode }) {
       <header className="sticky top-0 z-40 flex items-center justify-between border-b border-line bg-paper/85 px-4 py-3 backdrop-blur-xl lg:hidden">
         <Link href="/app" aria-label="Weft app"><LogoMark size={26} /></Link>
         <span className="font-mono text-[10.5px] uppercase tracking-[0.12em] text-muted">Paper mode</span>
-        <ThemeToggle />
+        <div className="flex items-center gap-2">
+          <AccountButton compact />
+          <ThemeToggle />
+        </div>
       </header>
 
       <main className="min-w-0 pb-24 lg:pb-0">{children}</main>

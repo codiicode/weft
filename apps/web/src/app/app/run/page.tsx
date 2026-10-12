@@ -6,6 +6,7 @@ import Link from "next/link";
 import type { EngineEvent } from "@weft/engine";
 import { instrumentLabel } from "@weft/strategy";
 import { api } from "@/lib/api";
+import { useRequireAuth } from "@/lib/auth";
 import { useApi, fmtUsd, fmtPct, fmtPrice, ago } from "@/lib/use-api";
 import { PageHeader, Card, Btn, Pill, Stat, Empty } from "@/components/app/AppShell";
 import { StrategyCanvas } from "@/components/app/StrategyCanvas";
@@ -67,6 +68,8 @@ function Run() {
   const fills = useApi(id ? () => api.fills(id) : null, [id], { pollMs: 8_000 });
   const [events, setEvents] = useState<EngineEvent[]>([]);
   const [showTicks, setShowTicks] = useState(false);
+  const [controlError, setControlError] = useState<string | null>(null);
+  const requireAuth = useRequireAuth();
 
   useEffect(() => {
     if (!id) return;
@@ -119,7 +122,14 @@ function Run() {
   const d = s.deployment;
   const status = d.status;
   const control = async (a: "pause" | "resume" | "stop" | "kill" | "tick") => {
-    await api.control(id, a);
+    if (!requireAuth()) return;
+    setControlError(null);
+    try {
+      await api.control(id, a);
+    } catch (e) {
+      setControlError((e as { status?: number }).status === 403 ? "Only the owner of this run can control it." : (e as Error).message);
+      return;
+    }
     snap.refresh();
     fills.refresh();
   };
@@ -145,6 +155,7 @@ function Run() {
         }
       />
       <div className="space-y-6 px-5 py-6 lg:px-10">
+        {controlError && <Card className="p-3 text-[13px] text-short">{controlError}</Card>}
         <div className="grid grid-cols-2 gap-3 lg:grid-cols-5">
           <Stat label="Equity" value={fmtUsd(s.equityUsd, 2)} sub={`of ${fmtUsd(d.allocationUsd, 0)} allocated`} />
           <Stat label="Return" value={fmtPct(s.returnPct)} tone={s.returnPct > 0 ? "long" : s.returnPct < 0 ? "short" : undefined} />

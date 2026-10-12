@@ -2,6 +2,7 @@
 import { Suspense, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { api } from "@/lib/api";
+import { useRequireAuth } from "@/lib/auth";
 import { useApi } from "@/lib/use-api";
 import { PageHeader, Card, Btn, Pill, Empty } from "@/components/app/AppShell";
 import { StrategyCanvas } from "@/components/app/StrategyCanvas";
@@ -13,6 +14,7 @@ function StrategyView() {
   const router = useRouter();
   const { data: e, error } = useApi(id ? () => api.strategy(id) : null, [id]);
   const [showJson, setShowJson] = useState(false);
+  const requireAuth = useRequireAuth();
   const [copied, setCopied] = useState(false);
   if (!id) return <div className="p-10"><Empty title="No strategy selected" action={<Btn href="/app/library">Library</Btn>} /></div>;
   if (!e) return <div className="p-10">{error ? <Empty title="Strategy not found" sub={error.message} action={<Btn href="/app/library">Library</Btn>} /> : <div className="h-72 animate-pulse rounded-[20px] bg-paper-2" />}</div>;
@@ -26,7 +28,7 @@ function StrategyView() {
         actions={
           <>
             <Btn variant="ghost" onClick={async () => { try { await navigator.clipboard.writeText(window.location.href); } catch {} setCopied(true); setTimeout(() => setCopied(false), 1500); }}>{copied ? "Copied" : "Copy link"}</Btn>
-            <Btn variant="ghost" onClick={async () => { const f = await api.fork(e.id); router.push(`/app/strategy?id=${encodeURIComponent(f.id)}`); }}>Fork</Btn>
+            <Btn variant="ghost" onClick={async () => { if (!requireAuth()) return; const f = await api.fork(e.id); router.push(`/app/strategy?id=${encodeURIComponent(f.id)}`); }}>Fork</Btn>
           </>
         }
       />

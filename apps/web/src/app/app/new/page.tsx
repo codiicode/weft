@@ -5,6 +5,7 @@ import { AnimatePresence, motion } from "motion/react";
 import Link from "next/link";
 import type { Strategy } from "@weft/strategy";
 import { api, ApiError, type GenerateProgress, type GenerateResult } from "@/lib/api";
+import { useRequireAuth } from "@/lib/auth";
 import { PageHeader, Card, Btn, Pill } from "@/components/app/AppShell";
 import { StrategyCanvas } from "@/components/app/StrategyCanvas";
 import { DeployPanel } from "@/components/app/DeployPanel";
@@ -35,8 +36,10 @@ function Builder() {
 
   const strategy: Strategy | null = result?.strategy ?? null;
 
+  const requireAuth = useRequireAuth();
   const generate = async (t = thesis) => {
     if (t.trim().length < 3) return;
+    if (!requireAuth()) return;
     abort.current?.abort();
     abort.current = new AbortController();
     setStatus("running");
@@ -74,7 +77,7 @@ function Builder() {
   };
 
   const save = async () => {
-    if (!strategy) return;
+    if (!strategy || !requireAuth()) return;
     const entry = await api.saveStrategy(strategy);
     setSaved(entry.id);
   };

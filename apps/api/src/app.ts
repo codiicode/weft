@@ -1,5 +1,7 @@
 import { Hono } from "hono";
 import { cors } from "hono/cors";
+import { HTTPException } from "hono/http-exception";
+import type { Context } from "hono";
 import { streamSSE } from "hono/streaming";
 import { z } from "zod";
 import { examples } from "@weft/strategy/examples";
@@ -11,6 +13,8 @@ import type { StrategyLibrary } from "./lib/library.ts";
 import { generateStrategy, GenerationError } from "./ai/generate.ts";
 import { runBacktest, type BacktestDeps } from "./backtest/run.ts";
 import type { Notifier } from "./lib/alerts.ts";
+import { AuthError, LOCAL_USER, type AuthUser, type Authenticator } from "./lib/auth.ts";
+import type { Accounts } from "./lib/accounts.ts";
 
 export interface AppDeps {
   catalog: Catalog;
@@ -22,6 +26,11 @@ export interface AppDeps {
   notifier?: Notifier;
   /** History provider (+ token facts, calendar) for POST /backtest. Absent: 501. */
   backtest?: BacktestDeps;
+  /** Privy auth. Absent or disabled: local mode, every request is the "local" user. */
+  auth?: Authenticator;
+  accounts?: Accounts;
+  /** AI generations per user per UTC day when auth is enabled (cost control). */
+  aiDailyLimit?: number;
 }
 
 const PRODUCTS = ["perps", "stocks", "predictions", "tokens", "options"] as const;
@@ -43,19 +52,74 @@ const BacktestBody = z.object({
 });
 
 export function createApp(deps: AppDeps) {
-  const { catalog, marketData, engine, library } = deps;
+  const { catalog, marketData, engine, library, accounts } = deps;
+  const authEnabled = !!deps.auth?.enabled;
+  const aiDailyLimit = deps.aiDailyLimit ?? 30;
   const app = new Hono();
+
+  /** The signed-in user, LOCAL_USER in local mode, or null for anonymous requests. */
+  const optionalUser = async (c: Context): Promise<AuthUser | null> => {
+    if (!authEnabled) return LOCAL_USER;
+    const header = c.req.header("authorization");
+    const token = header?.startsWith("Bearer ") ? header.slice(7) : c.req.query("token");
+    if (!token) return null;
+    try {
+      const user = await deps.auth!.verify(token);
+      accounts?.touch(user.id);
+      return user;
+    } catch (e) {
+      if (e instanceof AuthError) throw new HTTPException(401, { message: e.message });
+      throw e;
+    }
+  };
+  const requireUser = async (c: Context): Promise<AuthUser> => {
+    const u = await optionalUser(c);
+    if (!u) throw new HTTPException(401, { message: "sign in required" });
+    return u;
+  };
+  /** Owner check. Unowned records (seeded before auth) are only editable in local mode. */
+  const assertOwner = (owner: string | null | undefined, user: AuthUser) => {
+    if (!authEnabled) return;
+    if (owner !== user.id) throw new HTTPException(403, { message: "not yours" });
+  };
+  const checkAiQuota = (user: AuthUser) => {
+    if (!authEnabled || !accounts) return;
+    if (accounts.aiUsedToday(user.id) >= aiDailyLimit)
+      throw new HTTPException(429, { message: `daily AI limit reached (${aiDailyLimit} strategies per day)` });
+    accounts.recordAiUse(user.id);
+  };
 
   app.use("*", cors({ origin: (o) => o ?? "*", allowMethods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"] }));
 
   app.onError((err, c) => {
+    if (err instanceof HTTPException) return c.json({ error: err.message }, err.status);
     const issues = (err as { issues?: unknown }).issues;
     if (issues) return c.json({ error: err.message, issues }, 400);
     console.error(err);
     return c.json({ error: err.message || "internal error" }, 500);
   });
 
-  app.get("/health", (c) => c.json({ ok: true, ts: Date.now(), signals: deps.signalModes }));
+  app.get("/health", (c) => c.json({ ok: true, ts: Date.now(), signals: deps.signalModes, auth: { enabled: authEnabled, appId: deps.auth?.appId ?? null } }));
+
+  /* ---------------- Me ---------------- */
+
+  app.get("/me", async (c) => {
+    const user = await optionalUser(c);
+    return c.json({
+      authEnabled,
+      user: user ? (accounts?.get(user.id) ?? { id: user.id }) : null,
+      ai: user ? { usedToday: accounts?.aiUsedToday(user.id) ?? 0, dailyLimit: authEnabled ? aiDailyLimit : null } : null,
+    });
+  });
+
+  /** Client reports linked wallets / display name (display only; never used for authorization). */
+  app.post("/me", async (c) => {
+    const user = await requireUser(c);
+    const body = z
+      .object({ wallets: z.array(z.string().max(64)).max(10).optional(), displayName: z.string().max(40).nullable().optional() })
+      .parse(await c.req.json());
+    return c.json(accounts?.touch(user.id, body) ?? { id: user.id });
+  });
 
   /* ---------------- Markets ---------------- */
 
@@ -90,30 +154,45 @@ export function createApp(deps: AppDeps) {
   });
 
   app.post("/strategies", async (c) => {
+    const user = await requireUser(c);
     const body = await c.req.json();
-    const entry = library.save(body.strategy ?? body, { author: String(body.author ?? "@anon") });
+    const entry = library.save(body.strategy ?? body, { author: String(body.author ?? "@anon").slice(0, 40) });
+    accounts?.setStrategyOwner(entry.id, user.id);
     return c.json(entry, 201);
   });
 
   app.put("/strategies/:id", async (c) => {
+    const user = await requireUser(c);
     const id = c.req.param("id");
     if (!library.get(id)) return c.json({ error: "not found" }, 404);
+    assertOwner(accounts?.strategyOwner(id), user);
     const body = await c.req.json();
     return c.json(library.save(body.strategy ?? body, { author: "", replaceId: id }));
   });
 
   app.post("/strategies/:id/fork", async (c) => {
+    const user = await requireUser(c);
     const body = await c.req.json().catch(() => ({}));
-    const entry = library.fork(c.req.param("id"), String((body as { author?: string }).author ?? "@anon"));
+    const entry = library.fork(c.req.param("id"), String((body as { author?: string }).author ?? "@anon").slice(0, 40));
+    if (entry) accounts?.setStrategyOwner(entry.id, user.id);
     return entry ? c.json(entry, 201) : c.json({ error: "not found" }, 404);
   });
 
-  app.delete("/strategies/:id", (c) => (library.delete(c.req.param("id")) ? c.json({ ok: true }) : c.json({ error: "not found" }, 404)));
+  app.delete("/strategies/:id", async (c) => {
+    const user = await requireUser(c);
+    const id = c.req.param("id");
+    if (!library.get(id)) return c.json({ error: "not found" }, 404);
+    assertOwner(accounts?.strategyOwner(id), user);
+    library.delete(id);
+    return c.json({ ok: true });
+  });
 
   /* ---------------- AI: thesis → strategy ---------------- */
 
   app.post("/ai/generate", async (c) => {
+    const user = await requireUser(c);
     const { thesis } = z.object({ thesis: z.string().min(3).max(2_000) }).parse(await c.req.json());
+    checkAiQuota(user);
     try {
       const r = await generateStrategy(thesis, { catalog });
       return c.json({ ...r, graph: toGraph(r.strategy) });
@@ -125,7 +204,9 @@ export function createApp(deps: AppDeps) {
 
   /** Same as /ai/generate but streams progress as SSE (consume with fetch + ReadableStream). */
   app.post("/ai/generate/stream", async (c) => {
+    const user = await requireUser(c);
     const { thesis } = z.object({ thesis: z.string().min(3).max(2_000) }).parse(await c.req.json());
+    checkAiQuota(user);
     return streamSSE(c, async (stream) => {
       try {
         const r = await generateStrategy(thesis, {
@@ -144,6 +225,7 @@ export function createApp(deps: AppDeps) {
   /** Replays the strategy through the real engine over the last N days of history. */
   app.post("/backtest", async (c) => {
     if (!deps.backtest) return c.json({ error: "backtesting is not configured" }, 501);
+    await requireUser(c);
     const body = BacktestBody.parse(await c.req.json());
     let raw = body.strategy;
     if (!raw && body.strategyId) {
@@ -159,13 +241,20 @@ export function createApp(deps: AppDeps) {
 
   /* ---------------- Deployments (paper) ---------------- */
 
+  /** Your deployments (all of them in local mode); ?scope=all lists everyone's (public). */
   app.get("/deployments", async (c) => {
-    const records = await engine.listDeployments();
+    let records = await engine.listDeployments();
+    if (authEnabled && c.req.query("scope") !== "all") {
+      const user = await optionalUser(c);
+      const mine = user && accounts ? accounts.deploymentsOf(user.id) : new Set<string>();
+      records = records.filter((d) => mine.has(d.id));
+    }
     const snaps = await Promise.all(records.map((d) => engine.getSnapshot(d.id)));
     return c.json({ deployments: snaps.filter(Boolean) });
   });
 
   app.post("/deployments", async (c) => {
+    const user = await requireUser(c);
     const body = DeployBody.parse(await c.req.json());
     let raw = body.strategy;
     if (!raw && body.strategyId) raw = library.get(body.strategyId)?.strategy;
@@ -178,6 +267,7 @@ export function createApp(deps: AppDeps) {
       caps: body.caps,
       intervalSec: body.intervalSec,
     });
+    accounts?.setDeploymentOwner(record.id, user.id);
     // First tick right away so the UI has data immediately.
     engine.tick(record.id).catch((e) => console.error("first tick failed", e));
     return c.json(record, 201);
@@ -194,21 +284,27 @@ export function createApp(deps: AppDeps) {
 
   for (const action of ["pause", "resume", "stop", "kill", "tick"] as const) {
     app.post(`/deployments/:id/${action}`, async (c) => {
+      const user = await requireUser(c);
       const id = c.req.param("id");
       if (!(await engine.getSnapshot(id))) return c.json({ error: "not found" }, 404);
+      assertOwner(accounts?.deploymentOwner(id), user);
       await engine[action](id);
       return c.json(await engine.getSnapshot(id));
     });
   }
 
-  /** Live engine events. Optional ?deploymentId= filter. */
-  app.get("/events/stream", (c) => {
+  /** Live engine events. ?deploymentId= for one run (public); otherwise your runs (pass ?token= since EventSource can't set headers). */
+  app.get("/events/stream", async (c) => {
     const only = c.req.query("deploymentId");
+    const user = only ? null : await optionalUser(c);
+    const visible = (deploymentId: string) =>
+      !!only || !authEnabled || (!!user && !!accounts && accounts.deploymentOwner(deploymentId) === user.id);
     return streamSSE(c, async (stream) => {
       const queue: EngineEvent[] = [];
       let wake: (() => void) | null = null;
       const unsub = engine.subscribe((e) => {
         if (only && e.deploymentId !== only) return;
+        if (!visible(e.deploymentId)) return;
         queue.push(e);
         wake?.();
       });

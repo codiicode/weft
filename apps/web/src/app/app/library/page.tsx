@@ -2,12 +2,14 @@
 import Link from "next/link";
 import { useState } from "react";
 import { api } from "@/lib/api";
+import { useRequireAuth } from "@/lib/auth";
 import { useApi } from "@/lib/use-api";
 import { PageHeader, Card, Btn, Pill, Empty } from "@/components/app/AppShell";
 import { StrategyCanvas } from "@/components/app/StrategyCanvas";
 
 export default function LibraryPage() {
   const { data, loading, error, refresh } = useApi(() => api.strategies(), []);
+  const requireAuth = useRequireAuth();
   const [tag, setTag] = useState<string | null>(null);
   const all = data?.strategies ?? [];
   const tags = [...new Set(all.flatMap((e) => e.strategy.tags))].slice(0, 10);
@@ -44,7 +46,7 @@ export default function LibraryPage() {
                 <div className="mt-4 flex items-center gap-2">
                   <span className="font-mono text-[11px] text-faint">{e.forks} forks{e.forkedFrom ? ` · forked from ${e.forkedFrom}` : ""}</span>
                   <div className="ml-auto flex gap-2">
-                    <Btn variant="ghost" onClick={async () => { await api.fork(e.id); refresh(); }}>Fork</Btn>
+                    <Btn variant="ghost" onClick={async () => { if (!requireAuth()) return; await api.fork(e.id); refresh(); }}>Fork</Btn>
                     <Btn href={`/app/strategy?id=${encodeURIComponent(e.id)}`}>Open</Btn>
                   </div>
                 </div>

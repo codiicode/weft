@@ -7,6 +7,8 @@ import { createEngine, SqliteStore } from "@weft/engine";
 import { StrategyLibrary } from "./lib/library.ts";
 import { resolvePlaceholders } from "./lib/resolve.ts";
 import { createNotifier, sinksFromEnv } from "./lib/alerts.ts";
+import { createAuthenticator } from "./lib/auth.ts";
+import { Accounts } from "./lib/accounts.ts";
 import { createApp } from "./app.ts";
 
 const PORT = Number(process.env.PORT ?? 8787);
@@ -28,6 +30,8 @@ const notifier = createNotifier(engine, sinksFromEnv(), {
   strategyName: async (id) => (await engine.getSnapshot(id))?.deployment.strategy.name ?? id,
   log: (m) => console.warn(m),
 });
+const auth = createAuthenticator({ appId: process.env.PRIVY_APP_ID, verificationKey: process.env.PRIVY_VERIFICATION_KEY });
+const accounts = new Accounts(join(DATA_DIR, "accounts.db"));
 const app = createApp({
   catalog: venues.catalog,
   marketData: venues.marketData,
@@ -35,6 +39,9 @@ const app = createApp({
   library,
   signalModes,
   notifier,
+  auth,
+  accounts,
+  aiDailyLimit: Number(process.env.WEFT_AI_DAILY_LIMIT ?? 30),
   backtest: { history: venues.history, tokenFacts: venues.tokenFacts, calendar: calendarFields },
 });
 engine.start();
@@ -43,6 +50,7 @@ const server = serve({ fetch: app.fetch, port: PORT }, (info) => {
   console.log(`weft api listening on http://localhost:${info.port}`);
   console.log(`  data: ${DATA_DIR}`);
   console.log(`  alerts: ${notifier.sinks.length ? notifier.sinks.join(", ") : "off (set TELEGRAM_BOT_TOKEN + TELEGRAM_CHAT_ID or WEFT_ALERT_WEBHOOK_URL)"}`);
+  console.log(`  auth: ${auth.enabled ? `Privy (${auth.appId})` : "local mode (set PRIVY_APP_ID to require sign-in)"}`);
   console.log(`  AI generation: ${process.env.ANTHROPIC_API_KEY ? "Claude (claude-opus-5-5)" : "template fallback (set ANTHROPIC_API_KEY for Claude)"}`);
 });
 
@@ -73,6 +81,7 @@ for (const sig of ["SIGINT", "SIGTERM"] as const) {
       await venues.ctx.oi.flush();
     } catch {}
     library.close();
+    accounts.close();
     process.exit(0);
   });
 }

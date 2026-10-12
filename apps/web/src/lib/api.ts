@@ -18,10 +18,20 @@ export class ApiError extends Error {
   }
 }
 
+/** Set by the auth provider: returns the signed-in user's access token (or null). */
+let tokenGetter: (() => Promise<string | null>) | null = null;
+export function setTokenGetter(fn: (() => Promise<string | null>) | null) {
+  tokenGetter = fn;
+}
+async function authHeader(): Promise<Record<string, string>> {
+  const t = tokenGetter ? await tokenGetter().catch(() => null) : null;
+  return t ? { authorization: `Bearer ${t}` } : {};
+}
+
 async function req<T>(path: string, init?: RequestInit & { json?: unknown }): Promise<T> {
   const res = await fetch(`${API_URL}${path}`, {
     ...init,
-    headers: { ...(init?.json !== undefined ? { "content-type": "application/json" } : {}), ...init?.headers },
+    headers: { ...(init?.json !== undefined ? { "content-type": "application/json" } : {}), ...(await authHeader()), ...init?.headers },
     body: init?.json !== undefined ? JSON.stringify(init.json) : init?.body,
   });
   const text = await res.text();
@@ -156,7 +166,16 @@ export interface BacktestRequest {
   interval?: BacktestInterval;
 }
 
+export interface Me {
+  authEnabled: boolean;
+  user: { id: string; wallets?: string[]; displayName?: string | null } | null;
+  ai: { usedToday: number; dailyLimit: number | null } | null;
+}
+
 export const api = {
+  me: () => req<Me>("/me"),
+  reportProfile: (body: { wallets?: string[]; displayName?: string | null }) => req<Me["user"]>("/me", { method: "POST", json: body }),
+
   health: () => req<{ ok: boolean; ts: number; signals: Record<string, "live" | "simulated"> }>("/health"),
 
   markets: (product: Product, opts: { search?: string; limit?: number } = {}) => {
@@ -184,11 +203,14 @@ export const api = {
   async generateStream(thesis: string, onProgress: (p: GenerateProgress) => void, signal?: AbortSignal): Promise<GenerateResult> {
     const res = await fetch(`${API_URL}/ai/generate/stream`, {
       method: "POST",
-      headers: { "content-type": "application/json" },
+      headers: { "content-type": "application/json", ...(await authHeader()) },
       body: JSON.stringify({ thesis }),
       signal,
     });
-    if (!res.ok || !res.body) throw new ApiError(`HTTP ${res.status}`, res.status);
+    if (!res.ok || !res.body) {
+      const err = await res.json().catch(() => null);
+      throw new ApiError(err?.error ?? `HTTP ${res.status}`, res.status);
+    }
     const reader = res.body.getReader();
     const dec = new TextDecoder();
     let buf = "";

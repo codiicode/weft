@@ -2,6 +2,7 @@
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import { AnimatePresence, motion } from "motion/react";
 import type { Strategy } from "@weft/strategy";
+import { useRequireAuth } from "@/lib/auth";
 import { api, ApiError, type BacktestInterval, type BacktestResult, type CoverageStatus } from "@/lib/api";
 import { fmtPct, fmtPrice, fmtUsd } from "@/lib/use-api";
 import { Btn, Card, Pill } from "./AppShell";
@@ -90,7 +91,9 @@ export function BacktestPanel({ strategy, strategyId, allocationUsd = 10_000 }: 
   }, [identity]);
   useEffect(() => () => abort.current?.abort(), []);
 
+  const requireAuth = useRequireAuth();
   const run = async () => {
+    if (!requireAuth()) return;
     abort.current?.abort();
     const ctrl = new AbortController();
     abort.current = ctrl;
