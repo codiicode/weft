@@ -203,9 +203,7 @@ function ActionBody({ node, active, preset, width }: { node: ActionNode; active:
               pad={0}
               className="h-full w-full"
             />
-          ) : (
-            <div className="absolute inset-x-3 bottom-[9px] border-t border-dashed border-line-2" />
-          )}
+          ) : null}
         </div>
       )}
     </>

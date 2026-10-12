@@ -58,11 +58,15 @@ export function CommandPalette() {
   const items = useMemo<Item[]>(() => {
     const t = q.trim().toLowerCase();
     const out: Item[] = [];
-    if (t.length > 2) out.push({ id: "draft", group: "Draft", label: `Draft a strategy: “${q.trim()}”`, run: () => go(`/app/new?go=1&thesis=${encodeURIComponent(q.trim())}`) });
+    const draft: Item | null =
+      t.length > 2 ? { id: "draft", group: "Draft", label: `Draft a strategy: “${q.trim()}”`, run: () => go(`/app/new?go=1&thesis=${encodeURIComponent(q.trim())}`) } : null;
+    const sentence = t.split(/\s+/).length >= 4;
+    if (draft && sentence) out.push(draft);
     for (const [label, href] of PAGES) if (!t || label.toLowerCase().includes(t)) out.push({ id: href, group: "Go to", label, run: () => go(href) });
     for (const e of lib ?? [])
       if (!t || `${e.strategy.name} ${e.strategy.thesis}`.toLowerCase().includes(t))
         out.push({ id: `s:${e.id}`, group: "Strategies", label: e.strategy.name, hint: e.strategy.thesis, run: () => go(`/app/strategy?id=${encodeURIComponent(e.id)}`) });
+    if (draft && !sentence) out.push(draft);
     return out.slice(0, 12);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [q, lib]);

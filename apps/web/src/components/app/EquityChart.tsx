@@ -39,7 +39,7 @@ export function EquityChart({
   const flat = points.length > 1 && points.every((p) => p[1] === points[0]![1]);
   if (!geo || flat) {
     return (
-      <div className="grid place-items-center rounded-[10px] border border-dashed border-line-2 text-[12.5px] text-faint" style={{ height }}>
+      <div className="grid place-items-center rounded-[10px] border border-line text-[12.5px] text-faint" style={{ height }}>
         {flat ? "No change yet. The chart starts moving after the first trade." : emptyLabel}
       </div>
     );

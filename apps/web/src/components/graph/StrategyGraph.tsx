@@ -226,7 +226,7 @@ function StrategyGraphImpl({
                   }}
                   whileHover={interactive ? { y: -2, transition: { type: "spring", stiffness: 400, damping: 26 } } : undefined}
                 >
-                  <div className={armed && resolved !== "compact" ? "h-full opacity-[0.62] saturate-[0.6] transition-opacity duration-500" : "h-full transition-opacity duration-500"}>
+                  <div className={armed && resolved !== "compact" ? "h-full opacity-[0.82] transition-opacity duration-500" : "h-full transition-opacity duration-500"}>
                     <NodeContent node={n} preset={resolved} met={met} active={active} width={box.w} />
                   </div>
                   {/* activation flash */}

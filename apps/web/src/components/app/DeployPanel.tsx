@@ -101,6 +101,7 @@ export function DeployPanel({ strategy, strategyId, compact = false }: { strateg
           }}
         />
       </div>
+      {!auth.enabled && <p className="mt-2 text-[12.5px] text-faint">Live trading needs sign-in.</p>}
       <p className="mt-3 text-[13.5px] leading-relaxed text-muted">
         {isLive ? (
           liveReady ? (
@@ -138,12 +139,10 @@ export function DeployPanel({ strategy, strategyId, compact = false }: { strateg
         <div className="mt-1.5 flex h-10 items-center rounded-[10px] border border-line-2 bg-card px-3 focus-within:border-ink/40">
           <span className="text-muted">$</span>
           <input
-            type="number"
-            min={isLive ? 10 : 100}
-            max={isLive ? cap : undefined}
-            step={isLive ? 10 : 100}
-            value={allocation}
-            onChange={(e) => setAllocation(Math.max(isLive ? 10 : 100, Number(e.target.value) || 0))}
+            inputMode="numeric"
+            value={allocation.toLocaleString("en-US")}
+            onChange={(e) => setAllocation(Math.min(isLive ? cap : 10_000_000, Math.max(0, Number(e.target.value.replace(/[^\d]/g, "")) || 0)))}
+            onBlur={() => setAllocation((a) => Math.max(isLive ? 10 : 100, a))}
             className="tnum w-full bg-transparent pl-1 text-[15px] text-ink outline-none"
             aria-label="Amount in USD"
           />

@@ -32,7 +32,7 @@ export function StrategyRules({ strategy, met }: { strategy: Strategy; met?: Rec
                 </p>
                 <ul className="mt-1 space-y-0.5">
                   {r.when.map((w, j) => (
-                    <li key={j} className="tnum flex gap-2">
+                    <li key={j} className="flex gap-2">
                       <span className="text-faint">·</span>
                       {w}
                     </li>
@@ -45,7 +45,7 @@ export function StrategyRules({ strategy, met }: { strategy: Strategy; met?: Rec
                 {r.when.map((w, j) => (
                   <span key={j}>
                     {j > 0 && <span className="text-muted"> {r.match === "any" ? "or" : "and"} </span>}
-                    <span className="tnum">{w}</span>
+                    <span>{w}</span>
                   </span>
                 ))}
                 {r.hold && <span className="text-muted"> {r.hold}</span>}
@@ -55,7 +55,7 @@ export function StrategyRules({ strategy, met }: { strategy: Strategy; met?: Rec
               {r.then.map((t) => (
                 <li key={t.text} className="flex gap-2.5 text-[14.5px] leading-relaxed text-ink">
                   <span className="mt-[9px] h-[2px] w-3 shrink-0 rounded" style={{ background: TONE[t.tone] }} />
-                  <span className="tnum">{t.text}</span>
+                  <span>{t.text}</span>
                 </li>
               ))}
               {r.then.length === 0 && <li className="text-[14px] text-muted">No action attached.</li>}

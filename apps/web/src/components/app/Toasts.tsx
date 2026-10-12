@@ -12,7 +12,7 @@ const TONE: Record<string, [string, string]> = {
   notify: ["Alert", "var(--signal)"],
   status: ["Update", "var(--muted)"],
   error: ["Problem", "var(--short)"],
-  warning: ["Check your account", "var(--trigger)"],
+  warning: ["Account mismatch", "var(--trigger)"],
 };
 
 /** Small notices for what your runs do while you're elsewhere in the app. */

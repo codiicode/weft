@@ -46,18 +46,9 @@ function StrategyView() {
             >
               {copied ? "Link copied" : "Share"}
             </Btn>
-            <Btn variant="quiet" href={`/app/new?from=${encodeURIComponent(e.id)}`}>
-              Edit
-            </Btn>
-            <Btn
-              variant="ghost"
-              onClick={async () => {
-                if (!requireAuth()) return;
-                const f = await api.fork(e.id);
-                router.push(`/app/strategy?id=${encodeURIComponent(f.id)}`);
-              }}
-            >
-              Make a copy
+
+            <Btn variant="ghost" href={`/app/new?from=${encodeURIComponent(e.id)}`}>
+              Edit a copy
             </Btn>
           </>
         }
@@ -97,7 +88,7 @@ function StrategyView() {
           )}
           <BacktestPanel strategyId={e.id} />
         </div>
-        <div className="space-y-4">
+        <div className="order-first space-y-4 xl:order-none">
           <DeployPanel strategyId={e.id} />
           <Card className="p-5">
             <div className="text-[15px] font-semibold tracking-[-0.015em] text-ink">About</div>
@@ -106,10 +97,12 @@ function StrategyView() {
                 <dt className="text-muted">Shared by</dt>
                 <dd className="text-ink">{e.author}</dd>
               </div>
-              <div className="flex justify-between gap-4">
-                <dt className="text-muted">Copies</dt>
-                <dd className="tnum text-ink">{e.forks}</dd>
-              </div>
+              {e.forks > 0 && (
+                <div className="flex justify-between gap-4">
+                  <dt className="text-muted">Copies</dt>
+                  <dd className="tnum text-ink">{e.forks}</dd>
+                </div>
+              )}
               {e.forkedFrom && (
                 <div className="flex justify-between gap-4">
                   <dt className="text-muted">Based on</dt>

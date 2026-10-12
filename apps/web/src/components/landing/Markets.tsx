@@ -22,10 +22,11 @@ function Flow({ graph }: { graph: { signal: string; trigger: string; action: str
     <div className="space-y-2">
       {parts.map(([k, v, c], i) => (
         <div key={k} className="flex items-center gap-3">
-          <span className="w-12 shrink-0 text-[12.5px] text-muted">{k}</span>
-          <span className="flex-1 rounded-[8px] border border-line bg-card px-3 py-2 text-[13.5px] text-ink" style={{ boxShadow: `inset 2px 0 0 ${c}` }}>
-            {v}
+          <span className="flex w-14 shrink-0 items-center gap-1.5 text-[12.5px] text-muted">
+            <span className="h-1.5 w-1.5 rounded-full" style={{ background: c }} />
+            {k}
           </span>
+          <span className="flex-1 rounded-[8px] border border-line bg-card px-3 py-2 text-[13.5px] text-ink">{v}</span>
           {i < 2 && <span className="sr-only">then</span>}
         </div>
       ))}

@@ -4,7 +4,7 @@ import Link from "next/link";
 import { api } from "@/lib/api";
 import { useAuth, shortAddress } from "@/lib/auth";
 import { useApi } from "@/lib/use-api";
-import { PageHeader, Card, Btn, Empty } from "@/components/app/AppShell";
+import { PageHeader, Card, Btn } from "@/components/app/AppShell";
 
 function Row({ title, sub, children }: { title: string; sub?: React.ReactNode; children?: React.ReactNode }) {
   return (
@@ -142,7 +142,21 @@ export default function SettingsPage() {
       <PageHeader title="Settings" />
       <div className="max-w-[760px] space-y-8 px-5 pb-16 pt-6 lg:px-10">
         {auth.enabled && !auth.authenticated ? (
-          <Empty title="Sign in to see your settings" action={<Btn onClick={auth.login}>Sign in</Btn>} />
+          <>
+            <Card>
+              <Row title="Not signed in" sub="Sign in to manage your account, alerts and live trading.">
+                <Btn onClick={auth.login}>Sign in</Btn>
+              </Row>
+            </Card>
+            <section>
+              <h2 className="mb-3 text-[15px] font-semibold text-ink">Appearance</h2>
+              <Card>
+                <Row title="Theme">
+                  <Theme />
+                </Row>
+              </Card>
+            </section>
+          </>
         ) : (
           <>
             <section>

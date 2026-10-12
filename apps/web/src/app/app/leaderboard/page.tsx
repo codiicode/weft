@@ -46,7 +46,7 @@ export default function LeaderboardPage() {
                           {r.tags.slice(0, 3).join(", ")}
                         </div>
                       </td>
-                      <td className={`tnum px-3 py-3.5 text-right ${r.returnPct === 0 ? "text-[13px] text-muted" : r.returnPct > 0 ? "font-medium text-long" : "font-medium text-short"}`}>{r.returnPct === 0 ? "No change yet" : fmtPct(r.returnPct)}</td>
+                      <td className={`tnum whitespace-nowrap px-3 py-3.5 text-right ${r.returnPct === 0 ? "text-[13px] text-muted" : r.returnPct > 0 ? "font-medium text-long" : "font-medium text-short"}`}>{r.returnPct === 0 ? "No change" : fmtPct(r.returnPct)}</td>
                       <td className="tnum px-3 py-3.5 text-right text-ink-2">{fmtUsd(r.equityUsd, 0)}</td>
                       <td className="px-3 py-3.5">
                         <div className="flex justify-end">

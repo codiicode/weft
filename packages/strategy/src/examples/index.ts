@@ -106,7 +106,7 @@ export const pumpMomentum = defineStrategy({
   schemaVersion: 1,
   id: "pump-momentum",
   name: "PUMP dip + hype",
-  thesis: "Köp $PUMP när den går till 0.004 och sentimentet är bullish.",
+  thesis: "Buy $PUMP when it drops to 0.004 and sentiment turns bullish.",
   tags: ["solana", "memecoin"],
   signals: [
     { id: "pump_px", kind: "price", params: { instrument: { kind: "token", chain: "solana", mint: PUMP_MINT, symbol: "PUMP" } } },

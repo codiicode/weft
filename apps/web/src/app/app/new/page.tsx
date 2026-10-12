@@ -44,6 +44,7 @@ function Builder() {
   const [saved, setSaved] = useState<string | null>(null);
   const abort = useRef<AbortController | null>(null);
   const [history, setHistory] = useState<GenerateResult[]>([]);
+  const [editing, setEditing] = useState(() => !!params.get("from"));
   const [change, setChange] = useState("");
   const [changing, setChanging] = useState(false);
   const [changeNote, setChangeNote] = useState<string | null>(null);
@@ -143,8 +144,30 @@ function Builder() {
   const running = status === "running";
   return (
     <>
-      <PageHeader title={params.get("from") ? "Edit strategy" : "New strategy"} sub="Describe a trade in your own words. Weft drafts the rules, and nothing runs until you say so." />
+      <PageHeader title={editing ? "Edit strategy" : "New strategy"} sub="Describe a trade in your own words. Weft drafts the rules, and nothing runs until you say so." />
       <div className="space-y-8 px-5 pb-16 pt-6 lg:px-10">
+        {result && status === "done" ? (
+          <div className="flex max-w-[860px] items-start justify-between gap-4 rounded-[14px] border border-line bg-card px-4 py-3.5">
+            <div className="min-w-0">
+              <p className="text-[12.5px] text-muted">Your idea</p>
+              <p className="mt-0.5 text-[15.5px] leading-relaxed text-ink">{thesis || result.strategy.thesis}</p>
+            </div>
+            <Btn
+              variant="quiet"
+              onClick={() => {
+                setResult(null);
+                setStatus("idle");
+                setHistory([]);
+                setChangeNote(null);
+                setThesis("");
+                setEditing(false);
+                window.history.replaceState(null, "", "/app/new");
+              }}
+            >
+              Start over
+            </Btn>
+          </div>
+        ) : (
         <form
           onSubmit={(e) => {
             e.preventDefault();
@@ -178,6 +201,7 @@ function Builder() {
             </Btn>
           </div>
         </form>
+        )}
 
         {status === "idle" && (
           <div className="max-w-[860px]">
@@ -227,7 +251,7 @@ function Builder() {
           <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} className="grid gap-8 xl:grid-cols-[minmax(0,1fr)_340px]">
             <div className="min-w-0 space-y-5">
               <div>
-                <p className="text-[13px] text-muted">{params.get("from") && !history.length && !result.rationale ? "Editing a copy" : result.source === "claude" ? "Drafted by Claude" : "Drafted from a template"}</p>
+                <p className="text-[13px] text-muted">{editing && !history.length && !result.rationale ? "Editing a copy" : result.source === "claude" ? "Drafted by Claude" : "Drafted from a template"}</p>
                 <h2 className="mt-1 text-[24px] font-semibold tracking-[-0.025em] text-ink">{strategy.name}</h2>
                 {result.rationale && <p className="mt-2 max-w-3xl text-[15px] leading-relaxed text-ink-2">{result.rationale}</p>}
               </div>
@@ -295,7 +319,7 @@ function Builder() {
                     value={change}
                     onChange={(e) => setChange(e.target.value)}
                     disabled={changing}
-                    placeholder="e.g. use a tighter stop, or also exit if BTC drops 5%"
+                    placeholder="e.g. tighter stop, or exit if BTC drops 5%"
                     className="h-10 min-w-0 flex-1 rounded-[10px] border border-line-2 bg-card px-3 text-[14.5px] text-ink outline-none placeholder:text-faint focus:border-ink/40 disabled:opacity-60"
                   />
                   <Btn type="submit" disabled={changing || change.trim().length < 2} className="h-10">

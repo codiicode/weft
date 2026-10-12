@@ -193,6 +193,7 @@ function Run() {
   const metMap = Object.fromEntries(s.triggers.map((t) => [t.id, t.met]));
   const tone = (v: number) => (v > 0 ? "long" : v < 0 ? "short" : undefined);
   const fillList = [...(fills.data?.fills ?? [])].reverse();
+  const quiet = s.positions.length === 0 && fillList.length === 0;
 
   return (
     <>
@@ -212,7 +213,7 @@ function Run() {
               Edit a copy
             </Btn>
             {(status === "running" || status === "paused") && (
-              <Btn variant="quiet" onClick={() => control("tick")}>
+              <Btn variant="quiet" onClick={() => control("tick")} className="hidden sm:inline-flex">
                 Check now
               </Btn>
             )}
@@ -279,6 +280,15 @@ function Run() {
               {view === "rules" ? <StrategyRules strategy={d.strategy} met={metMap} /> : <StrategyCanvas strategy={d.strategy} live={live} animate={false} />}
             </section>
 
+            {quiet && !d.alertsOnly ? (
+              <section>
+                <Card className="px-5 py-10 text-center">
+                  <p className="text-[14.5px] font-medium text-ink">Waiting for a rule to fire</p>
+                  <p className="mt-1 text-[14px] text-muted">Trades, open positions and the value chart show up here once it trades.</p>
+                </Card>
+              </section>
+            ) : (
+              <>
             <section className={d.alertsOnly ? "hidden" : ""}>
               <h2 className="mb-3 text-[15px] font-semibold text-ink">Value over time</h2>
               <Card className="p-5">
@@ -360,6 +370,8 @@ function Run() {
                 )}
               </Card>
             </section>
+              </>
+            )}
           </div>
 
           <section className="min-w-0">

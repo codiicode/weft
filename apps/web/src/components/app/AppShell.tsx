@@ -147,13 +147,20 @@ export function AppShell({ children }: { children: ReactNode }) {
 
       {/* Mobile bottom nav */}
       {more && (
-        <div className="fixed inset-0 z-40 bg-black/20 lg:hidden" onClick={() => setMore(false)}>
+        <div className="fixed inset-0 z-40 bg-black/30 dark:bg-black/60 lg:hidden" onClick={() => setMore(false)}>
           <nav
             className="absolute inset-x-0 bottom-0 rounded-t-[16px] border-t border-line bg-card px-3 pb-[calc(76px+env(safe-area-inset-bottom))] pt-3"
             onClick={(e) => e.stopPropagation()}
           >
+            <div className="mx-auto mb-2 h-1 w-9 rounded-full bg-line-2" aria-hidden />
             {MORE_NAV.map((n) => (
-              <Link key={n.href} href={n.href} onClick={() => setMore(false)} className="flex h-12 items-center gap-3 rounded-[10px] px-3 text-[15px] text-ink hover:bg-paper-2">
+              <Link
+                key={n.href}
+                href={n.href}
+                onClick={() => setMore(false)}
+                aria-current={active(n.href) ? "page" : undefined}
+                className={`flex h-12 items-center gap-3 rounded-[10px] px-3 text-[15px] text-ink hover:bg-paper-2 ${active(n.href) ? "bg-paper-2 font-medium" : ""}`}
+              >
                 <span className="text-muted">
                   <NavIcon d={n.icon} />
                 </span>
@@ -207,7 +214,7 @@ export function PageHeader({ title, sub, actions, back }: { eyebrow?: string; ti
         <h1 className="text-[26px] font-semibold leading-[1.15] tracking-[-0.03em] text-ink sm:text-[28px]">{title}</h1>
         {sub && <p className="mt-1.5 max-w-2xl text-[15px] leading-relaxed text-muted">{sub}</p>}
       </div>
-      {actions && <div className="flex shrink-0 flex-wrap items-center gap-2">{actions}</div>}
+      {actions && <div className="-ml-3 flex shrink-0 flex-wrap items-center gap-1.5 sm:ml-0 sm:gap-2">{actions}</div>}
     </div>
   );
 }
@@ -228,7 +235,7 @@ export function Stat({ label, value, sub, tone }: { label: string; value: ReactN
 
 export function Empty({ title, sub, action }: { title: string; sub?: ReactNode; action?: ReactNode }) {
   return (
-    <div className="flex flex-col items-center justify-center rounded-[12px] border border-dashed border-line-2 px-6 py-14 text-center">
+    <div className="flex flex-col items-center justify-center rounded-[12px] border border-line px-6 py-14 text-center">
       <div className="text-[16px] font-semibold tracking-[-0.015em] text-ink">{title}</div>
       {sub && <p className="mt-1.5 max-w-sm text-[14px] leading-relaxed text-muted">{sub}</p>}
       {action && <div className="mt-5">{action}</div>}

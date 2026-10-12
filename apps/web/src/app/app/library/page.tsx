@@ -36,8 +36,8 @@ function Row({ e, onCopy }: { e: LibraryEntry; onCopy: () => void }) {
           {e.author}
           {e.forks ? ` · ${e.forks} ${e.forks === 1 ? "copy" : "copies"}` : ""}
         </span>
-        <Btn variant="ghost" onClick={onCopy}>
-          Make a copy
+        <Btn variant="ghost" href={`/app/new?from=${encodeURIComponent(e.id)}`}>
+          Edit a copy
         </Btn>
       </div>
     </li>

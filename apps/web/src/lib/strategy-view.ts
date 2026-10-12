@@ -79,7 +79,7 @@ function signalTitle(s: Signal): string {
   if (s.kind === "macro") return s.params.series;
   if (s.kind === "news") return s.params.query;
   if (s.kind === "model") return s.params.question;
-  if (s.kind === "calendar") return `${s.params.symbol ?? ""} ${s.params.event}`.trim();
+  if (s.kind === "calendar") return `${s.params.symbol ?? ""} ${s.params.event === "custom" ? "event" : s.params.event === "fomc" ? "Fed meeting" : s.params.event === "cpi" ? "inflation report" : s.params.event}`.trim();
   return s.id;
 }
 
@@ -350,11 +350,17 @@ export function describeStrategy(s: Strategy): { watches: string[]; rules: Plain
     }
     return signalTitle(sig);
   };
-  const titles = new Map(s.signals.map((sig) => [sig.id, titleOf(sig)]));
+  // Long market questions make sentences unreadable: keep names short.
+  const short = (t: string) => {
+    let q = t.replace(/^YES · |^NO · /, "");
+    if (/^[a-z0-9]+(-[a-z0-9]+)+$/.test(q)) q = q.replaceAll("-", " ");
+    return q.length > 34 ? `${q.slice(0, 32).replace(/[\s,:;·-]+\S*$/, "")}…` : q;
+  };
+  const titles = new Map(s.signals.map((sig) => [sig.id, short(titleOf(sig))]));
   const watches = [
     ...new Set(
       s.signals.map((sig) => {
-        const t = titleOf(sig);
+        const t = short(titleOf(sig));
         if (sig.kind === "price" && !/price/i.test(t)) return `${t} price`;
         if (sig.kind === "funding" && !/funding/i.test(t)) return `${t} funding`;
         if (sig.kind === "odds" && !/odds/i.test(t)) return `${t} odds`;
@@ -368,7 +374,11 @@ export function describeStrategy(s: Strategy): { watches: string[]; rules: Plain
       .filter((a) => a.on.includes(t.id))
       .map((a): PlainRule["then"][number] => {
         if (a.type === "open") {
-          const inst = a.label ?? instrumentLabel(a.instrument);
+          const inst =
+            a.label ??
+            (a.instrument.kind === "outcome"
+              ? `${a.instrument.outcome} on “${short(a.instrument.question ?? a.instrument.market)}”`
+              : instrumentLabel(a.instrument));
           const longOnly = a.instrument.kind === "token" || a.instrument.kind === "outcome" || a.instrument.kind === "spot";
           const verb = longOnly ? "Buy" : a.side === "long" ? "Go long" : "Go short";
           const quote = a.instrument.kind === "token" ? a.instrument.quote : undefined;

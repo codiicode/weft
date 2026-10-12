@@ -172,8 +172,11 @@ export function Demo() {
               ["When", "El Niño strengthens while the market still prices it low", "var(--trigger)"],
               ["Do", "Buy YES on “El Niño by winter”, go long wheat and sugar, short Brazil", "var(--long)"],
             ].map(([k, v, c]) => (
-              <div key={k} className="rounded-[10px] border border-line bg-card px-3.5 py-3" style={{ boxShadow: `inset 2px 0 0 ${c}` }}>
-                <dt className="text-[12.5px] text-muted">{k}</dt>
+              <div key={k} className="rounded-[10px] border border-line bg-card px-3.5 py-3">
+                <dt className="flex items-center gap-1.5 text-[12.5px] text-muted">
+                  <span className="h-1.5 w-1.5 rounded-full" style={{ background: c }} />
+                  {k}
+                </dt>
                 <dd className="mt-0.5 leading-snug text-ink">{v}</dd>
               </div>
             ))}

@@ -152,7 +152,7 @@ export function BacktestPanel({ strategy, strategyId, allocationUsd = 10_000 }: 
         {error && <pre className="mb-4 whitespace-pre-wrap rounded-[10px] bg-[var(--short-soft)] p-3 font-mono text-[13px] text-short">{error}</pre>}
 
         {!r && !busy && (
-          <div className="grid place-items-center rounded-[12px] border border-dashed border-line-2 px-6 py-10 text-center">
+          <div className="grid place-items-center rounded-[12px] border border-line px-6 py-10 text-center">
             <div className="max-w-sm">
               <div className="text-[14.5px] font-medium text-ink">See how it would have traded over the last {days} days</div>
               <p className="mt-1 text-[13.5px] text-muted">You’ll also see which of its signals have enough history to test.</p>

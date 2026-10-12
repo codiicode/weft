@@ -24,10 +24,16 @@ async function call<T>(path: string, body?: unknown): Promise<T> {
   return data;
 }
 
+// Reuse library strategies with the same name instead of saving duplicates.
+const existing = new Map(
+  (await call<{ strategies: { id: string; strategy: { name: string } }[] }>("/strategies")).strategies.map((e) => [e.strategy.name.toLowerCase(), e.id]),
+);
+
 for (const thesis of THESES) {
   try {
     const gen = await call<{ strategy: { name: string }; source: string }>("/ai/generate", { thesis });
-    const saved = await call<{ id: string }>("/strategies", { strategy: gen.strategy, author: "@weft_demo" });
+    const known = existing.get(gen.strategy.name.toLowerCase());
+    const saved = known ? { id: known } : await call<{ id: string }>("/strategies", { strategy: gen.strategy, author: "@weft_demo" });
     const dep = await call<{ id: string }>("/deployments", { strategyId: saved.id, allocationUsd: 10_000, intervalSec: 30 });
     console.log(`✓ ${gen.strategy.name.padEnd(36)} ${gen.source.padEnd(8)} run ${dep.id}`);
   } catch (e) {
