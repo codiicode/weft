@@ -338,7 +338,7 @@ function exitPhrase(e: { takeProfit?: Level; stopLoss?: Level; trailingStopPct?:
 }
 
 /** The rules of a strategy as short sentences: "When … → Buy …". */
-export function describeStrategy(s: Strategy): { watches: string[]; rules: PlainRule[] } {
+export function describeStrategy(s: Strategy): { watches: string[]; watchKinds: { label: string; kind: Signal["kind"] }[]; rules: PlainRule[] } {
   // On-chain signals are titled by mint; use the token's name when the strategy trades it.
   const tokenName = (mint: string) => {
     for (const a of s.actions) if (a.type === "open" && a.instrument.kind === "token" && a.instrument.mint === mint) return a.label ?? instrumentLabel(a.instrument);
@@ -358,6 +358,14 @@ export function describeStrategy(s: Strategy): { watches: string[]; rules: Plain
     return q.length > 34 ? `${q.slice(0, 32).replace(/[\s,:;·-]+\S*$/, "")}…` : q;
   };
   const titles = new Map(s.signals.map((sig) => [sig.id, short(titleOf(sig))]));
+  const watchLabel = (sig: Signal) => {
+    const t = short(titleOf(sig));
+    if (sig.kind === "price" && !/price/i.test(t)) return `${t} price`;
+    if (sig.kind === "funding" && !/funding/i.test(t)) return `${t} funding`;
+    if (sig.kind === "odds" && !/odds/i.test(t)) return `${t} odds`;
+    return t;
+  };
+  const watchKinds = s.signals.map((sig) => ({ label: watchLabel(sig), kind: sig.kind })).filter((w, i, all) => all.findIndex((x) => x.label === w.label) === i);
   const watches = [
     ...new Set(
       s.signals.map((sig) => {
@@ -414,5 +422,5 @@ export function describeStrategy(s: Strategy): { watches: string[]; rules: Plain
       then,
     };
   });
-  return { watches, rules };
+  return { watches, watchKinds, rules };
 }

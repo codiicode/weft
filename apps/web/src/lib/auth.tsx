@@ -103,7 +103,8 @@ function PrivyBridge({ children }: { children: ReactNode }) {
 }
 
 export function AuthProvider({ children }: { children: ReactNode }) {
-  if (!APP_ID) return <AuthContext.Provider value={LOCAL}>{children}</AuthContext.Provider>;
+  // A closed public build (no API yet) never loads the wallet SDK.
+  if (!APP_ID || process.env.NEXT_PUBLIC_APP_CLOSED) return <AuthContext.Provider value={LOCAL}>{children}</AuthContext.Provider>;
   const dark = typeof document !== "undefined" && document.documentElement.dataset.theme === "dark";
   return (
     <PrivyProvider

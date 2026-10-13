@@ -2,17 +2,37 @@
 import type { Strategy } from "@weft/strategy";
 import { describeStrategy } from "@/lib/strategy-view";
 import { AssetIcon } from "@/components/ui/AssetIcon";
+import { api } from "@/lib/api";
+import { useApi } from "@/lib/use-api";
 
 const TONE = { long: "var(--long)", short: "var(--short)", exit: "var(--exit)", alert: "var(--signal)" } as const;
 
 /** A strategy read aloud: what it watches and, rule by rule, when it acts. */
 export function StrategyRules({ strategy, met }: { strategy: Strategy; met?: Record<string, boolean> }) {
-  const { watches, rules } = describeStrategy(strategy);
+  const { watchKinds, rules } = describeStrategy(strategy);
+  // Some feeds (X, news, model forecasts) run on sample data until a provider is connected: say so.
+  const health = useApi(() => api.health(), []);
+  const simulated = (kind: string) => health.data?.signals?.[kind] === "simulated";
   return (
     <div className="divide-y divide-line rounded-[12px] border border-line bg-card">
       <div className="grid gap-2 px-5 py-4 sm:grid-cols-[88px_1fr]">
         <span className="text-[13px] text-muted">Watches</span>
-        <span className="text-[14.5px] text-ink">{watches.join(", ")}</span>
+        <span className="text-[14.5px] leading-relaxed text-ink">
+          {watchKinds.map((w, i) => (
+            <span key={w.label}>
+              {i > 0 && ", "}
+              {w.label}
+              {simulated(w.kind) && (
+                <span
+                  className="ml-1.5 rounded-[5px] bg-paper-2 px-1.5 py-px align-[1px] text-[11.5px] text-muted"
+                  title="This feed uses sample data for now. Paper runs are fine; live decisions should not rely on it yet."
+                >
+                  sample data
+                </span>
+              )}
+            </span>
+          ))}
+        </span>
       </div>
       {rules.map((r, i) => (
         <div key={r.id} className="grid gap-2 px-5 py-4 sm:grid-cols-[88px_1fr]">

@@ -5,6 +5,11 @@
 set -euo pipefail
 cd "$(dirname "$0")/.."
 ROOT=$(pwd)
+# Without an API URL the public app can't work yet: build it closed ("opens soon"), without the wallet SDK.
+if ! grep -q '^NEXT_PUBLIC_API_URL=.\+' apps/web/.env.local 2>/dev/null; then
+  echo "No NEXT_PUBLIC_API_URL: building the app as closed (landing page live, app says it opens soon)."
+  export NEXT_PUBLIC_APP_CLOSED=1
+fi
 npm run build -w @weft/web
 
 # Deploy from a copy outside the repo: the Vercel CLI otherwise walks up and uploads the source tree.

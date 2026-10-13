@@ -2,6 +2,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useState, type ReactNode } from "react";
+import { brand } from "@/config/brand";
 import { Logo } from "../ui/Logo";
 import { ThemeToggle } from "../ui/ThemeToggle";
 import { api, API_URL } from "@/lib/api";
@@ -88,9 +89,36 @@ function NavLink({ n, active }: { n: { href: string; label: string; icon: string
   );
 }
 
+/** Builds for a public host without an API set NEXT_PUBLIC_APP_CLOSED (scripts/deploy-web.sh). */
+const APP_OPEN = !process.env.NEXT_PUBLIC_APP_CLOSED;
+
+function OpeningSoon() {
+  return (
+    <div className="flex min-h-[80vh] items-center px-5 lg:px-10">
+      <div className="max-w-[34rem]">
+        <p className="text-[13px] text-muted">Private beta</p>
+        <h1 className="display mt-3 text-[clamp(2.4rem,5vw,4rem)] leading-[1.02] text-ink">The app opens in a few days.</h1>
+        <p className="mt-5 text-[17px] leading-[1.6] text-ink-2">
+          Paper trading opens first, then live trading on Hyperliquid. Follow along and you’ll hear the moment it’s ready.
+        </p>
+        <div className="mt-8 flex flex-wrap gap-2">
+          <Btn href={brand.socials.x}>Follow on X</Btn>
+          <Btn href={brand.socials.telegram} variant="ghost">
+            Join the Telegram
+          </Btn>
+          <Btn href="/#work" variant="quiet">
+            See how it works
+          </Btn>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export function AppShell({ children }: { children: ReactNode }) {
   const path = usePathname();
   const [more, setMore] = useState(false);
+  const appOpen = APP_OPEN;
   const active = (href: string) => (href === "/app" ? path === "/app" || path === "/app/" : path.startsWith(href));
   return (
     <div className="min-h-screen bg-paper lg:grid lg:grid-cols-[232px_minmax(0,1fr)]">
@@ -122,9 +150,9 @@ export function AppShell({ children }: { children: ReactNode }) {
           ))}
         </nav>
         <div className="mt-auto space-y-4 px-1">
-          <AccountButton />
+          {appOpen !== false && <AccountButton />}
           <div className="flex items-center justify-between pl-1.5">
-            <ApiStatus />
+            {appOpen === false ? <span className="text-[12.5px] text-muted">Private beta</span> : <ApiStatus />}
             <ThemeToggle />
           </div>
         </div>
@@ -136,12 +164,12 @@ export function AppShell({ children }: { children: ReactNode }) {
           <Logo />
         </Link>
         <div className="flex items-center gap-1">
-          <AccountButton compact />
+          {appOpen !== false && <AccountButton compact />}
           <ThemeToggle />
         </div>
       </header>
 
-      <main className="min-w-0 pb-24 lg:pb-0">{children}</main>
+      <main className="min-w-0 pb-24 lg:pb-0">{appOpen === false ? <OpeningSoon /> : children}</main>
       <CommandPalette />
       <Toasts />
 
