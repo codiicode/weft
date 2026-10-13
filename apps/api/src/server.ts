@@ -114,6 +114,10 @@ for (const sig of ["SIGINT", "SIGTERM"] as const) {
     if (closing) return;
     closing = true;
     console.log("shutting down…");
+    // Never let a slow venue call or long poll keep the old process (and its database locks) alive.
+    setTimeout(() => process.exit(0), 3_000).unref();
+    telegram?.stop();
+    if (reconcileTimer) clearInterval(reconcileTimer);
     server.close();
     await engine.shutdown();
     try {
