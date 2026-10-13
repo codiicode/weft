@@ -87,7 +87,7 @@ const FLOWS: Flow[] = [
     note: "Opens two days out and closes itself an hour before the numbers land.",
     signals: [
       { label: "NVIDIA", from: 176.4, to: 184.2, fmt: usd() },
-      { label: "Earnings in", from: 72, to: 2, fmt: (v) => `${Math.round(v)} h` },
+      { label: "Earnings in", from: 72, to: 40, fmt: (v) => `${Math.round(v)} h` },
       { label: "Analyst revisions", from: 0, to: 3, fmt: (v) => `+${Math.round(v)}` },
     ],
     conditions: ["Within 48 hours of earnings", "Price above its 20-day average"],
@@ -116,7 +116,7 @@ function Console({ f, p }: { f: Flow; p: number }) {
 
   return (
     <div className="overflow-hidden rounded-[16px] border border-line bg-card shadow-window">
-      <div className="flex items-center justify-between border-b border-line px-5 py-3.5">
+      <div className="flex items-center justify-between border-b border-line px-4 py-3 sm:px-5 sm:py-3.5">
         <span className="text-[13px] text-muted">{f.venue}</span>
         <span className="inline-flex items-center gap-1.5 text-[13px] font-medium text-ink">
           <span
@@ -128,9 +128,9 @@ function Console({ f, p }: { f: Flow; p: number }) {
 
       <div className="grid gap-px bg-line sm:grid-cols-2">
         {/* Watch */}
-        <div className="bg-card px-5 py-4">
+        <div className="bg-card px-4 py-3 sm:px-5 sm:py-4">
           <p className="text-[12px] text-muted">Watching</p>
-          <ul className="mt-2.5 space-y-2">
+          <ul className="mt-2 space-y-1.5 sm:mt-2.5 sm:space-y-2">
             {f.signals.map((s) => (
               <li key={s.label} className="flex items-baseline justify-between gap-3 text-[13.5px]">
                 <span className="truncate text-ink-2">{s.label}</span>
@@ -140,9 +140,9 @@ function Console({ f, p }: { f: Flow; p: number }) {
           </ul>
         </div>
         {/* When */}
-        <div className="bg-card px-5 py-4">
+        <div className="bg-card px-4 py-3 sm:px-5 sm:py-4">
           <p className="text-[12px] text-muted">When</p>
-          <ul className="mt-2.5 space-y-2">
+          <ul className="mt-2 space-y-1.5 sm:mt-2.5 sm:space-y-2">
             {f.conditions.map((c, j) => {
               const on = p > 0.36 + j * 0.07;
               return (
@@ -163,7 +163,7 @@ function Console({ f, p }: { f: Flow; p: number }) {
       </div>
 
       {/* Do */}
-      <div className="border-t border-line px-5 py-4">
+      <div className="border-t border-line px-4 py-3 sm:px-5 sm:py-4">
         <p className="text-[12px] text-muted">Do</p>
         <div className="mt-2 flex items-center justify-between gap-3">
           <span className={`text-[15px] font-medium transition-colors duration-300 ${sending ? "text-ink" : "text-faint"}`}>{f.action}</span>
@@ -183,14 +183,14 @@ function Console({ f, p }: { f: Flow; p: number }) {
       </div>
 
       {/* Result */}
-      <div className="border-t border-line px-5 pb-4 pt-3">
+      <div className="border-t border-line px-4 pb-3 pt-3 sm:px-5 sm:pb-4">
         <div className="flex items-baseline justify-between">
           <p className="text-[12px] text-muted">Result on paper</p>
           <span className={`tnum text-[20px] font-medium tracking-[-0.02em] ${result > 0 ? "text-long" : "text-faint"}`}>
             +{(f.pnl * ease(result)).toFixed(1)}%
           </span>
         </div>
-        <svg viewBox="0 0 300 64" className="mt-1 block h-auto w-full" aria-hidden>
+        <svg viewBox="0 0 300 64" className="mt-1 hidden h-auto w-full sm:block" aria-hidden>
           <line x1="0" x2="300" y1="63" y2="63" style={{ stroke: "var(--line)" }} />
           <path d={curve.line} fill="none" strokeWidth="1.8" strokeLinecap="round" pathLength={1} strokeDasharray="1 1" strokeDashoffset={1 - result} style={{ stroke: "var(--long)" }} />
         </svg>
@@ -252,13 +252,13 @@ export function Workflows() {
                 exit={{ opacity: 0, y: -10 }}
                 transition={{ duration: 0.35, ease: [0.22, 1, 0.36, 1] }}
               >
-                <p className="mt-6 text-[13px] font-medium text-ink">{f.tag}</p>
-                <p className="display mt-2 text-[clamp(1.7rem,3.4vw,2.9rem)] leading-[1.12] text-ink text-balance">“{f.thesis}”</p>
+                <p className="mt-4 text-[13px] font-medium text-ink sm:mt-6">{f.tag}</p>
+                <p className="display mt-2 text-[clamp(1.5rem,3.4vw,2.9rem)] leading-[1.12] text-ink text-balance">“{f.thesis}”</p>
                 <p className="mt-4 hidden max-w-[30rem] text-[16px] leading-[1.6] text-ink-2 sm:block">{f.note}</p>
               </motion.div>
             </AnimatePresence>
             {/* progress: one bar per workflow */}
-            <div className="mt-8 flex gap-1.5" aria-hidden>
+            <div className="mt-5 flex gap-1.5 sm:mt-8" aria-hidden>
               {FLOWS.map((x, j) => (
                 <span key={x.tag} className="h-[3px] w-12 overflow-hidden rounded-full bg-line-2">
                   <span className="block h-full bg-ink" style={{ width: `${j < pos.i ? 100 : j === pos.i ? pos.p * 100 : 0}%` }} />

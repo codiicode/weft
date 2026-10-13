@@ -1,5 +1,6 @@
 import { Section } from "./Section";
 import { IconCheck } from "../graph/icons";
+import { Reveal } from "../ui/Reveal";
 
 const can = ["Place and cancel orders", "Set stops and targets", "Set leverage within your limits"];
 const cannot = ["Withdraw your funds", "Send money to another address", "Trade above the limits you set"];
@@ -23,9 +24,11 @@ export function Safety() {
         <div className="bg-paper p-6 sm:p-8">
           <p className="text-[13px] text-muted">The agent can</p>
           <ul className="mt-4 space-y-3">
-            {can.map((t) => (
-              <li key={t} className="flex items-center gap-3 text-[15.5px] text-ink">
-                <IconCheck size={15} strokeWidth={2.2} className="shrink-0 text-long" /> {t}
+            {can.map((t, i) => (
+              <li key={t}>
+                <Reveal delay={300 + i * 140} className="flex items-center gap-3 text-[15.5px] text-ink">
+                  <IconCheck size={15} strokeWidth={2.2} className="shrink-0 text-long" /> {t}
+                </Reveal>
               </li>
             ))}
           </ul>
@@ -33,13 +36,15 @@ export function Safety() {
         <div className="bg-paper p-6 sm:p-8">
           <p className="text-[13px] text-muted">The agent can’t</p>
           <ul className="mt-4 space-y-3">
-            {cannot.map((t) => (
-              <li key={t} className="flex items-center gap-3 text-[15.5px] text-ink-2">
+            {cannot.map((t, i) => (
+              <li key={t}>
+                <Reveal delay={720 + i * 140} className="flex items-center gap-3 text-[15.5px] text-ink-2">
                 <span className="relative h-[15px] w-[15px] shrink-0 text-short" aria-hidden>
                   <span className="absolute left-1/2 top-1/2 h-[2px] w-[13px] -translate-x-1/2 -translate-y-1/2 rotate-45 rounded bg-current" />
                   <span className="absolute left-1/2 top-1/2 h-[2px] w-[13px] -translate-x-1/2 -translate-y-1/2 -rotate-45 rounded bg-current" />
                 </span>
                 {t}
+                </Reveal>
               </li>
             ))}
           </ul>

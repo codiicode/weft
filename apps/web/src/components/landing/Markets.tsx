@@ -1,5 +1,6 @@
 "use client";
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
+import { useInView, useReducedMotion } from "@/lib/hooks";
 import { AnimatePresence, motion } from "motion/react";
 import { Section } from "./Section";
 import { products } from "@/data/mock";
@@ -36,6 +37,17 @@ function Flow({ graph }: { graph: { signal: string; trigger: string; action: str
 
 export function Markets() {
   const [sel, setSel] = useState(0);
+  const [paused, setPaused] = useState(false);
+  const listRef = useRef<HTMLUListElement>(null);
+  const inView = useInView(listRef);
+  const reduce = useReducedMotion();
+  const auto = inView && !paused && !reduce;
+  // Step through the markets on its own; hovering or clicking takes over.
+  useEffect(() => {
+    if (!auto) return;
+    const t = setTimeout(() => setSel((i) => (i + 1) % products.length), 4500);
+    return () => clearTimeout(t);
+  }, [auto, sel]);
   const p = products[sel]!;
   const m = p.markets[0]!;
 
@@ -48,11 +60,21 @@ export function Markets() {
       lead="One strategy can watch a weather forecast and trade commodities, or watch X and buy a memecoin. Weft picks where to trade."
     >
       <div className="grid gap-10 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)] lg:gap-14">
-        <ul className="border-t border-line">
+        <ul ref={listRef} className="border-t border-line" onMouseEnter={() => setPaused(true)} onMouseLeave={() => setPaused(false)}>
           {products.map((x, i) => (
-            <li key={x.id} className="border-b border-line">
+            <li key={x.id} className="relative border-b border-line">
+              {sel === i && auto && (
+                <motion.span
+                  key={`bar-${sel}`}
+                  aria-hidden
+                  className="absolute -bottom-px left-0 h-px bg-ink"
+                  initial={{ width: "0%" }}
+                  animate={{ width: "100%" }}
+                  transition={{ duration: 4.5, ease: "linear" }}
+                />
+              )}
               <button
-                onClick={() => setSel(i)}
+                onClick={() => (setSel(i), setPaused(true))}
                 onMouseEnter={() => setSel(i)}
                 aria-expanded={sel === i}
                 className="group flex w-full items-baseline gap-4 py-5 text-left"
