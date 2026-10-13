@@ -20,18 +20,18 @@ function Flow({ graph }: { graph: { signal: string; trigger: string; action: str
     ["Do", graph.action, "var(--long)"],
   ] as const;
   return (
-    <div className="space-y-2">
-      {parts.map(([k, v, c], i) => (
-        <div key={k} className="flex items-center gap-3">
-          <span className="flex w-14 shrink-0 items-center gap-1.5 text-[12.5px] text-muted">
+    <dl className="space-y-3.5">
+      {parts.map(([k, v, c]) => (
+        <div key={k} className="flex items-baseline gap-3 text-[15px]">
+          <dt className="flex w-16 shrink-0 items-center gap-1.5 text-[13px] text-muted">
             <span className="h-1.5 w-1.5 rounded-full" style={{ background: c }} />
             {k}
-          </span>
-          <span className="flex-1 rounded-[8px] border border-line bg-card px-3 py-2 text-[13.5px] text-ink">{v}</span>
-          {i < 2 && <span className="sr-only">then</span>}
+          </dt>
+          <span className="mb-1 min-w-4 flex-1 border-b border-dotted border-line-2" aria-hidden />
+          <dd className="max-w-[70%] text-right text-ink">{v}</dd>
         </div>
       ))}
-    </div>
+    </dl>
   );
 }
 

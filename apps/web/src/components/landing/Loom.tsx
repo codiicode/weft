@@ -98,6 +98,10 @@ export function Loom() {
   const [scene, setScene] = useState(0);
   const [stage, setStage] = useState(0); // 0 drawing, 1 knot, 2 trade, 3 card
   const [tick, setTick] = useState(0);
+  const gatherUntil = useRef(0);
+  const kickRef = useRef<() => void>(() => {});
+  const knotRef = useRef({ x: 0, y: 0 });
+  knotRef.current = knot;
   const s = SCENES[scene]!;
 
   useEffect(() => {
@@ -108,13 +112,20 @@ export function Loom() {
     if (!inView) return;
     setStage(0);
     const t = [
-      setTimeout(() => setStage(1), 2200),
-      setTimeout(() => setStage(2), 2750),
-      setTimeout(() => setStage(3), 3300),
+      setTimeout(() => setStage(1), 1450),
+      setTimeout(() => setStage(2), 1750),
+      setTimeout(() => setStage(3), 1950),
       setTimeout(() => setScene((i) => (i + 1) % SCENES.length), SCENE_MS),
     ];
     return () => t.forEach(clearTimeout);
   }, [scene, inView, reduce]);
+
+  // When the rule is met, the cloth gathers toward the knot for a moment.
+  useEffect(() => {
+    if (stage !== 1 || reduce || narrow) return;
+    gatherUntil.current = performance.now() + 420;
+    kickRef.current();
+  }, [stage, reduce, narrow]);
 
   // Values tick while you watch.
   useEffect(() => {
@@ -144,21 +155,25 @@ export function Loom() {
     let py = -9999;
     const cur = lines.map(() => 0);
     let raf = 0;
-    const R = 150;
+    const R = 220;
     const render = () => {
       let moving = false;
       lines.forEach((ln, k) => {
         const x = warps[k]!;
         const dx = x - px;
         const near = Math.abs(dx) < R && py > -R && py < H + R;
-        const target = near ? Math.sign(dx || 1) * (1 - Math.abs(dx) / R) ** 2 * 18 : 0;
+        // Pointer pushes threads apart; at the knot moment they gather toward it.
+        const gathering = performance.now() < gatherUntil.current;
+        const gdx = x - knotRef.current.x;
+        const pull = gathering && Math.abs(gdx) < 170 ? -Math.sign(gdx) * (1 - Math.abs(gdx) / 170) * 14 : 0;
+        const target = (near ? Math.sign(dx || 1) * (1 - Math.abs(dx) / R) ** 2 * 34 : 0) + pull;
         const v = cur[k]! + (target - cur[k]!) * 0.16;
         if (Math.abs(v - cur[k]!) > 0.04) moving = true;
         cur[k] = v;
-        const y = Math.min(H - 40, Math.max(40, py));
+        const y = gathering && !near ? knotRef.current.y : Math.min(H - 40, Math.max(40, py));
         ln.setAttribute("d", Math.abs(v) < 0.08 ? `M${x} 0 L${x} ${H}` : `M${x} 0 C${x} ${y - 120} ${x + v} ${y - 70} ${x + v} ${y} S${x} ${y + 120} ${x} ${H}`);
       });
-      raf = moving ? requestAnimationFrame(render) : 0;
+      raf = moving || performance.now() < gatherUntil.current + 600 ? requestAnimationFrame(render) : 0;
     };
     const kick = () => {
       if (!raf) raf = requestAnimationFrame(render);
@@ -173,6 +188,7 @@ export function Loom() {
       px = py = -9999;
       kick();
     };
+    kickRef.current = kick;
     const host = el.closest("section") ?? el;
     host.addEventListener("pointermove", onMove as EventListener);
     host.addEventListener("pointerleave", onLeave);
@@ -218,7 +234,7 @@ export function Loom() {
         {/* warp */}
         <g mask="url(#loom-mask)">
           {warps.map((x) => (
-            <path key={x} data-warp d={`M${x} 0 L${x} ${H}`} fill="none" style={{ stroke: "var(--line-2)" }} strokeWidth={1} />
+            <path key={x} data-warp d={`M${x} 0 L${x} ${H}`} fill="none" style={{ stroke: "var(--warp)" }} strokeWidth={1} />
           ))}
         </g>
 
@@ -240,18 +256,18 @@ export function Loom() {
         </g>
 
         <AnimatePresence mode="wait">
-          <motion.g key={scene} initial={{ opacity: 1 }} exit={{ opacity: 0, transition: { duration: 0.5 } }}>
+          <motion.g key={scene} initial={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: 90, transition: { duration: 0.5, ease: [0.55, 0, 0.75, 0] } }}>
             {paths.map((d, i) => (
               <motion.path
                 key={i}
                 d={d}
                 fill="none"
-                strokeWidth={narrow ? 2.2 : 2.6}
+                strokeWidth={narrow ? 2.4 : 3}
                 strokeLinecap="round"
                 style={{ stroke: "var(--signal)", opacity: OPACITY[i] }}
                 initial={{ pathLength: reduce ? 1 : 0 }}
                 animate={{ pathLength: 1 }}
-                transition={{ duration: 1.8, delay: i * 0.17, ease: EASE }}
+                transition={{ duration: 1.1, delay: i * 0.09, ease: EASE }}
               />
             ))}
             {/* where the warp passes over the weft */}
@@ -260,8 +276,8 @@ export function Loom() {
                 .filter((x, k) => x < straight - 6 && (k + i) % 2 === 0)
                 .map((x) => (
                   <g key={`${i}-${x}`}>
-                    <rect x={x - 1.7} y={y - 3.2} width={3.4} height={6.4} style={{ fill: "var(--paper)" }} />
-                    <line x1={x} x2={x} y1={y - 3.6} y2={y + 3.6} style={{ stroke: "var(--line-2)" }} strokeWidth={1.2} />
+                    <rect x={x - 2.6} y={y - 3.6} width={5.2} height={7.2} style={{ fill: "var(--paper)" }} />
+                    <line x1={x} x2={x} y1={y - 4.5} y2={y + 4.5} style={{ stroke: "var(--warp)" }} strokeWidth={1.3} />
                   </g>
                 )),
             )}
@@ -274,7 +290,7 @@ export function Loom() {
                 fontSize={narrow ? 12 : 13.5}
                 initial={{ opacity: reduce ? 1 : 0, y: reduce ? 0 : 4 }}
                 animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.5, delay: 0.25 + i * 0.17 }}
+                transition={{ duration: 0.45, delay: 0.1 + i * 0.09 }}
                 style={{ paintOrder: "stroke", stroke: "var(--paper)", strokeWidth: 8, strokeLinejoin: "round" }}
               >
                 <tspan style={{ fill: "var(--muted)" }}>{t.label}</tspan>
@@ -289,16 +305,16 @@ export function Loom() {
                 <motion.circle
                   cx={knot.x}
                   cy={knot.y}
-                  r={9}
+                  r={narrow ? 10 : 12}
                   initial={{ scale: 0 }}
-                  animate={{ scale: 1 }}
-                  transition={{ type: "spring", stiffness: 420, damping: 22 }}
+                  animate={{ scale: [0, 1.35, 1] }}
+                  transition={{ duration: 0.55, times: [0, 0.55, 1], ease: [0.22, 1, 0.36, 1] }}
                   style={{ fill: "var(--paper)", stroke: "var(--trigger)", strokeWidth: 2.4, transformOrigin: `${knot.x}px ${knot.y}px` }}
                 />
                 <motion.circle
                   cx={knot.x}
                   cy={knot.y}
-                  r={9}
+                  r={narrow ? 10 : 12}
                   initial={{ scale: 1, opacity: 0.55 }}
                   animate={{ scale: 3, opacity: 0 }}
                   transition={{ duration: 1.2, ease: "easeOut", repeat: reduce ? 0 : 2, repeatDelay: 1.3 }}
@@ -324,7 +340,7 @@ export function Loom() {
                 style={{ stroke: "var(--long)" }}
                 initial={{ pathLength: 0 }}
                 animate={{ pathLength: 1 }}
-                transition={{ duration: 0.9, ease: EASE }}
+                transition={{ duration: 0.7, ease: EASE }}
               />
             )}
           </motion.g>
@@ -360,8 +376,13 @@ export function Loom() {
       </AnimatePresence>
       {narrow && stage < 3 && <div className="mx-5 mt-1 h-[86px]" aria-hidden />}
 
-      {/* scene picker with a running timer */}
-      <div className="mt-5 flex items-center gap-2" style={{ paddingLeft: g - 2 }} role="tablist" aria-label="Examples">
+      {/* scene picker with a running timer, on the cloth */}
+      <div
+        className={narrow ? "mt-4 flex items-center gap-2 pb-6" : "absolute bottom-3 flex items-center gap-2"}
+        style={narrow ? { paddingLeft: g - 2 } : { left: g - 2 }}
+        role="tablist"
+        aria-label="Examples"
+      >
         {SCENES.map((x, i) => (
           <button key={x.name} role="tab" aria-selected={i === scene} aria-label={x.name} onClick={() => setScene(i)} className="group h-6 px-0.5">
             <span className="block h-[3px] w-7 overflow-hidden rounded-full bg-line-2 transition-colors group-hover:bg-ink/25">

@@ -1,10 +1,10 @@
 import type { Metadata, Viewport } from "next";
-import { Inter, Newsreader, Geist_Mono } from "next/font/google";
+import { Instrument_Sans, Newsreader, Geist_Mono } from "next/font/google";
 import { brand } from "@/config/brand";
 import { Providers } from "@/components/ui/Providers";
 import "./globals.css";
 
-const inter = Inter({ subsets: ["latin"], variable: "--font-inter", display: "swap" });
+const inter = Instrument_Sans({ subsets: ["latin"], variable: "--font-inter", display: "swap" });
 const serif = Newsreader({ subsets: ["latin"], weight: "400", variable: "--font-newsreader", display: "swap" });
 const mono = Geist_Mono({ subsets: ["latin"], variable: "--font-geist-mono", display: "swap", preload: false });
 

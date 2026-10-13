@@ -3,7 +3,7 @@ import { brand } from "@/config/brand";
 
 const cols: [string, [string, string][]][] = [
   ["Product", [["Open app", "/app"], ["Strategies", "/app/library"], ["Markets", "/app/markets"], ["Live trading", "/app/live"]]],
-  ["Learn", [["How it works", "#how"], ["Safety", "#safety"], ["Token", "#token"], ["Questions", "#faq"]]],
+  ["Learn", [["How it works", "#work"], ["Safety", "#safety"], ["Token", "#token"], ["Questions", "#faq"]]],
   ["Follow", [["X", brand.socials.x], ["Telegram", brand.socials.telegram], ["GitHub", brand.socials.github]]],
 ];
 

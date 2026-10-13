@@ -21,6 +21,9 @@
   --line: rgba(18, 18, 20, 0.08);
   --line-2: rgba(18, 18, 20, 0.15);
   --grid-dot: rgba(18, 18, 20, 0.07);
+  --warp: rgba(18, 18, 20, 0.2);
+  --mark: rgba(212, 130, 10, 0.16);
+  --mark-long: rgba(11, 148, 102, 0.14);
 
   /* legacy name kept for the logo/selection; no longer a UI accent */
   --volt: #121214;
@@ -63,6 +66,9 @@
   --line: rgba(255, 255, 255, 0.08);
   --line-2: rgba(255, 255, 255, 0.14);
   --grid-dot: rgba(255, 255, 255, 0.06);
+  --warp: rgba(255, 255, 255, 0.17);
+  --mark: rgba(240, 168, 58, 0.26);
+  --mark-long: rgba(47, 197, 140, 0.24);
 
   --volt: #ededeb;
   --volt-deep: #ededeb;
@@ -92,6 +98,11 @@
   --paper-2: #151517;
   background: var(--paper);
   color: var(--ink);
+}
+/* In dark mode the dark band lifts a step so it still reads as its own place. */
+[data-theme="dark"] .night {
+  --paper: #161619;
+  --card: #1c1c20;
 }
 
 @theme inline {
@@ -137,7 +148,7 @@ body {
   background: var(--paper);
   color: var(--ink);
   font-family: var(--font-sans);
-  font-feature-settings: "cv11" 1, "ss03" 1;
+  font-feature-settings: "ss02" 1;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
   overflow-x: clip;
@@ -355,25 +366,25 @@ html.lenis body {
   scroll-behavior: auto !important;
 }
 
-@keyframes token-run {
+@keyframes token-bead {
   0% {
     transform: translateX(0);
     opacity: 0;
   }
-  8% {
+  12% {
     opacity: 1;
   }
-  85% {
+  80% {
     opacity: 1;
   }
   100% {
-    transform: translateX(var(--run, 1000px));
+    transform: translateX(76px);
     opacity: 0;
   }
 }
-.token-run {
-  --run: min(1130px, calc(100vw - 80px));
-  animation: token-run 3.6s cubic-bezier(0.45, 0, 0.2, 1) infinite;
+.token-bead {
+  transform-box: view-box;
+  animation: token-bead 2.2s cubic-bezier(0.45, 0, 0.2, 1) infinite;
 }
 
 /* Ambient weft threads drifting across the hero loom. */

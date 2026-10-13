@@ -1,61 +1,98 @@
-"use client";
-import { useMemo, useState } from "react";
 import { Section } from "./Section";
-import { StrategyGraph } from "../graph/StrategyGraph";
-import { finalRuntime } from "../graph/layout";
-import type { GraphRuntime } from "../graph/types";
-import { strategies, type Strategy } from "@/data/mock";
+import { Sparkline } from "../ui/Sparkline";
 import { buttonClass } from "../ui/Button";
+import { walk } from "@/lib/rng";
 
-const picks = ["el-nino-harvest", "sub-penny-reload", "fed-pivot"];
+type Card = { tag: string; title: string; thesis: string; rules: [string, string][]; ret: number; seed: number };
 
-function Card({ s }: { s: Strategy }) {
-  const [hover, setHover] = useState(false);
-  const fired = useMemo(() => finalRuntime(s), [s]);
-  const armed = useMemo<GraphRuntime>(() => ({ visible: fired.visible, met: {}, active: {} }), [fired]);
+/** Examples written for this section, so the page doesn't repeat itself. Returns are paper and illustrative. */
+const CARDS: Card[] = [
+  {
+    tag: "Commodities",
+    title: "Gold on falling real yields",
+    thesis: "When real yields roll over, gold catches a bid. Get long and let it run.",
+    rules: [
+      ["Watch", "10-year real yield, gold"],
+      ["When", "real yield down 15 bp in 5 days"],
+      ["Do", "long gold at 2×, trailing stop 3%"],
+    ],
+    ret: 7.4,
+    seed: 61,
+  },
+  {
+    tag: "Funding",
+    title: "Fade the crowded SOL long",
+    thesis: "When everyone pays to be long SOL, the squeeze usually goes the other way.",
+    rules: [
+      ["Watch", "SOL funding, open interest"],
+      ["When", "funding above 0.1% for 8 hours"],
+      ["Do", "short SOL at 2×, stop at +4%"],
+    ],
+    ret: 11.2,
+    seed: 72,
+  },
+  {
+    tag: "Politics",
+    title: "Polls ahead of the odds",
+    thesis: "Prediction markets lag the polls by a day. Buy the side the polls already favour.",
+    rules: [
+      ["Watch", "polling average, market odds"],
+      ["When", "polls 6+ points ahead of the odds"],
+      ["Do", "buy YES up to 62¢, out at 85¢"],
+    ],
+    ret: 5.1,
+    seed: 83,
+  },
+];
+
+function StrategyCard({ c }: { c: Card }) {
   return (
     <a
-      href={`/app/new?thesis=${encodeURIComponent(s.thesis)}`}
-      onMouseEnter={() => setHover(true)}
-      onMouseLeave={() => setHover(false)}
-      onFocus={() => setHover(true)}
-      onBlur={() => setHover(false)}
-      className="group flex flex-col rounded-[14px] border border-line bg-card transition-colors hover:border-line-2"
+      href={`/app/new?thesis=${encodeURIComponent(c.thesis)}`}
+      className="group flex flex-col rounded-[14px] border border-line bg-card p-6 transition-[border-color,transform] duration-300 hover:-translate-y-0.5 hover:border-line-2"
     >
-      <div className="p-5 pb-0 sm:p-6 sm:pb-0">
-        <p className="text-[13px] text-muted">{s.category}</p>
-        <h3 className="mt-1 text-[19px] font-semibold tracking-[-0.025em] text-ink">{s.title}</h3>
-        <p className="mt-2 line-clamp-2 text-[14.5px] leading-[1.55] text-ink-2">“{s.thesis}”</p>
+      <div className="flex items-baseline justify-between text-[13px]">
+        <span className="text-muted">{c.tag}</span>
+        <span className="tnum font-medium text-long">+{c.ret}%</span>
       </div>
-      <div className="m-3 mt-5 flex-1 rounded-[10px] bg-paper-2/60 px-2 py-4">
-        <StrategyGraph spec={s} runtime={hover ? fired : armed} preset="compact" live={hover} interactive={false} instant ariaLabel={`${s.title} strategy graph`} />
-      </div>
-      <div className="flex items-center justify-between border-t border-line px-5 py-3.5 text-[13.5px] sm:px-6">
-        <span className="text-muted">{s.venues.join(" · ")}</span>
-        <span className="font-medium text-ink transition-transform group-hover:translate-x-0.5">Use this →</span>
+      <h3 className="mt-2 text-[19px] font-semibold tracking-[-0.02em] text-ink">{c.title}</h3>
+      <p className="mt-2 text-[14.5px] leading-[1.55] text-ink-2">{c.thesis}</p>
+      <dl className="mt-5 space-y-1.5 border-t border-line pt-4 text-[13.5px]">
+        {c.rules.map(([k, v]) => (
+          <div key={k} className="grid grid-cols-[52px_1fr] gap-2">
+            <dt className="text-muted">{k}</dt>
+            <dd className="text-ink">{v}</dd>
+          </div>
+        ))}
+      </dl>
+      <Sparkline data={walk(c.seed, 36, 0.4, 0.55)} width={300} height={44} color="var(--long)" strokeWidth={1.5} className="mt-5 w-full" />
+      <div className="mt-auto flex items-center justify-between pt-5 text-[13px]">
+        <span className="text-muted">Example, on paper</span>
+        <span className="font-medium text-ink transition-transform duration-300 group-hover:translate-x-0.5">Use this →</span>
       </div>
     </a>
   );
 }
 
 export function Strategies() {
-  const list = picks.map((id) => strategies.find((s) => s.id === id)!).filter(Boolean);
   return (
     <Section
       id="strategies"
       layout="stack"
-      label="Strategies"
       title="Start from someone else’s strategy"
-      lead="Every strategy is public. Read exactly what it does, then copy it and make it yours. Your wallet and sizes stay private."
+      lead="Every strategy is public. Read exactly what it does, copy it, and make it yours. Your wallet and amounts stay private."
     >
       <div className="grid gap-4 md:grid-cols-3">
-        {list.map((s) => (
-          <Card key={s.id} s={s} />
+        {CARDS.map((c) => (
+          <StrategyCard key={c.title} c={c} />
         ))}
       </div>
-      <a href="/app/library" className={buttonClass("secondary", "md", "mt-8")}>
-        Browse all strategies
-      </a>
+      <div className="mt-8 flex flex-wrap items-center gap-4">
+        <a href="/app/library" className={buttonClass("secondary", "md")}>
+          Browse all strategies
+        </a>
+        <span className="text-[13px] text-muted">Returns shown are from paper runs and are illustrative.</span>
+      </div>
     </Section>
   );
 }

@@ -55,14 +55,13 @@ export function Safety() {
       </div>
       </div>
 
-      <div className="mt-14 grid gap-10 sm:grid-cols-3 sm:gap-8">
+      <ul className="mt-14 flex flex-wrap gap-x-10 gap-y-4 border-t border-line pt-8 text-[15px]">
         {guards.map(([t, b]) => (
-          <div key={t}>
-            <h3 className="text-[16px] font-semibold tracking-[-0.015em] text-ink">{t}</h3>
-            <p className="mt-2 text-[15px] leading-[1.6] text-ink-2">{b}</p>
-          </div>
+          <li key={t} className="max-w-[22rem]">
+            <span className="font-medium text-ink">{t}.</span> <span className="text-ink-2">{b}</span>
+          </li>
         ))}
-      </div>
+      </ul>
     </Section>
   );
 }

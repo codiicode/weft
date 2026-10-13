@@ -1,42 +1,50 @@
-import { Section } from "./Section";
+import { Reveal } from "../ui/Reveal";
 import { brand, $T } from "@/config/brand";
 
-const steps = [
-  ["You trade", "A strategy places an order on Hyperliquid or swaps on Solana."],
-  ["A small fee", `${(brand.builderFeeBps / 100).toFixed(2)}% on Hyperliquid, ${(brand.swapFeeBps / 100).toFixed(1)}% on Solana swaps.`],
-  ["Buyback", `The fees buy ${$T} on the open market. Every purchase is on-chain.`],
-];
+/** An inline length of thread with a fee travelling along it. */
+function Thread({ delay = 0 }: { delay?: number }) {
+  return (
+    <svg viewBox="0 0 96 20" className="mx-[0.18em] inline-block h-[0.42em] w-[1.6em] align-middle" aria-hidden>
+      <line x1="2" x2="94" y1="10" y2="10" style={{ stroke: "var(--line-2)" }} strokeWidth="3" strokeLinecap="round" />
+      <circle cx="10" cy="10" r="7" className="token-bead" style={{ fill: "var(--long)", animationDelay: `${delay}s` }} />
+    </svg>
+  );
+}
 
 export function Token() {
   return (
-    <Section
-      id="token"
-      label="Token"
-      title={`Fees buy back ${$T}`}
-      lead={`${$T} launches on ${brand.chain} through ${brand.launchpad}. There are no subscriptions. Weft earns only when strategies trade, and that revenue goes to buybacks.`}
-    >
-      <div className="relative">
-      {/* a fee travelling from the trade to the buyback */}
-      <span aria-hidden className="token-run pointer-events-none absolute -top-[3px] left-0 hidden h-2 w-2 rounded-full bg-ink md:block" />
-      <ol className="flex flex-col gap-3 md:flex-row md:items-stretch md:gap-0">
-        {steps.map(([t, b], i) => (
-          <li key={t} className="flex flex-1 flex-col md:flex-row md:items-center">
-            <div className="flex-1 border-l-2 py-1 pl-5 md:border-l-0 md:border-t-2 md:pl-0 md:pt-6" style={{ borderColor: i === 2 ? "var(--ink)" : "var(--line-2)" }}>
-              <h3 className="text-[18px] font-semibold tracking-[-0.02em] text-ink">{t}</h3>
-              <p className="mt-2 max-w-[18rem] text-[15px] leading-[1.6] text-ink-2">{b}</p>
-            </div>
-            {i < steps.length - 1 && (
-              <span className="hidden px-6 text-[20px] text-faint md:block" aria-hidden>
-                →
-              </span>
-            )}
-          </li>
-        ))}
-      </ol>
+    <section id="token" className="scroll-mt-16 border-t border-line">
+      <div className="mx-auto max-w-[1200px] px-5 py-24 sm:px-8 sm:py-32">
+        <p className="text-[14px] text-muted">The {$T} token</p>
+        <Reveal mask className="mt-5">
+          <h2 className="display text-[clamp(2.2rem,5.2vw,4.6rem)] leading-[1.1] text-ink">
+            You trade
+            <Thread />
+            a small fee
+            <Thread delay={1.1} />
+            <br className="hidden lg:block" />
+            {$T} gets bought back.
+          </h2>
+        </Reveal>
+        <Reveal delay={200}>
+          <dl className="mt-14 grid gap-x-10 gap-y-6 border-t border-line pt-8 text-[15px] sm:grid-cols-2 lg:grid-cols-4">
+            {[
+              ["Fee on Hyperliquid", `${(brand.builderFeeBps / 100).toFixed(2)}% per trade`],
+              ["Fee on Solana swaps", `${(brand.swapFeeBps / 100).toFixed(1)}% per swap`],
+              ["Where fees go", `Buy ${$T} on the open market, on-chain`],
+              ["Launch", `${brand.chain}, through ${brand.launchpad}`],
+            ].map(([k, v]) => (
+              <div key={k}>
+                <dt className="text-[13px] text-muted">{k}</dt>
+                <dd className="mt-1 text-ink">{v}</dd>
+              </div>
+            ))}
+          </dl>
+          <p className="mt-8 text-[13.5px] text-muted">
+            No subscriptions. The contract address will be published here at launch; anything else claiming to be {$T} is not.
+          </p>
+        </Reveal>
       </div>
-      <p className="mt-12 text-[13.5px] text-muted">
-        Contract address will be published here at launch. Anything else claiming to be {$T} is not.
-      </p>
-    </Section>
+    </section>
   );
 }

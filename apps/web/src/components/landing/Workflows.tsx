@@ -118,6 +118,11 @@ const FLOWS: Flow[] = [
   },
 ];
 
+// Playhead marks within one workflow (0..1): watch, check, trade, result.
+const COND_AT = 0.24;
+const COND_STEP = 0.06;
+const FILL_AT = 0.48;
+
 const clamp01 = (v: number) => Math.max(0, Math.min(1, v));
 const ease = (t: number) => 1 - Math.pow(1 - t, 3);
 
@@ -138,8 +143,8 @@ function Thesis({ f, p }: { f: Flow; p: number }) {
       “
       {parts.map((x, i) => {
         if (x.mark === undefined) return <span key={i}>{x.text}</span>;
-        const on = x.mark === -1 ? p > 0.68 : p > 0.36 + x.mark * 0.07;
-        const tone = x.mark === -1 ? "var(--long-soft)" : "var(--trigger-soft)";
+        const on = x.mark === -1 ? p > FILL_AT : p > COND_AT + x.mark * COND_STEP;
+        const tone = x.mark === -1 ? "var(--mark-long)" : "var(--mark)";
         return (
           <span
             key={i}
@@ -162,14 +167,14 @@ function Thesis({ f, p }: { f: Flow; p: number }) {
 }
 
 function Console({ f, p }: { f: Flow; p: number }) {
-  const watch = ease(clamp01(p / 0.32));
-  const ruleMet = p > 0.36 + f.conditions.length * 0.07;
-  const sending = p > 0.6;
-  const filled = p > 0.68;
-  const result = clamp01((p - 0.72) / 0.25);
+  const watch = ease(clamp01(p / 0.2));
+  const ruleMet = p > COND_AT + f.conditions.length * COND_STEP;
+  const sending = p > 0.42;
+  const filled = p > FILL_AT;
+  const result = clamp01((p - 0.5) / 0.3);
   const curve = useMemo(() => {
     const pts = walk(f.seed, 40, 0.5, 0.55);
-    return sparkPath(pts, 300, 64, 2);
+    return sparkPath(pts, 300, 96, 3);
   }, [f.seed]);
   const status = filled ? (result > 0.98 ? "Done" : "In the trade") : ruleMet ? "Rule met" : "Watching";
 
@@ -203,7 +208,7 @@ function Console({ f, p }: { f: Flow; p: number }) {
           <p className="text-[12px] text-muted">When</p>
           <ul className="mt-2 space-y-1.5 sm:mt-2.5 sm:space-y-2">
             {f.conditions.map((c, j) => {
-              const on = p > 0.36 + j * 0.07;
+              const on = p > COND_AT + j * COND_STEP;
               return (
                 <li key={c} className={`flex items-center gap-2 text-[13.5px] transition-colors duration-300 ${on ? "text-ink" : "text-faint"}`}>
                   <span
@@ -249,8 +254,8 @@ function Console({ f, p }: { f: Flow; p: number }) {
             +{(f.pnl * ease(result)).toFixed(1)}%
           </span>
         </div>
-        <svg viewBox="0 0 300 64" className="mt-1 hidden h-auto w-full sm:block" aria-hidden>
-          <line x1="0" x2="300" y1="63" y2="63" style={{ stroke: "var(--line)" }} />
+        <svg viewBox="0 0 300 96" className="mt-1 hidden h-auto w-full sm:block" aria-hidden>
+          <line x1="0" x2="300" y1="95" y2="95" style={{ stroke: "var(--line)" }} />
           <path d={curve.line} fill="none" strokeWidth="1.8" strokeLinecap="round" pathLength={1} strokeDasharray="1 1" strokeDashoffset={1 - result} style={{ stroke: "var(--long)" }} />
         </svg>
       </div>
@@ -295,12 +300,12 @@ export function Workflows() {
 
   const f = FLOWS[pos.i]!;
   return (
-    <section id="work" ref={ref} className="relative border-t border-line" style={{ height: `${N * 110 + 20}vh` }}>
+    <section id="work" ref={ref} className="relative border-t border-line" style={{ height: `${N * 95 + 20}vh` }}>
       <div className="sticky top-0 flex h-[100svh] items-center overflow-hidden">
-        <div className="mx-auto grid w-full max-w-[1200px] gap-8 px-5 pt-14 sm:px-8 lg:grid-cols-[minmax(0,0.95fr)_minmax(0,1.05fr)] lg:items-center lg:gap-16">
+        <div className="mx-auto grid w-full max-w-[1200px] gap-8 px-5 pt-14 sm:px-8 lg:grid-cols-[minmax(0,0.82fr)_minmax(0,1.18fr)] lg:items-center lg:gap-14">
           <div>
             <div className="flex items-center gap-3 text-[13px] text-muted">
-              <span>Watch it work</span>
+              <span>How it works</span>
               <span className="tnum text-faint">
                 {String(pos.i + 1).padStart(2, "0")} / {String(N).padStart(2, "0")}
               </span>
@@ -320,6 +325,20 @@ export function Workflows() {
                 <p className="mt-4 hidden max-w-[30rem] text-[16px] leading-[1.6] text-ink-2 sm:block">{f.note}</p>
               </motion.div>
             </AnimatePresence>
+            {/* where this workflow is: write, check, run */}
+            <ol className="mt-6 flex items-center gap-2 text-[13.5px]" aria-label="Steps">
+              {(["Write", "Check", "Run"] as const).map((step, k) => {
+                const at = pos.p < 0.2 ? 0 : pos.p < FILL_AT ? 1 : 2;
+                return (
+                  <li key={step} className="flex items-center gap-2">
+                    {k > 0 && <span className="h-px w-5 bg-line-2" aria-hidden />}
+                    <span className={`transition-colors duration-300 ${k === at ? "font-medium text-ink" : k < at ? "text-ink-2" : "text-faint"}`}>
+                      {k + 1}. {step}
+                    </span>
+                  </li>
+                );
+              })}
+            </ol>
             {/* progress: one bar per workflow */}
             <div className="mt-5 flex gap-1.5 sm:mt-8" aria-hidden>
               {FLOWS.map((x, j) => (

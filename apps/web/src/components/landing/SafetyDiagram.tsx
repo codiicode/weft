@@ -12,8 +12,25 @@ export function SafetyDiagram() {
   const reduce = useReducedMotion();
   const play = inView && !reduce;
   return (
-    <div ref={ref} className="relative rounded-[14px] border border-line bg-paper p-5 sm:p-7">
-      <svg viewBox="0 0 520 250" className="block h-auto w-full" role="img" aria-label="Weft's key can place trades in your account; withdrawals are blocked">
+    <div ref={ref} className="relative">
+      {/* phones: the same idea, stacked and readable */}
+      <div className="space-y-2 sm:hidden" role="img" aria-label="Weft's key can place trades in your account; withdrawals are blocked">
+        <div className="rounded-[12px] border border-line-2 bg-card px-4 py-3">
+          <p className="text-[12px] text-muted">Trading-only key</p>
+          <p className="text-[16px] font-semibold text-ink">Weft agent</p>
+        </div>
+        <div className="flex items-center gap-2 pl-4 text-[14px] font-medium text-long">
+          <span className="h-5 w-px bg-long" /> Place a trade ↓
+        </div>
+        <div className="rounded-[12px] border border-line-2 bg-card px-4 py-3">
+          <p className="text-[12px] text-muted">Your Hyperliquid</p>
+          <p className="text-[16px] font-semibold text-ink">Your money stays here</p>
+        </div>
+        <div className="flex items-center gap-2 pl-4 text-[14px] font-medium text-short">
+          <span className="h-5 w-px border-l border-dashed border-short" /> Withdraw · blocked
+        </div>
+      </div>
+      <svg viewBox="0 0 520 250" className="hidden h-auto w-full sm:block" role="img" aria-label="Weft's key can place trades in your account; withdrawals are blocked">
         {/* nodes */}
         <g>
           <rect x="1" y="70" width="150" height="110" rx="12" style={{ fill: "var(--card)", stroke: "var(--line-2)" }} />
