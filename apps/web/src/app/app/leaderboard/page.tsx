@@ -5,6 +5,8 @@ import { useApi, fmtUsd, fmtPct, ago } from "@/lib/use-api";
 import { PageHeader, Card, Empty, Btn } from "@/components/app/AppShell";
 import { Sparkline } from "@/components/ui/Sparkline";
 import { trendColor } from "@/components/app/RunCard";
+import { AssetStack } from "@/components/ui/AssetIcon";
+import { strategyIcons } from "@/lib/assets";
 
 export default function LeaderboardPage() {
   const { data, loading, error } = useApi(() => api.leaderboard(), [], { pollMs: 10_000 });
@@ -38,12 +40,17 @@ export default function LeaderboardPage() {
                     <tr key={r.deploymentId} className="relative border-b border-line transition-colors last:border-0 hover:bg-paper-2/40">
                       <td className="tnum px-5 py-3.5 text-muted">{r.returnPct === 0 ? "–" : i + 1}</td>
                       <td className="px-3 py-3.5">
+                        <div className="flex items-center gap-3">
+                        {r.strategy && <AssetStack items={strategyIcons(r.strategy)} size={26} max={2} />}
+                        <div className="min-w-0">
                         <Link href={`/app/run?id=${encodeURIComponent(r.deploymentId)}`} className="font-medium text-ink after:absolute after:inset-0">
                           {r.name}
                         </Link>
                         <div className="mt-0.5 text-[12.5px] capitalize text-muted">
                           {r.status !== "running" ? `${r.status} · ` : ""}
                           {r.tags.slice(0, 3).join(", ")}
+                        </div>
+                        </div>
                         </div>
                       </td>
                       <td className={`tnum whitespace-nowrap px-3 py-3.5 text-right ${r.returnPct === 0 ? "text-[13px] text-muted" : r.returnPct > 0 ? "font-medium text-long" : "font-medium text-short"}`}>{r.returnPct === 0 ? "No change" : fmtPct(r.returnPct)}</td>

@@ -1,5 +1,7 @@
 "use client";
 import Link from "next/link";
+import { AssetStack } from "@/components/ui/AssetIcon";
+import { strategyIcons } from "@/lib/assets";
 import type { Snapshot } from "@/lib/api";
 import { fmtUsd, fmtPct, ago } from "@/lib/use-api";
 import { Card } from "./AppShell";
@@ -35,9 +37,12 @@ export function RunRow({ s }: { s: Snapshot }) {
       href={`/app/run?id=${encodeURIComponent(d.id)}`}
       className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-x-6 gap-y-1 px-4 py-3.5 transition-colors hover:bg-paper-2/50 sm:grid-cols-[minmax(0,1fr)_140px_90px_110px_100px] sm:px-5"
     >
-      <div className="min-w-0">
-        <div className="truncate text-[14.5px] font-medium text-ink">{d.strategy.name}</div>
-        <div className="truncate text-[13px] text-muted">{d.strategy.thesis}</div>
+      <div className="flex min-w-0 items-center gap-3">
+        <AssetStack items={strategyIcons(d.strategy)} size={26} max={2} />
+        <div className="min-w-0">
+          <div className="truncate text-[14.5px] font-medium text-ink">{d.strategy.name}</div>
+          <div className="truncate text-[13px] text-muted">{d.strategy.thesis}</div>
+        </div>
       </div>
       <div className="hidden sm:block">
         <RunStatus s={s} />
@@ -74,7 +79,10 @@ export function RunCard({ s }: { s: Snapshot }) {
           <RunStatus s={s} />
           <span className="text-[12px] text-faint">checked {ago(s.lastTickAt)}</span>
         </div>
-        <div className="mt-3 truncate text-[16px] font-semibold tracking-[-0.015em] text-ink">{d.strategy.name}</div>
+        <div className="mt-3 flex items-center gap-2.5">
+          <AssetStack items={strategyIcons(d.strategy)} size={24} max={3} />
+          <div className="truncate text-[16px] font-semibold tracking-[-0.015em] text-ink">{d.strategy.name}</div>
+        </div>
         <div className="mt-0.5 line-clamp-1 text-[13.5px] text-muted">{d.strategy.thesis}</div>
         <div className="mt-4 flex items-end justify-between gap-3">
           <div>

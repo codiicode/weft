@@ -1,6 +1,7 @@
 "use client";
 import type { Strategy } from "@weft/strategy";
 import { describeStrategy } from "@/lib/strategy-view";
+import { AssetIcon } from "@/components/ui/AssetIcon";
 
 const TONE = { long: "var(--long)", short: "var(--short)", exit: "var(--exit)", alert: "var(--signal)" } as const;
 
@@ -54,7 +55,14 @@ export function StrategyRules({ strategy, met }: { strategy: Strategy; met?: Rec
             <ul className="space-y-1.5">
               {r.then.map((t) => (
                 <li key={t.text} className="flex gap-2.5 text-[14.5px] leading-relaxed text-ink">
-                  <span className="mt-[9px] h-[2px] w-3 shrink-0 rounded" style={{ background: TONE[t.tone] }} />
+                  {t.icon ? (
+                    <span className="relative mt-[2px] shrink-0">
+                      <AssetIcon {...t.icon} size={20} />
+                      <span className="absolute -bottom-0.5 -right-0.5 h-2 w-2 rounded-full ring-2 ring-card" style={{ background: TONE[t.tone] }} />
+                    </span>
+                  ) : (
+                    <span className="mt-[9px] h-[2px] w-3 shrink-0 rounded" style={{ background: TONE[t.tone] }} />
+                  )}
                   <span>{t.text}</span>
                 </li>
               ))}

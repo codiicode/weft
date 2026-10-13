@@ -1,5 +1,7 @@
 "use client";
 import { useState } from "react";
+import { AssetStack } from "@/components/ui/AssetIcon";
+import { strategyIcons } from "@/lib/assets";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { api } from "@/lib/api";
@@ -111,7 +113,8 @@ export default function Home() {
                 href={`/app/strategy?id=${encodeURIComponent(e.id)}`}
                 className="rounded-[12px] border border-line bg-card p-4 transition-colors hover:border-line-2"
               >
-                <div className="text-[14.5px] font-medium text-ink">{e.strategy.name}</div>
+                <AssetStack items={strategyIcons(e.strategy)} size={26} max={3} />
+                <div className="mt-3 text-[14.5px] font-medium text-ink">{e.strategy.name}</div>
                 <div className="mt-1 line-clamp-2 text-[13.5px] leading-relaxed text-muted">{e.strategy.thesis}</div>
               </Link>
             ))}

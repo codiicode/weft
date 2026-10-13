@@ -7,6 +7,8 @@ import { api } from "@/lib/api";
 import { useApi, fmtCompact, fmtPct, fmtPrice } from "@/lib/use-api";
 import { PageHeader, Card, Btn, Pill, Empty } from "@/components/app/AppShell";
 import { IconX } from "@/components/graph/icons";
+import { AssetIcon } from "@/components/ui/AssetIcon";
+import { instrumentIcon } from "@/lib/assets";
 
 const PRODUCTS: { id: Product; label: string; blurb: string }[] = [
   { id: "perps", label: "Perps", blurb: "Crypto perpetuals on Hyperliquid" },
@@ -62,7 +64,8 @@ function Detail({ row, onClose }: { row: MarketListing; onClose: () => void }) {
     >
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">
-          <div className="text-[12.5px] text-muted">{row.venue}</div>
+          <AssetIcon {...instrumentIcon(row.instrument, row.meta)} size={40} />
+          <div className="mt-3 text-[12.5px] text-muted">{row.venue}</div>
           <div className="mt-1 text-[24px] font-semibold tracking-[-0.03em]">{row.label}</div>
           {row.name && <div className="text-[14px] text-ink-2">{row.name}</div>}
         </div>
@@ -194,12 +197,13 @@ function Markets() {
                   {rows.map((r) => (
                     <tr key={r.instrumentKey} onClick={() => setOpen(r)} className="cursor-pointer border-b border-line transition-colors last:border-0 hover:bg-paper-2/60">
                       <td className="max-w-[320px] px-5 py-3">
-                        <div className="flex items-center gap-2">
+                        <div className="flex items-center gap-2.5">
+                          <AssetIcon {...instrumentIcon(r.instrument, r.meta)} size={22} />
                           <span className="truncate font-medium">{r.label}</span>
                           {r.instrument.kind === "perp" && r.instrument.dex && <Pill tone="signal">HIP-3 · {r.instrument.dex}</Pill>}
                           {r.instrument.kind === "token" && r.instrument.assetClass === "equity" && <Pill tone="signal">xStock</Pill>}
                         </div>
-                        {r.name && <div className="truncate text-[12px] text-faint">{r.name}</div>}
+                        {r.name && <div className="truncate pl-[32px] text-[12px] text-faint">{r.name}</div>}
                       </td>
                       <td className="tnum px-3 py-3 text-right">{r.product === "predictions" && r.price != null ? `${Math.round(r.price * 100)}¢` : fmtPrice(r.price)}</td>
                       <td className={`tnum px-3 py-3 text-right ${(r.change24hPct ?? 0) >= 0 ? "text-long" : "text-short"}`}>{fmtPct(r.change24hPct)}</td>

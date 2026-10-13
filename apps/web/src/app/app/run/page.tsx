@@ -11,6 +11,8 @@ import { useApi, fmtUsd, fmtPct, fmtPrice, ago } from "@/lib/use-api";
 import { PageHeader, Card, Btn, Stat, Empty } from "@/components/app/AppShell";
 import { RunStatus } from "@/components/app/RunCard";
 import { StrategyRules } from "@/components/app/StrategyRules";
+import { AssetIcon } from "@/components/ui/AssetIcon";
+import { instrumentIcon } from "@/lib/assets";
 import { StrategyCanvas } from "@/components/app/StrategyCanvas";
 import { EquityChart } from "@/components/app/EquityChart";
 
@@ -320,7 +322,12 @@ function Run() {
                       <tbody>
                         {s.positions.map((p) => (
                           <tr key={p.id} className="border-b border-line last:border-0">
-                            <td className="px-5 py-3 font-medium text-ink">{instrumentLabel(p.instrument)}</td>
+                            <td className="px-5 py-3 font-medium text-ink">
+                              <span className="inline-flex items-center gap-2.5">
+                                <AssetIcon {...instrumentIcon(p.instrument)} size={20} />
+                                {instrumentLabel(p.instrument)}
+                              </span>
+                            </td>
                             <td className={`px-3 py-3 ${p.side === "long" ? "text-long" : "text-short"}`}>
                               {p.side === "long" ? "Long" : "Short"}
                               {p.leverage > 1 ? <span className="text-muted"> {p.leverage}×</span> : null}

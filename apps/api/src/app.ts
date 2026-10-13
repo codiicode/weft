@@ -455,6 +455,7 @@ export function createApp(deps: AppDeps) {
       .map((s) => ({
         deploymentId: s.deployment.id,
         strategyId: s.deployment.strategy.id,
+        strategy: s.deployment.strategy,
         name: s.deployment.strategy.name,
         tags: s.deployment.strategy.tags,
         status: s.deployment.status,

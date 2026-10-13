@@ -1,5 +1,7 @@
 "use client";
 import Link from "next/link";
+import { AssetStack } from "@/components/ui/AssetIcon";
+import { strategyIcons } from "@/lib/assets";
 import { useRouter } from "next/navigation";
 import { useMemo, useState } from "react";
 import { api } from "@/lib/api";
@@ -14,9 +16,12 @@ function Row({ e, onCopy }: { e: LibraryEntry; onCopy: () => void }) {
   return (
     <li className="group relative grid gap-3 px-5 py-5 transition-colors hover:bg-paper-2/40 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-center sm:gap-8">
       <div className="min-w-0">
-        <Link href={`/app/strategy?id=${encodeURIComponent(e.id)}`} className="text-[15.5px] font-medium text-ink after:absolute after:inset-0">
-          {e.strategy.name}
-        </Link>
+        <div className="flex items-center gap-2.5">
+          <AssetStack items={strategyIcons(e.strategy)} size={24} max={3} />
+          <Link href={`/app/strategy?id=${encodeURIComponent(e.id)}`} className="text-[15.5px] font-medium text-ink after:absolute after:inset-0">
+            {e.strategy.name}
+          </Link>
+        </div>
         <p className="mt-0.5 line-clamp-1 text-[14px] text-muted">{e.strategy.thesis}</p>
         {first && (
           <p className="mt-2 line-clamp-1 text-[13.5px] text-ink-2">

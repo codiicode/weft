@@ -9,6 +9,7 @@ import {
   type Strategy,
 } from "@weft/strategy";
 import type { GraphNode, GraphRuntime, GraphSpec, SignalType } from "@/components/graph/types";
+import { instrumentIcon, type IconRef } from "./assets";
 
 /**
  * Bridges the real strategy schema (@weft/strategy) to the visual graph
@@ -213,7 +214,7 @@ export interface PlainRule {
   match: "all" | "any";
   when: string[];
   hold?: string;
-  then: { text: string; tone: "long" | "short" | "exit" | "alert" }[];
+  then: { text: string; tone: "long" | "short" | "exit" | "alert"; icon?: IconRef }[];
 }
 
 function minutesLabel(m: number): string {
@@ -385,15 +386,23 @@ export function describeStrategy(s: Strategy): { watches: string[]; rules: Plain
           const lev = a.leverage > 1 ? ` at ${a.leverage}×` : "";
           const sign: ["+" | "−", "+" | "−"] = a.side === "long" ? ["+", "−"] : ["−", "+"];
           const ex = exitPhrase(a.exits, sign);
-          return { text: `${verb} ${inst} with ${sizePhrase(a, quote)}${lev}${ex ? `; ${ex}` : ""}`, tone: a.side === "short" && !longOnly ? "short" : "long" };
+          return {
+            text: `${verb} ${inst} with ${sizePhrase(a, quote)}${lev}${ex ? `; ${ex}` : ""}`,
+            tone: a.side === "short" && !longOnly ? "short" : "long",
+            icon: instrumentIcon(a.instrument),
+          };
         }
         if (a.type === "options") {
           const ex = exitPhrase(a.exits, ["+", "−"]);
-          return { text: `Open ${a.label ?? `${a.legs[0]!.instrument.underlying} options (${a.legs.length} legs)`} with ${sizePhrase(a)}${ex ? `; ${ex}` : ""}`, tone: "long" };
+          return {
+            text: `Open ${a.label ?? `${a.legs[0]!.instrument.underlying} options (${a.legs.length} legs)`} with ${sizePhrase(a)}${ex ? `; ${ex}` : ""}`,
+            tone: "long",
+            icon: instrumentIcon(a.legs[0]!.instrument),
+          };
         }
         if (a.type === "close") {
           const what = a.target === "all" ? "every position" : instrumentLabel(a.target.instrument);
-          return { text: `${a.fraction < 1 ? `Close ${Math.round(a.fraction * 100)}% of` : "Close"} ${what}`, tone: "exit" };
+          return { text: `${a.fraction < 1 ? `Close ${Math.round(a.fraction * 100)}% of` : "Close"} ${what}`, tone: "exit", icon: a.target === "all" ? undefined : instrumentIcon(a.target.instrument) };
         }
         return { text: `Send an alert: “${a.message}”`, tone: "alert" };
       });

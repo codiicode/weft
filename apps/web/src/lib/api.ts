@@ -68,6 +68,7 @@ export interface GenerateProgress {
 export type Snapshot = DeploymentSnapshot & { graph?: GraphView; builderFeesUsd?: number };
 
 export interface LeaderRow {
+  strategy?: Strategy;
   deploymentId: string;
   strategyId: string;
   name: string;
