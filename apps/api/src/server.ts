@@ -74,6 +74,8 @@ const app = createApp({
   aiDailyLimit: Number(process.env.WEFT_AI_DAILY_LIMIT ?? 30),
   live: live ?? undefined,
   telegram: telegram ?? undefined,
+  webOrigins: process.env.WEB_ORIGINS ? process.env.WEB_ORIGINS.split(",").map((o) => o.trim()).filter(Boolean) : undefined,
+  liveMaxTotalUsd: process.env.WEFT_LIVE_MAX_TOTAL_USD ? Number(process.env.WEFT_LIVE_MAX_TOTAL_USD) : undefined,
   backtest: { history: venues.history, tokenFacts: venues.tokenFacts, calendar: calendarFields },
 });
 engine.start();
@@ -83,7 +85,15 @@ const reconciler = liveEngine && liveCfg.enabled ? new Reconciler(liveEngine, ac
 const reconcileTimer = reconciler ? setInterval(() => void reconciler.run().catch((e) => console.warn("reconcile failed:", (e as Error).message)), 60_000) : null;
 reconcileTimer?.unref();
 
-const server = serve({ fetch: app.fetch, port: PORT }, (info) => {
+// Never serve publicly without sign-in: in local mode every request acts as one shared user.
+const publicBind = process.env.HOST && !/^(127\.0\.0\.1|localhost|::1)$/.test(process.env.HOST);
+if (!auth.enabled && (process.env.NODE_ENV === "production" || publicBind)) {
+  console.error("Refusing to start: sign-in is off (PRIVY_APP_ID missing) and this is a public server. Set PRIVY_APP_ID, or run locally.");
+  process.exit(1);
+}
+const HOST = process.env.HOST ?? (auth.enabled ? "0.0.0.0" : "127.0.0.1");
+
+const server = serve({ fetch: app.fetch, port: PORT, hostname: HOST }, (info) => {
   console.log(`weft api listening on http://localhost:${info.port}`);
   console.log(`  data: ${DATA_DIR}`);
   console.log(`  alerts: ${[telegram ? "Telegram per user" : null, ...notifier.sinks].filter(Boolean).join(", ") || "off (set TELEGRAM_BOT_TOKEN for per-user Telegram alerts)"}`);

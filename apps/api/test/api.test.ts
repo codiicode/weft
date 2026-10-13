@@ -221,3 +221,21 @@ describe("HTTP API", () => {
   });
 });
 
+
+describe("rate limits", async () => {
+  const { rateLimit } = await import("../src/lib/ratelimit.ts");
+  const { Hono } = await import("hono");
+  it("limits per client IP and answers 429 with Retry-After", async () => {
+    const app = new Hono();
+    app.use("*", rateLimit("test", 60, 3));
+    app.get("/", (c) => c.text("ok"));
+    const hit = (ip: string) => app.request("/", { headers: { "x-forwarded-for": ip } });
+    expect((await hit("1.1.1.1")).status).toBe(200);
+    expect((await hit("1.1.1.1")).status).toBe(200);
+    expect((await hit("1.1.1.1")).status).toBe(200);
+    const blocked = await hit("1.1.1.1");
+    expect(blocked.status).toBe(429);
+    expect(blocked.headers.get("retry-after")).toBeTruthy();
+    expect((await hit("2.2.2.2")).status).toBe(200);
+  });
+});

@@ -39,7 +39,7 @@ export type Expr =
 
 export const Expr: z.ZodType<Expr> = z.lazy(() =>
   z.union([
-    z.object({ op: z.enum(["and", "or"]), args: z.array(Expr).min(1) }),
+    z.object({ op: z.enum(["and", "or"]), args: z.array(Expr).min(1).max(16) }),
     z.object({ op: z.literal("not"), arg: Expr }),
     z.object({ op: z.enum(["gt", "gte", "lt", "lte", "eq", "neq"]), left: Operand, right: Operand }),
     z.object({ op: z.enum(["crosses_above", "crosses_below"]), left: Operand, right: Operand }),

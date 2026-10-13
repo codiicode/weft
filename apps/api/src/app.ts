@@ -1,5 +1,8 @@
 import { Hono } from "hono";
 import { cors } from "hono/cors";
+import { bodyLimit } from "hono/body-limit";
+import { secureHeaders } from "hono/secure-headers";
+import { clampQuery, connectionCap, rateLimit } from "./lib/ratelimit.ts";
 import { HTTPException } from "hono/http-exception";
 import type { Context } from "hono";
 import { streamSSE } from "hono/streaming";
@@ -37,6 +40,10 @@ export interface AppDeps {
   live?: LiveService;
   /** Per-user Telegram alerts (TELEGRAM_BOT_TOKEN). */
   telegram?: TelegramBot;
+  /** Web origins allowed by CORS (WEB_ORIGINS). Absent: any origin (local development). */
+  webOrigins?: string[];
+  /** Ceiling on one user's open live allocation across all runs, USD. */
+  liveMaxTotalUsd?: number;
 }
 
 const PRODUCTS = ["perps", "stocks", "predictions", "tokens", "options"] as const;
@@ -72,7 +79,8 @@ export function createApp(deps: AppDeps) {
   const optionalUser = async (c: Context): Promise<AuthUser | null> => {
     if (!authEnabled) return LOCAL_USER;
     const header = c.req.header("authorization");
-    const token = header?.startsWith("Bearer ") ? header.slice(7) : c.req.query("token");
+    // Query-string tokens only for the event stream (EventSource can't send headers); never elsewhere.
+    const token = header?.startsWith("Bearer ") ? header.slice(7) : c.req.path === "/events/stream" ? c.req.query("token") : undefined;
     if (!token) return null;
     try {
       const user = await deps.auth!.verify(token);
@@ -100,14 +108,54 @@ export function createApp(deps: AppDeps) {
     accounts.recordAiUse(user.id);
   };
 
-  app.use("*", cors({ origin: (o) => o ?? "*", allowMethods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"] }));
+  const origins = deps.webOrigins;
+  app.use(
+    "*",
+    cors({
+      origin: (o) => (!origins ? (o ?? "*") : o && origins.includes(o) ? o : origins[0]!),
+      allowMethods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+    }),
+  );
+  app.use("*", secureHeaders({ crossOriginResourcePolicy: false }));
+  app.use("*", bodyLimit({ maxSize: 256 * 1024, onError: (c) => c.json({ error: "request too large" }, 413) }));
+  app.use("*", rateLimit("general", 300));
+  app.use("/quote", rateLimit("quotes", 40));
+  app.use("/markets/*", rateLimit("markets", 90));
+  app.use("/backtest", rateLimit("backtests", 6));
+  app.use("/ai/*", rateLimit("drafting", 12));
+  app.use("/strategies/validate", rateLimit("validation", 30));
+  app.use("/events/stream", rateLimit("streams", 20));
+  const streams = connectionCap(6);
+
+  /** Live runs are private: only their owner sees positions, fills and events. */
+  const canView = async (c: Context, id: string): Promise<boolean> => {
+    const snap = await engine.getSnapshot(id);
+    if (!snap || snap.deployment.mode !== "live" || !authEnabled) return true;
+    const user = await optionalUser(c);
+    return !!user && accounts?.deploymentOwner(id) === user.id;
+  };
+  /** Display name for a new library entry: from the account, never from the request. */
+  const authorFor = (user: AuthUser, fallback: unknown) => {
+    if (!authEnabled) return String(fallback ?? "@anon").slice(0, 40);
+    const a = accounts?.get(user.id);
+    const w = a?.wallets[0];
+    return (a?.displayName ?? (w ? `${w.slice(0, 6)}…${w.slice(-4)}` : "@anon")).slice(0, 40);
+  };
+  // One live deployment at a time per user, so caps and overlap checks can't race.
+  const liveLocks = new Map<string, Promise<unknown>>();
+  const withLiveLock = <T,>(userId: string, fn: () => Promise<T>): Promise<T> => {
+    const prev = liveLocks.get(userId) ?? Promise.resolve();
+    const run = prev.then(fn, fn);
+    liveLocks.set(userId, run.catch(() => undefined));
+    return run;
+  };
 
   app.onError((err, c) => {
     if (err instanceof HTTPException) return c.json({ error: err.message }, err.status);
     const issues = (err as { issues?: unknown }).issues;
     if (issues) return c.json({ error: err.message, issues }, 400);
     console.error(err);
-    return c.json({ error: err.message || "internal error" }, 500);
+    return c.json({ error: "Something went wrong on our side. Please try again." }, 500);
   });
 
   app.get("/health", (c) => c.json({ ok: true, ts: Date.now(), signals: deps.signalModes, auth: { enabled: authEnabled, appId: deps.auth?.appId ?? null } }));
@@ -137,7 +185,7 @@ export function createApp(deps: AppDeps) {
   app.get("/markets/:product", async (c) => {
     const product = c.req.param("product") as Product;
     if (!PRODUCTS.includes(product as (typeof PRODUCTS)[number])) return c.json({ error: `unknown product ${product}` }, 404);
-    const rows = await catalog.list(product, { search: c.req.query("search") ?? undefined, limit: Number(c.req.query("limit") ?? 50) });
+    const rows = await catalog.list(product, { search: c.req.query("search") ?? undefined, limit: clampQuery(c.req.query("limit"), 50, 100) });
     return c.json({ product, rows });
   });
 
@@ -167,7 +215,7 @@ export function createApp(deps: AppDeps) {
   app.post("/strategies", async (c) => {
     const user = await requireUser(c);
     const body = await c.req.json();
-    const entry = library.save(body.strategy ?? body, { author: String(body.author ?? "@anon").slice(0, 40) });
+    const entry = library.save(body.strategy ?? body, { author: authorFor(user, body.author) });
     accounts?.setStrategyOwner(entry.id, user.id);
     return c.json(entry, 201);
   });
@@ -184,7 +232,7 @@ export function createApp(deps: AppDeps) {
   app.post("/strategies/:id/fork", async (c) => {
     const user = await requireUser(c);
     const body = await c.req.json().catch(() => ({}));
-    const entry = library.fork(c.req.param("id"), String((body as { author?: string }).author ?? "@anon").slice(0, 40));
+    const entry = library.fork(c.req.param("id"), authorFor(user, (body as { author?: string }).author));
     if (entry) accounts?.setStrategyOwner(entry.id, user.id);
     return entry ? c.json(entry, 201) : c.json({ error: "not found" }, 404);
   });
@@ -275,10 +323,11 @@ export function createApp(deps: AppDeps) {
   /** Your deployments (all of them in local mode); ?scope=all lists everyone's (public). */
   app.get("/deployments", async (c) => {
     let records = await engine.listDeployments();
-    if (authEnabled && c.req.query("scope") !== "all") {
+    if (authEnabled) {
       const user = await optionalUser(c);
       const mine = user && accounts ? accounts.deploymentsOf(user.id) : new Set<string>();
-      records = records.filter((d) => mine.has(d.id));
+      // scope=all: everyone's paper runs, but live runs only when they're yours.
+      records = c.req.query("scope") === "all" ? records.filter((d) => d.mode !== "live" || mine.has(d.id)) : records.filter((d) => mine.has(d.id));
     }
     const snaps = await Promise.all(records.map((d) => engine.getSnapshot(d.id)));
     return c.json({ deployments: snaps.filter(Boolean) });
@@ -291,7 +340,8 @@ export function createApp(deps: AppDeps) {
     if (!raw && body.strategyId) raw = library.get(body.strategyId)?.strategy;
     const v = validateStrategy(raw);
     if (!v.ok) return c.json({ error: "invalid strategy", issues: v.errors }, 422);
-    if (body.mode === "live") {
+    const strategy = v.strategy;
+    if (body.mode === "live") return withLiveLock(user.id, async () => {
       if (!deps.live) return c.json({ error: "live trading is not configured on this server" }, 501);
       if (body.confirm !== "GO LIVE") return c.json({ error: 'type "GO LIVE" to confirm real-money trading' }, 400);
       // Instruments already traded by this user's other live runs (positions would net on the venue).
@@ -308,9 +358,20 @@ export function createApp(deps: AppDeps) {
       } catch (e) {
         return c.json({ error: (e as Error).message }, 409);
       }
-    }
+      // A ceiling on everything this user has live at once, not just per run.
+      const total = deps.liveMaxTotalUsd ?? deps.live.cfg.maxAllocationUsd * 5;
+      let open = 0;
+      for (const d of await engine.listDeployments())
+        if (d.mode === "live" && mine.has(d.id) && (d.status === "running" || d.status === "paused")) open += d.allocationUsd;
+      if (open + body.allocationUsd > total)
+        return c.json({ error: `you already have $${open.toLocaleString()} live; the limit across all live runs is $${total.toLocaleString()}` }, 409);
+      return create();
+    });
+    return create();
+
+    async function create() {
     const record = await engine.createDeployment({
-      strategy: v.strategy,
+      strategy,
       mode: body.mode,
       allocationUsd: body.allocationUsd,
       caps: body.caps,
@@ -321,16 +382,22 @@ export function createApp(deps: AppDeps) {
     // First tick right away so the UI has data immediately.
     engine.tick(record.id).catch((e) => console.error("first tick failed", e));
     return c.json(record, 201);
+    }
   });
 
   app.get("/deployments/:id", async (c) => {
+    if (!(await canView(c, c.req.param("id")))) return c.json({ error: "this is a private live run" }, 403);
     const s = await engine.getSnapshot(c.req.param("id"));
     return s ? c.json({ ...s, graph: toGraph(s.deployment.strategy) }) : c.json({ error: "not found" }, 404);
   });
   app.get("/deployments/:id/events", async (c) =>
-    c.json({ events: await engine.getEvents(c.req.param("id"), { sinceTs: Number(c.req.query("since") ?? 0) || undefined, limit: Number(c.req.query("limit") ?? 200) }) })
+    !(await canView(c, c.req.param("id")))
+      ? c.json({ error: "this is a private live run" }, 403)
+      : c.json({ events: await engine.getEvents(c.req.param("id"), { sinceTs: Number(c.req.query("since") ?? 0) || undefined, limit: clampQuery(c.req.query("limit"), 200, 500) }) })
   );
-  app.get("/deployments/:id/fills", async (c) => c.json({ fills: await engine.getFills(c.req.param("id")) }));
+  app.get("/deployments/:id/fills", async (c) =>
+    !(await canView(c, c.req.param("id"))) ? c.json({ error: "this is a private live run" }, 403) : c.json({ fills: await engine.getFills(c.req.param("id")) }),
+  );
 
   for (const action of ["pause", "resume", "stop", "kill", "tick"] as const) {
     app.post(`/deployments/:id/${action}`, async (c) => {
@@ -346,7 +413,10 @@ export function createApp(deps: AppDeps) {
   /** Live engine events. ?deploymentId= for one run (public); otherwise your runs (pass ?token= since EventSource can't set headers). */
   app.get("/events/stream", async (c) => {
     const only = c.req.query("deploymentId");
+    if (only && !(await canView(c, only))) return c.json({ error: "this is a private live run" }, 403);
     const user = only ? null : await optionalUser(c);
+    const release = streams.acquire(c);
+    if (!release) return c.json({ error: "too many open streams" }, 429);
     const visible = (deploymentId: string) =>
       !!only || !authEnabled || (!!user && !!accounts && accounts.deploymentOwner(deploymentId) === user.id);
     return streamSSE(c, async (stream) => {
@@ -359,6 +429,7 @@ export function createApp(deps: AppDeps) {
         wake?.();
       });
       stream.onAbort(() => {
+        release();
         unsub();
         wake?.();
       });
@@ -409,14 +480,16 @@ export function createApp(deps: AppDeps) {
 
   /* ---------------- Alerts (Telegram / webhook) ---------------- */
 
-  app.get("/alerts", (c) =>
-    c.json({
+  app.get("/alerts", async (c) => {
+    const user = await requireUser(c);
+    const mine = authEnabled && accounts ? accounts.deploymentsOf(user.id) : null;
+    return c.json({
       sinks: deps.notifier?.sinks ?? [],
       configured: (deps.notifier?.sinks.length ?? 0) > 0,
-      recent: deps.notifier?.recent().slice(0, 20) ?? [],
+      recent: (deps.notifier?.recent() ?? []).filter((a) => !mine || mine.has(a.deploymentId)).slice(0, 20),
       help: "Set TELEGRAM_BOT_TOKEN + TELEGRAM_CHAT_ID and/or WEFT_ALERT_WEBHOOK_URL, then restart the API.",
-    })
-  );
+    });
+  });
   /* Per-user Telegram alerts */
   app.get("/alerts/me", async (c) => {
     const user = await requireUser(c);
@@ -441,6 +514,8 @@ export function createApp(deps: AppDeps) {
   });
 
   app.post("/alerts/test", async (c) => {
+    // The operator's shared chat: only in local mode. Signed-in users test their own chat via /alerts/me/test.
+    if (authEnabled) return c.json({ error: "use /alerts/me/test" }, 403);
     if (!deps.notifier?.sinks.length) return c.json({ error: "no alert sinks configured" }, 400);
     await deps.notifier.test();
     return c.json({ ok: true });
@@ -449,7 +524,7 @@ export function createApp(deps: AppDeps) {
   /* ---------------- Leaderboard & stats ---------------- */
 
   app.get("/leaderboard", async (c) => {
-    const records = (await engine.listDeployments()).filter((d) => !d.alertsOnly);
+    const records = (await engine.listDeployments()).filter((d) => !d.alertsOnly && d.mode !== "live");
     const snaps = (await Promise.all(records.map((d) => engine.getSnapshot(d.id)))).filter((s) => s != null);
     const rows = snaps
       .map((s) => ({
@@ -470,11 +545,13 @@ export function createApp(deps: AppDeps) {
     return c.json({ rows });
   });
 
+  let statsCache: { at: number; body: unknown } | null = null;
   app.get("/stats", async (c) => {
+    if (statsCache && Date.now() - statsCache.at < 30_000) return c.json(statsCache.body);
     const records = await engine.listDeployments();
     const snaps = (await Promise.all(records.map((d) => engine.getSnapshot(d.id)))).filter((s) => s != null);
     const fills = (await Promise.all(records.map((d) => engine.getFills(d.id)))).flat();
-    return c.json({
+    const body = {
       deployments: records.length,
       running: records.filter((d) => d.status === "running").length,
       strategies: library.list().length,
@@ -482,7 +559,9 @@ export function createApp(deps: AppDeps) {
       volumeUsd: fills.reduce((n, f) => n + f.qty * f.price, 0),
       feesUsd: fills.reduce((n, f) => n + f.feeUsd, 0),
       builderFeesUsd: snaps.reduce((n, s) => n + ((s as { builderFeesUsd?: number }).builderFeesUsd ?? 0), 0),
-    });
+    };
+    statsCache = { at: Date.now(), body };
+    return c.json(body);
   });
 
   return app;
