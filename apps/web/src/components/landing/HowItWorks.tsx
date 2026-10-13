@@ -1,6 +1,8 @@
 import { Section } from "./Section";
 import { Sparkline } from "../ui/Sparkline";
 import { walk } from "@/lib/rng";
+import { Reveal } from "../ui/Reveal";
+import { OnView, TypedQuote } from "./HowParts";
 
 const curve = walk(77, 40, 0.35, 0.6);
 
@@ -46,18 +48,24 @@ export function HowItWorks() {
     >
       <div className="grid gap-10 md:grid-cols-[1fr_auto_1fr_auto_1fr] md:gap-4">
         <Step n={1} title="Write it" body="Say what you think will happen, the way you'd text a friend. Any market, any time frame.">
-          <p className="display text-[22px] leading-[1.3] text-ink">“Buy $PUMP if it dips to 0.004 and sentiment turns bullish.”</p>
+          <TypedQuote className="display text-[22px] leading-[1.3] text-ink" text="“Buy $PUMP if it dips to 0.004 and sentiment turns bullish.”" />
         </Step>
         <Arrow />
         <Step n={2} title="Check it" body="Weft researches the idea and drafts plain rules: what to watch, when to act, how much to risk. Change anything.">
           <div className="divide-y divide-line">
-            <Rule k="Watch">PUMP price, X sentiment</Rule>
-            <Rule k="When">
-              price ≤ <span className="tnum">0.004</span> and sentiment &gt; <span className="tnum">0.3</span>
-            </Rule>
-            <Rule k="Do">
-              buy <span className="tnum">0.5</span> SOL, stop at <span className="tnum">−20%</span>
-            </Rule>
+            <Reveal delay={1400}>
+              <Rule k="Watch">PUMP price, X sentiment</Rule>
+            </Reveal>
+            <Reveal delay={1650}>
+              <Rule k="When">
+                price ≤ <span className="tnum">0.004</span> and sentiment &gt; <span className="tnum">0.3</span>
+              </Rule>
+            </Reveal>
+            <Reveal delay={1900}>
+              <Rule k="Do">
+                buy <span className="tnum">0.5</span> SOL, stop at <span className="tnum">−20%</span>
+              </Rule>
+            </Reveal>
           </div>
         </Step>
         <Arrow />
@@ -68,7 +76,9 @@ export function HowItWorks() {
             </span>
             <span className="tnum font-medium text-long">+4.2%</span>
           </div>
-          <Sparkline data={curve} width={300} height={64} color="var(--long)" strokeWidth={1.6} className="mt-3 w-full" />
+          <OnView height={64} delay={2300}>
+            <Sparkline data={curve} width={300} height={64} color="var(--long)" strokeWidth={1.6} draw className="mt-3 w-full" />
+          </OnView>
           <div className="mt-3 flex items-center justify-between text-[12.5px] text-muted">
             <span>3 trades · 6 days</span>
             <span className="rounded-[6px] border border-line-2 px-2 py-0.5 text-ink-2">Stop</span>
