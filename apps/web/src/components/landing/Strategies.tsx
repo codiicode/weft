@@ -2,12 +2,14 @@ import { Section } from "./Section";
 import { Sparkline } from "../ui/Sparkline";
 import { buttonClass } from "../ui/Button";
 import { walk } from "@/lib/rng";
+import { AssetIcon } from "../ui/AssetIcon";
 
-type Card = { tag: string; title: string; thesis: string; rules: [string, string][]; ret: number; seed: number };
+type Card = { icon: string; tag: string; title: string; thesis: string; rules: [string, string][]; ret: number; seed: number };
 
 /** Examples written for this section, so the page doesn't repeat itself. Returns are paper and illustrative. */
 const CARDS: Card[] = [
   {
+    icon: "GOLD",
     tag: "Commodities",
     title: "Gold on falling real yields",
     thesis: "When real yields roll over, gold catches a bid. Get long and let it run.",
@@ -20,6 +22,7 @@ const CARDS: Card[] = [
     seed: 61,
   },
   {
+    icon: "SOL",
     tag: "Funding",
     title: "Fade the crowded SOL long",
     thesis: "When everyone pays to be long SOL, the squeeze usually goes the other way.",
@@ -32,6 +35,7 @@ const CARDS: Card[] = [
     seed: 72,
   },
   {
+    icon: "OUTCOME",
     tag: "Politics",
     title: "Polls ahead of the odds",
     thesis: "Prediction markets lag the polls by a day. Buy the side the polls already favour.",
@@ -55,7 +59,10 @@ function StrategyCard({ c }: { c: Card }) {
         <span className="text-muted">{c.tag}</span>
         <span className="tnum font-medium text-long">+{c.ret}%</span>
       </div>
-      <h3 className="mt-2 text-[19px] font-semibold tracking-[-0.02em] text-ink">{c.title}</h3>
+      <div className="mt-3 flex items-center gap-3">
+        <AssetIcon symbol={c.icon} size={30} />
+        <h3 className="text-[19px] font-semibold leading-tight tracking-[-0.02em] text-ink">{c.title}</h3>
+      </div>
       <p className="mt-2 text-[14.5px] leading-[1.55] text-ink-2">{c.thesis}</p>
       <dl className="mt-5 space-y-1.5 border-t border-line pt-4 text-[13.5px]">
         {c.rules.map(([k, v]) => (

@@ -1,9 +1,18 @@
 "use client";
 import { useEffect, useRef, useState } from "react";
 import { useInView, useReducedMotion } from "@/lib/hooks";
+import { AssetStack } from "../ui/AssetIcon";
 import { AnimatePresence, motion } from "motion/react";
 import { Section } from "./Section";
 import { products } from "@/data/mock";
+
+const LOGOS: Record<string, string[]> = {
+  perps: ["BTC", "ETH", "HYPE"],
+  stocks: ["NVDA", "TSLA", "GOLD"],
+  predictions: ["OUTCOME"],
+  tokens: ["PUMP", "WIF", "BONK"],
+  options: ["ETH", "BTC"],
+};
 
 const blurb: Record<string, string> = {
   perps: "Crypto perpetuals with leverage. Every order carries a stop.",
@@ -77,8 +86,11 @@ export function Markets() {
                 onClick={() => (setSel(i), setPaused(true))}
                 onMouseEnter={() => setSel(i)}
                 aria-expanded={sel === i}
-                className="group flex w-full items-baseline gap-4 py-5 text-left"
+                className="group flex w-full items-center gap-4 py-5 text-left"
               >
+                <span className={`transition-[opacity,filter] duration-300 ${sel === i ? "" : "opacity-50 grayscale"}`}>
+                  <AssetStack items={(LOGOS[x.id] ?? []).map((symbol) => ({ symbol }))} size={26} max={3} />
+                </span>
                 <span className={`text-[22px] font-semibold tracking-[-0.025em] transition-colors sm:text-[26px] ${sel === i ? "text-ink" : "text-faint group-hover:text-ink-2"}`}>
                   {x.id === "predictions" ? "Prediction markets" : x.name}
                 </span>

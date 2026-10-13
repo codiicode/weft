@@ -12,7 +12,7 @@ import { useInView, useReducedMotion, useWidth } from "@/lib/hooks";
  * around the pointer like cloth; values on the threads tick while you watch.
  */
 
-type Thread = { label: string; value: number; fmt: (v: number) => string; jitter: number };
+type Thread = { label: string; value: number; fmt: (v: number) => string; jitter: number; icon?: string };
 type Scene = { name: string; threads: Thread[]; rule: string; trade: string; detail: string };
 
 const f5 = (v: number) => v.toFixed(5);
@@ -25,7 +25,7 @@ const SCENES: Scene[] = [
   {
     name: "Memecoins",
     threads: [
-      { label: "$PUMP price", value: 0.00398, fmt: f5, jitter: 0.00003 },
+      { icon: "/coins/PUMP.svg", label: "$PUMP price", value: 0.00398, fmt: f5, jitter: 0.00003 },
       { label: "Mood on X", value: 0.41, fmt: sign2, jitter: 0.02 },
       { label: "Mentions, last hour", value: 180, fmt: pctS, jitter: 6 },
       { label: "Dev wallet", value: 0, fmt: () => "0% sold", jitter: 0 },
@@ -39,7 +39,7 @@ const SCENES: Scene[] = [
     threads: [
       { label: "NOAA El Niño forecast", value: 1.7, fmt: (v) => `+${v.toFixed(1)}°C`, jitter: 0 },
       { label: "Prediction market", value: 61, fmt: pct, jitter: 1 },
-      { label: "Wheat", value: 5.84, fmt: usd(2), jitter: 0.02 },
+      { icon: "/coins/WHEAT.svg", label: "Wheat", value: 5.84, fmt: usd(2), jitter: 0.02 },
       { label: "Ag accounts on X", value: 0, fmt: () => "bullish", jitter: 0 },
     ],
     rule: "Forecast ahead of the market",
@@ -52,7 +52,7 @@ const SCENES: Scene[] = [
       { label: "Fed cut odds", value: 68, fmt: pct, jitter: 1 },
       { label: "2-year yield", value: 3.41, fmt: (v) => `${v.toFixed(2)}%`, jitter: 0.01 },
       { label: "Inflation nowcast", value: 2.6, fmt: (v) => `${v.toFixed(1)}%`, jitter: 0 },
-      { label: "Bitcoin", value: 118420, fmt: usd(0), jitter: 60 },
+      { icon: "/coins/BTC.svg", label: "Bitcoin", value: 118420, fmt: usd(0), jitter: 60 },
     ],
     rule: "Odds firm, yields fall",
     trade: "Long BTC at 2×",
@@ -61,7 +61,7 @@ const SCENES: Scene[] = [
   {
     name: "Earnings",
     threads: [
-      { label: "NVIDIA", value: 184.2, fmt: usd(2), jitter: 0.15 },
+      { icon: "/coins/NVDA.svg", label: "NVIDIA", value: 184.2, fmt: usd(2), jitter: 0.15 },
       { label: "Earnings in", value: 40, fmt: (v) => `${Math.round(v)} hours`, jitter: 0 },
       { label: "Analyst revisions", value: 3, fmt: (v) => `+${Math.round(v)} this week`, jitter: 0 },
       { label: "Options flow", value: 2, fmt: (v) => `calls ${v.toFixed(1)} : 1`, jitter: 0.05 },
@@ -282,10 +282,25 @@ export function Loom() {
                 )),
             )}
             {/* labels on the threads */}
+            {s.threads.map((t, i) =>
+              t.icon ? (
+                <motion.image
+                  key={`${t.label}-icon`}
+                  href={t.icon}
+                  x={g}
+                  y={ys[i]! - 12 - (narrow ? 13 : 14)}
+                  width={narrow ? 15 : 17}
+                  height={narrow ? 15 : 17}
+                  initial={{ opacity: reduce ? 1 : 0 }}
+                  animate={{ opacity: 1 }}
+                  transition={{ duration: 0.45, delay: 0.1 + i * 0.09 }}
+                />
+              ) : null,
+            )}
             {s.threads.map((t, i) => (
               <motion.text
                 key={t.label}
-                x={g}
+                x={t.icon ? g + (narrow ? 21 : 24) : g}
                 y={ys[i]! - 12}
                 fontSize={narrow ? 12 : 13.5}
                 initial={{ opacity: reduce ? 1 : 0, y: reduce ? 0 : 4 }}

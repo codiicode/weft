@@ -5,6 +5,7 @@ import { IconCheck } from "../graph/icons";
 import { sparkPath } from "../ui/Sparkline";
 import { walk } from "@/lib/rng";
 import { useReducedMotion } from "@/lib/hooks";
+import { AssetIcon } from "../ui/AssetIcon";
 
 /**
  * "Watch it work": a pinned section that plays four workflows as you scroll.
@@ -12,7 +13,7 @@ import { useReducedMotion } from "@/lib/hooks";
  * then show how it went. Scroll position is the playhead.
  */
 
-type Signal = { label: string; from: number; to: number; fmt: (v: number) => string };
+type Signal = { label: string; from: number; to: number; fmt: (v: number) => string; icon?: string };
 type Flow = {
   tag: string;
   thesis: string;
@@ -37,7 +38,7 @@ const FLOWS: Flow[] = [
     thesis: "Buy $PUMP if it drops to 0.004 and the mood on X turns bullish.",
     note: "Matched by contract address, never by ticker. Rug checks run before every swap.",
     signals: [
-      { label: "$PUMP price", from: 0.00431, to: 0.00398, fmt: (v) => v.toFixed(5) },
+      { icon: "PUMP", label: "$PUMP price", from: 0.00431, to: 0.00398, fmt: (v) => v.toFixed(5) },
       { label: "Mood on X", from: 0.06, to: 0.41, fmt: (v) => `${v >= 0 ? "+" : ""}${v.toFixed(2)}` },
       { label: "Mentions, last hour", from: 40, to: 180, fmt: (v) => `+${Math.round(v)}%` },
       { label: "Dev wallet sold", from: 0, to: 0, fmt: () => "0%" },
@@ -62,7 +63,7 @@ const FLOWS: Flow[] = [
       { label: "Pacific temperature", from: 1.1, to: 1.7, fmt: (v) => `+${v.toFixed(1)}°C` },
       { label: "Market: El Niño by winter", from: 52, to: 61, fmt: pct },
       { label: "Weft’s forecast model", from: 71, to: 84, fmt: pct },
-      { label: "Wheat", from: 5.52, to: 5.84, fmt: usd() },
+      { icon: "WHEAT", label: "Wheat", from: 5.52, to: 5.84, fmt: usd() },
     ],
     conditions: ["Pacific above +1.5°C", "Model 15+ points above the market"],
     action: "Long wheat at 2× and buy YES",
@@ -83,7 +84,7 @@ const FLOWS: Flow[] = [
       { label: "Fed cut odds", from: 54, to: 68, fmt: pct },
       { label: "2-year yield", from: 3.55, to: 3.41, fmt: (v) => `${v.toFixed(2)}%` },
       { label: "Inflation nowcast", from: 2.9, to: 2.6, fmt: (v) => `${v.toFixed(1)}%` },
-      { label: "Bitcoin", from: 112_400, to: 118_420, fmt: usd(0) },
+      { icon: "BTC", label: "Bitcoin", from: 112_400, to: 118_420, fmt: usd(0) },
     ],
     conditions: ["Cut odds above 65%", "Yield down 10+ bp in 5 days"],
     action: "Long BTC at 2×",
@@ -101,7 +102,7 @@ const FLOWS: Flow[] = [
     thesis: "NVIDIA rallies into earnings. Be out before the report.",
     note: "Opens two days out and closes itself an hour before the numbers land.",
     signals: [
-      { label: "NVIDIA", from: 176.4, to: 184.2, fmt: usd() },
+      { icon: "NVDA", label: "NVIDIA", from: 176.4, to: 184.2, fmt: usd() },
       { label: "Earnings in", from: 72, to: 40, fmt: (v) => `${Math.round(v)} h` },
       { label: "Analyst revisions", from: 0, to: 3, fmt: (v) => `+${Math.round(v)}` },
     ],
@@ -197,7 +198,10 @@ function Console({ f, p }: { f: Flow; p: number }) {
           <ul className="mt-2 space-y-1.5 sm:mt-2.5 sm:space-y-2">
             {f.signals.map((s) => (
               <li key={s.label} className="flex items-baseline justify-between gap-3 text-[13.5px]">
-                <span className="truncate text-ink-2">{s.label}</span>
+                <span className="flex min-w-0 items-center gap-2 truncate text-ink-2">
+                  {s.icon && <AssetIcon symbol={s.icon} size={16} />}
+                  {s.label}
+                </span>
                 <span className="tnum shrink-0 font-medium text-ink">{s.fmt(s.from + (s.to - s.from) * watch)}</span>
               </li>
             ))}
