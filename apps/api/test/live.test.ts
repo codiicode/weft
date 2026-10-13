@@ -137,6 +137,24 @@ describe("live trading", () => {
     expect(() => live.assertDeployable("u1", lev, 50, new Set())).toThrow(/capped at 3×/);
     const { live: off } = setup({ enabled: false });
     expect(() => off.assertDeployable("u1", btcLong, 50, new Set())).toThrow(/switched off/);
+    const limit = defineStrategy({ ...btcLong, actions: [{ ...(btcLong.actions[0] as object), order: { type: "limit", limitPrice: 1 } } as never] });
+    expect(() => live.assertDeployable("u1", limit, 50, new Set())).toThrow(/limit orders can't trade live/);
+  });
+
+  it("an account linked on testnet can't trade when the server runs mainnet", async () => {
+    const { accounts, live: testnet } = setup();
+    testnet.linkAccount("u1", userKey.address);
+    accounts.markApproved("u1", "agent");
+    await testnet.prepareApprovals("u1", "0x1"); // creates the agent wallet
+    expect(testnet.blockReason("u1")).toBeNull();
+    const mainnet = new LiveService({ ...liveConfigFromEnv({ WEFT_LIVE_ENABLED: "1" }), network: "mainnet" }, accounts, new AgentWallets(fakePrivy(), accounts), fakeHl().fetchFn);
+    expect(mainnet.blockReason("u1")).toMatch(/testnet, server trades on mainnet/);
+    expect(() => mainnet.assertDeployable("u1", btcLong, 50, new Set())).toThrow(/Link it again/);
+    const r = await new LiveRouterExecutor(mainnet, () => "u1").execute(
+      { clientId: "k", instrument: (btcLong.actions[0] as unknown as { instrument: never }).instrument, instrumentKey: "hl:perp:BTC", side: "sell", phase: "close", qty: 1, deploymentId: "dep1" },
+      0,
+    );
+    expect(r.status === "rejected" && r.reason).toMatch(/testnet/);
   });
 
   it("the live router only trades for the deployment's owner, and not at all when disabled", async () => {

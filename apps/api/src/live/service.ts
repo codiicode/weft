@@ -145,6 +145,8 @@ export class LiveService {
   linkAccount(userId: string, hlAddress: string) {
     if (!/^0x[0-9a-fA-F]{40}$/.test(hlAddress)) throw new Error("not an EVM address");
     this.accounts.setLiveAccount(userId, this.cfg.network, hlAddress.toLowerCase());
+    // A new account (or network) must never inherit the old executor.
+    for (const k of [...this.executors.keys()]) if (k.startsWith(`${userId}|`)) this.executors.delete(k);
     return this.accounts.liveAccount(userId)!;
   }
 
@@ -188,11 +190,13 @@ export class LiveService {
     if (!this.cfg.enabled) throw new Error("live trading is switched off on this server");
     const account = this.accounts.liveAccount(userId);
     if (!account || !account.agentApprovedAt) throw new Error("approve the Weft agent for your Hyperliquid account first");
+    if (account.network !== this.cfg.network) throw new Error(`your linked account is on ${account.network}; this server trades on ${this.cfg.network}. Link it again.`);
     if (this.cfg.builder && !account.builderApprovedAt) throw new Error("approve the builder fee first");
     if (allocationUsd > this.cfg.maxAllocationUsd) throw new Error(`live allocation is capped at $${this.cfg.maxAllocationUsd} for now`);
     for (const a of strategy.actions) {
       if (a.type === "options") throw new Error("options can't trade live yet");
       if (a.type !== "open") continue;
+      if (a.order.type === "limit") throw new Error("limit orders can't trade live yet; use market orders with a slippage limit");
       const k = a.instrument.kind;
       if (k !== "perp" && k !== "spot") throw new Error(`${k} instruments can't trade live yet (Hyperliquid perps and spot only)`);
       if (a.leverage > this.cfg.maxLeverage) throw new Error(`live leverage is capped at ${this.cfg.maxLeverage}×`);
@@ -201,13 +205,25 @@ export class LiveService {
     }
   }
 
+  /** Why this user can't trade live right now, re-checked on every order (null = fine). */
+  blockReason(userId: string): string | null {
+    if (!this.cfg.enabled) return "live trading is switched off";
+    const account = this.accounts.liveAccount(userId);
+    if (!account || !this.agents?.existing(userId)) return "no live account or agent for this user";
+    if (account.network !== this.cfg.network) return `linked account is on ${account.network}, server trades on ${this.cfg.network}`;
+    if (!account.agentApprovedAt) return "the Weft agent is not approved for this account";
+    if (this.cfg.builder && !account.builderApprovedAt) return "the builder fee is not approved";
+    return null;
+  }
+
   /** The executor for one user's live deployments (Privy-signed agent → their account). */
   executorFor(userId: string): HyperliquidExecutor {
-    const cached = this.executors.get(userId);
-    if (cached) return cached;
     const account = this.accounts.liveAccount(userId);
     const agent = this.agents?.existing(userId);
     if (!account || !agent || !this.agents) throw new Error("no live account or agent for this user");
+    const key = `${userId}|${account.hlAddress}|${this.cfg.network}`;
+    const cached = this.executors.get(key);
+    if (cached) return cached;
     const ex = new HyperliquidExecutor({
       agentSigner: this.agents.signer(agent),
       userAddress: account.hlAddress,
@@ -217,7 +233,7 @@ export class LiveService {
       builder: this.cfg.builder,
       allowMainnetSend: this.isMainnet,
     });
-    this.executors.set(userId, ex);
+    this.executors.set(key, ex);
     return ex;
   }
 }
@@ -235,6 +251,9 @@ export class LiveRouterExecutor implements Executor {
     if (!this.live.cfg.enabled) return { status: "rejected", reason: "live trading is switched off" };
     const owner = req.deploymentId ? this.ownerOf(req.deploymentId) : null;
     if (!owner) return { status: "rejected", reason: "live order without an owning user" };
+    // Re-checked on every order: network, approvals and the switch can change while a run is live.
+    const blocked = this.live.blockReason(owner);
+    if (blocked) return { status: "rejected", reason: blocked };
     try {
       return await this.live.executorFor(owner).execute(req, now);
     } catch (e) {

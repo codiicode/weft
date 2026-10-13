@@ -301,6 +301,16 @@ describe("HyperliquidExecutor", () => {
     });
   });
 
+  it("limit orders: sized from the mid, and never far through the market", async () => {
+    const ex = makeExec({ dryRun: true });
+    // A passive buy limit below the market sizes from the mid, not the (lower) limit.
+    const passive = await ex.placeOrder({ instrument: BTC, side: "buy", size: { notionalUsd: 100 }, type: "limit", limitPrice: 90000 });
+    expect((passive.request.action as { orders: { s: string }[] }).orders[0]!.s).toBe("0.001");
+    // A short with a limit 80% under the market would fill instantly at 5x size: refused.
+    await expect(ex.placeOrder({ instrument: BTC, side: "sell", size: { notionalUsd: 100 }, type: "limit", limitPrice: 20000 })).rejects.toThrow(/through the market/);
+    await expect(ex.placeOrder({ instrument: BTC, side: "buy", size: { notionalUsd: 100 }, type: "limit", limitPrice: 120000 })).rejects.toThrow(/through the market/);
+  });
+
   it("execute(): an existing cloid is never resent (idempotency)", async () => {
     const { fetch, posted } = fakeFetch({});
     const ex = makeExec({ fetch, info: fixtureInfo({ orderStatus: async () => ({ status: "order", order: { status: "filled" } }) }) });

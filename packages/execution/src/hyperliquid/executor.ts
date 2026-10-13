@@ -184,6 +184,10 @@ export class HyperliquidExecutor implements Executor {
     let tif: Tif;
     if (p.type === "limit") {
       if (p.limitPrice == null) throw new Error("limit order needs limitPrice");
+      // A limit far through the market fills at once like a market order, without a slippage bound. Refuse it.
+      const maxAway = (p.maxSlippageBps ?? this.cfg.defaultSlippageBps ?? 100) / 10_000;
+      const through = isBuy ? p.limitPrice / mid - 1 : 1 - p.limitPrice / mid;
+      if (through > maxAway) throw new Error(`limit price ${p.limitPrice} is ${(through * 100).toFixed(1)}% through the market (max ${(maxAway * 100).toFixed(1)}%)`);
       limitPx = roundPrice(p.limitPrice, a.tickKind, a.szDecimals);
       tif = p.tif ?? "Gtc";
     } else {
@@ -192,7 +196,8 @@ export class HyperliquidExecutor implements Executor {
       tif = "Ioc";
     }
 
-    const refPx = p.type === "limit" ? limitPx : mid;
+    // Size from the mid, never from the limit: a low limit must not buy more than the allocation.
+    const refPx = mid;
     const rawSz = "qty" in p.size ? p.size.qty : p.size.notionalUsd / refPx;
     const sz = roundSize(rawSz, a.szDecimals, "down");
     if (!(sz > 0)) throw new Error(`size ${rawSz} rounds to 0 at ${a.szDecimals} size decimals`);

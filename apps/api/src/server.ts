@@ -36,7 +36,8 @@ const agents = process.env.PRIVY_APP_ID && process.env.PRIVY_APP_SECRET ? new Ag
 const live = process.env.PRIVY_APP_ID ? new LiveService(liveCfg, accounts, agents) : null;
 const liveEngine = live
   ? createEngine({
-      store: new SqliteStore(join(DATA_DIR, "engine-live.db")),
+      // One store per network: testnet runs can never wake up on mainnet.
+      store: new SqliteStore(join(DATA_DIR, `engine-live-${liveCfg.network}.db`)),
       marketData: venues.marketData,
       signalProviders: venues.signalProviders,
       tokenFacts: venues.tokenFacts,
