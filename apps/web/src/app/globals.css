@@ -297,3 +297,81 @@ textarea:focus-visible {
     color: var(--muted);
   }
 }
+
+/* Headline lines rise out of a mask, once, on load. */
+@keyframes rise {
+  from {
+    transform: translateY(105%);
+  }
+}
+.rise-line {
+  display: block;
+  overflow: hidden;
+  padding-bottom: 0.06em;
+}
+.rise-line > span {
+  display: block;
+  animation: rise 1s var(--ease-out) both;
+}
+@media (prefers-reduced-motion: reduce) {
+  .rise-line > span {
+    animation: none !important;
+  }
+}
+
+/* Scroll reveals (see components/ui/Reveal.tsx). Content is visible without JS. */
+.reveal-mask {
+  overflow: hidden;
+  padding-bottom: 0.08em;
+}
+.reveal-mask > div {
+  transition: transform 1s var(--ease-out) var(--d, 0ms);
+}
+.reveal-fade {
+  transition:
+    opacity 0.8s var(--ease-out) var(--d, 0ms),
+    transform 0.8s var(--ease-out) var(--d, 0ms);
+}
+html.js .reveal-mask:not(.is-in) > div {
+  transform: translateY(105%);
+}
+html.js .reveal-fade:not(.is-in) {
+  opacity: 0;
+  transform: translateY(16px);
+}
+@media (prefers-reduced-motion: reduce) {
+  html.js .reveal-mask:not(.is-in) > div,
+  html.js .reveal-fade:not(.is-in) {
+    transform: none;
+    opacity: 1;
+  }
+}
+
+html.lenis,
+html.lenis body {
+  height: auto;
+}
+.lenis.lenis-smooth {
+  scroll-behavior: auto !important;
+}
+
+@keyframes token-run {
+  0% {
+    transform: translateX(0);
+    opacity: 0;
+  }
+  8% {
+    opacity: 1;
+  }
+  85% {
+    opacity: 1;
+  }
+  100% {
+    transform: translateX(var(--run, 1000px));
+    opacity: 0;
+  }
+}
+.token-run {
+  --run: min(1130px, calc(100vw - 80px));
+  animation: token-run 3.6s cubic-bezier(0.45, 0, 0.2, 1) infinite;
+}

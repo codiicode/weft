@@ -15,6 +15,9 @@ export function Token() {
       title={`Fees buy back ${$T}`}
       lead={`${$T} launches on ${brand.chain} through ${brand.launchpad}. There are no subscriptions. Weft earns only when strategies trade, and that revenue goes to buybacks.`}
     >
+      <div className="relative">
+      {/* a fee travelling from the trade to the buyback */}
+      <span aria-hidden className="token-run pointer-events-none absolute -top-[3px] left-0 hidden h-2 w-2 rounded-full bg-ink md:block" />
       <ol className="flex flex-col gap-3 md:flex-row md:items-stretch md:gap-0">
         {steps.map(([t, b], i) => (
           <li key={t} className="flex flex-1 flex-col md:flex-row md:items-center">
@@ -30,6 +33,7 @@ export function Token() {
           </li>
         ))}
       </ol>
+      </div>
       <p className="mt-12 text-[13.5px] text-muted">
         Contract address will be published here at launch. Anything else claiming to be {$T} is not.
       </p>

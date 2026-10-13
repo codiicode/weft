@@ -1,4 +1,5 @@
 import type { ReactNode } from "react";
+import { Reveal } from "../ui/Reveal";
 
 /**
  * A landing section. Layouts vary so the page doesn't read as one template:
@@ -22,8 +23,17 @@ export function Section({
   className?: string;
   layout?: "split" | "stack" | "aside";
 }) {
-  const h2 = <h2 className="display max-w-[16ch] text-[clamp(2.2rem,4.4vw,3.6rem)] leading-[1.04] text-ink text-balance">{title}</h2>;
-  const p = (extra = "") => (lead ? <p className={`max-w-[34rem] text-[17px] leading-[1.6] text-ink-2 text-pretty ${extra}`}>{lead}</p> : null);
+  const h2 = (
+    <Reveal mask>
+      <h2 className="display max-w-[16ch] text-[clamp(2.2rem,4.4vw,3.6rem)] leading-[1.04] text-ink text-balance">{title}</h2>
+    </Reveal>
+  );
+  const p = (extra = "") =>
+    lead ? (
+      <Reveal delay={120} className={extra}>
+        <p className="max-w-[34rem] text-[17px] leading-[1.6] text-ink-2 text-pretty">{lead}</p>
+      </Reveal>
+    ) : null;
   return (
     <section id={id} className={`scroll-mt-16 border-t border-line ${className}`}>
       <div className="mx-auto max-w-[1200px] px-5 py-24 sm:px-8 sm:py-32">
@@ -33,7 +43,7 @@ export function Section({
               {h2}
               {p("mt-5")}
             </div>
-            <div>{children}</div>
+            <Reveal delay={160}>{children}</Reveal>
           </div>
         ) : (
           <>
@@ -48,7 +58,11 @@ export function Section({
                 {p("mt-5")}
               </div>
             )}
-            {children && <div className="mt-14 sm:mt-16">{children}</div>}
+            {children && (
+              <Reveal delay={200} className="mt-14 sm:mt-16">
+                {children}
+              </Reveal>
+            )}
           </>
         )}
       </div>
