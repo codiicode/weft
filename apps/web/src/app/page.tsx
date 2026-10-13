@@ -2,6 +2,7 @@ import { Nav } from "@/components/landing/Nav";
 import { Hero } from "@/components/landing/Hero";
 import { HowItWorks } from "@/components/landing/HowItWorks";
 import { Workflows } from "@/components/landing/Workflows";
+import { Statement } from "@/components/landing/Statement";
 import { Markets } from "@/components/landing/Markets";
 import { Safety } from "@/components/landing/Safety";
 import { Strategies } from "@/components/landing/Strategies";
@@ -18,6 +19,7 @@ export default function Page() {
       <Nav />
       <main>
         <Hero />
+        <Statement />
         <HowItWorks />
         <Workflows />
         <Markets />

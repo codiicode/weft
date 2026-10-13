@@ -24,6 +24,8 @@ type Flow = {
   venue: string;
   pnl: number;
   seed: number;
+  /** Phrases of the thesis and the condition that proves them (-1 = the trade itself). */
+  marks: [phrase: string, condition: number][];
 };
 
 const pct = (v: number) => `${Math.round(v)}%`;
@@ -46,6 +48,11 @@ const FLOWS: Flow[] = [
     venue: "Solana via Jupiter",
     pnl: 18.2,
     seed: 31,
+    marks: [
+      ["Buy $PUMP", -1],
+      ["drops to 0.004", 0],
+      ["the mood on X turns bullish", 1],
+    ],
   },
   {
     tag: "Weather",
@@ -63,6 +70,10 @@ const FLOWS: Flow[] = [
     venue: "Hyperliquid and Jupiter",
     pnl: 9.6,
     seed: 12,
+    marks: [
+      ["El Niño is coming.", 0],
+      ["What’s the trade?", -1],
+    ],
   },
   {
     tag: "Macro",
@@ -80,6 +91,10 @@ const FLOWS: Flow[] = [
     venue: "Hyperliquid",
     pnl: 6.1,
     seed: 44,
+    marks: [
+      ["The Fed cuts in December", 0],
+      ["nobody’s positioned for it", 1],
+    ],
   },
   {
     tag: "Stocks",
@@ -96,11 +111,55 @@ const FLOWS: Flow[] = [
     venue: "Hyperliquid",
     pnl: 3.4,
     seed: 53,
+    marks: [
+      ["rallies into earnings", 0],
+      ["Be out before the report", -1],
+    ],
   },
 ];
 
 const clamp01 = (v: number) => Math.max(0, Math.min(1, v));
 const ease = (t: number) => 1 - Math.pow(1 - t, 3);
+
+/** The thesis with its phrases highlighted as the agent proves them, like a marker pen. */
+function Thesis({ f, p }: { f: Flow; p: number }) {
+  const parts: { text: string; mark?: number }[] = [];
+  let rest = f.thesis;
+  for (const [phrase, c] of f.marks) {
+    const at = rest.indexOf(phrase);
+    if (at < 0) continue;
+    if (at > 0) parts.push({ text: rest.slice(0, at) });
+    parts.push({ text: phrase, mark: c });
+    rest = rest.slice(at + phrase.length);
+  }
+  if (rest) parts.push({ text: rest });
+  return (
+    <>
+      “
+      {parts.map((x, i) => {
+        if (x.mark === undefined) return <span key={i}>{x.text}</span>;
+        const on = x.mark === -1 ? p > 0.68 : p > 0.36 + x.mark * 0.07;
+        const tone = x.mark === -1 ? "var(--long-soft)" : "var(--trigger-soft)";
+        return (
+          <span
+            key={i}
+            className="rounded-[3px] [box-decoration-break:clone] [-webkit-box-decoration-break:clone]"
+            style={{
+              backgroundImage: `linear-gradient(${tone}, ${tone})`,
+              backgroundRepeat: "no-repeat",
+              backgroundPosition: "0 85%",
+              backgroundSize: on ? "100% 70%" : "0% 70%",
+              transition: "background-size 0.7s cubic-bezier(0.22, 1, 0.36, 1)",
+            }}
+          >
+            {x.text}
+          </span>
+        );
+      })}
+      ”
+    </>
+  );
+}
 
 function Console({ f, p }: { f: Flow; p: number }) {
   const watch = ease(clamp01(p / 0.32));
@@ -221,7 +280,9 @@ export function Workflows() {
             <div key={f.tag} className="grid gap-8 lg:grid-cols-2 lg:items-center">
               <div>
                 <p className="text-[13px] text-muted">{f.tag}</p>
-                <p className="display mt-2 text-[28px] leading-[1.2] text-ink">“{f.thesis}”</p>
+                <p className="display mt-2 text-[28px] leading-[1.2] text-ink">
+                  <Thesis f={f} p={1} />
+                </p>
                 <p className="mt-3 text-[15px] text-ink-2">{f.note}</p>
               </div>
               <Console f={f} p={1} />
@@ -253,7 +314,9 @@ export function Workflows() {
                 transition={{ duration: 0.35, ease: [0.22, 1, 0.36, 1] }}
               >
                 <p className="mt-4 text-[13px] font-medium text-ink sm:mt-6">{f.tag}</p>
-                <p className="display mt-2 text-[clamp(1.5rem,3.4vw,2.9rem)] leading-[1.12] text-ink text-balance">“{f.thesis}”</p>
+                <p className="display mt-2 text-[clamp(1.5rem,3.4vw,2.9rem)] leading-[1.12] text-ink text-balance">
+                  <Thesis f={f} p={pos.p} />
+                </p>
                 <p className="mt-4 hidden max-w-[30rem] text-[16px] leading-[1.6] text-ink-2 sm:block">{f.note}</p>
               </motion.div>
             </AnimatePresence>

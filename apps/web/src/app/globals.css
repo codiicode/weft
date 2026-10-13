@@ -375,3 +375,28 @@ html.lenis body {
   --run: min(1130px, calc(100vw - 80px));
   animation: token-run 3.6s cubic-bezier(0.45, 0, 0.2, 1) infinite;
 }
+
+/* Ambient weft threads drifting across the hero loom. */
+@keyframes loom-shuttle {
+  to {
+    stroke-dashoffset: -440;
+  }
+}
+.loom-shuttle {
+  animation: loom-shuttle 16s linear infinite;
+}
+
+/* Underline drawn in from the left on hover. */
+.link-draw {
+  background-image: linear-gradient(currentColor, currentColor);
+  background-repeat: no-repeat;
+  background-position: 0 100%;
+  background-size: 0% 1px;
+  padding-bottom: 2px;
+  transition:
+    background-size 0.35s var(--ease-out),
+    color 0.2s;
+}
+.link-draw:hover {
+  background-size: 100% 1px;
+}

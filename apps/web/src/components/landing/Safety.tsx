@@ -1,6 +1,7 @@
 import { Section } from "./Section";
 import { IconCheck } from "../graph/icons";
 import { Reveal } from "../ui/Reveal";
+import { SafetyDiagram } from "./SafetyDiagram";
 
 const can = ["Place and cancel orders", "Set stops and targets", "Set leverage within your limits"];
 const cannot = ["Withdraw your funds", "Send money to another address", "Trade above the limits you set"];
@@ -20,8 +21,10 @@ export function Safety() {
       title="It can trade. It can’t withdraw."
       lead="Your money stays in your own Hyperliquid account. Weft gets a trading-only key that you can revoke at any time. Solana live trading follows next."
     >
-      <div className="grid gap-px overflow-hidden rounded-[14px] border border-line bg-line sm:grid-cols-2">
-        <div className="bg-paper p-6 sm:p-8">
+      <div className="grid gap-6 lg:grid-cols-[minmax(0,1.1fr)_minmax(0,0.9fr)] lg:items-stretch">
+      <SafetyDiagram />
+      <div className="grid gap-px overflow-hidden rounded-[14px] border border-line bg-line">
+        <div className="bg-paper p-6 sm:p-7">
           <p className="text-[13px] text-muted">The agent can</p>
           <ul className="mt-4 space-y-3">
             {can.map((t, i) => (
@@ -33,7 +36,7 @@ export function Safety() {
             ))}
           </ul>
         </div>
-        <div className="bg-paper p-6 sm:p-8">
+        <div className="bg-paper p-6 sm:p-7">
           <p className="text-[13px] text-muted">The agent can’t</p>
           <ul className="mt-4 space-y-3">
             {cannot.map((t, i) => (
@@ -49,6 +52,7 @@ export function Safety() {
             ))}
           </ul>
         </div>
+      </div>
       </div>
 
       <div className="mt-14 grid gap-10 sm:grid-cols-3 sm:gap-8">

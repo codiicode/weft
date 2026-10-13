@@ -14,10 +14,20 @@ const links = [
 
 export function Nav() {
   const [scrolled, setScrolled] = useState(false);
+  const [hidden, setHidden] = useState(false);
   const [open, setOpen] = useState(false);
 
+  // Out of the way while reading down, back as soon as you scroll up.
   useEffect(() => {
-    const on = () => setScrolled(window.scrollY > 8);
+    let last = window.scrollY;
+    const on = () => {
+      const y = window.scrollY;
+      setScrolled(y > 8);
+      if (Math.abs(y - last) > 6) {
+        setHidden(y > last && y > 480);
+        last = y;
+      }
+    };
     on();
     window.addEventListener("scroll", on, { passive: true });
     return () => window.removeEventListener("scroll", on);
@@ -25,7 +35,7 @@ export function Nav() {
 
   return (
     <header
-      className={`fixed inset-x-0 top-0 z-50 transition-[background-color,border-color] duration-200 ${
+      className={`fixed inset-x-0 top-0 z-50 transition-[background-color,border-color,transform] duration-300 ${hidden && !open ? "-translate-y-full" : ""} ${
         scrolled || open ? "border-b border-line bg-paper/90 backdrop-blur-md" : "border-b border-transparent"
       }`}
     >
@@ -35,7 +45,7 @@ export function Nav() {
         </a>
         <nav className="hidden items-center gap-7 md:flex">
           {links.map(([l, h]) => (
-            <a key={h} href={h} className="text-[14px] text-ink-2 transition-colors hover:text-ink">
+            <a key={h} href={h} className="link-draw text-[14px] text-ink-2 transition-colors hover:text-ink">
               {l}
             </a>
           ))}
