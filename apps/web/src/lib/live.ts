@@ -9,7 +9,7 @@ import { useEffect, useRef, useState } from "react";
 
 const URL = "wss://api.hyperliquid.xyz/ws";
 
-type Sub = { type: "allMids"; dex?: string } | { type: "candle"; coin: string; interval: string };
+type Sub = { type: "allMids"; dex?: string } | { type: "candle"; coin: string; interval: string } | { type: "trades"; coin: string };
 type Listener = (data: unknown) => void;
 
 export interface LiveCandle {
@@ -23,7 +23,7 @@ export interface LiveCandle {
 }
 
 function keyOf(s: Sub): string {
-  return s.type === "allMids" ? `allMids|${s.dex ?? ""}` : `candle|${s.coin}|${s.interval}`;
+  return s.type === "allMids" ? `allMids|${s.dex ?? ""}` : s.type === "trades" ? `trades|${s.coin}` : `candle|${s.coin}|${s.interval}`;
 }
 
 class HlSocket {
@@ -89,14 +89,19 @@ class HlSocket {
       this.ping = setInterval(() => this.send({ method: "ping" }), 30_000);
     };
     ws.onmessage = (ev) => {
-      let m: { channel?: string; data?: Record<string, unknown> };
+      let m: { channel?: string; data?: Record<string, unknown> | Record<string, unknown>[] };
       try {
         m = JSON.parse(ev.data as string);
       } catch {
         return;
       }
-      const d = m.data;
-      if (!d) return;
+      if (m.channel === "trades" && Array.isArray(m.data)) {
+        const coin = m.data[0]?.coin as string | undefined;
+        for (const fn of (coin && this.subs.get(`trades|${coin}`)?.listeners) || []) fn(m.data);
+        return;
+      }
+      const d = m.data as Record<string, unknown> | undefined;
+      if (!d || Array.isArray(d)) return;
       const key =
         m.channel === "allMids" ? `allMids|${(d.dex as string) ?? ""}` : m.channel === "candle" ? `candle|${d.s as string}|${d.i as string}` : null;
       if (!key) return;
@@ -191,4 +196,17 @@ export function useLiveCandle(coin: string | null | undefined, interval: string 
 /** The Hyperliquid coin for a perp instrument, as the websocket names it. */
 export function perpCoin(symbol: string, dex?: string | null): string {
   return dex ? `${dex}:${symbol}` : symbol;
+}
+
+/** Every trade in `coin` as it happens: [price, size, timeMs]. */
+export function useLiveTrades(coin: string | null | undefined, onTrades: (t: [number, number, number][]) => void) {
+  const cb = useRef(onTrades);
+  cb.current = onTrades;
+  useEffect(() => {
+    if (!coin) return;
+    return hl().subscribe({ type: "trades", coin }, (d) => {
+      const rows = (d as { px: string; sz: string; time: number }[]).map((r) => [Number(r.px), Number(r.sz), r.time] as [number, number, number]);
+      cb.current(rows.filter(([p, s]) => p > 0 && s > 0));
+    });
+  }, [coin]);
 }

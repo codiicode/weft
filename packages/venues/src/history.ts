@@ -24,15 +24,17 @@ import { num } from "./util.ts";
  * the same market only fetch the newest candles.
  */
 
-export type CandleInterval = "1m" | "5m" | "15m" | "1h" | "4h" | "1d";
+export type CandleInterval = "1m" | "5m" | "15m" | "30m" | "1h" | "4h" | "1d" | "1w";
 
 export const INTERVAL_MS: Record<CandleInterval, number> = {
   "1m": 60_000,
   "5m": 5 * 60_000,
   "15m": 15 * 60_000,
+  "30m": 30 * 60_000,
   "1h": 3_600_000,
   "4h": 4 * 3_600_000,
   "1d": 86_400_000,
+  "1w": 7 * 86_400_000,
 };
 
 /** One OHLC bar. `t` is the open time (ms); the bar closes at `t + interval`. */
@@ -188,7 +190,8 @@ export async function fetchHlFunding(
 
 export const GECKOTERMINAL_URL = "https://api.geckoterminal.com/api/v2";
 
-const GECKO_TIMEFRAME: Record<CandleInterval, [timeframe: "minute" | "hour" | "day", aggregate: number]> = {
+/** GeckoTerminal serves these bar sizes only (minute 1/5/15, hour 1/4/12, day 1). */
+const GECKO_TIMEFRAME: Partial<Record<CandleInterval, [timeframe: "minute" | "hour" | "day", aggregate: number]>> = {
   "1m": ["minute", 1],
   "5m": ["minute", 5],
   "15m": ["minute", 15],
@@ -223,7 +226,9 @@ export async function fetchGeckoOhlcv(
   endMs: number,
   opts: { url?: string; maxPages?: number } = {}
 ): Promise<Candle[]> {
-  const [tf, agg] = GECKO_TIMEFRAME[interval];
+  const frame = GECKO_TIMEFRAME[interval];
+  if (!frame) throw new Error(`${interval} bars aren't available for Solana tokens`);
+  const [tf, agg] = frame;
   const base = opts.url ?? GECKOTERMINAL_URL;
   let out: Candle[] = [];
   let before = Math.floor(endMs / 1000);

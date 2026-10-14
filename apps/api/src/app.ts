@@ -20,6 +20,7 @@ import { AuthError, LOCAL_USER, type AuthUser, type Authenticator } from "./lib/
 import type { TelegramBot } from "./lib/telegram.ts";
 import type { Accounts } from "./lib/accounts.ts";
 import type { LiveService } from "./live/service.ts";
+import { SECOND_INTERVALS, type SecondInterval, type TradeTape } from "./lib/tape.ts";
 
 /** Chart ranges and the bar size each one uses (about 60–370 bars). */
 export const CHART_RANGES = ["1H", "1D", "1W", "1M", "1Y"] as const;
@@ -30,6 +31,9 @@ const CHART_SPEC: Record<(typeof CHART_RANGES)[number], { interval: CandleInterv
   "1M": { interval: "4h", spanMs: 30 * 86_400_000 },
   "1Y": { interval: "1d", spanMs: 365 * 86_400_000 },
 };
+
+/** Bar sizes a chart can ask for. Seconds come from the trade tape. */
+export const CHART_INTERVALS = ["5s", "15s", "30s", "1m", "5m", "15m", "30m", "1h", "4h", "1d", "1w"] as const;
 
 export interface AppDeps {
   catalog: Catalog;
@@ -48,6 +52,8 @@ export interface AppDeps {
   aiDailyLimit?: number;
   /** Live trading on Hyperliquid. Absent: paper only. */
   live?: LiveService;
+  /** Records Hyperliquid trades for second-level charts. */
+  tape?: TradeTape;
   /** Per-user Telegram alerts (TELEGRAM_BOT_TOKEN). */
   telegram?: TelegramBot;
   /** Web origins allowed by CORS (WEB_ORIGINS). Absent: any origin (local development). */
@@ -208,30 +214,62 @@ export function createApp(deps: AppDeps) {
     return row ? c.json(row) : c.json({ error: "not found" }, 404);
   });
 
-  /** Price history for one market, sized for a chart: the range picks the bar interval. */
+  /**
+   * Price history for one market. Either a `range` (the bar size follows from it) or an `interval`
+   * with `bars` ending before `end`, which is how a chart pages back as you scroll left.
+   * Second intervals come from the recorded trade tape (Hyperliquid markets only).
+   */
   app.post("/chart", async (c) => {
     const history = deps.backtest?.history;
     if (!history) return c.json({ error: "charts are not configured" }, 501);
-    const body = z.object({ instrument: z.unknown(), range: z.enum(CHART_RANGES), funding: z.boolean().optional() }).parse(await c.req.json());
+    const body = z
+      .object({
+        instrument: z.unknown(),
+        range: z.enum(CHART_RANGES).optional(),
+        interval: z.enum(CHART_INTERVALS).optional(),
+        end: z.number().int().positive().optional(),
+        bars: z.number().int().min(10).max(1500).optional(),
+        funding: z.boolean().optional(),
+      })
+      .refine((b) => b.range || b.interval, "range or interval is required")
+      .parse(await c.req.json());
     const instrument = InstrumentSchema.parse(body.instrument) as Instrument;
     const reason = history.unsupportedReason(instrument);
     if (reason) return c.json({ error: reason, unsupported: true }, 422);
-    const { interval, spanMs } = CHART_SPEC[body.range];
     const now = deps.backtest?.now?.() ?? Date.now();
-    const step = INTERVAL_MS[interval];
-    const end = Math.ceil((now + 1) / step) * step;
-    const [series, liveCoin, funding] = await Promise.all([
-      history.candles(instrument, interval, end - spanMs, end),
-      history.liveCoin ? history.liveCoin(instrument).catch(() => null) : Promise.resolve(null),
-      body.funding && instrument.kind === "perp" ? history.funding(instrument, now - 7 * 86_400_000, now).catch(() => []) : Promise.resolve(undefined),
-    ]);
-    return c.json({
-      range: body.range,
+    const liveCoinP = history.liveCoin ? history.liveCoin(instrument).catch(() => null) : Promise.resolve(null);
+    const fundingP = body.funding && instrument.kind === "perp" ? history.funding(instrument, now - 7 * 86_400_000, now).catch(() => []) : Promise.resolve(undefined);
+    const interval = body.interval ?? CHART_SPEC[body.range!].interval;
+    const end = Math.min(body.end ?? now + 1, now + 1);
+    const out = (candles: { t: number; o: number; h: number; l: number; c: number; volUsd: number | null }[], step: number, source: string, liveCoin: string | null, hasMore: boolean, extra: Record<string, unknown> = {}) => ({
+      range: body.range ?? null,
       interval,
       intervalMs: step,
-      source: series.source,
+      source,
       liveCoin,
-      candles: series.candles.map((k) => [k.t, k.o, k.h, k.l, k.c, k.volUsd]),
+      hasMore,
+      candles: candles.map((k) => [k.t, k.o, k.h, k.l, k.c, k.volUsd]),
+      ...extra,
+    });
+
+    if (interval in SECOND_INTERVALS) {
+      const coin = await liveCoinP;
+      if (!coin || !deps.tape) return c.json({ error: "Second charts are only available for Hyperliquid markets", unsupported: true }, 422);
+      deps.tape.ensure(coin);
+      const step = SECOND_INTERVALS[interval as SecondInterval];
+      const candles = deps.tape.bars(coin, step, end, body.bars ?? 500);
+      const since = deps.tape.since(coin);
+      return c.json(out(candles, step, "weft:trades", coin, false, { recordedSince: since, funding: (await fundingP)?.map((f) => [f.time, f.rate]) }));
+    }
+
+    const iv = interval as CandleInterval;
+    const step = INTERVAL_MS[iv];
+    const endAligned = Math.ceil(end / step) * step;
+    const start = body.range && !body.interval ? endAligned - CHART_SPEC[body.range].spanMs : endAligned - (body.bars ?? 500) * step;
+    const [series, liveCoin, funding] = await Promise.all([history.candles(instrument, iv, start, endAligned), liveCoinP, fundingP]);
+    const first = series.candles[0];
+    return c.json({
+      ...out(series.candles, step, series.source, liveCoin, Boolean(first && first.t <= start + 2 * step)),
       funding: funding?.map((f) => [f.time, f.rate]),
     });
   });

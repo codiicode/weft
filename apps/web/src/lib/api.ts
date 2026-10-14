@@ -29,13 +29,18 @@ async function authHeader(): Promise<Record<string, string>> {
 }
 
 export type ChartRange = "1H" | "1D" | "1W" | "1M" | "1Y";
+export type ChartInterval = "5s" | "15s" | "30s" | "1m" | "5m" | "15m" | "30m" | "1h" | "4h" | "1d" | "1w";
 export interface ChartData {
-  range: ChartRange;
-  interval: string;
+  range: ChartRange | null;
+  interval: ChartInterval;
   intervalMs: number;
   source: string;
   /** Hyperliquid websocket coin for live updates; null means poll. */
   liveCoin: string | null;
+  /** More (older) bars exist before the first one. */
+  hasMore: boolean;
+  /** Second charts: when the server began recording this market. */
+  recordedSince?: number | null;
   /** [openTimeMs, open, high, low, close, volumeUsd | null] */
   candles: [number, number, number, number, number, number | null][];
   /** Perps, when asked: [timeMs, fundingRatePerHour] over the last 7 days. */
@@ -260,6 +265,9 @@ export const api = {
   market: (key: string) => req<MarketListing>(`/market?key=${encodeURIComponent(key)}`),
   chart: (instrument: Instrument, range: ChartRange, opts: { funding?: boolean } = {}) =>
     req<ChartData>("/chart", { method: "POST", json: { instrument, range, ...opts } }),
+  /** `bars` bars of `interval` that open before `end` (default: now). */
+  chartBars: (instrument: Instrument, interval: ChartInterval, opts: { end?: number; bars?: number; funding?: boolean } = {}) =>
+    req<ChartData>("/chart", { method: "POST", json: { instrument, interval, ...opts } }),
   quote: (instrument: Instrument, opts: { side?: "buy" | "sell"; sizeUsd?: number } = {}) =>
     req<Quote>("/quote", { method: "POST", json: { instrument, ...opts } }),
 

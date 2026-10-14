@@ -1,3 +1,4 @@
+import { TradeTape } from "./lib/tape.ts";
 import { mkdirSync } from "node:fs";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -62,7 +63,22 @@ const notifier = createNotifier(engine, sinksFromEnv(), {
   log: (m) => console.warn(m),
 });
 const auth = createAuthenticator({ appId: process.env.PRIVY_APP_ID, verificationKey: process.env.PRIVY_VERIFICATION_KEY });
+// Second-level charts: record trades for the busiest Hyperliquid markets (refreshed hourly).
+const tape = process.env.WEFT_TAPE === "0" ? null : new TradeTape({ log: (m) => console.log(`  ${m}`) });
+async function busiestCoins(): Promise<string[]> {
+  const [perps, stocks] = await Promise.all([venues.catalog.list("perps", { limit: 15 }), venues.catalog.list("stocks", { limit: 8 })]);
+  const coins = await Promise.all([...perps, ...stocks].map((r) => venues.history.liveCoin(r.instrument).catch(() => null)));
+  return coins.filter((c): c is string => Boolean(c));
+}
+if (tape) {
+  tape.start([]);
+  const warm = () => busiestCoins().then((c) => tape.setWarm(c)).catch((e) => console.warn("tape: couldn't list markets:", (e as Error).message));
+  void warm();
+  setInterval(warm, 3_600_000).unref();
+}
+
 const app = createApp({
+  tape: tape ?? undefined,
   catalog: venues.catalog,
   marketData: venues.marketData,
   engine,
@@ -128,6 +144,7 @@ for (const sig of ["SIGINT", "SIGTERM"] as const) {
     // Never let a slow venue call or long poll keep the old process (and its database locks) alive.
     setTimeout(() => process.exit(0), 3_000).unref();
     telegram?.stop();
+    tape?.stop();
     if (reconcileTimer) clearInterval(reconcileTimer);
     server.close();
     await engine.shutdown();
