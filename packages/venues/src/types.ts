@@ -77,6 +77,8 @@ export interface CatalogQuery {
 /** Lists what can be traded, per product. */
 export interface Catalog {
   list(product: Product, q?: CatalogQuery): Promise<MarketListing[]>;
+  /** One listing by instrument key (null when it isn't listed). */
+  find?(key: string): Promise<MarketListing | null>;
 }
 
 /**

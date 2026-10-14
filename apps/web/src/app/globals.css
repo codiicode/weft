@@ -411,3 +411,10 @@ html.lenis body {
 .link-draw:hover {
   background-size: 100% 1px;
 }
+
+/* Live prices: a short wash of colour when a value moves. */
+@keyframes tick-up { from { background: var(--long-soft); color: var(--long); } }
+@keyframes tick-down { from { background: var(--short-soft); color: var(--short); } }
+.tick-up { animation: tick-up 1.1s var(--ease-out); }
+.tick-down { animation: tick-down 1.1s var(--ease-out); }
+@media (prefers-reduced-motion: reduce) { .tick-up, .tick-down { animation: none; } }

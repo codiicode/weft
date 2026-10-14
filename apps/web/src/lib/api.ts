@@ -28,6 +28,20 @@ async function authHeader(): Promise<Record<string, string>> {
   return t ? { authorization: `Bearer ${t}` } : {};
 }
 
+export type ChartRange = "1H" | "1D" | "1W" | "1M" | "1Y";
+export interface ChartData {
+  range: ChartRange;
+  interval: string;
+  intervalMs: number;
+  source: string;
+  /** Hyperliquid websocket coin for live updates; null means poll. */
+  liveCoin: string | null;
+  /** [openTimeMs, open, high, low, close, volumeUsd | null] */
+  candles: [number, number, number, number, number, number | null][];
+  /** Perps, when asked: [timeMs, fundingRatePerHour] over the last 7 days. */
+  funding?: [number, number][];
+}
+
 async function req<T>(path: string, init?: RequestInit & { json?: unknown }): Promise<T> {
   const res = await fetch(`${API_URL}${path}`, {
     ...init,
@@ -243,6 +257,9 @@ export const api = {
     if (opts.limit) q.set("limit", String(opts.limit));
     return req<{ product: Product; rows: MarketListing[] }>(`/markets/${product}?${q}`);
   },
+  market: (key: string) => req<MarketListing>(`/market?key=${encodeURIComponent(key)}`),
+  chart: (instrument: Instrument, range: ChartRange, opts: { funding?: boolean } = {}) =>
+    req<ChartData>("/chart", { method: "POST", json: { instrument, range, ...opts } }),
   quote: (instrument: Instrument, opts: { side?: "buy" | "sell"; sizeUsd?: number } = {}) =>
     req<Quote>("/quote", { method: "POST", json: { instrument, ...opts } }),
 

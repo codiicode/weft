@@ -292,3 +292,50 @@ describe("POST /backtest", () => {
     expect((await post({ strategyId: "crowded-fade" }, make(false))).status).toBe(501);
   });
 });
+
+describe("charts", () => {
+  const listing = { product: "perps" as const, instrument: BTC_PERP, instrumentKey: "hl:perp:BTC", label: "BTC", price: 1, venue: "hyperliquid" };
+  const catalog: Catalog = {
+    async list() {
+      return [listing];
+    },
+    async find(key: string) {
+      return key === listing.instrumentKey ? listing : null;
+    },
+  };
+  const app = createApp({
+    catalog,
+    marketData: { async getQuote() { throw new Error("no live data in tests"); } },
+    engine: {} as Engine,
+    library: new StrategyLibrary(join(mkdtempSync(join(tmpdir(), "weft-chart-")), "lib.db")),
+    signalModes: {},
+    backtest: { history: fakeHistory(), calendar: calendarFields, now: () => END },
+  });
+  const post = (body: unknown) => app.request("/chart", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(body) });
+
+  it("serves a week of hourly bars with funding, sized for a chart", async () => {
+    const res = await post({ instrument: BTC_PERP, range: "1W", funding: true });
+    expect(res.status).toBe(200);
+    const d = (await res.json()) as { interval: string; candles: number[][]; funding: number[][]; source: string };
+    expect(d.interval).toBe("1h");
+    expect(d.candles.length).toBeGreaterThan(24);
+    expect(d.candles.length).toBeLessThanOrEqual(168);
+    expect(d.candles[0]).toHaveLength(6);
+    expect(d.funding.length).toBeGreaterThan(0);
+  });
+
+  it("says plainly when a market has no history", async () => {
+    const res = await post({ instrument: { kind: "outcome", venue: "jupiter", market: "x", outcome: "YES" }, range: "1D" });
+    expect(res.status).toBe(422);
+    expect(((await res.json()) as { unsupported: boolean }).unsupported).toBe(true);
+  });
+
+  it("rejects unknown ranges", async () => {
+    expect((await post({ instrument: BTC_PERP, range: "5Y" })).status).toBe(400);
+  });
+
+  it("looks up one market by key", async () => {
+    expect(((await (await app.request("/market?key=hl:perp:BTC")).json()) as { label: string }).label).toBe("BTC");
+    expect((await app.request("/market?key=hl:perp:NOPE")).status).toBe(404);
+  });
+});

@@ -68,6 +68,8 @@ export interface HistoryProvider {
   candles(i: Instrument, interval: CandleInterval, startMs: number, endMs: number): Promise<CandleSeries>;
   /** Hourly funding in [startMs, endMs]; [] for non-perps. */
   funding(i: Instrument, startMs: number, endMs: number): Promise<FundingPoint[]>;
+  /** The Hyperliquid websocket coin for live updates (null: poll instead). */
+  liveCoin?(i: Instrument): Promise<string | null>;
 }
 
 /* ------------------------------------------------------------------ */
@@ -307,7 +309,8 @@ export class VenueHistory implements HistoryProvider {
       case "spot":
         return this.md ? null : "spot coin resolution needs market data";
       case "outcome":
-        return "Prediction-market price history isn't available yet";
+        if (i.venue !== "hyperliquid") return "Prediction-market price history is only available for Hyperliquid outcomes";
+        return this.md ? null : "Prediction-market history needs market data";
       case "option":
         return "Options price history isn't available yet";
     }
@@ -337,6 +340,20 @@ export class VenueHistory implements HistoryProvider {
     return items.filter((p) => p.time >= startMs && p.time <= endMs);
   }
 
+  /** The Hyperliquid coin that streams this instrument's trades and candles over the websocket, if any. */
+  async liveCoin(i: Instrument): Promise<string | null> {
+    switch (i.kind) {
+      case "perp":
+        return perpCoin(i.symbol, i.dex);
+      case "spot":
+        return this.md ? (await this.md.spotMarket(i.symbol)).coin : null;
+      case "outcome":
+        return i.venue === "hyperliquid" && this.md ? (await this.md.hlOutcome(i)).side.coin : null;
+      default:
+        return null;
+    }
+  }
+
   private async candleSource(i: Instrument, interval: CandleInterval): Promise<{ source: string; fetcher: (from: number, to: number) => Promise<Candle[]> }> {
     const hl = (coin: string) => ({
       source: `hyperliquid:${coin}`,
@@ -349,6 +366,8 @@ export class VenueHistory implements HistoryProvider {
         const m = await this.md!.spotMarket(i.symbol);
         return hl(m.coin);
       }
+      case "outcome":
+        return hl((await this.md!.hlOutcome(i)).side.coin);
       case "token": {
         let pool = this.pools.get(i.mint);
         if (pool === undefined) {

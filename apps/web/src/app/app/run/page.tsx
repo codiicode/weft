@@ -12,7 +12,8 @@ import { PageHeader, Card, Btn, Stat, Empty } from "@/components/app/AppShell";
 import { RunStatus } from "@/components/app/RunCard";
 import { StrategyRules } from "@/components/app/StrategyRules";
 import { AssetIcon } from "@/components/ui/AssetIcon";
-import { instrumentIcon } from "@/lib/assets";
+import { instrumentIcon, strategyInstruments } from "@/lib/assets";
+import { TradesChart } from "@/components/chart/TradesChart";
 import { StrategyCanvas } from "@/components/app/StrategyCanvas";
 import { EquityChart } from "@/components/app/EquityChart";
 
@@ -280,6 +281,13 @@ function Run() {
                 </div>
               </div>
               {view === "rules" ? <StrategyRules strategy={d.strategy} met={metMap} /> : <StrategyCanvas strategy={d.strategy} live={live} animate={false} />}
+            </section>
+
+            <section>
+              <h2 className="mb-3 text-[15px] font-semibold text-ink">The market</h2>
+              <Card className="p-5">
+                <TradesChart instruments={strategyInstruments(d.strategy)} fills={fills.data?.fills ?? []} startedAt={d.createdAt} />
+              </Card>
             </section>
 
             {quiet && !d.alertsOnly ? (

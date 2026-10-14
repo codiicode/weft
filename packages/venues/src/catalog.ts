@@ -57,6 +57,28 @@ export class VenueCatalog implements Catalog {
     return filtered.slice(0, limit).map(({ _rank, ...r }) => r);
   }
 
+  /** One listing by instrument key, looking in the products it could belong to. */
+  async find(key: string): Promise<MarketListing | null> {
+    const products: Product[] = key.startsWith("hl:perp:")
+      ? key.split(":").length > 3 ? ["stocks", "perps"] : ["perps"]
+      : key.startsWith("sol:token:") ? ["tokens", "stocks"]
+      : key.includes(":outcome:") ? ["predictions"]
+      : key.includes(":option:") ? ["options"]
+      : [];
+    for (const p of products) {
+      const all = await this.list(p, { limit: 10_000 }).catch(() => []);
+      const hit = all.find((r) => r.instrumentKey === key);
+      if (hit) return hit;
+    }
+    // Tokens outside the trending list: search by mint.
+    if (key.startsWith("sol:token:")) {
+      const mint = key.slice("sol:token:".length);
+      const rows = await this.list("tokens", { search: mint, limit: 10 }).catch(() => []);
+      return rows.find((r) => r.instrumentKey === key) ?? null;
+    }
+    return null;
+  }
+
   /* ---------------- perps ---------------- */
 
   private async perps(): Promise<MarketListing[]> {

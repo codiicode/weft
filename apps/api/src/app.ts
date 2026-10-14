@@ -10,7 +10,7 @@ import { z } from "zod";
 import { examples } from "@weft/strategy/examples";
 import { RiskCaps, toGraph, validateStrategy, type Instrument } from "@weft/strategy";
 import { Instrument as InstrumentSchema } from "@weft/strategy";
-import type { Catalog, MarketData, Product } from "@weft/venues";
+import { INTERVAL_MS, type CandleInterval, type Catalog, type MarketData, type Product } from "@weft/venues";
 import type { Engine, EngineEvent } from "@weft/engine";
 import type { StrategyLibrary } from "./lib/library.ts";
 import { generateStrategy, GenerationError } from "./ai/generate.ts";
@@ -20,6 +20,16 @@ import { AuthError, LOCAL_USER, type AuthUser, type Authenticator } from "./lib/
 import type { TelegramBot } from "./lib/telegram.ts";
 import type { Accounts } from "./lib/accounts.ts";
 import type { LiveService } from "./live/service.ts";
+
+/** Chart ranges and the bar size each one uses (about 60–370 bars). */
+export const CHART_RANGES = ["1H", "1D", "1W", "1M", "1Y"] as const;
+const CHART_SPEC: Record<(typeof CHART_RANGES)[number], { interval: CandleInterval; spanMs: number }> = {
+  "1H": { interval: "1m", spanMs: 3_600_000 },
+  "1D": { interval: "5m", spanMs: 86_400_000 },
+  "1W": { interval: "1h", spanMs: 7 * 86_400_000 },
+  "1M": { interval: "4h", spanMs: 30 * 86_400_000 },
+  "1Y": { interval: "1d", spanMs: 365 * 86_400_000 },
+};
 
 export interface AppDeps {
   catalog: Catalog;
@@ -121,6 +131,8 @@ export function createApp(deps: AppDeps) {
   app.use("*", rateLimit("general", 300));
   app.use("/quote", rateLimit("quotes", 40));
   app.use("/markets/*", rateLimit("markets", 90));
+  app.use("/market", rateLimit("markets", 60));
+  app.use("/chart", rateLimit("charts", 60));
   app.use("/backtest", rateLimit("backtests", 6));
   app.use("/ai/*", rateLimit("drafting", 12));
   app.use("/strategies/validate", rateLimit("validation", 30));
@@ -187,6 +199,41 @@ export function createApp(deps: AppDeps) {
     if (!PRODUCTS.includes(product as (typeof PRODUCTS)[number])) return c.json({ error: `unknown product ${product}` }, 404);
     const rows = await catalog.list(product, { search: c.req.query("search") ?? undefined, limit: clampQuery(c.req.query("limit"), 50, 100) });
     return c.json({ product, rows });
+  });
+
+  app.get("/market", async (c) => {
+    const key = (c.req.query("key") ?? "").slice(0, 200);
+    if (!key || !catalog.find) return c.json({ error: "not found" }, 404);
+    const row = await catalog.find(key);
+    return row ? c.json(row) : c.json({ error: "not found" }, 404);
+  });
+
+  /** Price history for one market, sized for a chart: the range picks the bar interval. */
+  app.post("/chart", async (c) => {
+    const history = deps.backtest?.history;
+    if (!history) return c.json({ error: "charts are not configured" }, 501);
+    const body = z.object({ instrument: z.unknown(), range: z.enum(CHART_RANGES), funding: z.boolean().optional() }).parse(await c.req.json());
+    const instrument = InstrumentSchema.parse(body.instrument) as Instrument;
+    const reason = history.unsupportedReason(instrument);
+    if (reason) return c.json({ error: reason, unsupported: true }, 422);
+    const { interval, spanMs } = CHART_SPEC[body.range];
+    const now = deps.backtest?.now?.() ?? Date.now();
+    const step = INTERVAL_MS[interval];
+    const end = Math.ceil((now + 1) / step) * step;
+    const [series, liveCoin, funding] = await Promise.all([
+      history.candles(instrument, interval, end - spanMs, end),
+      history.liveCoin ? history.liveCoin(instrument).catch(() => null) : Promise.resolve(null),
+      body.funding && instrument.kind === "perp" ? history.funding(instrument, now - 7 * 86_400_000, now).catch(() => []) : Promise.resolve(undefined),
+    ]);
+    return c.json({
+      range: body.range,
+      interval,
+      intervalMs: step,
+      source: series.source,
+      liveCoin,
+      candles: series.candles.map((k) => [k.t, k.o, k.h, k.l, k.c, k.volUsd]),
+      funding: funding?.map((f) => [f.time, f.rate]),
+    });
   });
 
   app.post("/quote", async (c) => {

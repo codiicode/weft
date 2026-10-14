@@ -34,3 +34,16 @@ export function strategyIcons(s: Strategy): IconRef[] {
   }
   return out;
 }
+
+/** Distinct instruments a strategy opens positions in (options by their first leg). */
+export function strategyInstruments(s: Strategy): Instrument[] {
+  const seen = new Set<string>();
+  const out: Instrument[] = [];
+  for (const a of s.actions) {
+    const inst = a.type === "open" ? a.instrument : a.type === "options" ? a.legs[0]!.instrument : null;
+    if (!inst) continue;
+    const k = JSON.stringify(inst);
+    if (!seen.has(k)) seen.add(k), out.push(inst);
+  }
+  return out;
+}
