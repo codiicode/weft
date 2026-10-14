@@ -36,7 +36,7 @@ export default function Home() {
   const auth = useAuth();
   const runs = useApi(() => api.deployments(), [auth.authenticated], { pollMs: 8_000 });
   const lib = useApi(() => api.strategies(), []);
-  const alerts = useApi(() => api.alerts(), [], { pollMs: 30_000 });
+  const alerts = useApi(auth.enabled && !auth.authenticated ? null : () => api.alerts(), [auth.authenticated], { pollMs: 30_000 });
   const go = (t: string) => router.push(`/app/new?go=1&thesis=${encodeURIComponent(t)}`);
   const list = runs.data?.deployments ?? [];
 
