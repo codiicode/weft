@@ -261,7 +261,7 @@ function Market() {
                 <span className={`tnum font-medium ${change >= 0 ? "text-long" : "text-short"}`}>
                   {change >= 0 ? "+" : "−"}
                   {dollar}
-                  {fmt(Math.abs(change))} ({change >= 0 ? "+" : "−"}
+                  {Math.abs(price ?? 0) >= 10_000 ? Math.round(Math.abs(change)).toLocaleString("en-US") : fmt(Math.abs(change))} ({change >= 0 ? "+" : "−"}
                   {Math.abs(changePct).toFixed(2)}%)
                 </span>
               ) : null}
