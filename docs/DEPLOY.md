@@ -32,10 +32,23 @@ fly deploy
 `WEFT_HL_NETWORK` defaults to `testnet` in `fly.toml`. Switch to `mainnet` only after a real testnet run;
 live runs are stored per network, so testnet runs never trade on mainnet.
 
-## API (Railway)
+## API (Railway) — live
 
-New project from this repo, Dockerfile builder, add a volume mounted at `/data`, and set the same
-variables as above plus `WEFT_DATA_DIR=/data`. Health check path: `/health`.
+Project `weft`, service `weft-api`, volume mounted at `/data`, public URL
+`https://weft-api-production.up.railway.app`. Build settings live in `railway.json` (Dockerfile, health check `/health`).
+
+```bash
+railway up --detach --service weft-api      # deploy the current checkout (respects .gitignore)
+railway logs --service weft-api
+railway variable set KEY --stdin            # set a secret without it touching the command line
+```
+
+Variables: the secrets above, plus `NODE_ENV=production HOST=0.0.0.0 PORT=8787 WEFT_DATA_DIR=/data
+WEFT_HL_NETWORK=testnet WEFT_LIVE_ENABLED=1 WEB_ORIGINS=https://weft-tawny.vercel.app`.
+`scripts/deploy-web.sh` points the web build at this URL by default.
+
+Only one process may poll a Telegram bot token: while Railway runs the bot, a local API with the same
+`TELEGRAM_BOT_TOKEN` will fight it for updates. Use a second bot locally, or leave the token out of `apps/api/.env`.
 
 ## Safety switches
 

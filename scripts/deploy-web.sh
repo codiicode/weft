@@ -5,9 +5,10 @@
 set -euo pipefail
 cd "$(dirname "$0")/.."
 ROOT=$(pwd)
-# Without an API URL the public app can't work yet: build it closed ("opens soon"), without the wallet SDK.
-if ! grep -q '^NEXT_PUBLIC_API_URL=.\+' apps/web/.env.local 2>/dev/null; then
-  echo "No NEXT_PUBLIC_API_URL: building the app as closed (landing page live, app says it opens soon)."
+# The hosted API (Railway). Override with WEFT_API_URL=... or WEFT_API_URL= (empty) to build the app closed.
+export NEXT_PUBLIC_API_URL="${WEFT_API_URL-https://weft-api-production.up.railway.app}"
+if [ -z "$NEXT_PUBLIC_API_URL" ]; then
+  echo "No API URL: building the app as closed (landing page live, app says it opens soon)."
   export NEXT_PUBLIC_APP_CLOSED=1
 fi
 npm run build -w @weft/web
