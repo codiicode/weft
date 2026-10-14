@@ -1,5 +1,5 @@
 "use client";
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import type { Strategy } from "@weft/strategy";
 import { api, ApiError } from "@/lib/api";
@@ -15,16 +15,17 @@ const INTERVALS = [
   [300, "5 min"],
 ] as const;
 
-function Segmented<T extends string | number>({ value, options, onChange, label }: { value: T; options: readonly (readonly [T, string])[]; onChange: (v: T) => void; label: string }) {
+function Segmented<T extends string | number>({ value, options, onChange, label }: { value: T; options: readonly (readonly [T, string, boolean?])[]; onChange: (v: T) => void; label: string }) {
   return (
     <div role="radiogroup" aria-label={label} className="grid rounded-[10px] bg-paper-2 p-0.5" style={{ gridTemplateColumns: `repeat(${options.length}, minmax(0, 1fr))` }}>
-      {options.map(([v, l]) => (
+      {options.map(([v, l, disabled]) => (
         <button
           key={String(v)}
           role="radio"
           aria-checked={value === v}
+          disabled={disabled}
           onClick={() => onChange(v)}
-          className={`h-8 rounded-[8px] text-[13px] transition-colors ${value === v ? "bg-raised font-medium text-ink shadow-[0_1px_2px_rgba(0,0,0,.08)]" : "text-muted hover:text-ink"}`}
+          className={`h-8 rounded-[8px] text-[13px] transition-colors disabled:cursor-not-allowed disabled:opacity-40 ${value === v ? "bg-raised font-medium text-ink shadow-[0_1px_2px_rgba(0,0,0,.08)]" : "text-muted hover:text-ink"}`}
         >
           {l}
         </button>
@@ -33,40 +34,54 @@ function Segmented<T extends string | number>({ value, options, onChange, label 
   );
 }
 
-/** Start a paper (or live) run of a strategy and jump to its run page. */
+/** Why a strategy can't trade with real money yet (null when it can). */
+export function liveBlocker(s: Strategy | undefined): string | null {
+  if (!s) return null;
+  for (const a of s.actions) {
+    if (a.type === "options") return "Options can’t be traded live yet.";
+    if (a.type !== "open") continue;
+    if (a.order.type === "limit") return "Limit orders can’t be traded live yet. Use a market order with a slippage limit.";
+    const k = a.instrument.kind;
+    if (k === "token") return "Solana tokens can’t be traded live yet. That’s coming soon.";
+    if (k === "outcome") return "Prediction markets can’t be traded live yet. That’s coming soon.";
+  }
+  return null;
+}
+
+/** Start a strategy with real money (or as alerts only) and jump to its run page. */
 export function DeployPanel({ strategy, strategyId, compact = false }: { strategy?: Strategy; strategyId?: string; compact?: boolean }) {
   const router = useRouter();
-  const [allocation, setAllocation] = useState(10_000);
-  const [interval, setInterval] = useState<number>(30);
-  const [busy, setBusy] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-
   const requireAuth = useRequireAuth();
   const auth = useAuth();
-  const live = useApi(auth.enabled && auth.authenticated ? () => api.liveStatus() : null, [auth.enabled, auth.authenticated]);
-  const liveReady = !!live.data?.ready;
-  const [mode, setMode] = useState<"paper" | "alerts" | "live">("paper");
-  const [confirm, setConfirm] = useState("");
+  const signedIn = auth.enabled && auth.authenticated;
+  const live = useApi(signedIn ? () => api.liveStatus() : null, [signedIn]);
+  const ready = !!live.data?.ready;
+  const cap = live.data?.config.maxAllocationUsd ?? 1000;
+  const testnet = live.data?.config.network === "testnet";
+  const available = live.data?.venue?.withdrawableUsd ?? live.data?.venue?.accountValueUsd ?? null;
+  const blocker = useMemo(() => liveBlocker(strategy), [strategy]);
+
+  const [mode, setMode] = useState<"live" | "alerts">(blocker ? "alerts" : "live");
+  const [allocation, setAllocation] = useState(100);
+  const [interval, setInterval] = useState<number>(30);
+  const [agree, setAgree] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   const isLive = mode === "live";
-  const isAlerts = mode === "alerts";
-  const alerts = useApi(auth.enabled && auth.authenticated && isAlerts ? () => api.alertsMe() : null, [auth.enabled, auth.authenticated, isAlerts]);
-  const cap = live.data?.config.maxAllocationUsd ?? 100;
-  const network = live.data?.config.network;
+  const alerts = useApi(signedIn && !isLive ? () => api.alertsMe() : null, [signedIn, isLive]);
+  const max = Math.max(10, Math.min(cap, available ?? cap));
 
   const deploy = async () => {
     if (!requireAuth()) return;
-    if (isLive && confirm.trim().toUpperCase() !== "GO LIVE") return setError("Type GO LIVE to confirm.");
+    if (isLive && !agree) return setError("Tick the box to confirm this trades real money.");
     setBusy(true);
     setError(null);
     try {
       const rec = await api.deploy({
         strategy,
         strategyId,
-        allocationUsd: isLive ? Math.min(allocation, cap) : allocation,
         intervalSec: interval,
-        mode: isAlerts ? "paper" : mode,
-        ...(isAlerts ? { alertsOnly: true } : {}),
-        ...(isLive ? { confirm: "GO LIVE" } : {}),
+        ...(isLive ? { mode: "live", allocationUsd: Math.min(allocation, max), confirm: "GO LIVE" } : { mode: "paper", alertsOnly: true, allocationUsd: 1000 }),
       });
       router.push(`/app/run?id=${encodeURIComponent(rec.id)}`);
     } catch (e) {
@@ -75,105 +90,115 @@ export function DeployPanel({ strategy, strategyId, compact = false }: { strateg
     }
   };
 
+  const link = "font-medium text-ink underline decoration-line-2 underline-offset-4 hover:decoration-ink";
+
   return (
     <Card className={compact ? "p-4" : "p-5"}>
       <div className="text-[15px] font-semibold tracking-[-0.015em] text-ink">Run this strategy</div>
       <div className="mt-3">
         <Segmented
-          label="Mode"
+          label="How it runs"
           value={mode}
-          options={
-            auth.enabled
-              ? [
-                  ["paper", "Paper"],
-                  ["alerts", "Alerts"],
-                  ["live", "Live"],
-                ]
-              : [
-                  ["paper", "Paper"],
-                  ["alerts", "Alerts"],
-                ]
-          }
-            onChange={(m) => {
-              setMode(m);
-              setError(null);
-            if (m === "live") setAllocation((a) => Math.min(a, cap));
+          options={[
+            ["live", "Trade", Boolean(blocker)],
+            ["alerts", "Alerts only"],
+          ]}
+          onChange={(m) => {
+            setMode(m);
+            setError(null);
           }}
         />
       </div>
-      {!auth.enabled && <p className="mt-2 text-[12.5px] text-faint">Live trading needs sign-in.</p>}
-      <p className="mt-3 text-[13.5px] leading-relaxed text-muted">
-        {isLive ? (
-          liveReady ? (
-            <>
-              Real orders on Hyperliquid{network === "testnet" ? " testnet" : ""}, from your own account. Up to ${cap.toLocaleString()} per run.
-            </>
-          ) : (
-            <>
-              Connect your Hyperliquid account first.{" "}
-              <Link href="/app/live" className="font-medium text-ink underline decoration-line-2 underline-offset-4 hover:decoration-ink">
-                Set up live trading
-              </Link>
-            </>
-          )
-        ) : isAlerts ? (
-          <>
-            Watch only. You get a message whenever it would trade; nothing is bought or sold.
-            {auth.enabled && alerts.data && !alerts.data.telegram && (
-              <>
-                {" "}
-                <Link href="/app/settings" className="font-medium text-ink underline decoration-line-2 underline-offset-4 hover:decoration-ink">
-                  Connect Telegram
-                </Link>{" "}
-                to get them on your phone.
-              </>
-            )}
-          </>
+
+      {isLive ? (
+        !signedIn ? (
+          <p className="mt-3 text-[13.5px] leading-relaxed text-muted">Trades with real money from your own Hyperliquid account. Sign in to set it up.</p>
+        ) : live.loading && !live.data ? (
+          <div className="mt-4 h-24 animate-pulse rounded-[10px] bg-paper-2" />
+        ) : !ready ? (
+          <div className="mt-3 rounded-[10px] bg-paper-2 p-4">
+            <p className="text-[13.5px] font-medium text-ink">Connect your Hyperliquid account</p>
+            <p className="mt-1 text-[13px] leading-relaxed text-muted">Two signatures from your wallet: one lets Weft place orders, nothing can be withdrawn. Takes about a minute.</p>
+            <Link href="/app/live" className="mt-3 inline-flex h-9 items-center rounded-[10px] bg-ink px-3.5 text-[14px] font-medium text-paper hover:bg-ink/85">
+              Set up trading
+            </Link>
+          </div>
         ) : (
-          "Practice with simulated money against live prices. Fees and slippage included."
-        )}
-      </p>
+          <>
+            <p className="mt-3 text-[13.5px] leading-relaxed text-muted">
+              Real orders on Hyperliquid{testnet ? " testnet (test funds)" : ""}, from your own account.
+              {available != null && (
+                <>
+                  {" "}
+                  <span className="tnum text-ink-2">${Math.floor(available).toLocaleString("en-US")}</span> available.
+                </>
+              )}
+            </p>
+            <label className="mt-4 block">
+              <span className="text-[13px] text-ink-2">Amount</span>
+              <div className="mt-1.5 flex h-10 items-center rounded-[10px] border border-line-2 bg-card px-3 focus-within:border-ink/40">
+                <span className="text-muted">$</span>
+                <input
+                  inputMode="numeric"
+                  value={allocation.toLocaleString("en-US")}
+                  onChange={(e) => setAllocation(Math.min(max, Math.max(0, Number(e.target.value.replace(/[^\d]/g, "")) || 0)))}
+                  onBlur={() => setAllocation((a) => Math.max(10, a))}
+                  className="tnum w-full bg-transparent pl-1 text-[15px] text-ink outline-none"
+                  aria-label="Amount in USD"
+                />
+                <button type="button" onClick={() => setAllocation(Math.floor(max))} className="shrink-0 text-[12.5px] text-muted hover:text-ink">
+                  Max
+                </button>
+              </div>
+              <span className="mt-1 block text-[12px] text-faint">Up to ${cap.toLocaleString("en-US")} per strategy while Weft is new.</span>
+            </label>
+          </>
+        )
+      ) : (
+        <p className="mt-3 text-[13.5px] leading-relaxed text-muted">
+          Nothing is bought or sold. You get a message the moment a rule would trade.
+          {signedIn && alerts.data && !alerts.data.telegram && (
+            <>
+              {" "}
+              <Link href="/app/settings" className={link}>
+                Connect Telegram
+              </Link>{" "}
+              to get them on your phone.
+            </>
+          )}
+        </p>
+      )}
 
-      <label className={`mt-5 block ${isAlerts ? "hidden" : ""}`}>
-        <span className="text-[13px] text-ink-2">Amount</span>
-        <div className="mt-1.5 flex h-10 items-center rounded-[10px] border border-line-2 bg-card px-3 focus-within:border-ink/40">
-          <span className="text-muted">$</span>
-          <input
-            inputMode="numeric"
-            value={allocation.toLocaleString("en-US")}
-            onChange={(e) => setAllocation(Math.min(isLive ? cap : 10_000_000, Math.max(0, Number(e.target.value.replace(/[^\d]/g, "")) || 0)))}
-            onBlur={() => setAllocation((a) => Math.max(isLive ? 10 : 100, a))}
-            className="tnum w-full bg-transparent pl-1 text-[15px] text-ink outline-none"
-            aria-label="Amount in USD"
-          />
-        </div>
-      </label>
-      <div className="mt-4">
-        <span className="text-[13px] text-ink-2">Check the market every</span>
-        <div className="mt-1.5">
-          <Segmented label="Check interval" value={interval} options={INTERVALS} onChange={setInterval} />
-        </div>
-      </div>
+      {blocker && <p className="mt-3 rounded-[10px] bg-[var(--trigger-soft)] px-3 py-2.5 text-[13px] leading-relaxed text-ink-2">{blocker} You can run it as alerts in the meantime.</p>}
 
-      {isLive && liveReady && (
-        <label className="mt-4 block">
-          <span className="text-[13px] text-ink-2">
-            Type <span className="font-medium text-short">GO LIVE</span> to confirm
-          </span>
-          <input
-            value={confirm}
-            onChange={(e) => setConfirm(e.target.value)}
-            placeholder="GO LIVE"
-            className="mt-1.5 h-10 w-full rounded-[10px] border border-line-2 bg-card px-3 text-[15px] text-ink outline-none placeholder:text-faint focus:border-short"
-            aria-label="Type GO LIVE to confirm live trading"
-          />
+      {(!isLive || ready) && (
+        <div className="mt-4">
+          <span className="text-[13px] text-ink-2">Check the market every</span>
+          <div className="mt-1.5">
+            <Segmented label="Check interval" value={interval} options={INTERVALS} onChange={setInterval} />
+          </div>
+        </div>
+      )}
+
+      {isLive && ready && (
+        <label className="mt-4 flex cursor-pointer items-start gap-2.5 text-[13px] leading-relaxed text-ink-2">
+          <input type="checkbox" checked={agree} onChange={(e) => setAgree(e.target.checked)} className="mt-[3px] h-4 w-4 shrink-0 accent-[var(--ink)]" />
+          <span>I understand this trades real money from my account, and that I can lose it.</span>
         </label>
       )}
+
       {error && <p className="mt-3 whitespace-pre-wrap rounded-[10px] bg-[var(--short-soft)] px-3 py-2.5 text-[13px] text-short">{error}</p>}
-      <Btn onClick={deploy} disabled={busy || (isLive && !liveReady)} variant={isLive ? "danger" : "ink"} className="mt-5 h-10 w-full">
-        {busy ? "Starting…" : isLive ? "Start live trading" : isAlerts ? "Start alerts" : "Start on paper"}
-      </Btn>
-      <p className="mt-2.5 text-center text-[12.5px] text-faint">You can pause or stop it at any time.</p>
+
+      {isLive && !signedIn ? (
+        <Btn onClick={() => requireAuth()} className="mt-5 h-10 w-full">
+          Sign in to trade
+        </Btn>
+      ) : (!isLive || ready) && (
+        <Btn onClick={deploy} disabled={busy || (isLive && !agree)} className="mt-5 h-10 w-full">
+          {busy ? "Starting…" : isLive ? `Start trading $${Math.min(allocation, max).toLocaleString("en-US")}` : "Start alerts"}
+        </Btn>
+      )}
+      <p className="mt-2.5 text-center text-[12.5px] text-faint">{isLive ? "Pause or stop any time. Stopping closes every position." : "Pause or stop any time."}</p>
     </Card>
   );
 }

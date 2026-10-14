@@ -52,6 +52,14 @@ npm test                        # 310 tests
 Set `ANTHROPIC_API_KEY` before starting the API to get full AI generation (Claude Opus 5.5 with market
 search and self-correcting validation). Without it, a deterministic template engine is used.
 
+## Real money only (decided 2026-10-14)
+
+The hosted service has no paper trading. Strategies run live on Hyperliquid (perps, HIP-3 stocks, spot)
+or as alerts only; backtests on real history are the preview. Solana tokens, prediction markets and
+options show prices and charts and can run as alerts until their live trading is built. Paper runs from
+before were stopped at startup (history kept). The leaderboard lists only live runs whose owners chose to
+share them, in percent. Local development (sign-in off, or `WEFT_ALLOW_PAPER=1`) keeps paper runs.
+
 ## Live vs simulated data
 
 | Signal | Source | Status |

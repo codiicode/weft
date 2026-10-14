@@ -77,7 +77,11 @@ if (tape) {
   setInterval(warm, 3_600_000).unref();
 }
 
+// Weft trades with real money only on the hosted service; paper runs stay for local development.
+const allowPaper = process.env.WEFT_ALLOW_PAPER === "1" || !auth.enabled;
+
 const app = createApp({
+  allowPaper,
   tape: tape ?? undefined,
   catalog: venues.catalog,
   marketData: venues.marketData,
@@ -95,6 +99,18 @@ const app = createApp({
   backtest: { history: venues.history, tokenFacts: venues.tokenFacts, calendar: calendarFields },
 });
 engine.start();
+
+// Paper trading has ended on the hosted service: stop any simulated runs left from before (their
+// history stays readable). Alerts-only runs never trade and keep running.
+if (!allowPaper) {
+  void (async () => {
+    for (const d of await engine.listDeployments()) {
+      if (d.mode !== "paper" || d.alertsOnly || (d.status !== "running" && d.status !== "paused")) continue;
+      await engine.kill(d.id).catch(() => {});
+      await engine.note?.(d.id, "notify", "Paper trading has ended. Weft now trades with real money only; start this strategy live to keep going.").catch(() => {});
+    }
+  })();
+}
 
 // Every minute, check live runs against what Hyperliquid actually holds.
 const reconciler = liveEngine && liveCfg.enabled ? new Reconciler(liveEngine, accounts, liveCfg) : null;

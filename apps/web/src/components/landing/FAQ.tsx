@@ -7,7 +7,7 @@ import { brand, $T } from "@/config/brand";
 const faqs = [
   {
     q: "Do I need to know how to trade?",
-    a: "You need an opinion, not a trading background. Weft turns it into concrete rules and shows you each one in plain English before anything runs. Start on paper and see how it behaves.",
+    a: "You need an opinion, not a trading background. Weft turns it into concrete rules and shows you each one in plain English before anything runs. Test it on real history first, then start it with an amount you choose.",
   },
   {
     q: "Does Weft hold my money?",
@@ -15,7 +15,7 @@ const faqs = [
   },
   {
     q: "What does it cost?",
-    a: `Paper trading is free. Live trades pay a small fee (${(brand.builderFeeBps / 100).toFixed(2)}% on Hyperliquid, ${(brand.swapFeeBps / 100).toFixed(1)}% on Solana swaps), which goes to ${$T} buybacks.`,
+    a: `Writing and testing strategies is free. Trades pay a small fee (${(brand.builderFeeBps / 100).toFixed(2)}% on Hyperliquid, ${(brand.swapFeeBps / 100).toFixed(1)}% on Solana swaps), which goes to ${$T} buybacks.`,
   },
   {
     q: "Is it safe to trade memecoins with it?",

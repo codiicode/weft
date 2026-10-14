@@ -99,7 +99,7 @@ function OpeningSoon() {
         <p className="text-[13px] text-muted">Private beta</p>
         <h1 className="display mt-3 text-[clamp(2.4rem,5vw,4rem)] leading-[1.02] text-ink">The app opens in a few days.</h1>
         <p className="mt-5 text-[17px] leading-[1.6] text-ink-2">
-          Paper trading opens first, then live trading on Hyperliquid. Follow along and you’ll hear the moment it’s ready.
+          Trading opens on Hyperliquid first, then Solana. Follow along and you’ll hear the moment it’s ready.
         </p>
         <div className="mt-8 flex flex-wrap gap-2">
           <Btn href={brand.socials.x}>Follow on X</Btn>

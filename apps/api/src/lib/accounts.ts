@@ -41,6 +41,10 @@ export class Accounts {
         user_id TEXT NOT NULL
       );
       CREATE INDEX IF NOT EXISTS deployment_owners_user ON deployment_owners (user_id);
+      CREATE TABLE IF NOT EXISTS shared_runs (
+        deployment_id TEXT PRIMARY KEY,
+        shared_at INTEGER NOT NULL
+      );
       CREATE TABLE IF NOT EXISTS strategy_owners (
         strategy_id TEXT PRIMARY KEY,
         user_id TEXT NOT NULL
@@ -122,6 +126,19 @@ export class Accounts {
   }
   deploymentsOf(userId: string): Set<string> {
     const rows = this.db.prepare("SELECT deployment_id FROM deployment_owners WHERE user_id = ?").all(userId) as { deployment_id: string }[];
+    return new Set(rows.map((r) => r.deployment_id));
+  }
+
+  /** Live runs whose owner chose to show their return (percent only) on the leaderboard. */
+  setShared(deploymentId: string, shared: boolean) {
+    if (shared) this.db.prepare("INSERT OR REPLACE INTO shared_runs (deployment_id, shared_at) VALUES (?, ?)").run(deploymentId, Date.now());
+    else this.db.prepare("DELETE FROM shared_runs WHERE deployment_id = ?").run(deploymentId);
+  }
+  isShared(deploymentId: string): boolean {
+    return Boolean(this.db.prepare("SELECT 1 FROM shared_runs WHERE deployment_id = ?").get(deploymentId));
+  }
+  sharedRuns(): Set<string> {
+    const rows = this.db.prepare("SELECT deployment_id FROM shared_runs").all() as { deployment_id: string }[];
     return new Set(rows.map((r) => r.deployment_id));
   }
 

@@ -89,7 +89,7 @@ function StrategyView() {
           <BacktestPanel strategyId={e.id} />
         </div>
         <div className="order-first space-y-4 xl:order-none">
-          <DeployPanel strategyId={e.id} />
+          <DeployPanel strategyId={e.id} strategy={e.strategy} />
           <Card className="p-5">
             <div className="text-[15px] font-semibold tracking-[-0.015em] text-ink">About</div>
             <dl className="mt-3 space-y-2 text-[13.5px]">

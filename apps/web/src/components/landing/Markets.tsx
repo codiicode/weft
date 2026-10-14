@@ -94,7 +94,7 @@ export function Markets() {
                 <span className={`text-[22px] font-semibold tracking-[-0.025em] transition-colors sm:text-[26px] ${sel === i ? "text-ink" : "text-faint group-hover:text-ink-2"}`}>
                   {x.id === "predictions" ? "Prediction markets" : x.name}
                 </span>
-                {x.status === "soon" && <span className="text-[13px] text-muted">Paper only for now</span>}
+                {x.status === "soon" && <span className="text-[13px] text-muted">Coming soon</span>}
                 <span className="ml-auto hidden text-[13px] text-muted sm:inline">{x.venues.slice(0, 2).join(", ")}</span>
               </button>
               <AnimatePresence initial={false}>

@@ -76,12 +76,20 @@ function QuoteCard({ row }: { row: MarketListing }) {
   );
 }
 
+/** Products that can't trade with real money yet. */
+const SOON = new Set(["predictions", "tokens", "options"]);
+
 function IdeasCard({ row }: { row: MarketListing }) {
   const ideas = ideasFor(row);
+  const soon = SOON.has(row.product);
   return (
     <Card className="p-5">
       <div className="text-[14px] font-medium text-ink">Put {row.product === "predictions" ? "this market" : row.label} to work</div>
-      <p className="mt-0.5 text-[13px] text-muted">Pick one to start. You can change every rule before it runs, on paper.</p>
+      <p className="mt-0.5 text-[13px] text-muted">
+        {soon
+          ? "Trading this market opens soon. You can already build a strategy and get an alert whenever it would trade."
+          : "Pick one to start. You can read and change every rule, and test it on history, before it trades."}
+      </p>
       <ul className="mt-3 divide-y divide-line">
         {ideas.map((t) => (
           <li key={t}>

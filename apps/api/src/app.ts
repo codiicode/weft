@@ -52,6 +52,11 @@ export interface AppDeps {
   aiDailyLimit?: number;
   /** Live trading on Hyperliquid. Absent: paper only. */
   live?: LiveService;
+  /**
+   * Paper (simulated) runs. Off on the hosted service: Weft trades with real money only, and
+   * simulated trading is limited to backtests and alerts-only runs. Local development keeps it.
+   */
+  allowPaper?: boolean;
   /** Records Hyperliquid trades for second-level charts. */
   tape?: TradeTape;
   /** Per-user Telegram alerts (TELEGRAM_BOT_TOKEN). */
@@ -89,6 +94,7 @@ export function createApp(deps: AppDeps) {
   const { catalog, marketData, engine, library, accounts } = deps;
   const authEnabled = !!deps.auth?.enabled;
   const aiDailyLimit = deps.aiDailyLimit ?? 30;
+  const allowPaper = deps.allowPaper ?? !authEnabled;
   const app = new Hono();
 
   /** The signed-in user, LOCAL_USER in local mode, or null for anonymous requests. */
@@ -412,7 +418,8 @@ export function createApp(deps: AppDeps) {
       const user = await optionalUser(c);
       const mine = user && accounts ? accounts.deploymentsOf(user.id) : new Set<string>();
       // scope=all: everyone's paper runs, but live runs only when they're yours.
-      records = c.req.query("scope") === "all" ? records.filter((d) => d.mode !== "live" || mine.has(d.id)) : records.filter((d) => mine.has(d.id));
+      // scope=all: others' paper runs (local development) plus your own.
+      records = c.req.query("scope") === "all" ? records.filter((d) => (allowPaper && d.mode !== "live") || mine.has(d.id)) : records.filter((d) => mine.has(d.id));
     }
     const snaps = await Promise.all(records.map((d) => engine.getSnapshot(d.id)));
     return c.json({ deployments: snaps.filter(Boolean) });
@@ -426,6 +433,8 @@ export function createApp(deps: AppDeps) {
     const v = validateStrategy(raw);
     if (!v.ok) return c.json({ error: "invalid strategy", issues: v.errors }, 422);
     const strategy = v.strategy;
+    if (body.mode === "paper" && !body.alertsOnly && !allowPaper)
+      return c.json({ error: "Weft trades with real money only. Start it live, or as alerts only." }, 400);
     if (body.mode === "live") return withLiveLock(user.id, async () => {
       if (!deps.live) return c.json({ error: "live trading is not configured on this server" }, 501);
       if (body.confirm !== "GO LIVE") return c.json({ error: 'type "GO LIVE" to confirm real-money trading' }, 400);
@@ -473,7 +482,7 @@ export function createApp(deps: AppDeps) {
   app.get("/deployments/:id", async (c) => {
     if (!(await canView(c, c.req.param("id")))) return c.json({ error: "this is a private live run" }, 403);
     const s = await engine.getSnapshot(c.req.param("id"));
-    return s ? c.json({ ...s, graph: toGraph(s.deployment.strategy) }) : c.json({ error: "not found" }, 404);
+    return s ? c.json({ ...s, graph: toGraph(s.deployment.strategy), shared: accounts?.isShared(s.deployment.id) ?? false }) : c.json({ error: "not found" }, 404);
   });
   app.get("/deployments/:id/events", async (c) =>
     !(await canView(c, c.req.param("id")))
@@ -608,32 +617,55 @@ export function createApp(deps: AppDeps) {
 
   /* ---------------- Leaderboard & stats ---------------- */
 
+  /**
+   * Real results only: live runs whose owners chose to share them. Returns are shown in percent;
+   * amounts, positions and wallets stay private. (Local development ranks paper runs instead.)
+   */
   app.get("/leaderboard", async (c) => {
-    const records = (await engine.listDeployments()).filter((d) => !d.alertsOnly && d.mode !== "live");
+    const shared = accounts?.sharedRuns() ?? new Set<string>();
+    const records = (await engine.listDeployments()).filter((d) => !d.alertsOnly && (allowPaper ? d.mode !== "live" : d.mode === "live" && shared.has(d.id)));
     const snaps = (await Promise.all(records.map((d) => engine.getSnapshot(d.id)))).filter((s) => s != null);
     const rows = snaps
-      .map((s) => ({
-        deploymentId: s.deployment.id,
-        strategyId: s.deployment.strategy.id,
-        strategy: s.deployment.strategy,
-        name: s.deployment.strategy.name,
-        tags: s.deployment.strategy.tags,
-        status: s.deployment.status,
-        mode: s.deployment.mode,
-        returnPct: s.returnPct,
-        equityUsd: s.equityUsd,
-        openPositions: s.positions.length,
-        equityCurve: s.equityCurve.slice(-60),
-        since: s.deployment.createdAt,
-      }))
+      .map((s) => {
+        const owner = accounts?.deploymentOwner(s.deployment.id);
+        const alloc = s.deployment.allocationUsd || 1;
+        return {
+          deploymentId: s.deployment.id,
+          strategyId: s.deployment.strategy.id,
+          strategy: s.deployment.strategy,
+          name: s.deployment.strategy.name,
+          author: owner ? (accounts?.get(owner)?.displayName ?? null) : null,
+          tags: s.deployment.strategy.tags,
+          status: s.deployment.status,
+          mode: s.deployment.mode,
+          returnPct: s.returnPct,
+          openPositions: s.positions.length,
+          /** Return in percent over time (never dollar amounts). */
+          returnCurve: s.equityCurve.slice(-60).map(([ts, eq]) => [ts, (eq / alloc - 1) * 100] as [number, number]),
+          since: s.deployment.createdAt,
+        };
+      })
       .sort((a, b) => b.returnPct - a.returnPct);
     return c.json({ rows });
+  });
+
+  /** Owner: show (or hide) a live run's return on the leaderboard. */
+  app.post("/deployments/:id/share", async (c) => {
+    const user = await requireUser(c);
+    const id = c.req.param("id");
+    const snap = await engine.getSnapshot(id);
+    if (!snap) return c.json({ error: "not found" }, 404);
+    assertOwner(accounts?.deploymentOwner(id), user);
+    if (snap.deployment.mode !== "live" || snap.deployment.alertsOnly) return c.json({ error: "only live runs can be shared" }, 400);
+    const { shared } = z.object({ shared: z.boolean() }).parse(await c.req.json());
+    accounts?.setShared(id, shared);
+    return c.json({ shared });
   });
 
   let statsCache: { at: number; body: unknown } | null = null;
   app.get("/stats", async (c) => {
     if (statsCache && Date.now() - statsCache.at < 30_000) return c.json(statsCache.body);
-    const records = await engine.listDeployments();
+    const records = (await engine.listDeployments()).filter((d) => allowPaper || d.mode === "live");
     const snaps = (await Promise.all(records.map((d) => engine.getSnapshot(d.id)))).filter((s) => s != null);
     const fills = (await Promise.all(records.map((d) => engine.getFills(d.id)))).flat();
     const body = {

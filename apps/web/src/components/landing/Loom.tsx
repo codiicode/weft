@@ -382,7 +382,7 @@ export function Loom() {
                 <span className="pulse-ring absolute inset-0 rounded-full bg-long" />
                 <span className="relative h-1.5 w-1.5 rounded-full bg-long" />
               </span>
-              Order filled · paper
+              Order filled
             </div>
             <div className="mt-1 whitespace-nowrap text-[16px] font-medium tracking-[-0.01em] text-ink sm:text-[17px]">{s.trade}</div>
             <div className="mt-0.5 text-[13px] text-muted">{s.detail}</div>

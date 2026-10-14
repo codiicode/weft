@@ -420,7 +420,7 @@ export const products: Product[] = [
     name: "Predictions",
     kicker: "Outcome markets where the agent buys the side its model thinks is mispriced.",
     venues: ["Hyperliquid", "Jupiter"],
-    status: "live",
+    status: "soon",
     markets: [
       { sym: "Fed cut", name: "Fed cuts in December?", venue: "Hyperliquid", yes: 0.64, model: 0.78, closes: "Dec 10", thesis: "The market is underpricing a December cut.", graph: { signal: "Fed odds and the 2-year yield", trigger: "Our model is 10+ points above the market", action: "Buy YES up to 70¢" } },
       { sym: "El Niño", name: "El Niño by winter?", venue: "Jupiter · Polymarket", yes: 0.61, model: 0.84, closes: "Feb 28", thesis: "NOAA's models are ahead of the crowd on El Niño.", graph: { signal: "ENSO outlook", trigger: "Niño 3.4 > +1.5°C", action: "Buy YES ≤ 66¢" } },
@@ -433,7 +433,7 @@ export const products: Product[] = [
     name: "Solana tokens",
     kicker: "Anything on Solana by mint, memecoins included, routed through Jupiter with rug checks before every swap.",
     venues: ["Jupiter", "pump.fun", "Meteora", "Raydium LaunchLab", "StonkFun"],
-    status: "live",
+    status: "soon",
     markets: [
       { sym: "$PUMP", name: "Pump", venue: "Jupiter route", px: 0.00412, ch: -6.8, seed: 421, thesis: "Buy $PUMP when it hits 0.004 and sentiment turns bullish.", graph: { signal: "$PUMP price and mood on X", trigger: "Price at 0.004 or lower and mood turns bullish", action: "Buy with 0.5 SOL, stop at −20%" } },
       { sym: "$WIF", name: "dogwifhat", venue: "Jupiter route", px: 1.382, ch: 5.12, seed: 422, thesis: "Ride $WIF when buyers outnumber sellers 1.5 to 1.", graph: { signal: "Buy / sell ratio", trigger: "Ratio > 1.5 · 1h", action: "Buy 1 SOL" } },

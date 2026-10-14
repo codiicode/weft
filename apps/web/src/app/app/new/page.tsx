@@ -81,7 +81,15 @@ function Builder() {
   useEffect(() => {
     const from = params.get("from");
     if (from) {
-      (from.startsWith("run:") ? api.deployment(from.slice(4)).then((r) => r.deployment.strategy) : api.strategy(from).then((e) => e.strategy))
+      (from.startsWith("run:")
+        ? api.deployment(from.slice(4)).then((r) => r.deployment.strategy)
+        : from.startsWith("shared:")
+          ? api.leaderboard().then((d) => {
+              const s = d.rows.find((r) => r.deploymentId === from.slice(7))?.strategy;
+              if (!s) throw new Error("That strategy is no longer shared.");
+              return s;
+            })
+          : api.strategy(from).then((e) => e.strategy))
         .then((st) => {
           setThesis(st.thesis);
           setResult({ strategy: st, warnings: [], rationale: "", source: "template", notes: [], graph: undefined as never });

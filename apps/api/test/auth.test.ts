@@ -98,7 +98,7 @@ describe("Privy auth", () => {
     const { call, accounts } = setup();
     const alice = await token("did:privy:alice");
     const bob = await token("did:privy:bob");
-    const res = await call("POST", "/deployments", { strategyId: "crowded-fade", allocationUsd: 1000 }, alice);
+    const res = await call("POST", "/deployments", { strategyId: "crowded-fade", allocationUsd: 1000, alertsOnly: true }, alice);
     expect(res.status).toBe(201);
     const id = ((await res.json()) as { id: string }).id;
     expect(accounts.deploymentOwner(id)).toBe("did:privy:alice");
@@ -108,11 +108,25 @@ describe("Privy auth", () => {
     expect(await list(alice)).toBe(1);
     expect(await list(bob)).toBe(0);
     expect(await list()).toBe(0);
-    expect(await list(undefined, "?scope=all")).toBe(1);
+    expect(await list(undefined, "?scope=all")).toBe(0); // nobody else's runs are listed
+    expect(await list(alice, "?scope=all")).toBe(1);
     expect((await call("GET", `/deployments/${id}`)).status).toBe(200); // runs are publicly readable
 
     expect((await call("POST", `/deployments/${id}/pause`, {}, bob)).status).toBe(403);
     expect((await call("POST", `/deployments/${id}/pause`, {}, alice)).status).toBe(200);
+  });
+
+  it("trades with real money only: no paper runs, and only live runs can be shared", async () => {
+    const { call } = setup();
+    const alice = await token("did:privy:alice");
+    const paper = await call("POST", "/deployments", { strategyId: "crowded-fade", allocationUsd: 1000 }, alice);
+    expect(paper.status).toBe(400);
+    expect(((await paper.json()) as { error: string }).error).toMatch(/real money/);
+    const alerts = await call("POST", "/deployments", { strategyId: "crowded-fade", allocationUsd: 1000, alertsOnly: true }, alice);
+    const id = ((await alerts.json()) as { id: string }).id;
+    expect((await call("POST", `/deployments/${id}/share`, { shared: true }, alice)).status).toBe(400);
+    const board = (await (await call("GET", "/leaderboard")).json()) as { rows: unknown[] };
+    expect(board.rows).toHaveLength(0);
   });
 
   it("strategies: owner edits and deletes, others fork", async () => {

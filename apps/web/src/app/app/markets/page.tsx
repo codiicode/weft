@@ -12,6 +12,9 @@ import { priceFormatter } from "@/lib/market-ideas";
 import { AssetIcon } from "@/components/ui/AssetIcon";
 import { instrumentIcon } from "@/lib/assets";
 
+/** Products Weft can't trade with real money yet: prices and charts only, for now. */
+const SOON = new Set<Product>(["predictions", "tokens", "options"]);
+
 const PRODUCTS: { id: Product; label: string; blurb: string }[] = [
   { id: "perps", label: "Perps", blurb: "Crypto perpetuals on Hyperliquid" },
   { id: "stocks", label: "Stocks", blurb: "Shares, indices and commodities as perps on Hyperliquid, plus tokenized stocks on Solana" },
@@ -79,7 +82,10 @@ function Markets() {
                 className={`relative h-8 shrink-0 rounded-[8px] px-3 text-[13.5px] ${product === p.id ? "font-medium text-ink" : "text-muted hover:text-ink"}`}
               >
                 {product === p.id && <motion.span layoutId="mk-tab" className="absolute inset-0 rounded-[8px] bg-paper-2" transition={{ type: "spring", stiffness: 420, damping: 34 }} />}
-                <span className="relative">{p.label}</span>
+                <span className="relative">
+                  {p.label}
+                  {SOON.has(p.id) && <span className="ml-1.5 text-[11px] font-normal text-faint">soon</span>}
+                </span>
               </button>
             ))}
           </div>
@@ -103,6 +109,7 @@ function Markets() {
           )}
           {live && <span className="text-faint">·</span>}
           {PRODUCTS.find((p) => p.id === product)?.blurb}
+          {SOON.has(product) && <span className="text-faint">· Trading opens soon; charts and alerts work today.</span>}
         </p>
 
         {error && !rows.length ? (

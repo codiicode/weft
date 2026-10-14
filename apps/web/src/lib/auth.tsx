@@ -116,7 +116,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           theme: dark ? "dark" : "light",
           accentColor: dark ? "#EDEDEB" : "#121214",
           landingHeader: "Sign in to Weft",
-          loginMessage: "Free on paper. Nothing trades without your approval.",
+          loginMessage: "Your funds stay in your wallet. Nothing trades without your approval.",
           showWalletLoginFirst: true,
           walletChainType: "ethereum-and-solana",
         },

@@ -81,6 +81,35 @@ function readable(msg: string, strategy: Snapshot["deployment"]["strategy"]): st
     .replace(/(?:sol|hl):(?:token|perp|spot):(\S+)/g, (m) => token(m));
 }
 
+/** Real money notice, plus the owner's choice to show this run's return on the leaderboard. */
+function ShareRow({ id, shared, onChange }: { id: string; shared: boolean; onChange: () => void }) {
+  const [busy, setBusy] = useState(false);
+  const [on, setOn] = useState(shared);
+  useEffect(() => setOn(shared), [shared]);
+  const toggle = async () => {
+    setBusy(true);
+    try {
+      await api.shareRun(id, !on);
+      setOn(!on);
+      onChange();
+    } finally {
+      setBusy(false);
+    }
+  };
+  return (
+    <div className="flex flex-col gap-3 rounded-[12px] border border-line bg-card px-4 py-3 text-[14px] sm:flex-row sm:items-center sm:justify-between">
+      <span className="text-ink-2">Trades with real money from your Hyperliquid account.</span>
+      <button onClick={toggle} disabled={busy} role="switch" aria-checked={on} className="inline-flex items-center gap-2.5 text-[13.5px] text-ink-2 hover:text-ink disabled:opacity-60">
+        <span className={`relative h-5 w-9 rounded-full transition-colors ${on ? "bg-long" : "bg-line-2"}`}>
+          <span className={`absolute top-0.5 h-4 w-4 rounded-full bg-white shadow transition-[left] ${on ? "left-[18px]" : "left-0.5"}`} />
+        </span>
+        Show the return on the leaderboard
+        <span className="text-faint">(percent only)</span>
+      </button>
+    </div>
+  );
+}
+
 function HoldToKill({ onKill }: { onKill: () => void }) {
   const [p, setP] = useState(0);
   const timer = useRef<number | null>(null);
@@ -235,8 +264,14 @@ function Run() {
         }
       />
       <div className="space-y-8 px-5 pb-16 pt-6 lg:px-10">
-        {d.mode === "live" && (
-          <div className="rounded-[12px] bg-[var(--short-soft)] px-4 py-3 text-[14px] text-short">This run places real orders from your Hyperliquid account.</div>
+        {d.mode === "live" && <ShareRow id={d.id} shared={Boolean(s.shared)} onChange={() => snap.refresh()} />}
+        {d.mode === "paper" && !d.alertsOnly && (
+          <div className="rounded-[12px] border border-line bg-card px-4 py-3 text-[14px] text-ink-2">
+            A paper run from before Weft traded with real money. Its history stays here.{" "}
+            <Link href={`/app/new?from=${encodeURIComponent(`run:${d.id}`)}`} className="text-ink underline decoration-line-2 underline-offset-4 hover:decoration-ink">
+              Start this strategy for real
+            </Link>
+          </div>
         )}
         {controlError && <div className="rounded-[12px] bg-[var(--short-soft)] px-4 py-3 text-[14px] text-short">{controlError}</div>}
 
@@ -419,7 +454,7 @@ function Run() {
           </section>
         </div>
 
-        <p className="text-[12.5px] text-faint">{d.mode === "live" ? "Live trading on Hyperliquid through your agent." : "Paper trading with live prices."} Not financial advice.</p>
+        <p className="text-[12.5px] text-faint">{d.mode === "live" ? "Trades on Hyperliquid through your agent." : d.alertsOnly ? "Alerts only: nothing is bought or sold." : "A paper run from before Weft traded with real money."} Not financial advice.</p>
       </div>
     </>
   );

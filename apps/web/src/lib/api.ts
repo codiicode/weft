@@ -84,20 +84,21 @@ export interface GenerateProgress {
   message: string;
 }
 
-export type Snapshot = DeploymentSnapshot & { graph?: GraphView; builderFeesUsd?: number };
+export type Snapshot = DeploymentSnapshot & { graph?: GraphView; builderFeesUsd?: number; shared?: boolean };
 
 export interface LeaderRow {
   strategy?: Strategy;
   deploymentId: string;
   strategyId: string;
   name: string;
+  author: string | null;
   tags: string[];
   status: string;
   mode: string;
   returnPct: number;
-  equityUsd: number;
   openPositions: number;
-  equityCurve: [number, number][];
+  /** [timeMs, returnPct] */
+  returnCurve: [number, number][];
   since: number;
 }
 
@@ -308,6 +309,7 @@ export const api = {
     req<{ sinks: string[]; configured: boolean; recent: { strategyName: string; text: string; ts: number; kind: string }[]; help: string }>("/alerts"),
   testAlert: () => req<{ ok: true }>("/alerts/test", { method: "POST" }),
   leaderboard: () => req<{ rows: LeaderRow[] }>("/leaderboard"),
+  shareRun: (id: string, shared: boolean) => req<{ shared: boolean }>(`/deployments/${encodeURIComponent(id)}/share`, { method: "POST", json: { shared } }),
   stats: () => req<Stats>("/stats"),
 
   alertsMe: () => req<{ available: boolean; telegram: { username: string | null; linkedAt: number } | null }>("/alerts/me"),

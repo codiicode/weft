@@ -7,7 +7,7 @@ const can = ["Place and cancel orders", "Set stops and targets", "Set leverage w
 const cannot = ["Withdraw your funds", "Send money to another address", "Trade above the limits you set"];
 
 const guards = [
-  ["Paper first", "Every strategy starts on paper with live prices. Going live is a separate, deliberate step."],
+  ["Tested first", "See how a strategy would have done on real history before a dollar goes in. Starting it is a deliberate step."],
   ["Hard limits", "You set the most it can spend per trade and in total. Every position needs a stop."],
   ["One-click stop", "The stop button closes every position and cancels every order, immediately."],
 ];

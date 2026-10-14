@@ -25,7 +25,7 @@ export function StrategyRules({ strategy, met }: { strategy: Strategy; met?: Rec
               {simulated(w.kind) && (
                 <span
                   className="ml-1.5 rounded-[5px] bg-paper-2 px-1.5 py-px align-[1px] text-[11.5px] text-muted"
-                  title="This feed uses sample data for now. Paper runs are fine; live decisions should not rely on it yet."
+                  title="This feed uses sample data for now. Fine for alerts; trading decisions shouldn’t rely on it yet."
                 >
                   sample data
                 </span>

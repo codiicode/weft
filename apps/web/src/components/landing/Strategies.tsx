@@ -1,15 +1,17 @@
 import { Section } from "./Section";
-import { Sparkline } from "../ui/Sparkline";
 import { buttonClass } from "../ui/Button";
-import { walk } from "@/lib/rng";
+import type { Instrument } from "@weft/strategy";
+import { MarketSpark } from "./MarketSpark";
 import { AssetIcon } from "../ui/AssetIcon";
 
-type Card = { icon: string; tag: string; title: string; thesis: string; rules: [string, string][]; ret: number; seed: number };
+type Card = { icon: string; market: string; instrument: Instrument; tag: string; title: string; thesis: string; rules: [string, string][] };
 
-/** Examples written for this section, so the page doesn't repeat itself. Returns are paper and illustrative. */
+/** Examples written for this section, so the page doesn't repeat itself. Charts are the markets' real prices. */
 const CARDS: Card[] = [
   {
     icon: "GOLD",
+    market: "Gold",
+    instrument: { kind: "perp", venue: "hyperliquid", dex: "xyz", symbol: "GOLD", assetClass: "commodity" },
     tag: "Commodities",
     title: "Gold on falling real yields",
     thesis: "When real yields roll over, gold catches a bid. Get long and let it run.",
@@ -18,11 +20,11 @@ const CARDS: Card[] = [
       ["When", "real yield down 15 bp in 5 days"],
       ["Do", "long gold at 2×, trailing stop 3%"],
     ],
-    ret: 7.4,
-    seed: 61,
   },
   {
     icon: "SOL",
+    market: "SOL",
+    instrument: { kind: "perp", venue: "hyperliquid", symbol: "SOL", assetClass: "crypto" },
     tag: "Funding",
     title: "Fade the crowded SOL long",
     thesis: "When everyone pays to be long SOL, the squeeze usually goes the other way.",
@@ -31,21 +33,19 @@ const CARDS: Card[] = [
       ["When", "funding above 0.1% for 8 hours"],
       ["Do", "short SOL at 2×, stop at +4%"],
     ],
-    ret: 11.2,
-    seed: 72,
   },
   {
-    icon: "OUTCOME",
-    tag: "Politics",
-    title: "Polls ahead of the odds",
-    thesis: "Prediction markets lag the polls by a day. Buy the side the polls already favour.",
+    icon: "ETH",
+    market: "ETH",
+    instrument: { kind: "perp", venue: "hyperliquid", symbol: "ETH", assetClass: "crypto" },
+    tag: "Mean reversion",
+    title: "Buy the ETH flush",
+    thesis: "When ETH drops hard in a day and shorts start paying, the panic is usually overdone.",
     rules: [
-      ["Watch", "polling average, market odds"],
-      ["When", "polls 6+ points ahead of the odds"],
-      ["Do", "buy YES up to 62¢, out at 85¢"],
+      ["Watch", "ETH price, funding"],
+      ["When", "down 8% in 24 hours and funding below 0"],
+      ["Do", "long ETH at 2×, stop 4%, take profit 8%"],
     ],
-    ret: 5.1,
-    seed: 83,
   },
 ];
 
@@ -55,10 +55,7 @@ function StrategyCard({ c }: { c: Card }) {
       href={`/app/new?thesis=${encodeURIComponent(c.thesis)}`}
       className="group flex flex-col rounded-[14px] border border-line bg-card p-6 transition-[border-color,transform] duration-300 hover:-translate-y-0.5 hover:border-line-2"
     >
-      <div className="flex items-baseline justify-between text-[13px]">
-        <span className="text-muted">{c.tag}</span>
-        <span className="tnum font-medium text-long">+{c.ret}%</span>
-      </div>
+      <div className="text-[13px] text-muted">{c.tag}</div>
       <div className="mt-3 flex items-center gap-3">
         <AssetIcon symbol={c.icon} size={30} />
         <h3 className="text-[19px] font-semibold leading-tight tracking-[-0.02em] text-ink">{c.title}</h3>
@@ -72,9 +69,9 @@ function StrategyCard({ c }: { c: Card }) {
           </div>
         ))}
       </dl>
-      <Sparkline data={walk(c.seed, 36, 0.4, 0.55)} width={300} height={44} color="var(--long)" strokeWidth={1.5} className="mt-5 w-full" />
+      <MarketSpark instrument={c.instrument} label={c.market} />
       <div className="mt-auto flex items-center justify-between pt-5 text-[13px]">
-        <span className="text-muted">Example, on paper</span>
+        <span className="text-muted">Example strategy</span>
         <span className="font-medium text-ink transition-transform duration-300 group-hover:translate-x-0.5">Use this →</span>
       </div>
     </a>
@@ -98,7 +95,7 @@ export function Strategies() {
         <a href="/app/library" className={buttonClass("secondary", "md")}>
           Browse all strategies
         </a>
-        <span className="text-[13px] text-muted">Returns shown are from paper runs and are illustrative.</span>
+        <span className="text-[13px] text-muted">Examples to start from, not advice. Charts show each market’s real price.</span>
       </div>
     </Section>
   );

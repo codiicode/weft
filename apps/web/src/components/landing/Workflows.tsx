@@ -253,7 +253,7 @@ function Console({ f, p }: { f: Flow; p: number }) {
       {/* Result */}
       <div className="border-t border-line px-4 pb-3 pt-3 sm:px-5 sm:pb-4">
         <div className="flex items-baseline justify-between">
-          <p className="text-[12px] text-muted">Result on paper</p>
+          <p className="text-[12px] text-muted">Result</p>
           <span className={`tnum text-[20px] font-medium tracking-[-0.02em] ${result > 0 ? "text-long" : "text-faint"}`}>
             +{(f.pnl * ease(result)).toFixed(1)}%
           </span>

@@ -88,7 +88,7 @@ export default function Home() {
           <Card className="flex flex-col items-start gap-4 px-5 py-6 sm:flex-row sm:items-center sm:justify-between">
             <div>
               <p className="text-[14.5px] font-medium text-ink">{auth.enabled && !auth.authenticated ? "Sign in to see your runs" : "Nothing running yet"}</p>
-              <p className="mt-0.5 text-[14px] text-muted">Write a thesis above, or start from one of the strategies below. Everything starts on paper.</p>
+              <p className="mt-0.5 text-[14px] text-muted">Write a thesis above, or start from one of the strategies below. Test it on history before any money goes in.</p>
             </div>
             {auth.enabled && !auth.authenticated ? (
               <Btn onClick={auth.login} variant="ghost">
@@ -129,10 +129,10 @@ export default function Home() {
             Alerts go to {alerts.data.sinks.join(" and ")}
           </span>
         ) : (
-          <span className="text-muted">Everything here runs on paper.</span>
+          <span className="text-muted">Trades run from your own Hyperliquid account.</span>
         )}
         <Link href="/app/live" className="text-muted hover:text-ink">
-          Ready for real money? Set up live trading →
+          Set up trading →
         </Link>
       </section>
     </div>
