@@ -116,6 +116,11 @@ export function privySolanaApi(appId: string, appSecret: string, authorizationKe
       try {
         return ((await privy.users().getByEmailAddress({ address: email } as never)) as { id: string }).id;
       } catch {
+        // Google (and other) sign-ins keep the email on a different linked account: look through users.
+        const want = email.toLowerCase();
+        for await (const u of privy.users().list() as AsyncIterable<{ id: string; linked_accounts?: { address?: string; email?: string }[] }>) {
+          if ((u.linked_accounts ?? []).some((a) => [a.address, a.email].some((x) => typeof x === "string" && x.toLowerCase() === want))) return u.id;
+        }
         return null;
       }
     },
@@ -174,6 +179,7 @@ export class SolanaLive {
   private readonly executors = new Map<string, JupiterExecutor>();
   private ids: Promise<{ signerId: string; policyId: string }> | null = null;
   private testerIds = new Set<string>();
+  private testersTriedAt = 0;
 
   constructor(cfg: SolanaLiveConfig, accounts: Accounts, api: PrivySolanaApi | null, conn?: Connection) {
     this.cfg = cfg;
@@ -205,6 +211,7 @@ export class SolanaLive {
 
   /** Resolve WEFT_SOL_TESTERS to Privy user ids (emails are looked up with Privy, never trusted from the client). */
   async resolveTesters(): Promise<{ resolved: number; missing: string[] }> {
+    this.testersTriedAt = Date.now();
     const missing: string[] = [];
     for (const t of this.cfg.testers) {
       if (t.startsWith("did:privy:")) this.testerIds.add(t);
@@ -258,6 +265,9 @@ export class SolanaLive {
   }
 
   async status(userId: string): Promise<SolanaStatus> {
+    // Testers who hadn't signed up when the server started: try again, at most once a minute.
+    if (!this.cfg.enabled && !this.openFor(userId) && this.cfg.testers.length > this.testerIds.size && Date.now() - this.testersTriedAt > 60_000)
+      await this.resolveTesters().catch(() => {});
     const blockers: string[] = [];
     if (!this.openFor(userId)) blockers.push("Solana trading isn’t switched on yet.");
     let ids: { signerId: string; policyId: string } | null = null;
