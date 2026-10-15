@@ -9,3 +9,6 @@ next-env.d.ts
 !.env.example
 coverage
 .claude/
+
+# Private keys kept on this machine only (fee wallet). Never commit.
+/secrets/
