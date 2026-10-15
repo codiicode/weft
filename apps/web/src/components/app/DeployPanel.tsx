@@ -9,12 +9,16 @@ import { tradesSolana, useTradingVenues, type Venues } from "@/lib/trading";
 import Link from "next/link";
 import { Btn, Card } from "./AppShell";
 
-const INTERVALS = [
-  [15, "15 s"],
-  [30, "30 s"],
-  [60, "1 min"],
-  [300, "5 min"],
-] as const;
+/** Seconds between checks: 15 s when a stop, a target or a fast market needs watching, else 30 s. */
+export function checkInterval(s: Strategy | undefined): number {
+  if (!s) return 30;
+  const fast = s.actions.some(
+    (a) =>
+      a.type === "open" &&
+      (a.instrument.kind === "token" || a.instrument.kind === "outcome" || Boolean(a.exits.stopLoss || a.exits.takeProfit || a.exits.trailingStopPct))
+  );
+  return fast ? 15 : 30;
+}
 
 function Segmented<T extends string | number>({ value, options, onChange, label }: { value: T; options: readonly (readonly [T, string, boolean?])[]; onChange: (v: T) => void; label: string }) {
   return (
@@ -102,7 +106,8 @@ export function DeployPanel({ strategy, strategyId, compact = false }: { strateg
 
   const [mode, setMode] = useState<"live" | "alerts">(blocker ? "alerts" : "live");
   const [allocation, setAllocation] = useState(100);
-  const [interval, setInterval] = useState<number>(30);
+  // How often the agent looks at the market is Weft's job, not the user's: fast where prices move fast.
+  const interval = useMemo(() => checkInterval(strategy), [strategy]);
   const [agree, setAgree] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -237,15 +242,6 @@ export function DeployPanel({ strategy, strategyId, compact = false }: { strateg
       )}
 
       {blocker && <p className="mt-3 rounded-[10px] bg-[var(--trigger-soft)] px-3 py-2.5 text-[13px] leading-relaxed text-ink-2">{blocker} You can run it as alerts in the meantime.</p>}
-
-      {(!isLive || ready) && (
-        <div className="mt-4">
-          <span className="text-[13px] text-ink-2">Check the market every</span>
-          <div className="mt-1.5">
-            <Segmented label="Check interval" value={interval} options={INTERVALS} onChange={setInterval} />
-          </div>
-        </div>
-      )}
 
       {isLive && ready && (
         <label className="mt-4 flex cursor-pointer items-start gap-2.5 text-[13px] leading-relaxed text-ink-2">
