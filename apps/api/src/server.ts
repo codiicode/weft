@@ -100,6 +100,12 @@ const app = createApp({
 });
 engine.start();
 
+// Where this server's orders appear to come from (Polymarket rejects orders from blocked regions).
+void fetch("https://polymarket.com/api/geoblock", { signal: AbortSignal.timeout(8_000) })
+  .then((r) => r.json() as Promise<{ blocked?: boolean; country?: string; region?: string }>)
+  .then((g) => console.log(`  egress: ${g.country ?? "?"}${g.region ? `/${g.region}` : ""} · Polymarket ${g.blocked ? "BLOCKED" : "allowed"}`))
+  .catch(() => console.log("  egress: unknown (geoblock check failed)"));
+
 // Paper trading has ended on the hosted service: stop any simulated runs left from before (their
 // history stays readable). Alerts-only runs never trade and keep running.
 if (!allowPaper) {
