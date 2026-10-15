@@ -172,15 +172,15 @@ export async function generateStrategy(
     throw new GenerationError("Could not produce a valid strategy within the turn limit.");
   } catch (e) {
     if (e instanceof GenerationError) throw e;
-    if (e instanceof Anthropic.AuthenticationError || e instanceof Anthropic.PermissionDeniedError) {
-      progress({ type: "fallback", message: "Anthropic credentials rejected: using the template generator." });
+    // Any Claude-side problem (credentials, billing, rate limits, outages): log it for us, and still
+    // give the user a strategy from the template generator instead of a raw API error.
+    if (e instanceof Anthropic.APIError || e instanceof Anthropic.APIConnectionError) {
+      const status = (e as { status?: number }).status;
+      const reason = /credit balance/i.test(e.message) ? "out of Anthropic credits" : status === 401 || status === 403 ? "credentials rejected" : status === 429 ? "rate limited" : `API error ${status ?? "connection"}`;
+      console.warn(`[ai] Claude unavailable (${reason}): ${e.message.slice(0, 300)}`);
+      progress({ type: "fallback", message: "Claude is busy right now: drafting from Weft’s built-in templates." });
       if (edit) return refineByRules(edit.base, edit.instruction);
-      return { ...(await templateStrategy(thesis, deps.catalog)), notes: ["Anthropic credentials were rejected; generated from a template."] };
-    }
-    if (e instanceof Anthropic.RateLimitError || e instanceof Anthropic.APIConnectionError || (e instanceof Anthropic.APIError && (e.status ?? 0) >= 500)) {
-      progress({ type: "fallback", message: "Claude is unavailable right now: using the template generator." });
-      if (edit) return refineByRules(edit.base, edit.instruction);
-      return { ...(await templateStrategy(thesis, deps.catalog)), notes: [`Claude unavailable (${(e as Error).message}); generated from a template.`] };
+      return { ...(await templateStrategy(thesis, deps.catalog)), notes: ["Drafted from a template because Claude was unavailable. Check the rules before you run it."] };
     }
     throw e;
   }

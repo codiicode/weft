@@ -13,7 +13,7 @@ const PAGES: [string, string][] = [
   ["Strategies", "/app/library"],
   ["Markets", "/app/markets"],
   ["Leaderboard", "/app/leaderboard"],
-  ["Live trading", "/app/live"],
+  ["Trading accounts", "/app/live"],
   ["Settings", "/app/settings"],
 ];
 
