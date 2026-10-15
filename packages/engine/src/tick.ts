@@ -693,6 +693,22 @@ async function executeOpen(s: Session, i: OpenIntent, usdPrices: Record<string, 
   const usd = intentUsd(i, usdPrices);
   if (usd == null || !(usd > 0)) return reject(s, i, "cannot size order: no USD price");
   if (s.rt.cashUsd < usd * 1.01) return reject(s, i, `insufficient cash: need ${fmtUsd(usd)}, have ${fmtUsd(s.rt.cashUsd)}`);
+  // Prediction markets: make sure the position could be sold straight back before buying it.
+  if (i.instrument.kind === "outcome") {
+    const max = s.deployment.strategy.risk.maxExitLossPct ?? 10;
+    try {
+      const [b, x] = await Promise.all([
+        withTimeout(s.deps.marketData.getQuote(i.instrument, { side: "buy", sizeUsd: usd }), s.deps.quoteTimeoutMs),
+        withTimeout(s.deps.marketData.getQuote(i.instrument, { side: "sell", sizeUsd: usd }), s.deps.quoteTimeoutMs),
+      ]);
+      const buy = b.fillPrice ?? b.ask ?? b.price;
+      const sell = x.fillPrice ?? x.bid ?? x.price;
+      const loss = buy > 0 ? (1 - sell / buy) * 100 : Infinity;
+      if (!(loss <= max)) return reject(s, i, `the market is too thin: selling straight back would lose ${Number.isFinite(loss) ? `${loss.toFixed(1)}%` : "everything"} (limit ${max}%)`);
+    } catch (e) {
+      return reject(s, i, `couldn’t check how easy it is to sell back: ${errMsg(e)}`);
+    }
+  }
   let res;
   try {
     res = await s.deps.executor.execute(

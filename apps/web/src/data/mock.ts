@@ -419,12 +419,12 @@ export const products: Product[] = [
     n: "03",
     name: "Predictions",
     kicker: "Outcome markets where the agent buys the side its model thinks is mispriced.",
-    venues: ["Hyperliquid", "Jupiter"],
-    status: "soon",
+    venues: ["Hyperliquid", "Polymarket soon"],
+    status: "live",
     markets: [
       { sym: "Fed cut", name: "Fed cuts in December?", venue: "Hyperliquid", yes: 0.64, model: 0.78, closes: "Dec 10", thesis: "The market is underpricing a December cut.", graph: { signal: "Fed odds and the 2-year yield", trigger: "Our model is 10+ points above the market", action: "Buy YES up to 70¢" } },
-      { sym: "El Niño", name: "El Niño by winter?", venue: "Jupiter · Polymarket", yes: 0.61, model: 0.84, closes: "Feb 28", thesis: "NOAA's models are ahead of the crowd on El Niño.", graph: { signal: "ENSO outlook", trigger: "Niño 3.4 > +1.5°C", action: "Buy YES ≤ 66¢" } },
-      { sym: "Landfall", name: "Cat 3+ US landfall in Oct?", venue: "Jupiter · Polymarket", yes: 0.22, model: 0.12, closes: "Oct 31", thesis: "Hurricane fear is overpriced this late in the season.", graph: { signal: "NHC model runs", trigger: "Mkt − Model > 8pp", action: "Buy NO ≤ 80¢" } },
+      { sym: "BTC $90k", name: "BTC above $90k on Friday?", venue: "Hyperliquid", yes: 0.31, model: 0.44, closes: "Fri", thesis: "Funding is flat and the dip is being bought; the odds look too low.", graph: { signal: "BTC price, funding", trigger: "Model − odds > 10pp", action: "Buy YES ≤ 34¢" } },
+      { sym: "NE–NYJ", name: "Patriots beat the Jets?", venue: "Hyperliquid", yes: 0.75, model: 0.68, closes: "Sun", thesis: "The line moved too far on one injury report.", graph: { signal: "Injury news, odds", trigger: "Odds − model > 6pp", action: "Buy NYJ ≤ 27¢" } },
     ],
   },
   {

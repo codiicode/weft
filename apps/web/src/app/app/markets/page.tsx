@@ -14,12 +14,12 @@ import { AssetIcon } from "@/components/ui/AssetIcon";
 import { instrumentIcon } from "@/lib/assets";
 
 /** Products Weft can't trade with real money yet: prices and charts only, for now. Tokens open with Solana trading. */
-const SOON = new Set<Product>(["predictions", "options"]);
+const SOON = new Set<Product>(["options"]);
 
 const PRODUCTS: { id: Product; label: string; blurb: string }[] = [
   { id: "perps", label: "Perps", blurb: "Crypto perpetuals on Hyperliquid" },
   { id: "stocks", label: "Stocks", blurb: "Shares, indices and commodities as perps on Hyperliquid, plus tokenized stocks on Solana" },
-  { id: "predictions", label: "Predictions", blurb: "Outcome markets on Hyperliquid and Jupiter" },
+  { id: "predictions", label: "Predictions", blurb: "Outcome markets on Hyperliquid: crypto prices, sports, companies and more" },
   { id: "tokens", label: "Solana tokens", blurb: "Any Solana token, matched by contract address" },
   { id: "options", label: "Options", blurb: "Listed options. Only strategies with a known worst case" },
 ];
@@ -52,7 +52,7 @@ function Markets() {
     const t = setTimeout(() => setQ(search), 300);
     return () => clearTimeout(t);
   }, [search]);
-  const { data, loading, error } = useApi(() => api.markets(product, { search: q || undefined, limit: 80 }), [product, q], { pollMs: 12_000 });
+  const { data, loading, error } = useApi(() => api.markets(product, { search: q || undefined, limit: product === "predictions" ? 300 : 80 }), [product, q], { pollMs: 12_000 });
   const rows = data?.rows ?? [];
   const venues = useTradingVenues();
   const soon = (p: Product) => SOON.has(p) || (p === "tokens" && venues != null && !venues.solana);

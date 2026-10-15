@@ -114,18 +114,18 @@ export class VenueCatalog implements Catalog {
   /* ---------------- predictions ---------------- */
 
   private async predictions(search?: string): Promise<(MarketListing & { _rank?: number })[]> {
+    // Hyperliquid's own (HIP-4) markets only: they trade from the same account as perps, with deep
+    // books on the busy ones. Jupiter's prediction books are too thin to get out of a position, so
+    // they are no longer listed (the parsing stays for reference).
+    void search;
     const now = this.md.ctx.now();
-    const [hl, jup] = await Promise.all([
-      this.md.hlOutcomes().catch(() => null),
-      (search ? this.md.ctx.jup.predictionSearch(search, 20) : this.md.ctx.jup.predictionEvents({ filter: "trending", end: 30 })).catch(() => null),
-    ]);
+    const hl = await this.md.hlOutcomes().catch(() => null);
     const out: (MarketListing & { _rank?: number })[] = [];
     for (const m of hl?.markets ?? []) {
       if (m.sides[0].mid == null) continue;
       if (m.expiresAt != null && m.expiresAt < now) continue;
       out.push(hlOutcomeListing(m));
     }
-    for (const e of jup?.data ?? []) out.push(...jupEventListings(e));
     return out;
   }
 

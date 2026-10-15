@@ -68,7 +68,7 @@ const FLOWS: Flow[] = [
     conditions: ["Pacific above +1.5°C", "Model 15+ points above the market"],
     action: "Long wheat at 2× and buy YES",
     fill: "Filled · stops at −6% and 48¢",
-    venue: "Hyperliquid and Jupiter",
+    venue: "Hyperliquid",
     pnl: 9.6,
     seed: 12,
     marks: [

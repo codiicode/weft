@@ -248,8 +248,15 @@ export class AssetResolver {
       const meta = await this.outcomeCache;
       const o = meta.outcomes.find((x) => x.outcome === id);
       if (!o) throw new Error(`unknown HIP-4 outcome ${id}`);
-      const norm = (s: string) => s.replace(/^template:/, "").toLowerCase();
-      const idx = o.sideSpecs.findIndex((s) => norm(s.name) === outcome.toLowerCase());
+      // Side names can be templates filled from the description ("template:{shortNameA}" + "shortNameA:NE").
+      const kv: Record<string, string> = {};
+      for (const part of (o.description ?? "").split("|")) {
+        const i = part.indexOf(":");
+        if (i > 0) kv[part.slice(0, i).trim()] = part.slice(i + 1).trim();
+      }
+      const norm = (s: string) => s.replace(/^template:/, "").replace(/\{(\w+)\}/g, (m, k: string) => kv[k] ?? m).toLowerCase();
+      const want = outcome.toLowerCase();
+      const idx = o.sideSpecs.findIndex((s) => norm(s.name) === want || s.name.replace(/^template:/, "").toLowerCase() === want);
       if (idx !== 0 && idx !== 1) throw new Error(`outcome ${id} has no side "${outcome}"`);
       side = idx;
     }

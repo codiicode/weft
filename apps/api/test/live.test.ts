@@ -132,7 +132,12 @@ describe("live trading", () => {
     expect(() => live.assertDeployable("u1", btcLong, 500, new Set())).toThrow(/capped at \$100/);
     expect(() => live.assertDeployable("u1", btcLong, 50, new Set(["hl:perp:BTC"]))).toThrow(/already trades BTC/);
     const token = defineStrategy({ ...btcLong, actions: [{ id: "buy", type: "open", on: ["go"], instrument: { kind: "token", chain: "solana", mint: "JUPyiwrYJFskUPiHa7hkeR8VUtAeFoSYbKedZNsDvCN" }, side: "long", size: { unit: "usd", value: 10 }, exits: { stopLoss: { pct: 10 } } }] });
-    expect(() => live.assertDeployable("u1", token, 50, new Set())).toThrow(/token instruments can't trade live yet/);
+    expect(() => live.assertDeployable("u1", token, 50, new Set())).toThrow(/token instruments can't trade on Hyperliquid/);
+    const yes = (venue: "hyperliquid" | "jupiter") =>
+      defineStrategy({ ...btcLong, actions: [{ id: "y", type: "open", on: ["go"], instrument: { kind: "outcome", venue, market: "11454", outcome: "NE" }, side: "long", size: { unit: "usd", value: 20 }, exits: {} }] });
+    expect(() => live.assertDeployable("u1", yes("hyperliquid"), 50, new Set())).not.toThrow();
+    expect(() => live.assertDeployable("u1", yes("hyperliquid"), 50, new Set(["hl:outcome:11454:NE"]))).toThrow(/already trades/);
+    expect(() => live.assertDeployable("u1", yes("jupiter"), 50, new Set())).toThrow(/Hyperliquid's own markets only/);
     const lev = defineStrategy({ ...btcLong, risk: { maxLeverage: 10 }, actions: [{ ...(btcLong.actions[0] as object), leverage: 5 } as never] });
     expect(() => live.assertDeployable("u1", lev, 50, new Set())).toThrow(/capped at 3×/);
     const { live: off } = setup({ enabled: false });

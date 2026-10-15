@@ -273,7 +273,9 @@ function openIntent(a: OpenAction, base: IntentBase, equityUsd: number, defaultS
     side: a.side,
     size: resolveSize(a.size, equityUsd),
     leverage: a.leverage,
-    order: { ...a.order, maxSlippageBps: a.order.maxSlippageBps ?? defaultSlippage },
+    // Prediction books quote in whole cents, so 1¢ off mid is already 2%: allow 8% there by default.
+    // The exit check (risk.maxExitLossPct) is what keeps thin outcome markets out.
+    order: { ...a.order, maxSlippageBps: a.order.maxSlippageBps ?? (a.instrument.kind === "outcome" ? Math.max(defaultSlippage, 800) : defaultSlippage) },
     exits: a.exits,
   };
 }

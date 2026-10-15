@@ -70,7 +70,7 @@ export function liveBlocker(s: Strategy | undefined, venues: Venues | null = nul
     if (a.order.type === "limit") return "Limit orders can’t be traded live yet. Use a market order with a slippage limit.";
     const k = a.instrument.kind;
     if (k === "token" && venues && !venues.solana) return "Trading Solana tokens opens soon.";
-    if (k === "outcome") return "Prediction markets can’t be traded live yet. That’s coming soon.";
+    if (k === "outcome" && a.instrument.venue !== "hyperliquid") return "Only Hyperliquid’s prediction markets can be traded.";
   }
   return null;
 }

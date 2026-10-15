@@ -221,7 +221,7 @@ export function createApp(deps: AppDeps) {
   app.get("/markets/:product", async (c) => {
     const product = c.req.param("product") as Product;
     if (!PRODUCTS.includes(product as (typeof PRODUCTS)[number])) return c.json({ error: `unknown product ${product}` }, 404);
-    const rows = await catalog.list(product, { search: c.req.query("search") ?? undefined, limit: clampQuery(c.req.query("limit"), 50, 100) });
+    const rows = await catalog.list(product, { search: c.req.query("search") ?? undefined, limit: clampQuery(c.req.query("limit"), 50, 300) });
     return c.json({ product, rows });
   });
 
@@ -484,6 +484,8 @@ export function createApp(deps: AppDeps) {
         for (const a of d.strategy.actions)
           if (a.type === "open" && (a.instrument.kind === "perp" || a.instrument.kind === "spot"))
             others.add(a.instrument.kind === "perp" ? `hl:perp:${a.instrument.dex ? `${a.instrument.dex}:` : ""}${a.instrument.symbol}` : `hl:spot:${a.instrument.symbol}`);
+          else if (a.type === "open" && a.instrument.kind === "outcome" && a.instrument.venue === "hyperliquid")
+            others.add(`hl:outcome:${a.instrument.market}:${a.instrument.outcome}`);
       }
       try {
         deps.live.assertDeployable(user.id, v.strategy, body.allocationUsd, others);

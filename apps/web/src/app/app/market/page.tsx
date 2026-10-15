@@ -78,7 +78,7 @@ function QuoteCard({ row }: { row: MarketListing }) {
 }
 
 /** Products that can't trade with real money yet (tokens open with Solana trading). */
-const SOON = new Set(["predictions", "options"]);
+const SOON = new Set(["options"]);
 
 function IdeasCard({ row }: { row: MarketListing }) {
   const ideas = ideasFor(row);

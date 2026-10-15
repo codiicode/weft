@@ -27,6 +27,11 @@ export const RiskPolicy = z.object({
   /** Off by default: stops are added when the user asks for them (or set this to require one everywhere). */
   requireStopLoss: z.boolean().default(false),
   defaultMaxSlippageBps: z.number().int().positive().default(100),
+  /**
+   * Prediction markets: only buy when the position could be sold straight back for at most this
+   * much less (spread + book depth), so a thin market can't trap it.
+   */
+  maxExitLossPct: z.number().positive().max(100).default(10),
   token: TokenGates.prefault({}),
 });
 export type RiskPolicy = z.infer<typeof RiskPolicy>;
@@ -121,6 +126,7 @@ export function effectiveRisk(strategy: RiskPolicy, caps: RiskCaps = {}): RiskPo
     maxDailyLossPct: min(strategy.maxDailyLossPct, caps.maxDailyLossPct),
     requireStopLoss: strategy.requireStopLoss || !!caps.requireStopLoss,
     defaultMaxSlippageBps: min(strategy.defaultMaxSlippageBps, caps.defaultMaxSlippageBps),
+    maxExitLossPct: strategy.maxExitLossPct ?? 10,
     token: {
       minLiquidityUsd: max(t.minLiquidityUsd, u?.minLiquidityUsd),
       maxTop10HoldersPct: min(t.maxTop10HoldersPct, u?.maxTop10HoldersPct),

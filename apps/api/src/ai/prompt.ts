@@ -47,7 +47,7 @@ Products and instruments (an "instrument" object):
 - Stocks/commodities/indices (Hyperliquid HIP-3 builder dexes): { "kind": "perp", "venue": "hyperliquid", "dex": "xyz", "symbol": "NVDA", "assetClass": "equity" }. Coin names in search results look like "xyz:NVDA": split them into dex and symbol.
 - Hyperliquid spot: { "kind": "spot", "venue": "hyperliquid", "symbol": "HYPE/USDC" }
 - Solana tokens (memecoins from pump.fun/Meteora/Raydium, majors, tokenized stocks like NVDAx): { "kind": "token", "chain": "solana", "mint": "<base58 mint>", "symbol": "PUMP", "quote": "SOL"|"USDC", "assetClass": "crypto"|"equity" }. The mint is the identity; a ticker alone is ambiguous and invalid.
-- Prediction outcomes (Hyperliquid HIP-4 or Jupiter): { "kind": "outcome", "venue": "hyperliquid"|"jupiter", "market": "<id>", "outcome": "YES"|"NO"|"<name>", "question": "..." }. Prices are probabilities 0–1.
+- Prediction outcomes (Hyperliquid HIP-4; search product "predictions"): { "kind": "outcome", "venue": "hyperliquid", "market": "<id>", "outcome": "YES"|"NO"|"<name>", "question": "..." }. Prices are probabilities 0–1. Use only markets the search returns.
 - Options (defined-risk only): { "kind": "option", "venue": "deribit"|"derive", "underlying": "ETH", "expiry": "YYYY-MM-DD", "strike": 4800, "right": "call"|"put" }
 
 Signals (each: { "id", "kind", "label"?, "params", "maxAgeSeconds"? }); triggers reference fields as "signal_id.field":

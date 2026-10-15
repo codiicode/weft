@@ -588,3 +588,25 @@ describe("Weft's fees", () => {
     expect(DEFAULT_FEES.solana.platformBps).toBe(100);
   });
 });
+
+describe("prediction markets: never get stuck", () => {
+  const buyYes = () => simpleStrategy({ instrument: YES, side: "long", size: { unit: "usd", value: 100 }, order: { type: "market", maxSlippageBps: 800 }, exits: {} });
+  it("refuses to buy when selling straight back would lose more than 10%", async () => {
+    const t = setup();
+    t.market.set(YES, { price: 0.46, bid: 0.4, ask: 0.52 });
+    t.signals.set("go", { value: 1 });
+    const d = await t.engine.createDeployment({ strategy: buyYes(), allocationUsd: 1_000 });
+    await t.engine.tick(d.id);
+    expect(await t.engine.getFills(d.id)).toHaveLength(0);
+    expect((await t.engine.getEvents(d.id)).find((e) => e.type === "rejected")?.message).toMatch(/too thin: selling straight back would lose 23\.1%/);
+  });
+
+  it("buys when the book is deep enough to get out", async () => {
+    const t = setup();
+    t.market.set(YES, { price: 0.5, bid: 0.49, ask: 0.51 });
+    t.signals.set("go", { value: 1 });
+    const d = await t.engine.createDeployment({ strategy: buyYes(), allocationUsd: 1_000 });
+    await t.engine.tick(d.id);
+    expect(await t.engine.getFills(d.id)).toHaveLength(1);
+  });
+});

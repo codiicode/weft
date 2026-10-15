@@ -55,7 +55,12 @@ function fixtureInfo(over: Partial<HlInfo> = {}): HlInfo & { calls: string[] } {
       return { BTC: "100000", ETH: "2500.5", "@107": "40.123", "PURR/USDC": "0.12", "#100": "0.62" };
     },
     async outcomeMeta() {
-      return { outcomes: [{ outcome: 10, name: "x", sideSpecs: [{ name: "template:Yes" }, { name: "template:No" }] }] };
+      return {
+        outcomes: [
+          { outcome: 10, name: "x", sideSpecs: [{ name: "template:Yes" }, { name: "template:No" }] },
+          { outcome: 11454, name: "game", description: "competition:NFL|participantA:New England Patriots|shortNameA:NE|shortNameB:NYJ", sideSpecs: [{ name: "template:{shortNameA}" }, { name: "template:{shortNameB}" }] },
+        ],
+      };
     },
     async clearinghouseState() {
       return { assetPositions: [{ position: { coin: "ETH", szi: "-0.5" } }] };
@@ -175,6 +180,9 @@ describe("asset ids", () => {
     expect(outcomeAssetId(1, 0)).toBe(100000010); // docs example
     expect(await r.outcome("10", "YES")).toMatchObject({ asset: 100000100, coin: "#100", market: "outcome" });
     expect((await r.outcome("10", "No")).asset).toBe(100000101);
+    // Templated side names are filled from the description, as the catalog shows them.
+    expect((await r.outcome("11454", "NYJ")).coin).toBe("#114541");
+    expect((await r.outcome("11454", "ne")).coin).toBe("#114540");
   });
 });
 

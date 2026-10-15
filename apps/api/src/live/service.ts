@@ -208,9 +208,15 @@ export class LiveService {
       if (a.type !== "open") continue;
       if (a.order.type === "limit") throw new Error("limit orders can't trade live yet; use market orders with a slippage limit");
       const k = a.instrument.kind;
-      if (k !== "perp" && k !== "spot") throw new Error(`${k} instruments can't trade live yet (Hyperliquid perps and spot only)`);
+      if (k === "outcome" && a.instrument.venue !== "hyperliquid") throw new Error("this prediction market can't trade live yet (Hyperliquid's own markets only)");
+      if (k !== "perp" && k !== "spot" && k !== "outcome") throw new Error(`${k} instruments can't trade on Hyperliquid`);
       if (a.leverage > this.cfg.maxLeverage) throw new Error(`live leverage is capped at ${this.cfg.maxLeverage}×`);
-      const key = k === "perp" ? `hl:perp:${a.instrument.dex ? `${a.instrument.dex}:` : ""}${a.instrument.symbol}` : `hl:spot:${a.instrument.symbol}`;
+      const key =
+        a.instrument.kind === "perp"
+          ? `hl:perp:${a.instrument.dex ? `${a.instrument.dex}:` : ""}${a.instrument.symbol}`
+          : a.instrument.kind === "outcome"
+            ? `hl:outcome:${a.instrument.market}:${a.instrument.outcome}`
+            : `hl:spot:${(a.instrument as { symbol: string }).symbol}`;
       if (otherLiveInstruments.has(key)) throw new Error(`another live strategy already trades ${key.split(":").pop()} in this account (positions would net)`);
     }
   }
@@ -246,6 +252,8 @@ export class LiveService {
       isMainnet: this.isMainnet,
       baseUrl: this.base,
       fetch: this.fetchFn,
+      // HIP-4 prediction markets trade through the same agent and account as perps.
+      outcomes: { enabled: true },
       builder: this.cfg.builder && feeMultiplier !== 1 ? { ...this.cfg.builder, feeTenthsBps: Math.round(this.cfg.builder.feeTenthsBps * feeMultiplier) } : this.cfg.builder,
       allowMainnetSend: this.isMainnet,
     });

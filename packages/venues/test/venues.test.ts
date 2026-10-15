@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { SIGNAL_KINDS, instrumentKey, type Instrument, type Signal, type SignalKind } from "@weft/strategy";
 import { createVenues } from "../src/index.ts";
-import { cleanSymbol, tokenListing, tokenSearchRank } from "../src/catalog.ts";
+import { cleanSymbol, jupEventListings, tokenListing, tokenSearchRank } from "../src/catalog.ts";
 import { estimateDepth2pct, candleChanges } from "../src/signals/market.ts";
 import { fixture, fixtureRouter, mockFetch, FRESH_MINT, JUP_MINT, NOW } from "./helpers.ts";
 
@@ -102,21 +102,22 @@ describe("Catalog", () => {
     expect(nvidia.map((r) => r.instrumentKey)).toEqual(expect.arrayContaining(["hl:perp:xyz:NVDA", "sol:token:Xsc9qvGR1efVDFGLrVsmkzv3qi45LTBjeUKSPmx9qEh"]));
   });
 
-  it("predictions: HIP-4 + Jupiter, expired outcomes dropped", async () => {
+  it("predictions: Hyperliquid's own markets only (Jupiter's books are too thin), expired outcomes dropped", async () => {
     const { v } = venues();
     const rows = await v.catalog.list("predictions", { limit: 100 });
-    const hl = rows.filter((r) => r.venue === "hyperliquid");
-    const jp = rows.filter((r) => r.venue === "jupiter");
-    expect(hl.length).toBeGreaterThan(5);
-    expect(jp.length).toBe(7);
-    const fed = hl.find((r) => r.instrumentKey === "hl:outcome:3600:YES")!;
+    expect(rows.length).toBeGreaterThan(5);
+    expect(rows.every((r) => r.venue === "hyperliquid")).toBe(true);
+    const fed = rows.find((r) => r.instrumentKey === "hl:outcome:3600:YES")!;
     expect(fed.label).toBe("Federal Reserve's Open Market Committee October 2026 decision: no change? · YES");
     expect(fed.price).toBe(0.834705);
-    const rams = hl.find((r) => r.instrumentKey === "hl:outcome:8565:LAR")!;
+    const rams = rows.find((r) => r.instrumentKey === "hl:outcome:8565:LAR")!;
     expect(rams.meta?.otherSide).toBe("BUF");
-    const single = jp.find((r) => r.instrumentKey === "jup:outcome:POLY-2589812:YES")!;
+  });
+
+  it("parses Jupiter prediction events (kept for reference)", () => {
+    const events = fixture("jup_pred_events.json") as { data: Parameters<typeof jupEventListings>[0][] };
+    const single = events.data.flatMap(jupEventListings).find((r) => r.instrumentKey === "jup:outcome:POLY-2589812:YES")!;
     expect(single.label).toBe("Fed Decision in October? · No change · YES");
-    expect(single.price).toBeCloseTo(0.835, 12);
   });
 
   it("tokens: trending list, $ stripped from symbols, exact-symbol search first", async () => {
