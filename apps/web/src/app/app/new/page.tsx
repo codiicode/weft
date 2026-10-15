@@ -356,22 +356,6 @@ function Builder() {
                 {changeError && <p className="mt-3 text-[13.5px] text-short">{changeError}</p>}
               </form>
 
-              {(result.warnings.length > 0 || result.notes.length > 0) && (
-                <div className="rounded-[12px] border border-line px-5 py-4">
-                  <p className="text-[13px] font-medium text-ink">Worth knowing</p>
-                  <ul className="mt-2 space-y-1.5 text-[14px] leading-relaxed text-ink-2">
-                    {result.notes.map((n) => (
-                      <li key={n}>{n}</li>
-                    ))}
-                    {result.warnings.map((w) => (
-                      <li key={w.path + w.message} className="text-trigger">
-                        {w.message}
-                      </li>
-                    ))}
-                  </ul>
-                </div>
-              )}
-
               <BacktestPanel strategy={strategy} />
             </div>
 
