@@ -48,7 +48,7 @@ function setup(cfg: Partial<SolanaLiveConfig> = {}, delegated = true) {
     },
   };
   const conn = { getBalance: async () => 0.5e9, getParsedTokenAccountsByOwner: async () => ({ value: [] }) } as never;
-  const live = new SolanaLive({ enabled: true, rpcUrl: "http://x", maxAllocationUsd: 1000, platformFeeBps: 50, feeWallet: null, authorizationKey: pkcs8, ...cfg }, accounts, api, conn);
+  const live = new SolanaLive({ enabled: true, rpcUrl: "http://x", maxAllocationUsd: 1000, platformFeeBps: 50, feeWallet: null, authorizationKey: pkcs8, testers: [], ...cfg }, accounts, { ...api, userIdByEmail: async (e) => (e === "alice@example.com" ? "alice" : null) }, conn);
   return { live, accounts, calls, pkcs8 };
 }
 
@@ -86,9 +86,13 @@ describe("Solana live", () => {
     expect(tradesSolana(strategy([longBtc]))).toBe(false);
   });
 
-  it("stays off until switched on", async () => {
-    const { live } = setup({ enabled: false });
+  it("stays off until switched on, except for testers resolved through Privy", async () => {
+    const { live } = setup({ enabled: false, testers: ["alice@example.com", "nobody@example.com"] });
     expect((await live.status("alice")).blockers[0]).toMatch(/switched on/);
     expect(live.blockReason("alice")).toMatch(/switched off/);
+    expect(await live.resolveTesters()).toEqual({ resolved: 1, missing: ["no…@example.com"] });
+    expect(live.openFor("alice")).toBe(true);
+    expect(live.openFor("bob")).toBe(false);
+    expect(live.blockReason("alice")).not.toMatch(/switched off/);
   });
 });

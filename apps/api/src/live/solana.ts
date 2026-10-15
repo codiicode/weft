@@ -41,6 +41,8 @@ export interface SolanaLiveConfig {
   feeWallet: PublicKey | null;
   /** Privy authorization private key (base64 PKCS8), the key behind Weft's signer. */
   authorizationKey: string | null;
+  /** Users who may trade before it's switched on for everyone (Privy DIDs or sign-in emails). */
+  testers: string[];
 }
 
 export function solanaConfigFromEnv(env: NodeJS.ProcessEnv = process.env): SolanaLiveConfig {
@@ -57,6 +59,7 @@ export function solanaConfigFromEnv(env: NodeJS.ProcessEnv = process.env): Solan
     platformFeeBps: Number(env.WEFT_SOL_FEE_BPS ?? 50),
     feeWallet,
     authorizationKey: env.PRIVY_AUTHORIZATION_KEY || null,
+    testers: (env.WEFT_SOL_TESTERS ?? "").split(",").map((x) => x.trim()).filter(Boolean),
   };
 }
 
@@ -75,6 +78,8 @@ export interface PrivySolanaApi {
   /** The user's embedded Solana wallets, with whether `signerId` is attached. */
   userWallets(userId: string, signerId: string): Promise<SolanaWalletInfo[]>;
   signTransaction(walletId: string, tx: Uint8Array): Promise<Uint8Array>;
+  /** A Privy user id for a sign-in email (null when no such user). */
+  userIdByEmail?(email: string): Promise<string | null>;
 }
 
 export function privySolanaApi(appId: string, appSecret: string, authorizationKey: string | null): PrivySolanaApi {
@@ -106,6 +111,13 @@ export function privySolanaApi(appId: string, appSecret: string, authorizationKe
         out.push({ walletId: w.id, address: w.address, delegated: (w.additional_signers ?? []).some((s) => s.signer_id === signerId) });
       }
       return out;
+    },
+    async userIdByEmail(email) {
+      try {
+        return ((await privy.users().getByEmailAddress({ address: email } as never)) as { id: string }).id;
+      } catch {
+        return null;
+      }
     },
     async signTransaction(walletId, tx) {
       if (!authorizationKey) throw new Error("PRIVY_AUTHORIZATION_KEY is not set on the server");
@@ -161,6 +173,7 @@ export class SolanaLive {
   private feeChecked = 0;
   private readonly executors = new Map<string, JupiterExecutor>();
   private ids: Promise<{ signerId: string; policyId: string }> | null = null;
+  private testerIds = new Set<string>();
 
   constructor(cfg: SolanaLiveConfig, accounts: Accounts, api: PrivySolanaApi | null, conn?: Connection) {
     this.cfg = cfg;
@@ -188,6 +201,25 @@ export class SolanaLive {
     const on = Object.keys(feeAccounts).length > 0;
     this.builder = new JupiterSwapBuilder({ platformFeeBps: on ? this.cfg.platformFeeBps : 0, feeAccounts });
     this.executors.clear();
+  }
+
+  /** Resolve WEFT_SOL_TESTERS to Privy user ids (emails are looked up with Privy, never trusted from the client). */
+  async resolveTesters(): Promise<{ resolved: number; missing: string[] }> {
+    const missing: string[] = [];
+    for (const t of this.cfg.testers) {
+      if (t.startsWith("did:privy:")) this.testerIds.add(t);
+      else {
+        const id = (await this.api?.userIdByEmail?.(t)) ?? null;
+        if (id) this.testerIds.add(id);
+        else missing.push(t.replace(/(.{2}).*(@.*)/, "$1…$2"));
+      }
+    }
+    return { resolved: this.testerIds.size, missing };
+  }
+
+  /** Open to this user: switched on for everyone, or they're a tester. */
+  openFor(userId: string): boolean {
+    return this.cfg.enabled || this.testerIds.has(userId);
   }
 
   /** Weft's signer and policy ids (created on first use, then remembered). */
@@ -227,7 +259,7 @@ export class SolanaLive {
 
   async status(userId: string): Promise<SolanaStatus> {
     const blockers: string[] = [];
-    if (!this.cfg.enabled) blockers.push("Solana trading isn’t switched on yet.");
+    if (!this.openFor(userId)) blockers.push("Solana trading isn’t switched on yet.");
     let ids: { signerId: string; policyId: string } | null = null;
     try {
       ids = await this.signer();
@@ -245,7 +277,7 @@ export class SolanaLive {
     const balances = wallet ? await this.balances(wallet.address) : null;
     if (balances && (balances.sol ?? 0) < 0.01) blockers.push("Add some SOL to your trading wallet (a little covers network fees).");
     return {
-      enabled: this.cfg.enabled,
+      enabled: this.openFor(userId),
       signerId: ids?.signerId ?? null,
       policyId: ids?.policyId ?? null,
       wallet,
@@ -269,7 +301,7 @@ export class SolanaLive {
   }
 
   assertDeployable(userId: string, strategy: Strategy, allocationUsd: number, otherMints: Set<string> = new Set()) {
-    if (!this.cfg.enabled) throw new Error("Solana trading isn’t switched on yet");
+    if (!this.openFor(userId)) throw new Error("Solana trading isn’t switched on yet");
     if (!this.accounts.solanaAccount(userId)) throw new Error("set up your Solana trading wallet first");
     if (allocationUsd > this.cfg.maxAllocationUsd) throw new Error(`Solana runs are capped at $${this.cfg.maxAllocationUsd} for now`);
     for (const a of strategy.actions) {
@@ -283,7 +315,7 @@ export class SolanaLive {
   }
 
   blockReason(userId: string): string | null {
-    if (!this.cfg.enabled) return "Solana trading is switched off";
+    if (!this.openFor(userId)) return "Solana trading is switched off";
     if (!this.accounts.solanaAccount(userId)) return "no Solana trading wallet for this user";
     return null;
   }

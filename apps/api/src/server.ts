@@ -124,7 +124,8 @@ if (solana && solCfg.authorizationKey) {
     .signer()
     .then(async (ids) => {
       const fees = Object.keys(await solana.feeAccounts().catch(() => ({}))).length;
-      console.log(`  solana signer: ready (${ids.signerId.slice(0, 8)}…) · fee accounts ${fees}/2`);
+      const t = await solana.resolveTesters();
+      console.log(`  solana signer: ready (${ids.signerId.slice(0, 8)}…) · fee accounts ${fees}/2 · testers ${t.resolved}${t.missing.length ? ` (not found: ${t.missing.join(", ")})` : ""}`);
     })
     .catch((e) => console.log(`  solana signer: FAILED · ${(e as Error).message.slice(0, 300)}`));
 }

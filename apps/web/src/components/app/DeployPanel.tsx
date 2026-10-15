@@ -65,7 +65,9 @@ export function DeployPanel({ strategy, strategyId, compact = false }: { strateg
   const testnet = !onSolana && live.data?.config.network === "testnet";
   const available = onSolana ? null : (live.data?.venue?.withdrawableUsd ?? live.data?.venue?.accountValueUsd ?? null);
   const solBalance = sol.data?.balances?.sol ?? null;
-  const blocker = useMemo(() => liveBlocker(strategy, venues), [strategy, venues]);
+  // A tester can trade Solana before it opens for everyone: the server says so per user.
+  const solOpen = Boolean(sol.data?.enabled);
+  const blocker = useMemo(() => liveBlocker(strategy, venues && solOpen ? { ...venues, solana: true } : venues), [strategy, venues, solOpen]);
 
   const [mode, setMode] = useState<"live" | "alerts">(blocker ? "alerts" : "live");
   const [allocation, setAllocation] = useState(100);
