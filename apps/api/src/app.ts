@@ -21,6 +21,7 @@ import type { TelegramBot } from "./lib/telegram.ts";
 import type { Accounts } from "./lib/accounts.ts";
 import type { LiveService } from "./live/service.ts";
 import { SECOND_INTERVALS, type SecondInterval, type TradeTape } from "./lib/tape.ts";
+import { tradesSolana, type SolanaLive } from "./live/solana.ts";
 
 /** Chart ranges and the bar size each one uses (about 60–370 bars). */
 export const CHART_RANGES = ["1H", "1D", "1W", "1M", "1Y"] as const;
@@ -57,6 +58,8 @@ export interface AppDeps {
    * simulated trading is limited to backtests and alerts-only runs. Local development keeps it.
    */
   allowPaper?: boolean;
+  /** Live Solana token trading (the user's own Privy wallet, Weft as a limited signer). */
+  solana?: SolanaLive;
   /** Records Hyperliquid trades for second-level charts. */
   tape?: TradeTape;
   /** Per-user Telegram alerts (TELEGRAM_BOT_TOKEN). */
@@ -182,7 +185,16 @@ export function createApp(deps: AppDeps) {
     return c.json({ error: "Something went wrong on our side. Please try again." }, 500);
   });
 
-  app.get("/health", (c) => c.json({ ok: true, ts: Date.now(), signals: deps.signalModes, auth: { enabled: authEnabled, appId: deps.auth?.appId ?? null } }));
+  app.get("/health", (c) =>
+    c.json({
+      ok: true,
+      ts: Date.now(),
+      signals: deps.signalModes,
+      auth: { enabled: authEnabled, appId: deps.auth?.appId ?? null },
+      /** Which venues take real orders right now. */
+      trading: { hyperliquid: Boolean(deps.live?.cfg.enabled), solana: Boolean(deps.solana?.cfg.enabled), network: deps.live?.cfg.network ?? null },
+    })
+  );
 
   /* ---------------- Me ---------------- */
 
@@ -436,8 +448,34 @@ export function createApp(deps: AppDeps) {
     if (body.mode === "paper" && !body.alertsOnly && !allowPaper)
       return c.json({ error: "Weft trades with real money only. Start it live, or as alerts only." }, 400);
     if (body.mode === "live") return withLiveLock(user.id, async () => {
-      if (!deps.live) return c.json({ error: "live trading is not configured on this server" }, 501);
       if (body.confirm !== "GO LIVE") return c.json({ error: 'type "GO LIVE" to confirm real-money trading' }, 400);
+      const mineAll = accounts ? accounts.deploymentsOf(user.id) : new Set<string>();
+      const openLive = async () => {
+        let n = 0;
+        for (const d of await engine.listDeployments())
+          if (d.mode === "live" && mineAll.has(d.id) && (d.status === "running" || d.status === "paused")) n += d.allocationUsd;
+        return n;
+      };
+      // Solana tokens: the user's own Privy wallet, Weft as a limited signer.
+      if (tradesSolana(v.strategy)) {
+        if (!deps.solana) return c.json({ error: "Solana trading is not configured on this server" }, 501);
+        const mints = new Set<string>();
+        for (const d of await engine.listDeployments()) {
+          if (d.mode !== "live" || !mineAll.has(d.id) || d.status === "stopped" || d.status === "killed") continue;
+          for (const a of d.strategy.actions) if (a.type === "open" && a.instrument.kind === "token") mints.add(a.instrument.mint);
+        }
+        try {
+          deps.solana.assertDeployable(user.id, v.strategy, body.allocationUsd, mints);
+        } catch (e) {
+          return c.json({ error: (e as Error).message }, 409);
+        }
+        const total = deps.liveMaxTotalUsd ?? deps.solana.cfg.maxAllocationUsd * 5;
+        const open = await openLive();
+        if (open + body.allocationUsd > total)
+          return c.json({ error: `you already have $${open.toLocaleString()} live; the limit across all live runs is $${total.toLocaleString()}` }, 409);
+        return create();
+      }
+      if (!deps.live) return c.json({ error: "live trading is not configured on this server" }, 501);
       // Instruments already traded by this user's other live runs (positions would net on the venue).
       const mine = accounts ? accounts.deploymentsOf(user.id) : new Set<string>();
       const others = new Set<string>();
@@ -543,6 +581,24 @@ export function createApp(deps: AppDeps) {
 
   /* ---------------- Live trading (Hyperliquid) ---------------- */
 
+  /* ---------------- Live: Solana tokens ---------------- */
+
+  app.get("/live/solana", async (c) => {
+    if (!deps.solana) return c.json({ error: "Solana trading is not configured on this server" }, 501);
+    const user = await requireUser(c);
+    return c.json(await deps.solana.status(user.id));
+  });
+  app.post("/live/solana/link", async (c) => {
+    if (!deps.solana) return c.json({ error: "Solana trading is not configured on this server" }, 501);
+    const user = await requireUser(c);
+    const { address } = z.object({ address: z.string().regex(/^[1-9A-HJ-NP-Za-km-z]{32,44}$/) }).parse(await c.req.json());
+    try {
+      return c.json(await deps.solana.link(user.id, address));
+    } catch (e) {
+      return c.json({ error: (e as Error).message }, 422);
+    }
+  });
+
   app.get("/live/status", async (c) => {
     if (!deps.live) return c.json({ error: "live trading is not configured on this server" }, 501);
     const user = await requireUser(c);
@@ -634,7 +690,8 @@ export function createApp(deps: AppDeps) {
           strategyId: s.deployment.strategy.id,
           strategy: s.deployment.strategy,
           name: s.deployment.strategy.name,
-          author: owner ? (accounts?.get(owner)?.displayName ?? null) : null,
+          // Never an email address (the profile name defaults to the sign-in email).
+          author: ((n) => (n && !n.includes("@") ? n : null))(owner ? (accounts?.get(owner)?.displayName ?? null) : null),
           tags: s.deployment.strategy.tags,
           status: s.deployment.status,
           mode: s.deployment.mode,

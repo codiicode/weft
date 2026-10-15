@@ -1,4 +1,5 @@
 import { TradeTape } from "./lib/tape.ts";
+import { SolanaLive, SolanaRouterExecutor, privySolanaApi, solanaConfigFromEnv } from "./live/solana.ts";
 import { mkdirSync } from "node:fs";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -45,7 +46,23 @@ const liveEngine = live
       executor: new LiveRouterExecutor(live, (id) => accounts.deploymentOwner(id)),
     })
   : null;
-const engine = new CompositeEngine(paperEngine, liveEngine);
+// Live Solana tokens: the user's own Privy wallet with Weft as a limited signer. Always mainnet, so
+// these runs get their own store. Off unless WEFT_SOL_LIVE=1.
+const solCfg = solanaConfigFromEnv();
+const solana =
+  process.env.PRIVY_APP_ID && process.env.PRIVY_APP_SECRET
+    ? new SolanaLive(solCfg, accounts, privySolanaApi(process.env.PRIVY_APP_ID, process.env.PRIVY_APP_SECRET, solCfg.authorizationKey))
+    : null;
+const solanaEngine = solana
+  ? createEngine({
+      store: new SqliteStore(join(DATA_DIR, "engine-live-solana.db")),
+      marketData: venues.marketData,
+      signalProviders: venues.signalProviders,
+      tokenFacts: venues.tokenFacts,
+      executor: new SolanaRouterExecutor(solana, (id) => accounts.deploymentOwner(id)),
+    })
+  : null;
+const engine = new CompositeEngine(paperEngine, liveEngine, solanaEngine);
 const library = new StrategyLibrary(join(DATA_DIR, "library.db"));
 const signalModes = Object.fromEntries(venues.signalProviders.flatMap((p) => p.kinds.map((k) => [k, p.mode] as const)));
 
@@ -93,6 +110,7 @@ const app = createApp({
   accounts,
   aiDailyLimit: Number(process.env.WEFT_AI_DAILY_LIMIT ?? 30),
   live: live ?? undefined,
+  solana: solana ?? undefined,
   telegram: telegram ?? undefined,
   webOrigins: process.env.WEB_ORIGINS ? process.env.WEB_ORIGINS.split(",").map((o) => o.trim()).filter(Boolean) : undefined,
   liveMaxTotalUsd: process.env.WEFT_LIVE_MAX_TOTAL_USD ? Number(process.env.WEFT_LIVE_MAX_TOTAL_USD) : undefined,
@@ -138,6 +156,9 @@ const server = serve({ fetch: app.fetch, port: PORT, hostname: HOST }, (info) =>
   console.log(`  auth: ${auth.enabled ? `Privy (${auth.appId})` : "local mode (set PRIVY_APP_ID to require sign-in)"}`);
   console.log(
     `  live: ${live ? `${liveCfg.enabled ? "ON" : "off (WEFT_LIVE_ENABLED=1 to enable)"} · ${liveCfg.network} · agents ${agents ? "Privy" : "need PRIVY_APP_SECRET"} · cap $${liveCfg.maxAllocationUsd} · builder ${liveCfg.builder?.address ?? "none"}` : "unavailable (needs PRIVY_APP_ID)"}`
+  );
+  console.log(
+    `  solana: ${solana ? `${solCfg.enabled ? "ON" : "off (WEFT_SOL_LIVE=1 to enable)"} · signer ${solCfg.authorizationKey ? "set" : "needs PRIVY_AUTHORIZATION_KEY"} · fee ${solCfg.feeWallet ? `${solCfg.platformFeeBps} bps` : "none (WEFT_SOL_FEE_WALLET)"} · rpc ${new URL(solCfg.rpcUrl).host} · cap $${solCfg.maxAllocationUsd}` : "unavailable (needs Privy)"}`
   );
   console.log(`  AI generation: ${process.env.ANTHROPIC_API_KEY ? "Claude (claude-opus-5-5)" : "template fallback (set ANTHROPIC_API_KEY for Claude)"}`);
 });

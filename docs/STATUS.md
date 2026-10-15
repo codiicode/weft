@@ -60,6 +60,19 @@ options show prices and charts and can run as alerts until their live trading is
 before were stopped at startup (history kept). The leaderboard lists only live runs whose owners chose to
 share them, in percent. Local development (sign-in off, or `WEFT_ALLOW_PAPER=1`) keeps paper runs.
 
+## Solana live (built 2026-10-15, off until tested)
+
+Users get a Weft trading wallet on Solana: a Privy embedded wallet they own and can export. They add Weft
+as a limited signer (a Privy key quorum + policy that only allows the swap programs); every Jupiter swap is
+inspected before signing, sells are clamped to the wallet balance, and one token per wallet per run.
+Solana runs have their own engine store (`engine-live-solana.db`), never tied to Hyperliquid's network.
+
+To switch on: `PRIVY_AUTHORIZATION_KEY` (P-256 private key, base64 PKCS8; Weft creates the key quorum
+and policy from it on first use), `WEFT_SOL_LIVE=1`, optionally `SOLANA_RPC_URL` (a private RPC is
+recommended), `WEFT_SOL_FEE_WALLET` (+ `WEFT_SOL_FEE_BPS`, default 50) for the platform fee, and
+`WEFT_SOL_MAX_ALLOCATION_USD`. Not yet: reconciling wallet balances against positions when a user moves
+tokens out by hand.
+
 ## Live vs simulated data
 
 | Signal | Source | Status |

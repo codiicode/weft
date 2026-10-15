@@ -9,11 +9,12 @@ import { useApi, fmtCompact, fmtPct, fmtPrice } from "@/lib/use-api";
 import { PageHeader, Card, Pill, Empty } from "@/components/app/AppShell";
 import { perpCoin, useLiveMids, useLiveStatus } from "@/lib/live";
 import { priceFormatter } from "@/lib/market-ideas";
+import { useTradingVenues } from "@/lib/trading";
 import { AssetIcon } from "@/components/ui/AssetIcon";
 import { instrumentIcon } from "@/lib/assets";
 
-/** Products Weft can't trade with real money yet: prices and charts only, for now. */
-const SOON = new Set<Product>(["predictions", "tokens", "options"]);
+/** Products Weft can't trade with real money yet: prices and charts only, for now. Tokens open with Solana trading. */
+const SOON = new Set<Product>(["predictions", "options"]);
 
 const PRODUCTS: { id: Product; label: string; blurb: string }[] = [
   { id: "perps", label: "Perps", blurb: "Crypto perpetuals on Hyperliquid" },
@@ -53,6 +54,8 @@ function Markets() {
   }, [search]);
   const { data, loading, error } = useApi(() => api.markets(product, { search: q || undefined, limit: 80 }), [product, q], { pollMs: 12_000 });
   const rows = data?.rows ?? [];
+  const venues = useTradingVenues();
+  const soon = (p: Product) => SOON.has(p) || (p === "tokens" && venues != null && !venues.solana);
   const dexes = useMemo(() => [...new Set(rows.flatMap((r) => (r.instrument.kind === "perp" ? [r.instrument.dex ?? ""] : [])))], [rows]);
   const mids = useLiveMids(dexes);
   const live = useLiveStatus(dexes.length > 0);
@@ -84,7 +87,7 @@ function Markets() {
                 {product === p.id && <motion.span layoutId="mk-tab" className="absolute inset-0 rounded-[8px] bg-paper-2" transition={{ type: "spring", stiffness: 420, damping: 34 }} />}
                 <span className="relative">
                   {p.label}
-                  {SOON.has(p.id) && <span className="ml-1.5 text-[11px] font-normal text-faint">soon</span>}
+                  {soon(p.id) && <span className="ml-1.5 text-[11px] font-normal text-faint">soon</span>}
                 </span>
               </button>
             ))}
@@ -109,7 +112,7 @@ function Markets() {
           )}
           {live && <span className="text-faint">·</span>}
           {PRODUCTS.find((p) => p.id === product)?.blurb}
-          {SOON.has(product) && <span className="text-faint">· Trading opens soon; charts and alerts work today.</span>}
+          {soon(product) && <span className="text-faint">· Trading opens soon; charts and alerts work today.</span>}
         </p>
 
         {error && !rows.length ? (

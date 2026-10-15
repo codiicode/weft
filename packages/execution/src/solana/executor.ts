@@ -12,6 +12,8 @@ export interface JupiterRpc extends InspectRpc {
     strategy: { signature: string; blockhash: string; lastValidBlockHeight: number },
     commitment?: "confirmed" | "finalized"
   ): Promise<{ value: { err: unknown } }>;
+  /** The user's balance of `mint` in atomic units (all token accounts). Sells are clamped to it. */
+  tokenBalance?(owner: PublicKey, mint: PublicKey): Promise<bigint>;
 }
 
 export interface JupiterExecutorConfig {
@@ -85,6 +87,13 @@ export class JupiterExecutor implements Executor {
       } else {
         if (req.qty == null) return { status: "rejected", reason: "sell needs qty" };
         amount = BigInt(Math.floor(req.qty * 10 ** tokenDec));
+        // The fill we recorded is the quote; what landed can differ slightly. Never sell more than is there,
+        // and when the sell is (nearly) everything, take the dust too so nothing is stranded.
+        if (this.cfg.rpc.tokenBalance) {
+          const held = await this.cfg.rpc.tokenBalance(this.cfg.signer.publicKey, token);
+          if (held <= 0n) return { status: "rejected", reason: "nothing left to sell in the wallet" };
+          if (amount > held || (req.phase === "close" && amount * 100n >= held * 98n)) amount = held;
+        }
       }
       if (amount <= 0n) return { status: "rejected", reason: "amount rounds to zero" };
 

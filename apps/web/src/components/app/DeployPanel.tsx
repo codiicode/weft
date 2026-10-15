@@ -5,6 +5,7 @@ import type { Strategy } from "@weft/strategy";
 import { api, ApiError } from "@/lib/api";
 import { useAuth, useRequireAuth } from "@/lib/auth";
 import { useApi } from "@/lib/use-api";
+import { tradesSolana, useTradingVenues, type Venues } from "@/lib/trading";
 import Link from "next/link";
 import { Btn, Card } from "./AppShell";
 
@@ -35,14 +36,14 @@ function Segmented<T extends string | number>({ value, options, onChange, label 
 }
 
 /** Why a strategy can't trade with real money yet (null when it can). */
-export function liveBlocker(s: Strategy | undefined): string | null {
+export function liveBlocker(s: Strategy | undefined, venues: Venues | null = null): string | null {
   if (!s) return null;
   for (const a of s.actions) {
     if (a.type === "options") return "Options can’t be traded live yet.";
     if (a.type !== "open") continue;
     if (a.order.type === "limit") return "Limit orders can’t be traded live yet. Use a market order with a slippage limit.";
     const k = a.instrument.kind;
-    if (k === "token") return "Solana tokens can’t be traded live yet. That’s coming soon.";
+    if (k === "token" && venues && !venues.solana) return "Trading Solana tokens opens soon.";
     if (k === "outcome") return "Prediction markets can’t be traded live yet. That’s coming soon.";
   }
   return null;
@@ -54,12 +55,17 @@ export function DeployPanel({ strategy, strategyId, compact = false }: { strateg
   const requireAuth = useRequireAuth();
   const auth = useAuth();
   const signedIn = auth.enabled && auth.authenticated;
-  const live = useApi(signedIn ? () => api.liveStatus() : null, [signedIn]);
-  const ready = !!live.data?.ready;
-  const cap = live.data?.config.maxAllocationUsd ?? 1000;
-  const testnet = live.data?.config.network === "testnet";
-  const available = live.data?.venue?.withdrawableUsd ?? live.data?.venue?.accountValueUsd ?? null;
-  const blocker = useMemo(() => liveBlocker(strategy), [strategy]);
+  const venues = useTradingVenues();
+  const onSolana = tradesSolana(strategy);
+  const live = useApi(signedIn && !onSolana ? () => api.liveStatus() : null, [signedIn, onSolana]);
+  const sol = useApi(signedIn && onSolana ? () => api.solanaStatus() : null, [signedIn, onSolana]);
+  const ready = onSolana ? !!sol.data?.ready : !!live.data?.ready;
+  const loadingStatus = onSolana ? sol.loading && !sol.data : live.loading && !live.data;
+  const cap = (onSolana ? sol.data?.maxAllocationUsd : live.data?.config.maxAllocationUsd) ?? 1000;
+  const testnet = !onSolana && live.data?.config.network === "testnet";
+  const available = onSolana ? null : (live.data?.venue?.withdrawableUsd ?? live.data?.venue?.accountValueUsd ?? null);
+  const solBalance = sol.data?.balances?.sol ?? null;
+  const blocker = useMemo(() => liveBlocker(strategy, venues), [strategy, venues]);
 
   const [mode, setMode] = useState<"live" | "alerts">(blocker ? "alerts" : "live");
   const [allocation, setAllocation] = useState(100);
@@ -113,20 +119,30 @@ export function DeployPanel({ strategy, strategyId, compact = false }: { strateg
       {isLive ? (
         !signedIn ? (
           <p className="mt-3 text-[13.5px] leading-relaxed text-muted">Trades with real money from your own Hyperliquid account. Sign in to set it up.</p>
-        ) : live.loading && !live.data ? (
+        ) : loadingStatus ? (
           <div className="mt-4 h-24 animate-pulse rounded-[10px] bg-paper-2" />
         ) : !ready ? (
           <div className="mt-3 rounded-[10px] bg-paper-2 p-4">
-            <p className="text-[13.5px] font-medium text-ink">Connect your Hyperliquid account</p>
-            <p className="mt-1 text-[13px] leading-relaxed text-muted">Two signatures from your wallet: one lets Weft place orders, nothing can be withdrawn. Takes about a minute.</p>
-            <Link href="/app/live" className="mt-3 inline-flex h-9 items-center rounded-[10px] bg-ink px-3.5 text-[14px] font-medium text-paper hover:bg-ink/85">
+            <p className="text-[13.5px] font-medium text-ink">{onSolana ? "Set up your Solana trading wallet" : "Connect your Hyperliquid account"}</p>
+            <p className="mt-1 text-[13px] leading-relaxed text-muted">
+              {onSolana
+                ? "Create your wallet, allow Weft to swap from it, and add some SOL. About a minute."
+                : "Two signatures from your wallet: one lets Weft place orders, nothing can be withdrawn. Takes about a minute."}
+            </p>
+            <Link href={onSolana ? "/app/live?venue=solana" : "/app/live"} className="mt-3 inline-flex h-9 items-center rounded-[10px] bg-ink px-3.5 text-[14px] font-medium text-paper hover:bg-ink/85">
               Set up trading
             </Link>
           </div>
         ) : (
           <>
             <p className="mt-3 text-[13.5px] leading-relaxed text-muted">
-              Real orders on Hyperliquid{testnet ? " testnet (test funds)" : ""}, from your own account.
+              {onSolana ? "Real swaps through Jupiter, from your own Solana wallet." : <>Real orders on Hyperliquid{testnet ? " testnet (test funds)" : ""}, from your own account.</>}
+              {solBalance != null && (
+                <>
+                  {" "}
+                  <span className="tnum text-ink-2">{solBalance.toFixed(3)} SOL</span> in your wallet.
+                </>
+              )}
               {available != null && (
                 <>
                   {" "}

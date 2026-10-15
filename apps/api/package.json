@@ -22,7 +22,8 @@
     "jose": "^6.2.12",
     "viem": "^2.57.5",
     "zod": "^4.6.6",
-    "@weft/execution": "*"
+    "@weft/execution": "*",
+    "@solana/web3.js": "^1.99.0"
   },
   "devDependencies": {
     "@types/node": "^26.6.5",

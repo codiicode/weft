@@ -1,6 +1,7 @@
 "use client";
-import { useState } from "react";
-import Link from "next/link";
+import { Suspense, useState } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
+import { SolanaSetup } from "@/components/app/SolanaSetup";
 import { useWallets } from "@privy-io/react-auth";
 import { api, ApiError, type LiveStatus } from "@/lib/api";
 import { useAuth, shortAddress } from "@/lib/auth";
@@ -133,7 +134,7 @@ function Setup() {
 
         <Step n={3} title="Start a strategy live" done={s.ready} active={agentOk && builderOk}>
           <p className="text-[13.5px] leading-relaxed text-ink-2">
-            Open any strategy, switch the run panel to <span className="font-medium text-ink">Live</span> and confirm. Start small. You can stop it at any time.
+            Open any strategy, choose <span className="font-medium text-ink">Trade</span> and confirm. Start small. You can stop it at any time.
           </p>
           {s.blockers.length > 0 && (
             <ul className="mt-2 space-y-1 text-[13px] text-trigger">
@@ -206,21 +207,52 @@ function Setup() {
   );
 }
 
-export default function LivePage() {
+function Live() {
   const auth = useAuth();
+  const router = useRouter();
+  const tab = useSearchParams().get("venue") === "solana" ? "solana" : "hyperliquid";
   return (
     <>
-      <PageHeader title="Live trading" sub="Trade with real money from your own Hyperliquid account. Weft can place trades for you, but can never withdraw." />
+      <PageHeader title="Trading accounts" sub="Weft trades from accounts you own. It can place trades for you, but can never withdraw." />
       <div className="px-5 py-6 lg:px-10">
         {!auth.enabled ? (
-          <Empty title="Live trading isn’t available here" sub="This server runs without accounts." />
+          <Empty title="Trading isn’t available here" sub="This server runs without accounts." />
         ) : !auth.authenticated ? (
-          <Empty title="Sign in to set up live trading" sub="You’ll need the wallet you use on Hyperliquid." action={<Btn onClick={auth.login}>Sign in</Btn>} />
+          <Empty title="Sign in to set up trading" sub="Hyperliquid for perps and stocks, Solana for tokens." action={<Btn onClick={auth.login}>Sign in</Btn>} />
         ) : (
-          <Setup />
+          <>
+            <div className="mb-6 inline-flex rounded-[10px] bg-paper-2 p-0.5" role="tablist">
+              {(
+                [
+                  ["hyperliquid", "Hyperliquid", "Perps and stocks"],
+                  ["solana", "Solana", "Tokens"],
+                ] as const
+              ).map(([id, label, sub]) => (
+                <button
+                  key={id}
+                  role="tab"
+                  aria-selected={tab === id}
+                  onClick={() => router.replace(`/app/live${id === "solana" ? "?venue=solana" : ""}`)}
+                  className={`rounded-[8px] px-4 py-2 text-left transition-colors ${tab === id ? "bg-[var(--raised)] shadow-[0_1px_2px_rgba(0,0,0,0.08)]" : "hover:bg-paper-2"}`}
+                >
+                  <div className={`text-[14px] ${tab === id ? "font-medium text-ink" : "text-ink-2"}`}>{label}</div>
+                  <div className="text-[12px] text-muted">{sub}</div>
+                </button>
+              ))}
+            </div>
+            {tab === "solana" ? <SolanaSetup /> : <Setup />}
+          </>
         )}
-        <p className="mt-6 text-[12.5px] text-faint">Not financial advice. Leverage can lose more than you expect.</p>
+        <p className="mt-6 text-[12.5px] text-faint">Not financial advice. Leverage can lose more than you expect, and tokens can go to zero.</p>
       </div>
     </>
+  );
+}
+
+export default function LivePage() {
+  return (
+    <Suspense>
+      <Live />
+    </Suspense>
   );
 }

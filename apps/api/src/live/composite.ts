@@ -8,14 +8,20 @@ import type { CreateDeploymentInput, DeploymentRecord, Engine, EngineEvent } fro
 export class CompositeEngine implements Engine {
   private readonly paper: Engine;
   private readonly live: Engine | null;
-  constructor(paper: Engine, live: Engine | null) {
+  /** Live Solana token runs: always mainnet, so a store of their own (never tied to Hyperliquid's network). */
+  private readonly solana: Engine | null;
+  constructor(paper: Engine, live: Engine | null, solana: Engine | null = null) {
     this.paper = paper;
     this.live = live;
+    this.solana = solana;
+  }
+
+  private all(): Engine[] {
+    return [this.paper, this.live, this.solana].filter((e): e is Engine => e != null);
   }
 
   private async owner(id: string): Promise<Engine | null> {
-    if (await this.paper.getSnapshot(id)) return this.paper;
-    if (this.live && (await this.live.getSnapshot(id))) return this.live;
+    for (const e of this.all()) if (await e.getSnapshot(id)) return e;
     return null;
   }
   private async on<T>(id: string, fn: (e: Engine) => Promise<T>): Promise<T> {
@@ -26,16 +32,24 @@ export class CompositeEngine implements Engine {
 
   async createDeployment(input: CreateDeploymentInput): Promise<DeploymentRecord> {
     if (input.mode === "live") {
+      if (input.strategy.actions.some((a) => a.type === "open" && a.instrument.kind === "token")) {
+        if (!this.solana) throw new Error("Solana trading is not configured on this server");
+        return this.solana.createDeployment(input);
+      }
       if (!this.live) throw new Error("live trading is not configured on this server");
       return this.live.createDeployment(input);
     }
     return this.paper.createDeployment(input);
   }
   async listDeployments() {
-    return [...(await this.paper.listDeployments()), ...(this.live ? await this.live.listDeployments() : [])];
+    return (await Promise.all(this.all().map((e) => e.listDeployments()))).flat();
   }
   async getSnapshot(id: string) {
-    return (await this.paper.getSnapshot(id)) ?? (this.live ? await this.live.getSnapshot(id) : null);
+    for (const e of this.all()) {
+      const s = await e.getSnapshot(id);
+      if (s) return s;
+    }
+    return null;
   }
   getEvents(id: string, opts?: { sinceTs?: number; limit?: number }) {
     return this.on(id, (e) => e.getEvents(id, opts));
@@ -59,11 +73,10 @@ export class CompositeEngine implements Engine {
     return this.on(id, (e) => e.tick(id, now));
   }
   start() {
-    this.paper.start();
-    this.live?.start();
+    for (const e of this.all()) e.start();
   }
   async shutdown() {
-    await Promise.all([this.paper.shutdown(), this.live?.shutdown()]);
+    await Promise.all(this.all().map((e) => e.shutdown()));
   }
   note(id: string, type: "warning" | "error" | "notify", message: string, data?: Record<string, unknown>) {
     return this.on(id, async (e) => {
@@ -71,11 +84,9 @@ export class CompositeEngine implements Engine {
     });
   }
   subscribe(listener: (e: EngineEvent) => void) {
-    const a = this.paper.subscribe(listener);
-    const b = this.live?.subscribe(listener);
+    const offs = this.all().map((e) => e.subscribe(listener));
     return () => {
-      a();
-      b?.();
+      for (const off of offs) off();
     };
   }
 }

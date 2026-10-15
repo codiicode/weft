@@ -202,6 +202,18 @@ export interface LiveStatus {
   blockers: string[];
 }
 
+export interface SolanaStatus {
+  enabled: boolean;
+  signerId: string | null;
+  policyId: string | null;
+  wallet: { address: string; delegated: boolean } | null;
+  balances: { sol: number | null; usdc: number | null } | null;
+  maxAllocationUsd: number;
+  feeBps: number;
+  ready: boolean;
+  blockers: string[];
+}
+
 export interface ApprovalRequests {
   agentAddress: string;
   network: "testnet" | "mainnet";
@@ -248,6 +260,8 @@ async function streamResult(path: string, body: unknown, onProgress: (p: Generat
 
 export const api = {
   liveStatus: () => req<LiveStatus>("/live/status"),
+  solanaStatus: () => req<SolanaStatus>("/live/solana"),
+  linkSolana: (address: string) => req<SolanaStatus>("/live/solana/link", { method: "POST", json: { address } }),
   linkLive: (hlAddress: string) => req<LiveStatus>("/live/account", { method: "POST", json: { hlAddress } }),
   prepareApprovals: (signatureChainId: string) => req<ApprovalRequests>("/live/approvals/prepare", { method: "POST", json: { signatureChainId } }),
   submitApproval: (kind: "agent" | "builder", signature: string) => req<{ ok: true }>("/live/approvals/submit", { method: "POST", json: { kind, signature } }),
@@ -255,7 +269,8 @@ export const api = {
   me: () => req<Me>("/me"),
   reportProfile: (body: { wallets?: string[]; displayName?: string | null }) => req<Me["user"]>("/me", { method: "POST", json: body }),
 
-  health: () => req<{ ok: boolean; ts: number; signals: Record<string, "live" | "simulated"> }>("/health"),
+  health: () =>
+    req<{ ok: boolean; ts: number; signals: Record<string, "live" | "simulated">; trading?: { hyperliquid: boolean; solana: boolean; network: "testnet" | "mainnet" | null } }>("/health"),
 
   markets: (product: Product, opts: { search?: string; limit?: number } = {}) => {
     const q = new URLSearchParams();

@@ -446,6 +446,24 @@ describe("JupiterExecutor", () => {
     expect(sent).toHaveLength(0);
   });
 
+  it("sells never exceed what the wallet holds, and a close sells everything left", async () => {
+    const seen: string[] = [];
+    const balance = (held: bigint) => ({
+      dryRun: true,
+      onBuilt: (b: { quote: QuoteResponse }) => seen.push(b.quote.inAmount),
+      rpc: { ...rpc({ [OUT_MINT.toBase58()]: mintInfo(6) }), tokenBalance: async () => held },
+    });
+    // Asked to sell 5 tokens (5_000_000 atomic) but only 3.2 landed: sell 3.2.
+    await setup(v0(goodInstructions()), balance(3_200_000n)).ex.execute({ clientId: "s1", instrument: TOKEN, instrumentKey: "k", side: "sell", phase: "close", qty: 5 }, 0);
+    // A full close takes the dust too.
+    await setup(v0(goodInstructions()), balance(5_000_123n)).ex.execute({ clientId: "s2", instrument: TOKEN, instrumentKey: "k", side: "sell", phase: "close", qty: 5 }, 0);
+    // A partial close (half) sells exactly half.
+    await setup(v0(goodInstructions()), balance(5_000_000n)).ex.execute({ clientId: "s4", instrument: TOKEN, instrumentKey: "k", side: "sell", phase: "close", qty: 2.5 }, 0);
+    expect(seen).toEqual(["3200000", "5000123", "2500000"]);
+    const empty = await setup(v0(goodInstructions()), balance(0n)).ex.execute({ clientId: "s3", instrument: TOKEN, instrumentKey: "k", side: "sell", phase: "close", qty: 5 }, 0);
+    expect(empty).toMatchObject({ status: "rejected", reason: expect.stringMatching(/nothing left/) });
+  });
+
   it("signs + sends a clean swap and reports the quoted fill; duplicate clientIds are refused", async () => {
     const { ex, sent } = setup(v0(goodInstructions()));
     const res = await ex.execute({ clientId: "c3", instrument: TOKEN, instrumentKey: "k", side: "buy", phase: "open", notionalUsd: 1.5 }, 0);

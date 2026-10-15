@@ -6,6 +6,7 @@ import type { MarketListing, Quote } from "@weft/venues";
 import { api } from "@/lib/api";
 import { fmtCompact, useApi } from "@/lib/use-api";
 import { ideasFor, priceFormatter, venueName } from "@/lib/market-ideas";
+import { useTradingVenues } from "@/lib/trading";
 import { instrumentIcon } from "@/lib/assets";
 import { AssetIcon } from "@/components/ui/AssetIcon";
 import { Card, Empty, Pill } from "@/components/app/AppShell";
@@ -76,12 +77,13 @@ function QuoteCard({ row }: { row: MarketListing }) {
   );
 }
 
-/** Products that can't trade with real money yet. */
-const SOON = new Set(["predictions", "tokens", "options"]);
+/** Products that can't trade with real money yet (tokens open with Solana trading). */
+const SOON = new Set(["predictions", "options"]);
 
 function IdeasCard({ row }: { row: MarketListing }) {
   const ideas = ideasFor(row);
-  const soon = SOON.has(row.product);
+  const venues = useTradingVenues();
+  const soon = SOON.has(row.product) || (row.product === "tokens" && venues != null && !venues.solana);
   return (
     <Card className="p-5">
       <div className="text-[14px] font-medium text-ink">Put {row.product === "predictions" ? "this market" : row.label} to work</div>

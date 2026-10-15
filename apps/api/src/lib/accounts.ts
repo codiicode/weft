@@ -41,6 +41,12 @@ export class Accounts {
         user_id TEXT NOT NULL
       );
       CREATE INDEX IF NOT EXISTS deployment_owners_user ON deployment_owners (user_id);
+      CREATE TABLE IF NOT EXISTS solana_accounts (
+        user_id TEXT PRIMARY KEY,
+        address TEXT NOT NULL,
+        wallet_id TEXT NOT NULL,
+        linked_at INTEGER NOT NULL
+      );
       CREATE TABLE IF NOT EXISTS shared_runs (
         deployment_id TEXT PRIMARY KEY,
         shared_at INTEGER NOT NULL
@@ -127,6 +133,15 @@ export class Accounts {
   deploymentsOf(userId: string): Set<string> {
     const rows = this.db.prepare("SELECT deployment_id FROM deployment_owners WHERE user_id = ?").all(userId) as { deployment_id: string }[];
     return new Set(rows.map((r) => r.deployment_id));
+  }
+
+  /** The user's own Privy Solana wallet that Weft may trade from (they added Weft as a signer). */
+  setSolanaAccount(userId: string, address: string, walletId: string) {
+    this.db.prepare("INSERT OR REPLACE INTO solana_accounts (user_id, address, wallet_id, linked_at) VALUES (?, ?, ?, ?)").run(userId, address, walletId, Date.now());
+  }
+  solanaAccount(userId: string): { address: string; walletId: string; linkedAt: number } | null {
+    const r = this.db.prepare("SELECT * FROM solana_accounts WHERE user_id = ?").get(userId) as Record<string, unknown> | undefined;
+    return r ? { address: r.address as string, walletId: r.wallet_id as string, linkedAt: r.linked_at as number } : null;
   }
 
   /** Live runs whose owner chose to show their return (percent only) on the leaderboard. */
