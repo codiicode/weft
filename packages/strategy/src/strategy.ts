@@ -24,7 +24,8 @@ export const RiskPolicy = z.object({
   maxTotalExposurePct: z.number().positive().max(500).default(50),
   maxLeverage: z.number().min(1).max(50).default(5),
   maxDailyLossPct: z.number().positive().max(100).default(10).describe("Opens are blocked for the day after this loss"),
-  requireStopLoss: z.boolean().default(true),
+  /** Off by default: stops are added when the user asks for them (or set this to require one everywhere). */
+  requireStopLoss: z.boolean().default(false),
   defaultMaxSlippageBps: z.number().int().positive().default(100),
   token: TokenGates.prefault({}),
 });

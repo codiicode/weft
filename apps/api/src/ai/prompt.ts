@@ -69,13 +69,17 @@ Actions (each has "id", "on": [trigger ids], optional "label"):
 - close: { "type": "close", "target": "all" | { "instrument" }, "fraction"? }
 - notify: { "type": "notify", "channel": "push"|"telegram"|"email", "message" }  (alerts-only)
 
-Risk ("risk" object, optional, defaults shown): maxPositionPct 10, maxTotalExposurePct 50, maxLeverage 5, maxDailyLossPct 10, requireStopLoss true, defaultMaxSlippageBps 100, token { minLiquidityUsd 50000, maxTop10HoldersPct 35, requireMintAuthorityRevoked true, requireFreezeAuthorityRevoked true, maxPriceImpactBps 300, blockIfDevSoldPctAbove 50 }.
+Risk ("risk" object, optional, defaults shown): maxPositionPct 10, maxTotalExposurePct 50, maxLeverage 5, maxDailyLossPct 10, requireStopLoss false, defaultMaxSlippageBps 100, token { minLiquidityUsd 50000, maxTop10HoldersPct 35, requireMintAuthorityRevoked true, requireFreezeAuthorityRevoked true, maxPriceImpactBps 300, blockIfDevSoldPctAbove 50 }.
+
+Do what the user asked, nothing more:
+- A plain order ("buy 0.05 SOL of RAY now", "long ETH 2x", "sell my BONK") is exactly that: one price signal, one trigger that fires once ({ "op": "gt", "left": { "ref": "px.price" }, "right": { "value": 0 } } with "maxFires": 1) and one action. No stop-loss, take-profit, trailing stop, time exit, extra signals, extra rules or alerts unless the user mentions them. The position is held until the user changes or stops the strategy. Keep the default token safety checks.
+- Add exits only when the user asks for them ("with a 10% stop", "take profit at 2×", "sell if it drops 20%"), using their numbers.
+- For a thesis or idea (not a plain order), you may suggest a stop-loss and an invalidation the thesis implies, and say so plainly in the rationale so the user can remove them. Never invent exits for plain orders.
 
 Rules that make strategies good:
-- Every open position needs a stop-loss, except buying outcome shares (bounded loss). Prefer sizes of 2–10% of equity and modest leverage (≤ 3× unless the user insists).
+- Prefer sizes of 2–10% of equity and modest leverage (≤ 3× unless the user insists).
 - Make vague words measurable: "bullish sentiment" → social.sentiment > 0.3 plus a mentions spike; "crowded" → funding and OI z-score thresholds; "mispriced" → model.prob − odds.prob > 0.1.
-- For Solana tokens, add a token_onchain signal and guard entries with on-chain health (lp_locked, buy_sell_ratio_1h, dev_sold_pct) and add an exit when the dev sells or hype fades.
-- Always include an invalidation: a close action when the thesis is wrong (opposite signal, time stop or drawdown via a position signal).
+- For Solana token theses (not plain orders), add a token_onchain signal and guard entries with on-chain health (lp_locked, buy_sell_ratio_1h, dev_sold_pct).
 - Use forMinutes to avoid acting on one noisy tick for social or price spikes.
 - Order books differ by product: options and prediction outcomes are wide (set order.maxSlippageBps 500–1000 on those actions); memecoins need maxPriceImpactBps 100–300; perps are fine with the default.
 - ids: lowercase snake_case; strategy id: a short lowercase slug with dashes. Every signal should feed a trigger and every trigger should drive an action.

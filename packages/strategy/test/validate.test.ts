@@ -63,13 +63,20 @@ describe("validateStrategy", () => {
     expect(e.filter((m) => m.includes("is a number field but is used as a boolean"))).toHaveLength(1);
   });
 
-  it("requires a stop-loss, except on bounded-loss outcome buys", () => {
+  it("holds without a stop by default; requireStopLoss demands one, except on bounded-loss outcome buys", () => {
+    const plain = minimal();
+    const p = plain.actions[0]!;
+    if (p.type === "open") p.exits = {};
+    expect(errorsOf(plain)).toEqual([]);
+
     const s = minimal();
+    s.risk = { ...s.risk, requireStopLoss: true };
     const a = s.actions[0]!;
     if (a.type === "open") a.exits = {};
     expect(errorsOf(s).some((m) => m.includes("stop-loss is required"))).toBe(true);
 
     const o = minimal();
+    o.risk = { ...o.risk, requireStopLoss: true };
     o.actions[0] = { id: "yes", type: "open", on: ["up"], instrument: { kind: "outcome", venue: "hyperliquid", market: "m", outcome: "YES" }, side: "long", size: { unit: "usd", value: 10 } };
     expect(errorsOf(o)).toEqual([]);
   });

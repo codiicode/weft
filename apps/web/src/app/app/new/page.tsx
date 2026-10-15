@@ -399,7 +399,7 @@ function Builder() {
                       ["Most in the market at once", `${strategy.risk.maxTotalExposurePct}%`],
                       ["Max leverage", `${strategy.risk.maxLeverage}×`],
                       ["Stop for the day after losing", `${strategy.risk.maxDailyLossPct}%`],
-                      ["Every trade needs a stop", strategy.risk.requireStopLoss ? "Yes" : "No"],
+                      ["Stop required on every trade", strategy.risk.requireStopLoss ? "Yes" : "No"],
                     ] as const
                   ).map(([k, v]) => (
                     <div key={k} className="flex justify-between gap-4">

@@ -8,7 +8,7 @@ const cannot = ["Withdraw your funds", "Send money to another address", "Trade a
 
 const guards = [
   ["Tested first", "See how a strategy would have done on real history before a dollar goes in. Starting it is a deliberate step."],
-  ["Hard limits", "You set the most it can spend per trade and in total. Every position needs a stop."],
+  ["Hard limits", "You set the most it can spend per trade and in total. Stops and targets are yours to add, in plain words."],
   ["One-click stop", "The stop button closes every position and cancels every order, immediately."],
 ];
 
