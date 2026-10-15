@@ -162,12 +162,11 @@ export function createApp(deps: AppDeps) {
     const user = await optionalUser(c);
     return !!user && accounts?.deploymentOwner(id) === user.id;
   };
-  /** Display name for a new library entry: from the account, never from the request. */
-  const authorFor = (user: AuthUser, fallback: unknown) => {
-    if (!authEnabled) return String(fallback ?? "@anon").slice(0, 40);
-    const a = accounts?.get(user.id);
-    const w = a?.wallets[0];
-    return (a?.displayName ?? (w ? `${w.slice(0, 6)}…${w.slice(-4)}` : "@anon")).slice(0, 40);
+  /** Strategies are shared anonymously: no name, email or wallet is stored or shown with them. */
+  const authorFor = (_user: AuthUser, _fallback: unknown) => "";
+  const pub = <T extends { author?: string }>(e: T) => {
+    const { author: _drop, ...rest } = e;
+    return rest;
   };
   // One live deployment at a time per user, so caps and overlap checks can't race.
   const liveLocks = new Map<string, Promise<unknown>>();
@@ -302,12 +301,12 @@ export function createApp(deps: AppDeps) {
 
   /* ---------------- Strategies ---------------- */
 
-  app.get("/strategies", (c) => c.json({ strategies: library.list() }));
+  app.get("/strategies", (c) => c.json({ strategies: library.list().map(pub) }));
   app.get("/strategies/examples", (c) => c.json({ strategies: examples }));
 
   app.get("/strategies/:id", (c) => {
     const e = library.get(c.req.param("id"));
-    return e ? c.json({ ...e, graph: toGraph(e.strategy) }) : c.json({ error: "not found" }, 404);
+    return e ? c.json({ ...pub(e), graph: toGraph(e.strategy) }) : c.json({ error: "not found" }, 404);
   });
 
   app.post("/strategies/validate", async (c) => {
@@ -321,7 +320,7 @@ export function createApp(deps: AppDeps) {
     const body = await c.req.json();
     const entry = library.save(body.strategy ?? body, { author: authorFor(user, body.author) });
     accounts?.setStrategyOwner(entry.id, user.id);
-    return c.json(entry, 201);
+    return c.json(pub(entry), 201);
   });
 
   app.put("/strategies/:id", async (c) => {
@@ -330,7 +329,7 @@ export function createApp(deps: AppDeps) {
     if (!library.get(id)) return c.json({ error: "not found" }, 404);
     assertOwner(accounts?.strategyOwner(id), user);
     const body = await c.req.json();
-    return c.json(library.save(body.strategy ?? body, { author: "", replaceId: id }));
+    return c.json(pub(library.save(body.strategy ?? body, { author: "", replaceId: id })));
   });
 
   app.post("/strategies/:id/fork", async (c) => {
@@ -338,7 +337,7 @@ export function createApp(deps: AppDeps) {
     const body = await c.req.json().catch(() => ({}));
     const entry = library.fork(c.req.param("id"), authorFor(user, (body as { author?: string }).author));
     if (entry) accounts?.setStrategyOwner(entry.id, user.id);
-    return entry ? c.json(entry, 201) : c.json({ error: "not found" }, 404);
+    return entry ? c.json(pub(entry), 201) : c.json({ error: "not found" }, 404);
   });
 
   app.delete("/strategies/:id", async (c) => {
@@ -790,8 +789,8 @@ export function createApp(deps: AppDeps) {
           strategyId: s.deployment.strategy.id,
           strategy: s.deployment.strategy,
           name: s.deployment.strategy.name,
-          // Never an email address (the profile name defaults to the sign-in email).
-          author: ((n) => (n && !n.includes("@") ? n : null))(owner ? (accounts?.get(owner)?.displayName ?? null) : null),
+          // Anonymous: who runs a strategy is never shown.
+          author: null,
           tags: s.deployment.strategy.tags,
           status: s.deployment.status,
           mode: s.deployment.mode,

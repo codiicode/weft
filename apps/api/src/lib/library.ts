@@ -31,9 +31,10 @@ export class StrategyLibrary {
       );
     `);
     const count = (this.db.prepare("SELECT COUNT(*) AS n FROM strategies").get() as { n: number }).n;
+    // Strategies are anonymous: clear any names, emails or wallets stored before that rule.
+    this.db.exec("UPDATE strategies SET author = '' WHERE author <> ''");
     if (count === 0) {
-      const authors = ["@monsoon_maria", "@pump_hunter", "@basis_point_bea", "@contrarian_kai", "@iv_crush_ivy", "@tape_reader"];
-      examples.forEach((s, i) => this.save(s, { author: authors[i % authors.length]! }));
+      examples.forEach((s) => this.save(s, { author: "" }));
     } else {
       // Keep seeded examples' wording in step with the code (instruments may have been resolved since).
       const upd = this.db.prepare("UPDATE strategies SET doc = ?, updated_at = ? WHERE id = ? AND forked_from IS NULL");

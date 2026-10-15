@@ -93,10 +93,6 @@ function StrategyView() {
           <Card className="p-5">
             <div className="text-[15px] font-semibold tracking-[-0.015em] text-ink">About</div>
             <dl className="mt-3 space-y-2 text-[13.5px]">
-              <div className="flex justify-between gap-4">
-                <dt className="text-muted">Shared by</dt>
-                <dd className="text-ink">{e.author}</dd>
-              </div>
               {e.forks > 0 && (
                 <div className="flex justify-between gap-4">
                   <dt className="text-muted">Copies</dt>

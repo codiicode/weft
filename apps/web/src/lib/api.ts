@@ -62,7 +62,7 @@ async function req<T>(path: string, init?: RequestInit & { json?: unknown }): Pr
 export interface LibraryEntry {
   id: string;
   strategy: Strategy;
-  author: string;
+  author?: string;
   forkedFrom: string | null;
   forks: number;
   createdAt: number;

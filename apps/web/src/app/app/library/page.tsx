@@ -38,8 +38,7 @@ function Row({ e, onCopy }: { e: LibraryEntry; onCopy: () => void }) {
       </div>
       <div className="relative z-10 flex items-center gap-4 text-[13px] text-muted">
         <span className="hidden whitespace-nowrap sm:inline">
-          {e.author}
-          {e.forks ? ` · ${e.forks} ${e.forks === 1 ? "copy" : "copies"}` : ""}
+          {e.forks ? `${e.forks} ${e.forks === 1 ? "copy" : "copies"}` : ""}
         </span>
         <Btn variant="ghost" href={`/app/new?from=${encodeURIComponent(e.id)}`}>
           Edit a copy
