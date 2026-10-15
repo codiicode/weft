@@ -377,15 +377,7 @@ function Builder() {
               <Card className="p-5">
                 <div className="text-[15px] font-semibold tracking-[-0.015em] text-ink">Limits</div>
                 <dl className="mt-3 space-y-2 text-[13.5px]">
-                  {(
-                    [
-                      ["Largest single position", `${strategy.risk.maxPositionPct}%`],
-                      ["Most in the market at once", `${strategy.risk.maxTotalExposurePct}%`],
-                      ["Max leverage", `${strategy.risk.maxLeverage}×`],
-                      ["Stop for the day after losing", `${strategy.risk.maxDailyLossPct}%`],
-                      ["Stop required on every trade", strategy.risk.requireStopLoss ? "Yes" : "No"],
-                    ] as const
-                  ).map(([k, v]) => (
+                  {limitRows(strategy).map(([k, v]) => (
                     <div key={k} className="flex justify-between gap-4">
                       <dt className="text-muted">{k}</dt>
                       <dd className="tnum text-ink">{v}</dd>
@@ -399,6 +391,22 @@ function Builder() {
       </div>
     </>
   );
+}
+
+/** Only the limits that actually apply to this strategy. */
+function limitRows(s: Strategy): [string, string][] {
+  const opens = s.actions.filter((a) => a.type === "open");
+  const scaled = opens.some((a) => a.type === "open" && a.size.unit === "pct_equity");
+  const rows: [string, string][] = [];
+  // Percentage caps only bind sizes that scale with the budget; a stated amount is used as given.
+  if (scaled) {
+    rows.push(["Largest single position", `${s.risk.maxPositionPct}%`], ["Most in the market at once", `${s.risk.maxTotalExposurePct}%`]);
+  }
+  if (opens.some((a) => a.type === "open" && a.instrument.kind === "perp")) rows.push(["Max leverage", `${s.risk.maxLeverage}×`]);
+  if (opens.some((a) => a.type === "open" && a.instrument.kind === "outcome")) rows.push(["Must be able to sell back within", `${s.risk.maxExitLossPct ?? 10}%`]);
+  rows.push(["Stop for the day after losing", `${s.risk.maxDailyLossPct}%`]);
+  if (s.risk.requireStopLoss) rows.push(["Stop required on every trade", "Yes"]);
+  return rows;
 }
 
 export default function NewStrategyPage() {
