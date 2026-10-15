@@ -14,6 +14,7 @@ import { StrategyRules } from "@/components/app/StrategyRules";
 import { AssetIcon } from "@/components/ui/AssetIcon";
 import { instrumentIcon, strategyInstruments } from "@/lib/assets";
 import { TradesChart } from "@/components/chart/TradesChart";
+import { InstructRun, SellButton } from "@/components/app/RunControls";
 import { StrategyCanvas } from "@/components/app/StrategyCanvas";
 import { EquityChart } from "@/components/app/EquityChart";
 
@@ -80,6 +81,19 @@ function readable(msg: string, strategy: Snapshot["deployment"]["strategy"]): st
     .replace(/^Tick: equity/, "Checked the market: value")
     .replace(/(?:sol|hl):(?:token|perp|spot):(\S+)/g, (m) => token(m));
 }
+
+/** Why a trade happened, in plain words. */
+const REASON: Record<string, string> = {
+  entry: "entry",
+  manual: "you sold",
+  stop_loss: "stop",
+  take_profit: "target",
+  trailing_stop: "trailing stop",
+  time_exit: "time’s up",
+  close_action: "rule",
+  kill: "stopped",
+  liquidation: "liquidated",
+};
 
 /** Real money notice, plus the owner's choice to show this run's return on the leaderboard. */
 function ShareRow({ id, shared, onChange }: { id: string; shared: boolean; onChange: () => void }) {
@@ -208,6 +222,12 @@ function Run() {
 
   const d = s.deployment;
   const status = d.status;
+  // Owner actions on a live (or legacy) run that is still going. Alerts-only runs hold nothing.
+  const canAct = (status === "running" || status === "paused") && !d.alertsOnly;
+  const refreshAll = () => {
+    void snap.refresh();
+    fills.refresh();
+  };
   const control = async (a: "pause" | "resume" | "stop" | "kill" | "tick") => {
     if (!requireAuth()) return;
     setControlError(null);
@@ -318,6 +338,12 @@ function Run() {
               {view === "rules" ? <StrategyRules strategy={d.strategy} met={metMap} /> : <StrategyCanvas strategy={d.strategy} live={live} animate={false} />}
             </section>
 
+            {canAct && (
+              <section>
+                <InstructRun deploymentId={d.id} onDone={refreshAll} />
+              </section>
+            )}
+
             <section>
               <h2 className="mb-3 text-[15px] font-semibold text-ink">The market</h2>
               <Card className="p-5">
@@ -359,7 +385,8 @@ function Run() {
                           <th className="px-3 py-2.5 text-right font-normal">Entry</th>
                           <th className="px-3 py-2.5 text-right font-normal">Now</th>
                           <th className="px-3 py-2.5 text-right font-normal">Liquidation</th>
-                          <th className="px-5 py-2.5 text-right font-normal">Profit</th>
+                          <th className="px-3 py-2.5 text-right font-normal">Profit</th>
+                          {canAct && <th className="px-5 py-2.5" />}
                         </tr>
                       </thead>
                       <tbody>
@@ -379,9 +406,14 @@ function Run() {
                             <td className="tnum px-3 py-3 text-right text-ink-2">{fmtPrice(p.entryPrice)}</td>
                             <td className="tnum px-3 py-3 text-right">{fmtPrice(p.markPrice)}</td>
                             <td className="tnum px-3 py-3 text-right text-ink-2">{p.liquidationPrice ? fmtPrice(p.liquidationPrice) : "—"}</td>
-                            <td className={`tnum px-5 py-3 text-right ${p.unrealizedPnlUsd >= 0 ? "text-long" : "text-short"}`}>
+                            <td className={`tnum px-3 py-3 text-right ${p.unrealizedPnlUsd >= 0 ? "text-long" : "text-short"}`}>
                               {fmtUsd(p.unrealizedPnlUsd, 2)} <span className="text-[12px] opacity-80">{fmtPct(p.unrealizedPnlPct)}</span>
                             </td>
+                            {canAct && (
+                              <td className="px-5 py-3 text-right">
+                                <SellButton deploymentId={d.id} positionId={p.id} label={instrumentLabel(p.instrument)} onDone={refreshAll} />
+                              </td>
+                            )}
                           </tr>
                         ))}
                       </tbody>
@@ -408,7 +440,7 @@ function Run() {
                             <td className={`px-3 py-2.5 ${f.side === "buy" ? "text-long" : "text-short"}`}>{f.side === "buy" ? "Buy" : "Sell"}</td>
                             <td className="px-3 py-2.5 text-ink">{f.instrumentKey.split(":").slice(-1)[0]?.slice(0, 18)}</td>
                             <td className="tnum px-3 py-2.5 text-right">{fmtPrice(f.price)}</td>
-                            <td className="px-3 py-2.5 text-muted">{f.reason.replaceAll("_", " ")}</td>
+                            <td className="px-3 py-2.5 text-muted">{REASON[f.reason] ?? f.reason.replaceAll("_", " ")}</td>
                             <td className={`tnum px-5 py-2.5 text-right ${f.realizedPnlUsd == null ? "text-muted" : f.realizedPnlUsd >= 0 ? "text-long" : "text-short"}`}>
                               {f.realizedPnlUsd == null ? `fee ${fmtUsd(f.feeUsd, 2)}` : fmtUsd(f.realizedPnlUsd, 2)}
                             </td>
@@ -435,7 +467,10 @@ function Run() {
               <ol className="divide-y divide-line">
                 <AnimatePresence initial={false}>
                   {shown.slice(0, 200).map((e) => {
-                    const [label, color] = EVENT[e.type === "intent" && /nothing to close|matched, but/i.test(e.message) ? "noop" : e.type] ?? [e.type, "var(--muted)"];
+                    const [label, color] =
+                      (e.data as { by?: string } | undefined)?.by === "owner"
+                        ? ["You", "var(--ink)"]
+                        : (EVENT[e.type === "intent" && /nothing to close|matched, but/i.test(e.message) ? "noop" : e.type] ?? [e.type, "var(--muted)"]);
                     return (
                       <motion.li key={e.id} initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="px-4 py-3">
                         <div className="flex items-center gap-2 text-[12.5px]">

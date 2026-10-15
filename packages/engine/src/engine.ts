@@ -1,5 +1,5 @@
 import { randomUUID } from "node:crypto";
-import { initialState, RiskCaps, validateStrategy, type Instrument } from "@weft/strategy";
+import { initialState, RiskCaps, validateStrategy, type Instrument, type Strategy } from "@weft/strategy";
 import type { MarketData, SignalProvider, TokenFactsProvider } from "@weft/venues";
 import type {
   CreateDeploymentInput,
@@ -10,6 +10,8 @@ import type {
   EngineEvent,
   EngineEventType,
   Fill,
+  ExitsPatch,
+  Position,
 } from "./types.ts";
 import type { DeploymentRuntime, Store } from "./store.ts";
 import { errMsg, PaperExecutor, type Executor } from "./executor.ts";
@@ -333,6 +335,68 @@ export function createEngine(opts: EngineOptions): EngineRuntime {
     subscribe(listener: (e: EngineEvent) => void): () => void {
       listeners.add(listener);
       return () => listeners.delete(listener);
+    },
+
+    closePosition(id: string, positionId: string, fraction: number): Promise<boolean> {
+      return withLock(id, async () => {
+        const { d, rt } = await load(id);
+        if (d.status === "killed" || d.status === "stopped") throw new Error(`this run is ${d.status}`);
+        const t = now();
+        const s = new Session(d, rt, await store.listPositions(id), deps, t);
+        const p = s.positions.get(positionId);
+        if (!p) throw new Error("that position is no longer open");
+        const f = Math.min(1, Math.max(0.01, fraction));
+        const ok = await s.closePosition(p, f, "manual", `${p.id}:manual:${t}`);
+        s.emit("notify", ok ? `You sold ${f >= 1 ? "all" : `${Math.round(f * 100)}%`} of ${p.instrumentKey.split(":").pop()}` : `Sell of ${p.instrumentKey.split(":").pop()} didn’t fill`, { positionId, fraction: f, by: "owner" });
+        await store.commit(s.toBatch());
+        publish(s.events);
+        return ok;
+      });
+    },
+
+    setExits(id: string, patch: ExitsPatch, positionIds?: string[]): Promise<number> {
+      return withLock(id, async () => {
+        const { d, rt } = await load(id);
+        const t = now();
+        const s = new Session(d, rt, await store.listPositions(id), deps, t);
+        let n = 0;
+        for (const p of s.open()) {
+          if (positionIds && !positionIds.includes(p.id)) continue;
+          const next: Record<string, unknown> = { ...p.exits };
+          for (const [k, v] of Object.entries(patch)) {
+            if (v === undefined) continue;
+            if (v === null) delete next[k];
+            else next[k] = v;
+          }
+          p.exits = next as Position["exits"];
+          // A new trailing stop starts trailing from here.
+          if (patch.trailingStopPct) p.peakPrice = p.markPrice;
+          s.markTouched(p);
+          n++;
+        }
+        if (n) s.emit("notify", `Exits changed on ${n} open position${n === 1 ? "" : "s"}`, { patch, by: "owner" });
+        await store.commit(s.toBatch());
+        publish(s.events);
+        return n;
+      });
+    },
+
+    updateStrategy(id: string, strategy: Strategy): Promise<void> {
+      return withLock(id, async () => {
+        const { d, rt } = await load(id);
+        if (d.status === "killed" || d.status === "stopped") throw new Error(`this run is ${d.status}`);
+        const t = now();
+        // Keep the memory of triggers and actions that still exist (fired once, cooldowns, crossings).
+        const fresh = initialState(strategy);
+        for (const k of Object.keys(fresh.triggers)) if (rt.evalState.triggers[k]) fresh.triggers[k] = rt.evalState.triggers[k]!;
+        for (const k of Object.keys(fresh.actions)) if (rt.evalState.actions[k]) fresh.actions[k] = rt.evalState.actions[k]!;
+        fresh.prev = rt.evalState.prev;
+        const nextRt: DeploymentRuntime = { ...rt, evalState: fresh };
+        const next: DeploymentRecord = { ...d, strategy, updatedAt: t };
+        const ev = event(id, "notify", "Rules updated", { by: "owner" }, t);
+        await store.commit({ deploymentId: id, deployment: next, runtime: nextRt, events: [ev] });
+        publish([ev]);
+      });
     },
 
     note(id: string, type: "warning" | "error" | "notify", message: string, data?: Record<string, unknown>): Promise<void> {

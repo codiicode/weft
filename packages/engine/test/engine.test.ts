@@ -539,3 +539,43 @@ describe("alerts-only mode", () => {
     expect(notes[0]!.data).toMatchObject({ alertsOnly: true, channel: "telegram" });
   });
 });
+
+describe("owner instructions on a running deployment", () => {
+  it("sells part of a position now, then the rest", async () => {
+    const t = await opened(perp("long", {}));
+    const pos = (await t.engine.getSnapshot(t.d.id))!.positions[0]!;
+    expect(await t.engine.closePosition!(t.d.id, pos.id, 0.5)).toBe(true);
+    let s = (await t.engine.getSnapshot(t.d.id))!;
+    expect(s.positions[0]!.qty).toBeCloseTo(pos.qty / 2, 9);
+    expect((await t.engine.getFills(t.d.id)).at(-1)).toMatchObject({ reason: "manual", side: "sell" });
+    await t.engine.closePosition!(t.d.id, pos.id, 1);
+    s = (await t.engine.getSnapshot(t.d.id))!;
+    expect(s.positions).toHaveLength(0);
+    await expect(t.engine.closePosition!(t.d.id, pos.id, 1)).rejects.toThrow(/no longer open/);
+  });
+
+  it("adds, changes and removes a stop on an open position, and the new stop fires", async () => {
+    const t = await opened(perp("long", {}));
+    expect(await t.engine.setExits!(t.d.id, { stopLoss: { pct: 10 }, takeProfit: { pct: 50 } })).toBe(1);
+    expect((await t.engine.getSnapshot(t.d.id))!.positions[0]!.exits).toMatchObject({ stopLoss: { pct: 10 }, takeProfit: { pct: 50 } });
+    await t.engine.setExits!(t.d.id, { takeProfit: null });
+    expect((await t.engine.getSnapshot(t.d.id))!.positions[0]!.exits.takeProfit).toBeUndefined();
+    const s = await t.at(89); // more than 10% below entry
+    expect(s.positions).toHaveLength(0);
+    expect((await t.engine.getFills(t.d.id)).at(-1)?.reason).toBe("stop_loss");
+  });
+
+  it("swaps the rules but keeps positions, cash and what already fired", async () => {
+    const strategy = perp("long", {});
+    const t = await opened(strategy);
+    const before = (await t.engine.getSnapshot(t.d.id))!;
+    const next = { ...strategy, name: "Renamed", actions: strategy.actions.map((a) => (a.type === "open" ? { ...a, exits: { stopLoss: { pct: 7 } } } : a)) };
+    await t.engine.updateStrategy!(t.d.id, next as typeof strategy);
+    const after = (await t.engine.getSnapshot(t.d.id))!;
+    expect(after.deployment.strategy.name).toBe("Renamed");
+    expect(after.positions).toHaveLength(1);
+    expect(after.cashUsd).toBeCloseTo(before.cashUsd, 9);
+    await t.at(100);
+    expect((await t.engine.getFills(t.d.id)).filter((f) => f.reason === "entry")).toHaveLength(1); // no second buy
+  });
+});

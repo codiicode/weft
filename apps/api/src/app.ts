@@ -22,6 +22,7 @@ import type { Accounts } from "./lib/accounts.ts";
 import type { LiveService } from "./live/service.ts";
 import { SECOND_INTERVALS, type SecondInterval, type TradeTape } from "./lib/tape.ts";
 import { tradesSolana, type SolanaLive } from "./live/solana.ts";
+import { parseInstruction, withExits, type Step } from "./lib/instructions.ts";
 
 /** Chart ranges and the bar size each one uses (about 60–370 bars). */
 export const CHART_RANGES = ["1H", "1D", "1W", "1M", "1Y"] as const;
@@ -530,6 +531,105 @@ export function createApp(deps: AppDeps) {
   app.get("/deployments/:id/fills", async (c) =>
     !(await canView(c, c.req.param("id"))) ? c.json({ error: "this is a private live run" }, 403) : c.json({ fills: await engine.getFills(c.req.param("id")) }),
   );
+
+  /* ---------------- Owner instructions on a running strategy ---------------- */
+
+  const ownedRun = async (c: Context) => {
+    const user = await requireUser(c);
+    const id = c.req.param("id")!;
+    const snap = await engine.getSnapshot(id);
+    if (!snap) throw new HTTPException(404, { message: "not found" });
+    assertOwner(accounts?.deploymentOwner(id), user);
+    if (snap.deployment.status === "stopped" || snap.deployment.status === "killed") throw new HTTPException(409, { message: `this run is ${snap.deployment.status}` });
+    return { user, id, snap };
+  };
+
+  /** Sell part or all of one position at market, now. */
+  app.post("/deployments/:id/positions/:pid/close", async (c) => {
+    const { id } = await ownedRun(c);
+    const { fraction } = z.object({ fraction: z.number().gt(0).max(1).default(1) }).parse(await c.req.json().catch(() => ({})));
+    if (!engine.closePosition) return c.json({ error: "selling on request isn’t available" }, 501);
+    try {
+      const ok = await engine.closePosition(id, c.req.param("pid"), fraction);
+      return c.json({ ok, snapshot: await engine.getSnapshot(id) }, ok ? 200 : 422);
+    } catch (e) {
+      return c.json({ error: (e as Error).message }, 409);
+    }
+  });
+
+  /** Plans waiting for the owner's confirmation (10 minutes). */
+  const plans = new Map<string, { userId: string; deploymentId: string; steps: Step[]; expires: number }>();
+
+  /** Turn a plain instruction into reviewable steps (nothing happens yet). */
+  app.post("/deployments/:id/instruct", async (c) => {
+    const { user, id, snap } = await ownedRun(c);
+    const { text } = z.object({ text: z.string().min(2).max(500) }).parse(await c.req.json());
+    let steps: Step[] | null;
+    let rationale = "";
+    try {
+      steps = parseInstruction(text, snap.positions);
+    } catch (e) {
+      return c.json({ error: (e as Error).message }, 422);
+    }
+    if (!steps) {
+      // Anything else: Claude edits the rules (counts toward the daily AI limit).
+      checkAiQuota(user);
+      try {
+        const r = await generateStrategy(snap.deployment.strategy.thesis, { catalog }, { base: snap.deployment.strategy, instruction: text });
+        const v = validateStrategy(r.strategy);
+        if (!v.ok) return c.json({ error: "That change didn’t produce valid rules. Try saying it differently." }, 422);
+        rationale = r.rationale;
+        steps = [{ kind: "rules", strategy: v.strategy, label: r.rationale || "Update the rules as asked" }];
+        // Exits on the open actions also apply to positions already open.
+        const before = snap.deployment.strategy.actions.filter((a) => a.type === "open");
+        for (const a of v.strategy.actions) {
+          if (a.type !== "open") continue;
+          const old = before.find((b) => b.id === a.id);
+          if (!old || JSON.stringify(old.exits) === JSON.stringify(a.exits)) continue;
+          const held = snap.positions.filter((p) => p.actionId === a.id);
+          if (!held.length) continue;
+          const patch: Record<string, unknown> = {};
+          for (const k of ["stopLoss", "takeProfit", "trailingStopPct", "timeExitHours"] as const) patch[k] = a.exits[k] ?? null;
+          steps.push({ kind: "exits", patch, positionIds: held.map((p) => p.id), label: "Apply the new exits to the positions already open" });
+        }
+      } catch (e) {
+        if (e instanceof GenerationError) return c.json({ error: e.message }, 422);
+        throw e;
+      }
+    }
+    const planId = crypto.randomUUID();
+    for (const [k, p] of plans) if (p.expires < Date.now()) plans.delete(k);
+    plans.set(planId, { userId: user.id, deploymentId: id, steps, expires: Date.now() + 10 * 60_000 });
+    return c.json({ planId, steps: steps.map((s) => ({ kind: s.kind, label: s.label })), rationale });
+  });
+
+  /** Carry out a reviewed plan. */
+  app.post("/deployments/:id/instruct/:planId/apply", async (c) => {
+    const { user, id } = await ownedRun(c);
+    const plan = plans.get(c.req.param("planId"));
+    if (!plan || plan.expires < Date.now() || plan.userId !== user.id || plan.deploymentId !== id) return c.json({ error: "that plan expired; ask again" }, 410);
+    plans.delete(c.req.param("planId"));
+    const done: string[] = [];
+    try {
+      for (const s of plan.steps) {
+        if (s.kind === "sell") {
+          const ok = await engine.closePosition!(id, s.positionId, s.fraction);
+          done.push(ok ? s.label : `${s.label}: didn’t fill`);
+        } else if (s.kind === "exits") {
+          await engine.setExits!(id, s.patch, s.positionIds);
+          const cur = await engine.getSnapshot(id);
+          if (cur) await engine.updateStrategy!(id, withExits(cur.deployment.strategy, s.patch));
+          done.push(s.label);
+        } else {
+          await engine.updateStrategy!(id, s.strategy);
+          done.push(s.label);
+        }
+      }
+    } catch (e) {
+      return c.json({ error: (e as Error).message, done }, 409);
+    }
+    return c.json({ done, snapshot: await engine.getSnapshot(id) });
+  });
 
   for (const action of ["pause", "resume", "stop", "kill", "tick"] as const) {
     app.post(`/deployments/:id/${action}`, async (c) => {

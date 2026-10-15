@@ -1,4 +1,5 @@
-import type { CreateDeploymentInput, DeploymentRecord, Engine, EngineEvent } from "@weft/engine";
+import type { CreateDeploymentInput, DeploymentRecord, Engine, EngineEvent, ExitsPatch } from "@weft/engine";
+import type { Strategy } from "@weft/strategy";
 
 /**
  * One Engine facade over a paper engine and an optional live engine. Each
@@ -81,6 +82,24 @@ export class CompositeEngine implements Engine {
   note(id: string, type: "warning" | "error" | "notify", message: string, data?: Record<string, unknown>) {
     return this.on(id, async (e) => {
       await e.note?.(id, type, message, data);
+    });
+  }
+  closePosition(id: string, positionId: string, fraction: number) {
+    return this.on(id, (e) => {
+      if (!e.closePosition) throw new Error("this engine can’t sell positions on request");
+      return e.closePosition(id, positionId, fraction);
+    });
+  }
+  setExits(id: string, patch: ExitsPatch, positionIds?: string[]) {
+    return this.on(id, (e) => {
+      if (!e.setExits) throw new Error("this engine can’t change exits");
+      return e.setExits(id, patch, positionIds);
+    });
+  }
+  updateStrategy(id: string, strategy: Strategy) {
+    return this.on(id, (e) => {
+      if (!e.updateStrategy) throw new Error("this engine can’t change rules");
+      return e.updateStrategy(id, strategy);
     });
   }
   subscribe(listener: (e: EngineEvent) => void) {

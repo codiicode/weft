@@ -317,6 +317,14 @@ export const api = {
   fills: (id: string) => req<{ fills: Fill[] }>(`/deployments/${encodeURIComponent(id)}/fills`),
   control: (id: string, action: "pause" | "resume" | "stop" | "kill" | "tick") =>
     req<Snapshot>(`/deployments/${encodeURIComponent(id)}/${action}`, { method: "POST" }),
+  /** Sell `fraction` of one open position at market, now. */
+  sellPosition: (id: string, positionId: string, fraction: number) =>
+    req<{ ok: boolean; snapshot: Snapshot }>(`/deployments/${encodeURIComponent(id)}/positions/${encodeURIComponent(positionId)}/close`, { method: "POST", json: { fraction } }),
+  /** Turn a plain instruction into steps to review (nothing happens yet). */
+  instruct: (id: string, text: string) =>
+    req<{ planId: string; steps: { kind: "sell" | "exits" | "rules"; label: string }[]; rationale: string }>(`/deployments/${encodeURIComponent(id)}/instruct`, { method: "POST", json: { text } }),
+  applyPlan: (id: string, planId: string) =>
+    req<{ done: string[]; snapshot: Snapshot }>(`/deployments/${encodeURIComponent(id)}/instruct/${encodeURIComponent(planId)}/apply`, { method: "POST", json: {} }),
 
   /** Replay a strategy over the last N days of history through the real engine. */
   backtest: (body: BacktestRequest, signal?: AbortSignal) => req<BacktestResult>("/backtest", { method: "POST", json: body, signal }),

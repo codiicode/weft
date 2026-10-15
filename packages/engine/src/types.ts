@@ -198,4 +198,13 @@ export interface Engine {
   subscribe(listener: (e: EngineEvent) => void): () => void;
   /** Record an outside observation on a deployment (e.g. venue reconciliation). */
   note?(id: string, type: "warning" | "error" | "notify", message: string, data?: Record<string, unknown>): Promise<void>;
+  /** The owner sells `fraction` (0–1] of one open position at market, now. Resolves false if nothing filled. */
+  closePosition?(id: string, positionId: string, fraction: number): Promise<boolean>;
+  /** Change the exits of open positions (all, or the listed ones). `null` clears a level. */
+  setExits?(id: string, patch: ExitsPatch, positionIds?: string[]): Promise<number>;
+  /** Replace a running deployment's rules, keeping its positions, cash and history. */
+  updateStrategy?(id: string, strategy: Strategy): Promise<void>;
 }
+
+/** Changes to a position's exits: a value sets it, `null` removes it, absent keeps it. */
+export type ExitsPatch = { [K in keyof Exits]?: Exits[K] | null };
