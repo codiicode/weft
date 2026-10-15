@@ -38,6 +38,8 @@ function TickPrice({ value, children }: { value: number | null | undefined; chil
   );
 }
 
+type SortKey = "price" | "change24hPct" | "volume24hUsd" | "openInterestUsd" | "fundingHourlyPct" | "liquidityUsd" | "marketCapUsd" | "maxLeverage";
+
 function liveCoin(r: MarketListing): string | null {
   return r.instrument.kind === "perp" ? perpCoin(r.instrument.symbol, r.instrument.dex) : null;
 }
@@ -53,7 +55,32 @@ function Markets() {
     return () => clearTimeout(t);
   }, [search]);
   const { data, loading, error } = useApi(() => api.markets(product, { search: q || undefined, limit: product === "predictions" ? 300 : 80 }), [product, q], { pollMs: 12_000 });
-  const rows = data?.rows ?? [];
+  const rawRows = data?.rows ?? [];
+  // Click a column to sort by it (high to low first, click again for low to high).
+  const [sort, setSort] = useState<{ key: SortKey; dir: 1 | -1 } | null>(null);
+  const rows = useMemo(() => {
+    if (!sort) return rawRows;
+    const val = (r: MarketListing) => r[sort.key] ?? null;
+    return [...rawRows].sort((a, b) => {
+      const x = val(a), y = val(b);
+      if (x == null && y == null) return 0;
+      if (x == null) return 1;
+      if (y == null) return -1;
+      return (y - x) * (sort.dir === -1 ? 1 : -1);
+    });
+  }, [rawRows, sort]);
+  useEffect(() => setSort(null), [product]);
+  const sortBy = (key: SortKey) => setSort((cur) => (cur?.key === key ? (cur.dir === -1 ? { key, dir: 1 } : null) : { key, dir: -1 }));
+  const Th = ({ k, label, className = "" }: { k: SortKey; label: string; className?: string }) => (
+    <th className={`px-3 py-3 text-right font-normal ${className}`} aria-sort={sort?.key === k ? (sort.dir === -1 ? "descending" : "ascending") : "none"}>
+      <button onClick={() => sortBy(k)} className={`inline-flex items-center gap-1 transition-colors hover:text-ink ${sort?.key === k ? "text-ink" : ""}`}>
+        {label}
+        <span className={`text-[10px] ${sort?.key === k ? "opacity-100" : "opacity-0"}`} aria-hidden>
+          {sort?.dir === 1 ? "▲" : "▼"}
+        </span>
+      </button>
+    </th>
+  );
   const venues = useTradingVenues();
   const soon = (p: Product) => SOON.has(p) || (p === "tokens" && venues != null && !venues.solana);
   const dexes = useMemo(() => [...new Set(rows.flatMap((r) => (r.instrument.kind === "perp" ? [r.instrument.dex ?? ""] : [])))], [rows]);
@@ -128,14 +155,14 @@ function Markets() {
                 <thead className="text-[12.5px] text-muted">
                   <tr className="border-b border-line">
                     <th className="px-5 py-3 font-normal">Market</th>
-                    <th className="px-3 py-3 text-right font-normal">Price</th>
-                    <th className="px-3 py-3 text-right font-normal">24h</th>
-                    {cols.vol && <th className="hidden sm:table-cell px-3 py-3 text-right font-normal">Volume</th>}
-                    {cols.oi && <th className="hidden sm:table-cell px-3 py-3 text-right font-normal">Open interest</th>}
-                    {cols.fund && <th className="hidden sm:table-cell px-3 py-3 text-right font-normal">Funding / h</th>}
-                    {cols.liq && <th className="hidden sm:table-cell px-3 py-3 text-right font-normal">Liquidity</th>}
-                    {cols.mcap && <th className="hidden sm:table-cell px-3 py-3 text-right font-normal">Market cap</th>}
-                    {cols.lev && <th className="hidden sm:table-cell px-5 py-3 text-right font-normal">Max leverage</th>}
+                    <Th k="price" label="Price" />
+                    <Th k="change24hPct" label="24h" />
+                    {cols.vol && <Th k="volume24hUsd" label="Volume" className="hidden sm:table-cell" />}
+                    {cols.oi && <Th k="openInterestUsd" label="Open interest" className="hidden sm:table-cell" />}
+                    {cols.fund && <Th k="fundingHourlyPct" label="Funding / h" className="hidden sm:table-cell" />}
+                    {cols.liq && <Th k="liquidityUsd" label="Liquidity" className="hidden sm:table-cell" />}
+                    {cols.mcap && <Th k="marketCapUsd" label="Market cap" className="hidden sm:table-cell" />}
+                    {cols.lev && <Th k="maxLeverage" label="Max leverage" className="hidden sm:table-cell pr-5" />}
                   </tr>
                 </thead>
                 <tbody>

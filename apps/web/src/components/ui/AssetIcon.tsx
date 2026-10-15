@@ -24,10 +24,11 @@ function clean(symbol: string) {
   return ALIAS[up] ?? up;
 }
 
-export function iconSources(opts: { symbol: string; src?: string | null; dex?: string | null }): string[] {
+export function iconSources(opts: { symbol: string; src?: string | null; dex?: string | null; alt?: string[] }): string[] {
   const sym = clean(opts.symbol);
   const out: string[] = [];
   if (opts.src) out.push(opts.src);
+  for (const a of opts.alt ?? []) out.push(a);
   if (LOCAL.has(sym)) out.push(`/coins/${sym}.svg`);
   out.push(opts.dex ? `${HL}/${opts.dex}:${sym}.svg` : `${HL}/${sym}.svg`);
   if (!opts.dex) out.push(`${HL}/xyz:${sym}.svg`);
@@ -44,16 +45,18 @@ export function AssetIcon({
   symbol,
   src,
   dex,
+  alt,
   size = 20,
   className = "",
 }: {
   symbol: string;
   src?: string | null;
   dex?: string | null;
+  alt?: string[];
   size?: number;
   className?: string;
 }) {
-  const sources = iconSources({ symbol, src, dex });
+  const sources = iconSources({ symbol, src, dex, alt });
   const key = sources.join("|");
   const [failed, setFailed] = useState<{ key: string; i: number }>({ key, i: 0 });
   const i = failed.key === key ? failed.i : 0;
@@ -94,7 +97,7 @@ export function AssetIcon({
 }
 
 /** A small overlapping row of logos (a strategy's markets). */
-export function AssetStack({ items, size = 20, max = 3 }: { items: { symbol: string; src?: string | null; dex?: string | null }[]; size?: number; max?: number }) {
+export function AssetStack({ items, size = 20, max = 3 }: { items: { symbol: string; src?: string | null; dex?: string | null; alt?: string[] }[]; size?: number; max?: number }) {
   const shown = items.slice(0, max);
   return (
     <span className="inline-flex shrink-0 items-center">

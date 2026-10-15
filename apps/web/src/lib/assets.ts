@@ -1,6 +1,9 @@
 import type { Instrument, Strategy } from "@weft/strategy";
 
-export type IconRef = { symbol: string; src?: string | null; dex?: string | null };
+export type IconRef = { symbol: string; src?: string | null; dex?: string | null; alt?: string[] };
+
+/** DexScreener's logo CDN, by mint: covers most Solana tokens (404s fall back to the next source). */
+export const tokenLogo = (mint: string) => `https://cdn.dexscreener.com/tokens/solana/${mint}.png`;
 
 /** The logo to show for any instrument the strategy schema knows. */
 export function instrumentIcon(i: Instrument, meta?: Record<string, unknown> | null): IconRef {
@@ -11,7 +14,7 @@ export function instrumentIcon(i: Instrument, meta?: Record<string, unknown> | n
     case "spot":
       return { symbol: i.symbol.split("/")[0]!, src };
     case "token":
-      return { symbol: i.symbol ?? i.mint.slice(0, 4), src };
+      return { symbol: i.symbol ?? i.mint.slice(0, 4), src, alt: [tokenLogo(i.mint)] };
     case "option":
       return { symbol: i.underlying, src };
     case "outcome":

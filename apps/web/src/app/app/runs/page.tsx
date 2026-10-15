@@ -5,6 +5,7 @@ import { useApi } from "@/lib/use-api";
 import { useAuth } from "@/lib/auth";
 import { PageHeader, Btn, Empty, Card } from "@/components/app/AppShell";
 import { RunListHeader, RunRow } from "@/components/app/RunCard";
+import { Portfolio } from "@/components/app/Portfolio";
 
 const FILTERS = [
   ["all", "All"],
@@ -14,7 +15,7 @@ const FILTERS = [
 
 export default function RunsPage() {
   const auth = useAuth();
-  const { data, loading, error } = useApi(() => api.deployments(), [auth.authenticated], { pollMs: 6_000 });
+  const { data, loading, error, refresh } = useApi(() => api.deployments(), [auth.authenticated], { pollMs: 6_000 });
   const [filter, setFilter] = useState<(typeof FILTERS)[number][0]>("all");
   const runs = data?.deployments ?? [];
   const shown = runs.filter((s) =>
@@ -34,6 +35,8 @@ export default function RunsPage() {
           <Empty title="Nothing running yet" sub="Write a thesis or start from a strategy someone else made." action={<Btn href="/app/new">Write a thesis</Btn>} />
         ) : (
           <>
+            <Portfolio runs={runs} onChange={() => void refresh()} />
+            <h2 className="mb-3 mt-8 text-[15px] font-semibold tracking-[-0.015em] text-ink">Your strategies</h2>
             <div className="mb-4 flex gap-1">
               {FILTERS.map(([k, l]) => (
                 <button
