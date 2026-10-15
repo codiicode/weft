@@ -80,7 +80,8 @@ export interface TriggerResult {
   held?: "cooldown" | "max_fires" | "already_fired";
 }
 
-export type ResolvedSize = { usd: number; native?: undefined } | { native: number; usd?: undefined };
+/** `fixed`: the user gave the amount ("$50", "0.05 SOL"), so percentage caps don't apply to it. */
+export type ResolvedSize = ({ usd: number; native?: undefined } | { native: number; usd?: undefined }) & { fixed?: boolean };
 
 interface IntentBase {
   /** Deterministic idempotency key: the runtime must never execute the same key twice. */
@@ -213,9 +214,9 @@ export function resolveSize(size: Size, equityUsd: number): ResolvedSize {
     case "pct_equity":
       return { usd: (equityUsd * size.value) / 100 };
     case "usd":
-      return { usd: size.value };
+      return { usd: size.value, fixed: true };
     case "native":
-      return { native: size.value };
+      return { native: size.value, fixed: true };
   }
 }
 

@@ -36,22 +36,29 @@ function Segmented<T extends string | number>({ value, options, onChange, label 
 }
 
 /**
- * The smallest budget that lets the strategy's fixed-size buys through its own position cap
- * (a position may be at most `maxPositionPct`% of the budget). Null when sizes scale with the budget.
+ * What a strategy with stated amounts ("0.05 SOL", "$50") spends, so the run needs no budget field.
+ * Null when any buy is a percentage of the account or can't be priced.
  */
-export function minBudget(s: Strategy | undefined, solUsd: number | null): number | null {
+export function statedSpend(s: Strategy | undefined, solUsd: number | null): { usd: number; text: string } | null {
   if (!s) return null;
-  let biggest = 0;
+  let usd = 0;
+  const parts: string[] = [];
   for (const a of s.actions) {
+    if (a.type === "options") return null;
     if (a.type !== "open") continue;
     const size = a.size;
-    let usd = 0;
-    if (size.unit === "usd") usd = size.value;
-    else if (size.unit === "native" && a.instrument.kind === "token") usd = a.instrument.quote === "USDC" ? size.value : solUsd ? size.value * solUsd : 0;
-    biggest = Math.max(biggest, usd * Math.max(1, a.leverage ?? 1));
+    if (size.unit === "usd") {
+      usd += size.value;
+      parts.push(`$${size.value.toLocaleString("en-US")}`);
+    } else if (size.unit === "native" && a.instrument.kind === "token") {
+      const quote = a.instrument.quote;
+      if (quote === "USDC") usd += size.value;
+      else if (solUsd) usd += size.value * solUsd;
+      else return null;
+      parts.push(`${size.value} ${quote}`);
+    } else return null;
   }
-  if (!biggest) return null;
-  return Math.ceil((biggest / ((s.risk?.maxPositionPct ?? 10) / 100)) * 1.02);
+  return usd > 0 ? { usd, text: parts.join(" + ") } : null;
 }
 
 /** Why a strategy can't trade with real money yet (null when it can). */
@@ -85,7 +92,10 @@ export function DeployPanel({ strategy, strategyId, compact = false }: { strateg
   const available = onSolana ? null : (live.data?.venue?.withdrawableUsd ?? live.data?.venue?.accountValueUsd ?? null);
   const solBalance = sol.data?.balances?.sol ?? null;
   const walletUsd = sol.data?.balances?.usd ?? null;
-  const needBudget = useMemo(() => minBudget(strategy, sol.data?.solUsd ?? null), [strategy, sol.data?.solUsd]);
+  // Stated amounts need no budget: it's the amount itself plus room for fees and price moves.
+  const stated = useMemo(() => statedSpend(strategy, sol.data?.solUsd ?? null), [strategy, sol.data?.solUsd]);
+  const [customBudget, setCustomBudget] = useState(false);
+  const autoBudget = stated && !customBudget ? Math.max(1, Math.ceil(stated.usd * 1.15 * 100) / 100) : null;
   // A tester can trade Solana before it opens for everyone: the server says so per user.
   const solOpen = Boolean(sol.data?.enabled);
   const blocker = useMemo(() => liveBlocker(strategy, venues && solOpen ? { ...venues, solana: true } : venues), [strategy, venues, solOpen]);
@@ -110,7 +120,7 @@ export function DeployPanel({ strategy, strategyId, compact = false }: { strateg
         strategy,
         strategyId,
         intervalSec: interval,
-        ...(isLive ? { mode: "live", allocationUsd: Math.min(allocation, max), confirm: "GO LIVE" } : { mode: "paper", alertsOnly: true, allocationUsd: 1000 }),
+        ...(isLive ? { mode: "live", allocationUsd: autoBudget ?? Math.min(allocation, max), confirm: "GO LIVE" } : { mode: "paper", alertsOnly: true, allocationUsd: 1000 }),
       });
       router.push(`/app/run?id=${encodeURIComponent(rec.id)}`);
     } catch (e) {
@@ -174,6 +184,20 @@ export function DeployPanel({ strategy, strategyId, compact = false }: { strateg
                 </>
               )}
             </p>
+            {autoBudget != null && stated ? (
+              <div className="mt-4 rounded-[10px] bg-paper-2 px-3.5 py-3">
+                <div className="flex items-baseline justify-between gap-3">
+                  <span className="text-[13px] text-muted">Uses</span>
+                  <span className="tnum text-[15px] font-medium text-ink">
+                    {stated.text}
+                    {!/^\$/.test(stated.text) && <span className="font-normal text-muted"> ≈ ${stated.usd < 100 ? stated.usd.toFixed(2) : Math.round(stated.usd).toLocaleString("en-US")}</span>}
+                  </span>
+                </div>
+                <button type="button" onClick={() => (setCustomBudget(true), setAllocation(Math.max(10, Math.ceil(stated.usd * 2))))} className="mt-1.5 text-[12px] text-faint hover:text-ink">
+                  Set a budget instead
+                </button>
+              </div>
+            ) : (
             <label className="mt-4 block">
               <span className="text-[13px] text-ink-2">Budget</span>
               <div className="mt-1.5 flex h-10 items-center rounded-[10px] border border-line-2 bg-card px-3 focus-within:border-ink/40">
@@ -193,15 +217,8 @@ export function DeployPanel({ strategy, strategyId, compact = false }: { strateg
               <span className="mt-1 block text-[12px] leading-relaxed text-faint">
                 The most this strategy can put into trades; nothing moves until a rule fires. Up to ${cap.toLocaleString("en-US")} while Weft is new.
               </span>
-              {needBudget != null && allocation < needBudget && (
-                <span className="mt-2 block rounded-[8px] bg-[var(--trigger-soft)] px-2.5 py-2 text-[12.5px] leading-relaxed text-ink-2">
-                  Each buy is about ${Math.round((needBudget * (strategy?.risk?.maxPositionPct ?? 10)) / 100 / 1.02)}, and one position can be at most {strategy?.risk?.maxPositionPct ?? 10}% of the budget. Set the budget to at least ${needBudget}, or the buy will be refused.{" "}
-                  <button type="button" onClick={() => setAllocation(Math.min(needBudget, max))} className="font-medium text-ink underline underline-offset-4">
-                    Use ${needBudget}
-                  </button>
-                </span>
-              )}
             </label>
+            )}
           </>
         )
       ) : (
@@ -245,7 +262,7 @@ export function DeployPanel({ strategy, strategyId, compact = false }: { strateg
         </Btn>
       ) : (!isLive || ready) && (
         <Btn onClick={deploy} disabled={busy || (isLive && !agree)} className="mt-5 h-10 w-full">
-          {busy ? "Starting…" : isLive ? `Start trading $${Math.min(allocation, max).toLocaleString("en-US")}` : "Start alerts"}
+          {busy ? "Starting…" : isLive ? (autoBudget != null ? "Start trading" : `Start trading $${Math.min(allocation, max).toLocaleString("en-US")}`) : "Start alerts"}
         </Btn>
       )}
       <p className="mt-2.5 text-center text-[12.5px] text-faint">{isLive ? "Pause or stop any time. Stopping closes every position." : "Pause or stop any time."}</p>

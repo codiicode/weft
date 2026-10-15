@@ -247,24 +247,25 @@ describe("exit monitoring", () => {
 });
 
 describe("risk", () => {
-  it("rejects a position above maxPositionPct", async () => {
+  it("rejects a percentage-sized position above maxPositionPct", async () => {
     const t = setup();
     t.market.set(BTC, 100);
     t.signals.set("go", { value: 1 });
-    const strategy = simpleStrategy({ instrument: BTC, side: "long", size: { unit: "usd", value: 2_000 }, exits: { stopLoss: { pct: 5 } } });
-    const d = await t.engine.createDeployment({ strategy, allocationUsd: 10_000 });
+    const strategy = simpleStrategy({ instrument: BTC, side: "long", size: { unit: "pct_equity", value: 10 }, exits: { stopLoss: { pct: 5 } } });
+    const d = await t.engine.createDeployment({ strategy, allocationUsd: 10_000, caps: { maxPositionPct: 5 } });
     await t.engine.tick(d.id);
     expect(await t.engine.getFills(d.id)).toHaveLength(0);
     expect((await t.engine.getEvents(d.id)).find((e) => e.type === "rejected")?.message).toMatch(/exceeds max position/);
   });
 
-  it("user caps tighten the strategy (effectiveRisk)", async () => {
+  it("a size the user stated isn't held to percentage caps: a $5 buy runs on a $5.50 budget", async () => {
     const t = setup();
     t.market.set(BTC, 100);
     t.signals.set("go", { value: 1 });
-    const d = await t.engine.createDeployment({ strategy: perp("long", { stopLoss: { pct: 5 } }), allocationUsd: 10_000, caps: { maxPositionPct: 5 } });
+    const strategy = simpleStrategy({ instrument: BTC, side: "long", size: { unit: "usd", value: 5 }, exits: {} });
+    const d = await t.engine.createDeployment({ strategy, allocationUsd: 5.5 });
     await t.engine.tick(d.id);
-    expect(await t.engine.getFills(d.id)).toHaveLength(0);
+    expect(await t.engine.getFills(d.id)).toHaveLength(1);
   });
 
   it("enforces total exposure (size × leverage) across intents and open positions", async () => {
@@ -276,8 +277,8 @@ describe("risk", () => {
       signals: [{ id: "go", kind: "macro", params: { series: "GO" } }],
       triggers: [{ id: "entry", when: { op: "gt", left: { ref: "go.value" }, right: { value: 0 } } }],
       actions: [
-        { id: "a", type: "open", on: ["entry"], instrument: BTC, side: "long", size: { unit: "usd", value: 1_000 }, leverage: 3, exits: { stopLoss: { pct: 5 } } },
-        { id: "b", type: "open", on: ["entry"], instrument: ETH, side: "long", size: { unit: "usd", value: 1_000 }, leverage: 3, exits: { stopLoss: { pct: 5 } } },
+        { id: "a", type: "open", on: ["entry"], instrument: BTC, side: "long", size: { unit: "pct_equity", value: 10 }, leverage: 3, exits: { stopLoss: { pct: 5 } } },
+        { id: "b", type: "open", on: ["entry"], instrument: ETH, side: "long", size: { unit: "pct_equity", value: 10 }, leverage: 3, exits: { stopLoss: { pct: 5 } } },
       ],
     });
     const t = setup();

@@ -141,7 +141,7 @@ describe("evaluate", () => {
     const r = tick({ now: T0 + 6 * MIN, signals: signals(T0 + 6 * MIN, true) });
     expect(r.intents.map((i) => `${i.type}:${i.actionId}`)).toEqual(["open:buy_pump", "notify:alert_entry"]);
     const open = r.intents[0]!;
-    expect(open.type === "open" && open.size).toEqual({ native: 0.5 });
+    expect(open.type === "open" && open.size).toEqual({ native: 0.5, fixed: true });
     expect(open.type === "open" && open.order.maxSlippageBps).toBe(100); // policy default filled in
   });
 });

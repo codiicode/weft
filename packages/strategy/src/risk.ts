@@ -67,12 +67,15 @@ export function checkIntents(intents: Intent[], ctx: RiskContext): RiskResult {
     if (usd == null) {
       reasons.push("cannot size-check: no USD price for a native-sized order");
     } else {
+      // A size the user stated ("$50", "0.05 SOL") is what they asked for: percentage caps are for
+      // sizes that scale with the account. The run's own budget and cash still bound it.
+      const fixed = Boolean(intent.size.fixed);
       const maxPos = (ctx.equityUsd * r.maxPositionPct) / 100;
-      if (usd > maxPos + 1e-9) reasons.push(`size $${usd.toFixed(2)} exceeds max position $${maxPos.toFixed(2)} (${r.maxPositionPct}%)`);
+      if (!fixed && usd > maxPos + 1e-9) reasons.push(`size $${usd.toFixed(2)} exceeds max position $${maxPos.toFixed(2)} (${r.maxPositionPct}%)`);
       const lev = intent.type === "open" ? intent.leverage : 1;
       const notional = usd * lev;
       const maxExp = (ctx.equityUsd * r.maxTotalExposurePct) / 100;
-      if (exposure + notional > maxExp + 1e-9)
+      if (!fixed && exposure + notional > maxExp + 1e-9)
         reasons.push(`exposure would be $${(exposure + notional).toFixed(2)}, above max $${maxExp.toFixed(2)} (${r.maxTotalExposurePct}%)`);
       if (intent.type === "open" && intent.leverage > r.maxLeverage) reasons.push(`leverage ${intent.leverage}× above max ${r.maxLeverage}×`);
       if (!reasons.length) exposure += notional;
