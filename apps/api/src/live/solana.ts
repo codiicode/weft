@@ -161,7 +161,9 @@ export interface SolanaStatus {
   signerId: string | null;
   policyId: string | null;
   wallet: { address: string; delegated: boolean } | null;
-  balances: { sol: number | null; usdc: number | null } | null;
+  balances: { sol: number | null; usdc: number | null; usd: number | null } | null;
+  /** USD per SOL (Jupiter), for sizing in the UI. */
+  solUsd: number | null;
   maxAllocationUsd: number;
   feeBps: number;
   ready: boolean;
@@ -252,6 +254,20 @@ export class SolanaLive {
     return this.ids;
   }
 
+  private price: { at: number; usd: number } | null = null;
+  /** USD per SOL from a Jupiter quote, cached for a minute. */
+  async solUsd(): Promise<number | null> {
+    if (this.price && Date.now() - this.price.at < 60_000) return this.price.usd;
+    try {
+      const q = await this.builder.quote({ inputMint: WSOL_MINT, outputMint: USDC_MINT, amount: 1_000_000_000n, slippageBps: 50, platformFeeBps: 0 });
+      const usd = Number(q.outAmount) / 1e6;
+      if (usd > 0) this.price = { at: Date.now(), usd };
+      return usd > 0 ? usd : null;
+    } catch {
+      return this.price?.usd ?? null;
+    }
+  }
+
   private async balances(address: string): Promise<SolanaStatus["balances"]> {
     const owner = new PublicKey(address);
     const [lamports, usdc] = await Promise.all([
@@ -261,7 +277,9 @@ export class SolanaLive {
         .then((r) => r.value.reduce((n, a) => n + Number((a.account.data as { parsed?: { info?: { tokenAmount?: { uiAmount?: number } } } }).parsed?.info?.tokenAmount?.uiAmount ?? 0), 0))
         .catch(() => null),
     ]);
-    return { sol: lamports == null ? null : lamports / 1e9, usdc };
+    const sol = lamports == null ? null : lamports / 1e9;
+    const px = await this.solUsd();
+    return { sol, usdc, usd: sol != null && px != null ? sol * px + (usdc ?? 0) : null };
   }
 
   async status(userId: string): Promise<SolanaStatus> {
@@ -292,6 +310,7 @@ export class SolanaLive {
       policyId: ids?.policyId ?? null,
       wallet,
       balances,
+      solUsd: await this.solUsd(),
       maxAllocationUsd: this.cfg.maxAllocationUsd,
       feeBps: this.cfg.feeWallet ? this.cfg.platformFeeBps : 0,
       ready: blockers.length === 0,

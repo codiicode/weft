@@ -207,7 +207,8 @@ export interface SolanaStatus {
   signerId: string | null;
   policyId: string | null;
   wallet: { address: string; delegated: boolean } | null;
-  balances: { sol: number | null; usdc: number | null } | null;
+  balances: { sol: number | null; usdc: number | null; usd: number | null } | null;
+  solUsd: number | null;
   maxAllocationUsd: number;
   feeBps: number;
   ready: boolean;

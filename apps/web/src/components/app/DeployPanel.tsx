@@ -35,6 +35,25 @@ function Segmented<T extends string | number>({ value, options, onChange, label 
   );
 }
 
+/**
+ * The smallest budget that lets the strategy's fixed-size buys through its own position cap
+ * (a position may be at most `maxPositionPct`% of the budget). Null when sizes scale with the budget.
+ */
+export function minBudget(s: Strategy | undefined, solUsd: number | null): number | null {
+  if (!s) return null;
+  let biggest = 0;
+  for (const a of s.actions) {
+    if (a.type !== "open") continue;
+    const size = a.size;
+    let usd = 0;
+    if (size.unit === "usd") usd = size.value;
+    else if (size.unit === "native" && a.instrument.kind === "token") usd = a.instrument.quote === "USDC" ? size.value : solUsd ? size.value * solUsd : 0;
+    biggest = Math.max(biggest, usd * Math.max(1, a.leverage ?? 1));
+  }
+  if (!biggest) return null;
+  return Math.ceil((biggest / ((s.risk?.maxPositionPct ?? 10) / 100)) * 1.02);
+}
+
 /** Why a strategy can't trade with real money yet (null when it can). */
 export function liveBlocker(s: Strategy | undefined, venues: Venues | null = null): string | null {
   if (!s) return null;
@@ -65,6 +84,8 @@ export function DeployPanel({ strategy, strategyId, compact = false }: { strateg
   const testnet = !onSolana && live.data?.config.network === "testnet";
   const available = onSolana ? null : (live.data?.venue?.withdrawableUsd ?? live.data?.venue?.accountValueUsd ?? null);
   const solBalance = sol.data?.balances?.sol ?? null;
+  const walletUsd = sol.data?.balances?.usd ?? null;
+  const needBudget = useMemo(() => minBudget(strategy, sol.data?.solUsd ?? null), [strategy, sol.data?.solUsd]);
   // A tester can trade Solana before it opens for everyone: the server says so per user.
   const solOpen = Boolean(sol.data?.enabled);
   const blocker = useMemo(() => liveBlocker(strategy, venues && solOpen ? { ...venues, solana: true } : venues), [strategy, venues, solOpen]);
@@ -142,7 +163,8 @@ export function DeployPanel({ strategy, strategyId, compact = false }: { strateg
               {solBalance != null && (
                 <>
                   {" "}
-                  <span className="tnum text-ink-2">{solBalance.toFixed(3)} SOL</span> in your wallet.
+                  Your wallet: <span className="tnum text-ink-2">{solBalance.toFixed(3)} SOL</span>
+                  {walletUsd != null && <span className="tnum text-ink-2"> (≈ ${walletUsd < 100 ? walletUsd.toFixed(2) : Math.round(walletUsd).toLocaleString("en-US")})</span>}.
                 </>
               )}
               {available != null && (
@@ -153,7 +175,7 @@ export function DeployPanel({ strategy, strategyId, compact = false }: { strateg
               )}
             </p>
             <label className="mt-4 block">
-              <span className="text-[13px] text-ink-2">Amount</span>
+              <span className="text-[13px] text-ink-2">Budget</span>
               <div className="mt-1.5 flex h-10 items-center rounded-[10px] border border-line-2 bg-card px-3 focus-within:border-ink/40">
                 <span className="text-muted">$</span>
                 <input
@@ -168,7 +190,17 @@ export function DeployPanel({ strategy, strategyId, compact = false }: { strateg
                   Max
                 </button>
               </div>
-              <span className="mt-1 block text-[12px] text-faint">Up to ${cap.toLocaleString("en-US")} per strategy while Weft is new.</span>
+              <span className="mt-1 block text-[12px] leading-relaxed text-faint">
+                The most this strategy can put into trades; nothing moves until a rule fires. Up to ${cap.toLocaleString("en-US")} while Weft is new.
+              </span>
+              {needBudget != null && allocation < needBudget && (
+                <span className="mt-2 block rounded-[8px] bg-[var(--trigger-soft)] px-2.5 py-2 text-[12.5px] leading-relaxed text-ink-2">
+                  Each buy is about ${Math.round((needBudget * (strategy?.risk?.maxPositionPct ?? 10)) / 100 / 1.02)}, and one position can be at most {strategy?.risk?.maxPositionPct ?? 10}% of the budget. Set the budget to at least ${needBudget}, or the buy will be refused.{" "}
+                  <button type="button" onClick={() => setAllocation(Math.min(needBudget, max))} className="font-medium text-ink underline underline-offset-4">
+                    Use ${needBudget}
+                  </button>
+                </span>
+              )}
             </label>
           </>
         )

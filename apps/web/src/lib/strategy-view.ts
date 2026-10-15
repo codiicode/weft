@@ -296,7 +296,8 @@ function humanize(line: string, titles: Map<string, string>): string {
   const name = (sid: string, f: string) => {
     const t = titles.get(sid);
     const field = FIELD[f]?.[0] ?? f.replaceAll("_", " ");
-    return t ? `${t} ${field}` : field;
+    // "RAY price" + "price" reads as "RAY price", not "RAY price price".
+    return t ? (t.toLowerCase().endsWith(field.toLowerCase()) ? t : `${t} ${field}`) : field;
   };
   const title = (sid: string) => titles.get(sid) ?? sid;
   return line
@@ -394,8 +395,10 @@ export function describeStrategy(s: Strategy): { watches: string[]; watchKinds: 
           const lev = a.leverage > 1 ? ` at ${a.leverage}×` : "";
           const sign: ["+" | "−", "+" | "−"] = a.side === "long" ? ["+", "−"] : ["−", "+"];
           const ex = exitPhrase(a.exits, sign);
+          // A label that already says what to do ("Buy 0.05 SOL of RAY") is used as the whole phrase.
+          const said = a.label && /^(buy|sell|go long|go short|long|short)\b/i.test(a.label);
           return {
-            text: `${verb} ${inst} with ${sizePhrase(a, quote)}${lev}${ex ? `; ${ex}` : ""}`,
+            text: said ? `${a.label}${lev}${ex ? `; ${ex}` : ""}` : `${verb} ${inst} with ${sizePhrase(a, quote)}${lev}${ex ? `; ${ex}` : ""}`,
             tone: a.side === "short" && !longOnly ? "short" : "long",
             icon: instrumentIcon(a.instrument),
           };
