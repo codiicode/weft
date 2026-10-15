@@ -151,6 +151,15 @@ const app = createApp({
 });
 engine.start();
 
+// Live runs: blocked and failed orders go to the server log too (run id prefix and reason only), so
+// problems with real money can be diagnosed without reading anyone's private activity.
+engine.subscribe((e) => {
+  if (e.type !== "rejected" && e.type !== "error") return;
+  void engine.getSnapshot(e.deploymentId).then((s) => {
+    if (s?.deployment.mode === "live") console.warn(`[live ${e.deploymentId.slice(0, 8)}] ${e.type}: ${e.message.slice(0, 400)}`);
+  });
+});
+
 // Create (or load) Weft's Solana signer and policy now, so a setup problem shows up in the logs.
 if (solana && solCfg.authorizationKey) {
   void solana
