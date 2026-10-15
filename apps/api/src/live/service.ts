@@ -15,6 +15,7 @@ import type { Strategy } from "@weft/strategy";
 import type { Hex } from "viem";
 import type { Accounts, LiveAccount } from "../lib/accounts.ts";
 import type { AgentWallets } from "./agents.ts";
+import type { HolderDiscount, HolderStatus } from "./holders.ts";
 
 /**
  * Live trading on Hyperliquid, non-custodially:
@@ -40,7 +41,7 @@ export interface LiveConfig {
 
 export function liveConfigFromEnv(env: NodeJS.ProcessEnv = process.env): LiveConfig {
   const builder = env.WEFT_BUILDER_ADDRESS && /^0x[0-9a-fA-F]{40}$/.test(env.WEFT_BUILDER_ADDRESS)
-    ? { address: env.WEFT_BUILDER_ADDRESS.toLowerCase() as Hex, feeTenthsBps: Number(env.WEFT_BUILDER_FEE_TENTHS_BPS ?? 50) }
+    ? { address: env.WEFT_BUILDER_ADDRESS.toLowerCase() as Hex, feeTenthsBps: Number(env.WEFT_BUILDER_FEE_TENTHS_BPS ?? 100) }
     : null;
   return {
     enabled: env.WEFT_LIVE_ENABLED === "1",
@@ -67,6 +68,8 @@ export interface LiveStatus {
   } | null;
   ready: boolean;
   blockers: string[];
+  /** $WEFT holder discount on Weft's builder fee, when the token is live. */
+  holder?: HolderStatus | null;
 }
 
 type Pending = { kind: "agent" | "builder"; req: UserSignRequest<Record<string, unknown> & { signatureChainId: string }>; hlAddress: Hex; expires: number };
@@ -78,6 +81,8 @@ export class LiveService {
   private readonly accounts: Accounts;
   private readonly agents: AgentWallets | null;
   private readonly fetchFn: FetchLike;
+  /** Set after construction (server wiring): the $WEFT holder discount. */
+  holders: HolderDiscount | null = null;
 
   constructor(cfg: LiveConfig, accounts: Accounts, agents: AgentWallets | null, fetchFn: FetchLike = globalThis.fetch as unknown as FetchLike) {
     this.cfg = cfg;
@@ -139,6 +144,7 @@ export class LiveService {
       venue,
       ready: blockers.length === 0,
       blockers,
+      holder: this.holders?.enabled ? await this.holders.status(userId).catch(() => null) : null,
     };
   }
 
@@ -220,12 +226,18 @@ export class LiveService {
     return null;
   }
 
+  /** The executor with the user's current fee (holders of $WEFT pay less). */
+  async executorReady(userId: string): Promise<HyperliquidExecutor> {
+    const mult = (await this.holders?.status(userId).catch(() => null))?.feeMultiplier ?? 1;
+    return this.executorFor(userId, mult);
+  }
+
   /** The executor for one user's live deployments (Privy-signed agent → their account). */
-  executorFor(userId: string): HyperliquidExecutor {
+  executorFor(userId: string, feeMultiplier = 1): HyperliquidExecutor {
     const account = this.accounts.liveAccount(userId);
     const agent = this.agents?.existing(userId);
     if (!account || !agent || !this.agents) throw new Error("no live account or agent for this user");
-    const key = `${userId}|${account.hlAddress}|${this.cfg.network}`;
+    const key = `${userId}|${account.hlAddress}|${this.cfg.network}|${feeMultiplier}`;
     const cached = this.executors.get(key);
     if (cached) return cached;
     const ex = new HyperliquidExecutor({
@@ -234,7 +246,7 @@ export class LiveService {
       isMainnet: this.isMainnet,
       baseUrl: this.base,
       fetch: this.fetchFn,
-      builder: this.cfg.builder,
+      builder: this.cfg.builder && feeMultiplier !== 1 ? { ...this.cfg.builder, feeTenthsBps: Math.round(this.cfg.builder.feeTenthsBps * feeMultiplier) } : this.cfg.builder,
       allowMainnetSend: this.isMainnet,
     });
     this.executors.set(key, ex);
@@ -259,7 +271,7 @@ export class LiveRouterExecutor implements Executor {
     const blocked = this.live.blockReason(owner);
     if (blocked) return { status: "rejected", reason: blocked };
     try {
-      return await this.live.executorFor(owner).execute(req, now);
+      return await (await this.live.executorReady(owner)).execute(req, now);
     } catch (e) {
       return { status: "rejected", reason: (e as Error).message };
     }

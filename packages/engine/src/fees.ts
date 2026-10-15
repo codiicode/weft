@@ -3,9 +3,9 @@ import type { Instrument } from "@weft/strategy";
 /**
  * Fee schedule for paper fills. Defaults mirror what a live Weft order pays:
  *
- * - Hyperliquid perps & spot: taker 4.5 bps + Weft builder fee 5 bps, on notional, both sides.
- * - HIP-4 / Jupiter outcomes: 0 bps venue fee to open (close configurable, default 0) + builder fee 5 bps.
- * - Solana tokens (Jupiter / launchpads): Weft platform fee 50 bps + ~$0.002 network fee per swap.
+ * - Hyperliquid perps & spot: taker 4.5 bps + Weft builder fee 10 bps (Hyperliquid's perp maximum), on notional, both sides.
+ * - HIP-4 / Jupiter outcomes: 0 bps venue fee to open (close configurable, default 0) + builder fee 10 bps.
+ * - Solana tokens (Jupiter / launchpads): Weft platform fee 100 bps + ~$0.002 network fee per swap.
  * - Options: 3 bps of underlying notional (contracts × strike as proxy), or a flat
  *   per-contract fee if set, capped at a % of premium (Deribit-style cap).
  *
@@ -22,9 +22,9 @@ export interface FeeSchedule {
 export type FeeOverrides = { [K in keyof FeeSchedule]?: Partial<FeeSchedule[K]> };
 
 export const DEFAULT_FEES: FeeSchedule = {
-  hyperliquid: { takerBps: 4.5, builderBps: 5 },
-  outcome: { openBps: 0, closeBps: 0, builderBps: 5 },
-  solana: { platformBps: 50, networkFeeUsd: 0.002 },
+  hyperliquid: { takerBps: 4.5, builderBps: 10 },
+  outcome: { openBps: 0, closeBps: 0, builderBps: 10 },
+  solana: { platformBps: 100, networkFeeUsd: 0.002 },
   options: { notionalBps: 3, capPctOfPremium: 12.5 },
 };
 

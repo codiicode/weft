@@ -16,6 +16,7 @@ import {
 } from "@weft/execution";
 import type { Strategy } from "@weft/strategy";
 import type { Accounts } from "../lib/accounts.ts";
+import type { HolderDiscount, HolderStatus } from "./holders.ts";
 
 /**
  * Live trading of Solana tokens, non-custodially.
@@ -56,7 +57,7 @@ export function solanaConfigFromEnv(env: NodeJS.ProcessEnv = process.env): Solan
     enabled: env.WEFT_SOL_LIVE === "1",
     rpcUrl: env.SOLANA_RPC_URL || "https://api.mainnet-beta.solana.com",
     maxAllocationUsd: Number(env.WEFT_SOL_MAX_ALLOCATION_USD ?? env.WEFT_LIVE_MAX_ALLOCATION_USD ?? 100),
-    platformFeeBps: Number(env.WEFT_SOL_FEE_BPS ?? 50),
+    platformFeeBps: Number(env.WEFT_SOL_FEE_BPS ?? 100),
     feeWallet,
     authorizationKey: env.PRIVY_AUTHORIZATION_KEY || null,
     testers: (env.WEFT_SOL_TESTERS ?? "").split(",").map((x) => x.trim()).filter(Boolean),
@@ -166,6 +167,8 @@ export interface SolanaStatus {
   solUsd: number | null;
   maxAllocationUsd: number;
   feeBps: number;
+  /** $WEFT holder discount, when the token is live. */
+  holder: HolderStatus | null;
   ready: boolean;
   blockers: string[];
 }
@@ -176,6 +179,9 @@ export class SolanaLive {
   private readonly accounts: Accounts;
   private readonly conn: Connection;
   private builder: JupiterSwapBuilder;
+  private feeAccountsNow: Record<string, PublicKey> = {};
+  /** Set after construction (server wiring): the $WEFT holder discount. */
+  holders: HolderDiscount | null = null;
   /** Fee token accounts that exist on chain (checked every 10 minutes). Missing ones are skipped. */
   private feeChecked = 0;
   private readonly executors = new Map<string, JupiterExecutor>();
@@ -206,6 +212,7 @@ export class SolanaLive {
     if (!this.cfg.feeWallet || Date.now() - this.feeChecked < 10 * 60_000) return;
     this.feeChecked = Date.now();
     const feeAccounts = await this.feeAccounts();
+    this.feeAccountsNow = feeAccounts;
     const on = Object.keys(feeAccounts).length > 0;
     this.builder = new JupiterSwapBuilder({ platformFeeBps: on ? this.cfg.platformFeeBps : 0, feeAccounts });
     this.executors.clear();
@@ -303,6 +310,7 @@ export class SolanaLive {
       else if (!w.delegated) blockers.push("Let Weft trade from your Solana wallet.");
     } else if (!linked) blockers.push("Set up your Solana trading wallet.");
     const balances = wallet ? await this.balances(wallet.address) : null;
+    const holder = this.holders?.enabled ? await this.holders.status(userId).catch(() => null) : null;
     if (balances && (balances.sol ?? 0) < 0.01) blockers.push("Add some SOL to your trading wallet (a little covers network fees).");
     return {
       enabled: this.openFor(userId),
@@ -312,7 +320,8 @@ export class SolanaLive {
       balances,
       solUsd: await this.solUsd(),
       maxAllocationUsd: this.cfg.maxAllocationUsd,
-      feeBps: this.cfg.feeWallet ? this.cfg.platformFeeBps : 0,
+      feeBps: this.cfg.feeWallet ? Math.round(this.cfg.platformFeeBps * (holder?.feeMultiplier ?? 1)) : 0,
+      holder,
       ready: blockers.length === 0,
       blockers,
     };
@@ -325,7 +334,7 @@ export class SolanaLive {
     if (!w) throw new Error("that Solana wallet isn’t one of your Weft wallets");
     if (!w.delegated) throw new Error("add Weft as a signer on that wallet first");
     this.accounts.setSolanaAccount(userId, w.address, w.walletId);
-    this.executors.delete(userId);
+    for (const k of [...this.executors.keys()]) if (k.startsWith(`${userId}|`)) this.executors.delete(k);
     return this.status(userId);
   }
 
@@ -352,14 +361,21 @@ export class SolanaLive {
   /** The executor, after making sure the fee setup is current. */
   async executorReady(userId: string): Promise<JupiterExecutor> {
     await this.refreshFees().catch(() => {});
-    return this.executorFor(userId);
+    const mult = (await this.holders?.status(userId).catch(() => null))?.feeMultiplier ?? 1;
+    return this.executorFor(userId, mult);
   }
 
-  executorFor(userId: string): JupiterExecutor {
+  executorFor(userId: string, feeMultiplier = 1): JupiterExecutor {
     const acct = this.accounts.solanaAccount(userId);
     if (!acct || !this.api) throw new Error("no Solana trading wallet for this user");
-    const cached = this.executors.get(userId);
+    const key = `${userId}|${feeMultiplier}`;
+    const cached = this.executors.get(key);
     if (cached) return cached;
+    // $WEFT holders pay a reduced platform fee: their own builder with the discounted rate.
+    const builder =
+      feeMultiplier === 1 || !Object.keys(this.feeAccountsNow).length
+        ? this.builder
+        : new JupiterSwapBuilder({ platformFeeBps: Math.round(this.cfg.platformFeeBps * feeMultiplier), feeAccounts: this.feeAccountsNow });
     const conn = this.conn;
     const rpc: JupiterRpc = {
       getAccountInfo: (k) => conn.getAccountInfo(k),
@@ -372,12 +388,12 @@ export class SolanaLive {
       },
     } as JupiterRpc;
     const ex = new JupiterExecutor({
-      builder: this.builder,
+      builder,
       signer: new PrivyWalletSigner(this.api, acct.walletId, acct.address),
       rpc,
       maxPriorityFeeLamports: 1_000_000,
     });
-    this.executors.set(userId, ex);
+    this.executors.set(key, ex);
     return ex;
   }
 }

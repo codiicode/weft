@@ -80,6 +80,9 @@ export const HEALTHY: TokenFacts = {
 
 export const ZERO_SLIPPAGE = { perp: 0, spot: 0, token: 0, outcome: 0, option: 0 };
 
+/** The schedule the engine tests were written against (builder 5 bps, Solana platform 50 bps). */
+export const TEST_FEES = { hyperliquid: { builderBps: 5 }, outcome: { builderBps: 5 }, solana: { platformBps: 50 } };
+
 export function setup(over: Partial<EngineOptions> & { store?: Store } = {}) {
   const clock = { t: T0 };
   const market = new FakeMarket();
@@ -92,6 +95,8 @@ export function setup(over: Partial<EngineOptions> & { store?: Store } = {}) {
     tokenFacts,
     clock: () => clock.t,
     slippageBps: ZERO_SLIPPAGE,
+    // Tests pin their own fee schedule so they check the fee mechanics, not Weft's current prices.
+    fees: TEST_FEES,
     ...over,
   });
   return { engine, market, signals, tokenFacts, clock };

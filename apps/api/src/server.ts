@@ -1,4 +1,7 @@
 import { TradeTape } from "./lib/tape.ts";
+import { PrivyClient } from "@privy-io/node";
+import { Connection } from "@solana/web3.js";
+import { HolderDiscount, holderConfigFromEnv } from "./live/holders.ts";
 import { SolanaLive, SolanaRouterExecutor, privySolanaApi, solanaConfigFromEnv } from "./live/solana.ts";
 import { mkdirSync } from "node:fs";
 import { join } from "node:path";
@@ -63,6 +66,24 @@ const solanaEngine = solana
     })
   : null;
 const engine = new CompositeEngine(paperEngine, liveEngine, solanaEngine);
+
+// $WEFT holder discount on Weft's fees (inactive until WEFT_TOKEN_MINT and WEFT_HOLDER_MIN are set).
+// Holdings are read on-chain from wallets Privy says belong to the user.
+const holderCfg = holderConfigFromEnv();
+const privyUsers = process.env.PRIVY_APP_ID && process.env.PRIVY_APP_SECRET ? new PrivyClient({ appId: process.env.PRIVY_APP_ID, appSecret: process.env.PRIVY_APP_SECRET }) : null;
+const holders = new HolderDiscount(holderCfg, {
+  conn: new Connection(solCfg.rpcUrl, "confirmed"),
+  wallets: async (userId) => {
+    const out = [accounts.solanaAccount(userId)?.address].filter((x): x is string => Boolean(x));
+    if (privyUsers) {
+      const u = (await privyUsers.users()._get(userId).catch(() => null)) as { linked_accounts?: { type?: string; chain_type?: string; address?: string }[] } | null;
+      for (const a of u?.linked_accounts ?? []) if (a.type === "wallet" && a.chain_type === "solana" && a.address) out.push(a.address);
+    }
+    return out;
+  },
+});
+if (live) live.holders = holders;
+if (solana) solana.holders = holders;
 const library = new StrategyLibrary(join(DATA_DIR, "library.db"));
 const signalModes = Object.fromEntries(venues.signalProviders.flatMap((p) => p.kinds.map((k) => [k, p.mode] as const)));
 
@@ -172,6 +193,7 @@ const server = serve({ fetch: app.fetch, port: PORT, hostname: HOST }, (info) =>
   console.log(
     `  solana: ${solana ? `${solCfg.enabled ? "ON" : "off (WEFT_SOL_LIVE=1 to enable)"} · signer ${solCfg.authorizationKey ? "set" : "needs PRIVY_AUTHORIZATION_KEY"} · fee ${solCfg.feeWallet ? `${solCfg.platformFeeBps} bps` : "none (WEFT_SOL_FEE_WALLET)"} · rpc ${new URL(solCfg.rpcUrl).host} · cap $${solCfg.maxAllocationUsd}` : "unavailable (needs Privy)"}`
   );
+  console.log(`  fees: Hyperliquid ${(liveCfg.builder?.feeTenthsBps ?? 100) / 10} bps · Solana ${solCfg.platformFeeBps} bps · $WEFT holder discount ${holders.enabled ? `${holderCfg.discount * 100}% at ${holderCfg.minAmount} tokens` : "off (WEFT_TOKEN_MINT, WEFT_HOLDER_MIN)"}`);
   console.log(`  AI generation: ${process.env.ANTHROPIC_API_KEY ? "Claude (claude-opus-5-5)" : "template fallback (set ANTHROPIC_API_KEY for Claude)"}`);
 });
 

@@ -60,6 +60,14 @@ options show prices and charts and can run as alerts until their live trading is
 before were stopped at startup (history kept). The leaderboard lists only live runs whose owners chose to
 share them, in percent. Local development (sign-in off, or `WEFT_ALLOW_PAPER=1`) keeps paper runs.
 
+## Fees and $WEFT (decided 2026-10-15)
+
+Weft charges 0.10% on Hyperliquid (the builder-code maximum on perps; `WEFT_BUILDER_FEE_TENTHS_BPS`,
+default 100) and 1% on Solana swaps (`WEFT_SOL_FEE_BPS`, default 100). Half of fees buy back $WEFT, half
+is Weft's revenue. Holding $WEFT halves the fee: set `WEFT_TOKEN_MINT` and `WEFT_HOLDER_MIN` (tokens) at
+launch (`WEFT_HOLDER_DISCOUNT`, default 0.5); holdings are read on-chain from the user's trading wallet
+and Solana wallets linked to their Privy account. Not built yet: the buyback job and its public ledger.
+
 ## Solana live (built 2026-10-15, off until tested)
 
 Users get a Weft trading wallet on Solana: a Privy embedded wallet they own and can export. They add Weft

@@ -15,7 +15,7 @@ const faqs = [
   },
   {
     q: "What does it cost?",
-    a: `Writing and testing strategies is free. Trades pay a small fee (${(brand.builderFeeBps / 100).toFixed(2)}% on Hyperliquid, ${(brand.swapFeeBps / 100).toFixed(1)}% on Solana swaps), which goes to ${$T} buybacks.`,
+    a: `Writing and testing strategies is free. Trades pay a fee (${(brand.builderFeeBps / 100).toFixed(2)}% on Hyperliquid, ${(brand.swapFeeBps / 100).toFixed(1)}% on Solana swaps). Half of it buys back ${$T} on the open market, and holding ${$T} halves what you pay.`,
   },
   {
     q: "Is it safe to trade memecoins with it?",

@@ -27,11 +27,12 @@ export function Token() {
           </h2>
         </Reveal>
         <Reveal delay={200}>
-          <dl className="mt-14 grid gap-x-10 gap-y-6 border-t border-line pt-8 text-[15px] sm:grid-cols-2 lg:grid-cols-4">
+          <dl className="mt-14 grid gap-x-10 gap-y-6 border-t border-line pt-8 text-[15px] sm:grid-cols-2 lg:grid-cols-5">
             {[
               ["Fee on Hyperliquid", `${(brand.builderFeeBps / 100).toFixed(2)}% per trade`],
               ["Fee on Solana swaps", `${(brand.swapFeeBps / 100).toFixed(1)}% per swap`],
-              ["Where fees go", `Buy ${$T} on the open market, on-chain`],
+              ["Where fees go", `${Math.round(brand.buybackShare * 100) === 50 ? "Half" : `${Math.round(brand.buybackShare * 100)}%`} buys ${$T} on the open market`],
+              [`Hold ${$T}`, `${brand.holderDiscount === 0.5 ? "Half" : `${Math.round(brand.holderDiscount * 100)}% off`} the trading fees`],
               ["Launch", `${brand.chain}, through ${brand.launchpad}`],
             ].map(([k, v]) => (
               <div key={k}>

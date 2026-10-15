@@ -160,7 +160,7 @@ export function SolanaSetup() {
             <Pill tone="short">Real money</Pill>
           </div>
           <p className="mt-2 text-[13px] leading-relaxed text-ink-2">
-            Swaps go through Jupiter at the best route.{s.feeBps ? ` Weft’s fee is ${(s.feeBps / 100).toFixed(1)}% per swap.` : ""} Up to ${s.maxAllocationUsd.toLocaleString()} per strategy while Weft is new.
+            Swaps go through Jupiter at the best route.{s.feeBps ? ` Weft’s fee is ${(s.feeBps / 100).toFixed(1)}% per swap${s.holder?.active ? ", halved because you hold $WEFT" : ""}.` : ""} Up to ${s.maxAllocationUsd.toLocaleString()} per strategy while Weft is new.
           </p>
         </Card>
         <Card className="p-5">

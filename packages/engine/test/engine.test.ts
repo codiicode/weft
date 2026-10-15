@@ -580,3 +580,11 @@ describe("owner instructions on a running deployment", () => {
     expect((await t.engine.getFills(t.d.id)).filter((f) => f.reason === "entry")).toHaveLength(1); // no second buy
   });
 });
+
+describe("Weft's fees", () => {
+  it("defaults to Hyperliquid's builder maximum on perps and 1% on Solana swaps", async () => {
+    const { DEFAULT_FEES } = await import("../src/fees.ts");
+    expect(DEFAULT_FEES.hyperliquid.builderBps).toBe(10);
+    expect(DEFAULT_FEES.solana.platformBps).toBe(100);
+  });
+});

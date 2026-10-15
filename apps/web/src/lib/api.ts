@@ -211,6 +211,7 @@ export interface SolanaStatus {
   solUsd: number | null;
   maxAllocationUsd: number;
   feeBps: number;
+  holder: { active: boolean; holds: number; minAmount: number; discount: number; feeMultiplier: number } | null;
   ready: boolean;
   blockers: string[];
 }
