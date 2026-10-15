@@ -2,7 +2,7 @@
 import { Suspense, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { SolanaSetup } from "@/components/app/SolanaSetup";
-import { useWallets } from "@privy-io/react-auth";
+import { usePrivy, useWallets } from "@privy-io/react-auth";
 import { api, ApiError, type LiveStatus } from "@/lib/api";
 import { useAuth, shortAddress } from "@/lib/auth";
 import { useApi, fmtUsd } from "@/lib/use-api";
@@ -30,6 +30,7 @@ function Step({ n, title, done, active, children }: { n: number; title: string; 
 
 function Setup() {
   const { wallets, ready: walletsReady } = useWallets();
+  const { linkWallet } = usePrivy();
   const status = useApi(() => api.liveStatus(), [], { pollMs: 10_000 });
   const [busy, setBusy] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -55,8 +56,17 @@ function Setup() {
       await fn();
       await status.refresh();
     } catch (e) {
-      const msg = (e as { message?: string }).message ?? String(e);
-      setError(/rejected|denied|cancel/i.test(msg) ? "You cancelled the signature in your wallet." : msg);
+      const err = e as { message?: string; code?: number };
+      const msg = err.message ?? String(e);
+      // Only a refusal in the wallet counts as cancelling; Hyperliquid's own answers are shown as they are.
+      const cancelled = err.code === 4001 || /user (rejected|denied|cancel)|closed the (modal|window)|request rejected by user/i.test(msg);
+      setError(
+        cancelled
+          ? "You cancelled the signature in your wallet."
+          : /must deposit|does not exist|no deposit/i.test(msg)
+            ? `Hyperliquid only allows this after the address has made a deposit. Deposit USDC on Hyperliquid${s?.config.network === "testnet" ? " testnet" : ""} first, then approve again.`
+            : msg.replace(/^Hyperliquid rejected the (\w+) approval: /, "Hyperliquid said no: ")
+      );
     } finally {
       setBusy(null);
     }
@@ -100,7 +110,7 @@ function Setup() {
             ) : wallets.length === 0 ? (
               <span className="text-[13.5px] text-muted">No Ethereum wallet on your account yet. Sign in with MetaMask or Rabby.</span>
             ) : (
-              wallets.map((w) => (
+              wallets.filter((w) => w.address.startsWith("0x")).map((w) => (
                 <button
                   key={w.address}
                   disabled={busy != null || linked?.hlAddress.toLowerCase() === w.address.toLowerCase()}
@@ -113,7 +123,18 @@ function Setup() {
                 </button>
               ))
             )}
+            <button
+              onClick={() => linkWallet()}
+              className="rounded-full border border-dashed border-line-2 px-3 py-1.5 text-[12px] text-muted transition-colors hover:border-ink hover:text-ink"
+            >
+              + Use MetaMask or Rabby
+            </button>
           </div>
+          {linked && wallets.find((w) => w.address.toLowerCase() === linked.hlAddress.toLowerCase())?.walletClientType === "privy" && !funded && (
+            <p className="mt-3 text-[12.5px] leading-relaxed text-muted">
+              This is your Weft wallet, which has no money on Hyperliquid yet. If you already trade on Hyperliquid, connect that wallet instead.
+            </p>
+          )}
         </Step>
 
         <Step n={2} title="Allow Weft to trade" done={agentOk && builderOk} active={!!linked}>
@@ -121,6 +142,11 @@ function Setup() {
             Sign once in your wallet. This gives Weft a trading-only key for your account: it can place and cancel orders, and nothing else.
             {s.config.builder ? ` A second signature allows the ${(s.config.builderFeeBps ?? 0) / 100}% trading fee.` : ""}
           </p>
+          {linked && !funded && (
+            <p className="mt-2 text-[12.5px] leading-relaxed text-trigger">
+              Hyperliquid only accepts this after the address has made its first deposit. Deposit USDC first, then approve.
+            </p>
+          )}
           {s.agentAddress && <div className="mt-2 font-mono text-[13px] text-faint">agent {s.agentAddress}</div>}
           <div className="mt-3 flex flex-wrap items-center gap-2">
             <Btn onClick={approve} disabled={!linked || busy != null || (agentOk && builderOk)} variant={agentOk && builderOk ? "ghost" : "ink"}>

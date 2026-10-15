@@ -179,7 +179,11 @@ export class LiveService {
     const request = await p.req.toRequest(signature, p.hlAddress);
     const client = new HlExchangeClient({ baseUrl: this.base, isMainnet: this.isMainnet, fetch: this.fetchFn, allowMainnetSend: this.isMainnet } as never);
     const res = await client.post(request);
-    if ((res as { status?: string }).status !== "ok") throw new Error(`Hyperliquid rejected the ${kind} approval: ${JSON.stringify(res).slice(0, 300)}`);
+    if ((res as { status?: string }).status !== "ok") {
+      const why = typeof (res as { response?: unknown }).response === "string" ? (res as { response: string }).response : JSON.stringify(res).slice(0, 300);
+      console.warn(`[live] ${kind} approval rejected by Hyperliquid (${this.cfg.network}): ${why}`);
+      throw new Error(`Hyperliquid rejected the ${kind} approval: ${why}`);
+    }
     this.pending.delete(`${userId}:${kind}`);
     this.accounts.markApproved(userId, kind);
     return { ok: true as const, response: res };
