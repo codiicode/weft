@@ -94,6 +94,8 @@ export type FillReason =
   | "close_action"
   | "kill"
   | "manual"
+  /** Tokens left the wallet outside Weft (sold or moved by hand): booked at the mark, no order sent. */
+  | "outside"
   /** Paper perps: the mark crossed the estimated liquidation price; filled at that price. */
   | "liquidation";
 
@@ -204,6 +206,11 @@ export interface Engine {
   setExits?(id: string, patch: ExitsPatch, positionIds?: string[]): Promise<number>;
   /** Replace a running deployment's rules, keeping its positions, cash and history. */
   updateStrategy?(id: string, strategy: Strategy): Promise<void>;
+  /**
+   * The wallet holds less of a position than the engine thinks (moved or sold outside Weft): book the
+   * difference out at the current mark without sending an order. Returns the quantity booked out.
+   */
+  reconcilePosition?(id: string, positionId: string, heldQty: number): Promise<number>;
 }
 
 /** Changes to a position's exits: a value sets it, `null` removes it, absent keeps it. */

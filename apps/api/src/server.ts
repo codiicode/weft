@@ -1,7 +1,9 @@
 import { TradeTape } from "./lib/tape.ts";
+import { Backups } from "./lib/backup.ts";
 import { PrivyClient } from "@privy-io/node";
 import { Connection } from "@solana/web3.js";
 import { HolderDiscount, holderConfigFromEnv } from "./live/holders.ts";
+import { SolanaReconciler, connectionBalances } from "./live/solana-reconcile.ts";
 import { SolanaLive, SolanaRouterExecutor, privySolanaApi, solanaConfigFromEnv } from "./live/solana.ts";
 import { mkdirSync } from "node:fs";
 import { join } from "node:path";
@@ -82,6 +84,16 @@ const holders = new HolderDiscount(holderCfg, {
     return out;
   },
 });
+// Hourly snapshots of every database in the data directory (24 hourly + 14 daily kept).
+const backups = process.env.WEFT_BACKUPS === "0" ? null : new Backups({ dataDir: DATA_DIR, log: (m) => console.log(`  ${m}`) });
+backups?.start();
+
+// Solana positions follow the wallet: tokens moved or sold by hand are booked out (every 2 minutes).
+const solanaReconciler = solanaEngine ? new SolanaReconciler(solanaEngine, accounts, connectionBalances(new Connection(solCfg.rpcUrl, "confirmed"))) : null;
+const solanaReconcileTimer = solanaReconciler
+  ? setInterval(() => void solanaReconciler.run().catch((e) => console.warn("solana reconcile failed:", (e as Error).message)), 120_000)
+  : null;
+solanaReconcileTimer?.unref();
 if (live) live.holders = holders;
 if (solana) solana.holders = holders;
 const library = new StrategyLibrary(join(DATA_DIR, "library.db"));
@@ -223,6 +235,8 @@ for (const sig of ["SIGINT", "SIGTERM"] as const) {
     telegram?.stop();
     tape?.stop();
     if (reconcileTimer) clearInterval(reconcileTimer);
+    if (solanaReconcileTimer) clearInterval(solanaReconcileTimer);
+    backups?.stop();
     server.close();
     await engine.shutdown();
     try {

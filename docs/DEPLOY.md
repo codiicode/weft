@@ -50,6 +50,16 @@ WEFT_HL_NETWORK=testnet WEFT_LIVE_ENABLED=1 WEB_ORIGINS=https://weft-tawny.verce
 Only one process may poll a Telegram bot token: while Railway runs the bot, a local API with the same
 `TELEGRAM_BOT_TOKEN` will fight it for updates. Use a second bot locally, or leave the token out of `apps/api/.env`.
 
+## Backups
+
+The API snapshots every database in `/data` once an hour (consistent copies via `VACUUM INTO`,
+gzipped) into `/data/backups/hourly/<YYYY-MM-DDTHH>`, keeping 24 hours plus one per day for 14 days in
+`/data/backups/daily`. The log prints `backup: N files, X MB` after each run. `WEFT_BACKUPS=0` turns it off.
+
+Restore: stop the service, `gunzip` the files of one snapshot into `/data` (replace the `.db` files and
+delete their `-wal`/`-shm`), start it again. These live on the same volume as the data, so also turn on
+Railway's volume backups (service → Volume → Backups) for a copy outside it.
+
 ## Safety switches
 
 - The API refuses to start publicly without `PRIVY_APP_ID` (sign-in). Local mode binds to 127.0.0.1.

@@ -399,6 +399,29 @@ export function createEngine(opts: EngineOptions): EngineRuntime {
       });
     },
 
+    reconcilePosition(id: string, positionId: string, heldQty: number): Promise<number> {
+      return withLock(id, async () => {
+        const { d, rt } = await load(id);
+        const t = now();
+        const s = new Session(d, rt, await store.listPositions(id), deps, t);
+        const p = s.positions.get(positionId);
+        if (!p || heldQty >= p.qty * 0.98) return 0;
+        const gone = p.qty - Math.max(0, heldQty);
+        const name = p.instrumentKey.split(":").pop();
+        s.bookOutside(p, gone);
+        s.emit(
+          "warning",
+          heldQty <= p.qty * 0.02
+            ? `${name} is no longer in your wallet (sold or moved outside Weft), so this position is closed`
+            : `Part of your ${name} left your wallet outside Weft; this position now holds what’s there`,
+          { positionId, heldQty, by: "wallet" }
+        );
+        await store.commit(s.toBatch());
+        publish(s.events);
+        return gone;
+      });
+    },
+
     note(id: string, type: "warning" | "error" | "notify", message: string, data?: Record<string, unknown>): Promise<void> {
       return withLock(id, async () => {
         if (!(await store.getDeployment(id))) throw new Error(`unknown deployment ${id}`);

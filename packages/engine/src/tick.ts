@@ -126,6 +126,12 @@ export class Session {
     return true;
   }
 
+  /** Book `qty` out of a position at its mark with no order (it left the wallet outside Weft). */
+  bookOutside(p: Position, qty: number): Fill {
+    const q = Math.min(p.qty, qty);
+    return this.bookClose(p, { qty: q, price: p.markPrice, markPrice: p.markPrice, feeUsd: 0, builderFeeUsd: 0 }, "outside", q >= p.qty * (1 - 1e-9), undefined, "Outside Weft: ");
+  }
+
   /**
    * Paper liquidation: close the whole position at its liquidation price (not at
    * market), paying the venue taker fee (no builder fee on liquidations).

@@ -102,6 +102,9 @@ export class CompositeEngine implements Engine {
       return e.updateStrategy(id, strategy);
     });
   }
+  reconcilePosition(id: string, positionId: string, heldQty: number) {
+    return this.on(id, (e) => (e.reconcilePosition ? e.reconcilePosition(id, positionId, heldQty) : Promise.resolve(0)));
+  }
   subscribe(listener: (e: EngineEvent) => void) {
     const offs = this.all().map((e) => e.subscribe(listener));
     return () => {
