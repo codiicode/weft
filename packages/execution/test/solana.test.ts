@@ -464,6 +464,52 @@ describe("JupiterExecutor", () => {
     expect(empty).toMatchObject({ status: "rejected", reason: expect.stringMatching(/nothing left/) });
   });
 
+  it("closes the user's empty token accounts with rent back to the user, after a sell that empties the wallet", async () => {
+    const empty = Keypair.generate().publicKey;
+    const closed: unknown[] = [];
+    const sellRpc = (held: bigint) => ({
+      rpc: {
+        ...rpc({ [OUT_MINT.toBase58()]: mintInfo(6) }),
+        sendRawTransaction: async (raw: Uint8Array) => {
+          sent.push(raw);
+          return `sig${sent.length}`;
+        },
+        confirmTransaction: async () => ({ value: { err: null } }),
+        tokenBalance: async () => held,
+        emptyTokenAccounts: async () => [{ address: empty, programId: PROGRAMS.token }],
+        getLatestBlockhash: async () => ({ blockhash: Keypair.generate().publicKey.toBase58(), lastValidBlockHeight: 9 }),
+      },
+      onAccountsClosed: (r: unknown) => closed.push(r),
+    });
+    const sent: Uint8Array[] = [];
+
+    // Direct: one CloseAccount, rent to the user, signed by the user only.
+    const { ex } = setup(v0(goodInstructions()), sellRpc(0n));
+    const sig = await ex.closeEmptyAccounts(OUT_MINT);
+    expect(sig).toBe("sig1");
+    const tx = VersionedTransaction.deserialize(sent[0]!);
+    const keys = tx.message.staticAccountKeys;
+    expect(tx.message.compiledInstructions).toHaveLength(1);
+    const ix = tx.message.compiledInstructions[0]!;
+    expect(keys[ix.programIdIndex]!.equals(PROGRAMS.token)).toBe(true);
+    expect(Array.from(ix.data)).toEqual([9]);
+    expect(keys[ix.accountKeyIndexes[0]!]!.equals(empty)).toBe(true);
+    expect(keys[ix.accountKeyIndexes[1]!]!.equals(U)).toBe(true);
+    expect(closed).toEqual([{ mint: OUT_MINT.toBase58(), accounts: 1, signature: "sig1" }]);
+
+    // A partial sell leaves the account alone.
+    sent.length = 0;
+    const partial = setup(v0(goodInstructions()), sellRpc(5_000_000n)).ex;
+    await partial.execute({ clientId: "p1", instrument: TOKEN, instrumentKey: "k", side: "sell", phase: "close", qty: 2.5 }, 0);
+    // Selling everything closes it.
+    const sellIxs = goodInstructions().filter((_, i) => i !== 3 && i !== 4); // a sale: no SOL wrap
+    const full = setup(v0(sellIxs), sellRpc(5_000_000n)).ex;
+    const res = await full.execute({ clientId: "f1", instrument: TOKEN, instrumentKey: "k", side: "sell", phase: "close", qty: 5 }, 0);
+    await new Promise((r) => setTimeout(r, 0));
+    expect(res.status, JSON.stringify(res)).toBe("filled");
+    expect(closed).toHaveLength(2);
+  });
+
   it("signs + sends a clean swap and reports the quoted fill; duplicate clientIds are refused", async () => {
     const { ex, sent } = setup(v0(goodInstructions()));
     const res = await ex.execute({ clientId: "c3", instrument: TOKEN, instrumentKey: "k", side: "buy", phase: "open", notionalUsd: 1.5 }, 0);

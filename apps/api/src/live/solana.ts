@@ -386,12 +386,25 @@ export class SolanaLive {
         const r = await conn.getParsedTokenAccountsByOwner(owner, { mint });
         return r.value.reduce((n, a) => n + BigInt((a.account.data as { parsed?: { info?: { tokenAmount?: { amount?: string } } } }).parsed?.info?.tokenAmount?.amount ?? "0"), 0n);
       },
+      emptyTokenAccounts: async (owner, mint) => {
+        const r = await conn.getParsedTokenAccountsByOwner(owner, { mint }, "confirmed");
+        return r.value
+          .filter((a) => (a.account.data as { parsed?: { info?: { tokenAmount?: { amount?: string } } } }).parsed?.info?.tokenAmount?.amount === "0")
+          .map((a) => ({ address: a.pubkey, programId: a.account.owner }));
+      },
+      getLatestBlockhash: () => conn.getLatestBlockhash("confirmed"),
     } as JupiterRpc;
     const ex = new JupiterExecutor({
       builder,
       signer: new PrivyWalletSigner(this.api, acct.walletId, acct.address),
       rpc,
       maxPriorityFeeLamports: 1_000_000,
+      onAccountsClosed: (r) =>
+        console.log(
+          "error" in r
+            ? `[solana ${acct.address.slice(0, 6)}] could not close empty ${r.mint.slice(0, 6)} account: ${r.error}`
+            : `[solana ${acct.address.slice(0, 6)}] closed ${r.accounts} empty ${r.mint.slice(0, 6)} account(s), rent back to the user: ${r.signature}`,
+        ),
     });
     this.executors.set(key, ex);
     return ex;

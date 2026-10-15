@@ -1,4 +1,4 @@
-import { PublicKey, type AccountInfo, type VersionedTransaction } from "@solana/web3.js";
+import { PublicKey, TransactionInstruction, TransactionMessage, VersionedTransaction, type AccountInfo } from "@solana/web3.js";
 import type { ExecutionResult, Executor, OrderRequest } from "../types.ts";
 import { inspectSwapTransaction, type InspectReport, type InspectRpc } from "./inspect.ts";
 import { JupiterSwapBuilder, quoteMint, type BuiltSwap, type QuoteResponse } from "./jupiter.ts";
@@ -14,6 +14,9 @@ export interface JupiterRpc extends InspectRpc {
   ): Promise<{ value: { err: unknown } }>;
   /** The user's balance of `mint` in atomic units (all token accounts). Sells are clamped to it. */
   tokenBalance?(owner: PublicKey, mint: PublicKey): Promise<bigint>;
+  /** The owner's token accounts for `mint` that hold nothing (with their token program). */
+  emptyTokenAccounts?(owner: PublicKey, mint: PublicKey): Promise<{ address: PublicKey; programId: PublicKey }[]>;
+  getLatestBlockhash?(): Promise<{ blockhash: string; lastValidBlockHeight: number }>;
 }
 
 export interface JupiterExecutorConfig {
@@ -27,6 +30,8 @@ export interface JupiterExecutorConfig {
   /** Build + inspect only; never sign or send. */
   dryRun?: boolean;
   onBuilt?: (b: { clientId: string; quote: QuoteResponse; swap: BuiltSwap; report: InspectReport }) => void;
+  /** After a sell that empties the wallet of a token, its account was closed and the rent returned. */
+  onAccountsClosed?: (r: { mint: string; accounts: number; signature: string } | { mint: string; error: string }) => void;
 }
 
 /**
@@ -80,6 +85,7 @@ export class JupiterExecutor implements Executor {
       const [tokenDec, quoteDec] = await Promise.all([this.decimals(token), this.decimals(quoteAsset)]);
 
       let amount: bigint;
+      let sellsEverything = false;
       if (buy) {
         if (req.notionalUsd == null && req.qty == null) return { status: "rejected", reason: "buy needs notionalUsd" };
         if (req.notionalUsd == null) return { status: "rejected", reason: "token buys are sized in USD (ExactIn); qty buys are not supported" };
@@ -93,6 +99,7 @@ export class JupiterExecutor implements Executor {
           const held = await this.cfg.rpc.tokenBalance(this.cfg.signer.publicKey, token);
           if (held <= 0n) return { status: "rejected", reason: "nothing left to sell in the wallet" };
           if (amount > held || (req.phase === "close" && amount * 100n >= held * 98n)) amount = held;
+          sellsEverything = amount === held;
         }
       }
       if (amount <= 0n) return { status: "rejected", reason: "amount rounds to zero" };
@@ -126,6 +133,8 @@ export class JupiterExecutor implements Executor {
       if (this.cfg.dryRun) return { status: "pending", reason: "dry run: swap built and inspected, not signed" };
 
       await this.signAndSend(swap.transaction, swap.lastValidBlockHeight, req.clientId);
+      // The token account is empty now: close it so its rent (~0.002 SOL) goes back to the user.
+      if (sellsEverything) void this.closeEmptyAccounts(token);
       const tokenQty = Number(buy ? quote.outAmount : quote.inAmount) / 10 ** tokenDec;
       const quoteQty = Number(buy ? quote.inAmount : quote.outAmount) / 10 ** quoteDec;
       const price = (quoteQty * usdPerQuote) / tokenQty;
@@ -146,6 +155,43 @@ export class JupiterExecutor implements Executor {
       };
     } catch (e) {
       return { status: "rejected", reason: e instanceof Error ? e.message : String(e) };
+    }
+  }
+
+  /**
+   * Closes the user's empty token accounts for `mint`, returning their rent to the user. Best effort
+   * and separate from the swap, so a failure here never touches the trade. The transaction goes
+   * through the same inspection as swaps (close only, rent to the user).
+   */
+  async closeEmptyAccounts(mint: PublicKey): Promise<string | null> {
+    const rpc = this.cfg.rpc;
+    if (!rpc.emptyTokenAccounts || !rpc.getLatestBlockhash || this.cfg.dryRun) return null;
+    const user = this.cfg.signer.publicKey;
+    try {
+      const empty = await rpc.emptyTokenAccounts(user, mint);
+      if (!empty.length) return null;
+      const { blockhash, lastValidBlockHeight } = await rpc.getLatestBlockhash();
+      const ixs = empty.map(
+        (a) =>
+          new TransactionInstruction({
+            programId: a.programId,
+            keys: [
+              { pubkey: a.address, isSigner: false, isWritable: true },
+              { pubkey: user, isSigner: false, isWritable: true },
+              { pubkey: user, isSigner: true, isWritable: false },
+            ],
+            data: Buffer.from([9]), // CloseAccount
+          }),
+      );
+      const tx = new VersionedTransaction(new TransactionMessage({ payerKey: user, recentBlockhash: blockhash, instructions: ixs }).compileToV0Message());
+      const report = await inspectSwapTransaction(tx, { user, allowedPrograms: DEFAULT_ALLOWED_PROGRAMS, rpc, maxPriorityFeeLamports: 0, maxWrapLamports: 0n });
+      if (!report.ok) throw new Error(`close failed inspection: ${report.violations.join("; ")}`);
+      const sig = await this.signAndSend(tx, lastValidBlockHeight, `close:${mint.toBase58()}:${blockhash}`);
+      this.cfg.onAccountsClosed?.({ mint: mint.toBase58(), accounts: empty.length, signature: sig });
+      return sig;
+    } catch (e) {
+      this.cfg.onAccountsClosed?.({ mint: mint.toBase58(), error: e instanceof Error ? e.message : String(e) });
+      return null;
     }
   }
 
