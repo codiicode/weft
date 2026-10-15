@@ -118,6 +118,17 @@ const app = createApp({
 });
 engine.start();
 
+// Create (or load) Weft's Solana signer and policy now, so a setup problem shows up in the logs.
+if (solana && solCfg.authorizationKey) {
+  void solana
+    .signer()
+    .then(async (ids) => {
+      const fees = Object.keys(await solana.feeAccounts().catch(() => ({}))).length;
+      console.log(`  solana signer: ready (${ids.signerId.slice(0, 8)}…) · fee accounts ${fees}/2`);
+    })
+    .catch((e) => console.log(`  solana signer: FAILED · ${(e as Error).message.slice(0, 300)}`));
+}
+
 // Where this server's orders appear to come from (Polymarket rejects orders from blocked regions).
 void fetch("https://polymarket.com/api/geoblock", { signal: AbortSignal.timeout(8_000) })
   .then((r) => r.json() as Promise<{ blocked?: boolean; country?: string; region?: string }>)
