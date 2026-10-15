@@ -88,8 +88,9 @@ describe("Solana live", () => {
 
   it("stays off until switched on, except for testers resolved through Privy", async () => {
     const { live } = setup({ enabled: false, testers: ["alice@example.com", "nobody@example.com"] });
-    expect((await live.status("alice")).blockers[0]).toMatch(/switched on/);
     expect(live.blockReason("alice")).toMatch(/switched off/);
+    expect((await live.status("bob")).blockers[0]).toMatch(/switched on/); // looks testers up on the way
+    expect(live.openFor("alice")).toBe(true);
     expect(await live.resolveTesters()).toEqual({ resolved: 1, missing: ["no…@example.com"] });
     expect(live.openFor("alice")).toBe(true);
     expect(live.openFor("bob")).toBe(false);
