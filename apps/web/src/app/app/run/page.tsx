@@ -96,7 +96,7 @@ const REASON: Record<string, string> = {
 };
 
 /** Real money notice, plus the owner's choice to show this run's return on the leaderboard. */
-function ShareRow({ id, shared, onChange }: { id: string; shared: boolean; onChange: () => void }) {
+function ShareRow({ id, shared, onChange, venue }: { id: string; shared: boolean; onChange: () => void; venue: string }) {
   const [busy, setBusy] = useState(false);
   const [on, setOn] = useState(shared);
   useEffect(() => setOn(shared), [shared]);
@@ -112,7 +112,7 @@ function ShareRow({ id, shared, onChange }: { id: string; shared: boolean; onCha
   };
   return (
     <div className="flex flex-col gap-3 rounded-[12px] border border-line bg-card px-4 py-3 text-[14px] sm:flex-row sm:items-center sm:justify-between">
-      <span className="text-ink-2">Trades with real money from your Hyperliquid account.</span>
+      <span className="text-ink-2">Trades with real money from your {venue}.</span>
       <button onClick={toggle} disabled={busy} role="switch" aria-checked={on} className="inline-flex items-center gap-2.5 text-[13.5px] text-ink-2 hover:text-ink disabled:opacity-60">
         <span className={`relative h-5 w-9 rounded-full transition-colors ${on ? "bg-long" : "bg-line-2"}`}>
           <span className={`absolute top-0.5 h-4 w-4 rounded-full bg-white shadow transition-[left] ${on ? "left-[18px]" : "left-0.5"}`} />
@@ -284,7 +284,14 @@ function Run() {
         }
       />
       <div className="space-y-8 px-5 pb-16 pt-6 lg:px-10">
-        {d.mode === "live" && <ShareRow id={d.id} shared={Boolean(s.shared)} onChange={() => snap.refresh()} />}
+        {d.mode === "live" && (
+          <ShareRow
+            id={d.id}
+            shared={Boolean(s.shared)}
+            onChange={() => snap.refresh()}
+            venue={d.strategy.actions.some((a) => a.type === "open" && a.instrument.kind === "token") ? "Solana trading wallet" : "Hyperliquid account"}
+          />
+        )}
         {d.mode === "paper" && !d.alertsOnly && (
           <div className="rounded-[12px] border border-line bg-card px-4 py-3 text-[14px] text-ink-2">
             A paper run from before Weft traded with real money. Its history stays here.{" "}
@@ -489,7 +496,7 @@ function Run() {
           </section>
         </div>
 
-        <p className="text-[12.5px] text-faint">{d.mode === "live" ? "Trades on Hyperliquid through your agent." : d.alertsOnly ? "Alerts only: nothing is bought or sold." : "A paper run from before Weft traded with real money."} Not financial advice.</p>
+        <p className="text-[12.5px] text-faint">{d.mode === "live" ? (d.strategy.actions.some((a) => a.type === "open" && a.instrument.kind === "token") ? "Swaps through Jupiter from your own Solana wallet." : "Trades on Hyperliquid through your agent.") : d.alertsOnly ? "Alerts only: nothing is bought or sold." : "A paper run from before Weft traded with real money."} Not financial advice.</p>
       </div>
     </>
   );

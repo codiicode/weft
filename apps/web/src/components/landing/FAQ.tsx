@@ -19,7 +19,7 @@ const faqs = [
   },
   {
     q: "Is it safe to trade memecoins with it?",
-    a: "Safer than by hand, never safe. Tokens are matched by contract address, not ticker, and every swap is blocked if basic rug checks fail: mint authority, holder concentration, liquidity, dev selling. Memecoins can still go to zero.",
+    a: "Safer than by hand, never safe. Tokens are matched by contract address, not ticker, and every buy is checked for the usual rug signs: mint authority, holder concentration, liquidity, dev selling. You see a heads-up when one fails; say “only if it’s safe” and the checks block the buy instead. Memecoins can still go to zero.",
   },
   {
     q: "Can it just alert me instead?",

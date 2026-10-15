@@ -4,6 +4,8 @@ import { PUMP_MINT } from "../src/examples/index.ts";
 
 const risk = RiskPolicy.parse({});
 const ctx = (over: Partial<RiskContext> = {}): RiskContext => ({ risk, equityUsd: 10_000, exposureUsd: 0, dailyPnlPct: 0, ...over });
+/** Token checks block only when the user asked for them. */
+const strict = (over: Partial<RiskContext> = {}) => ctx({ risk: { ...risk, token: { ...risk.token, enforce: true } }, ...over });
 
 const perp = (usd: number, leverage = 1, key = "a"): Intent => ({
   type: "open", key, strategyId: "s", actionId: key, triggerId: "t",
@@ -40,18 +42,21 @@ describe("checkIntents", () => {
   });
 
   it("fails closed for native sizes without a price, and token buys without safety data", () => {
-    const r = checkIntents([token(0.5)], ctx());
+    const r = checkIntents([token(0.5)], strict());
     expect(r.rejected[0]!.reasons).toEqual(["cannot size-check: no USD price for a native-sized order", "no on-chain safety data for this token"]);
   });
 
   it("token gates: authorities, holders, liquidity, dev selling, price impact", () => {
     const ok = checkIntents([token(0.5)], ctx({ usdPrices: { SOL: 180 }, tokenFacts: { [PUMP_MINT]: healthy } }));
     expect(ok.approved).toHaveLength(1);
-    const bad = checkIntents(
-      [token(0.5)],
-      ctx({ usdPrices: { SOL: 180 }, tokenFacts: { [PUMP_MINT]: { ...healthy, mint_authority_revoked: false, top10_holders_pct: 61, liquidity_usd: 9_000, dev_sold_pct: 80, price_impact_bps: 900 } } })
-    );
+    const facts = { [PUMP_MINT]: { ...healthy, mint_authority_revoked: false, top10_holders_pct: 61, liquidity_usd: 9_000, dev_sold_pct: 80, price_impact_bps: 900 } };
+    const bad = checkIntents([token(0.5)], strict({ usdPrices: { SOL: 180 }, tokenFacts: facts }));
     expect(bad.rejected[0]!.reasons).toHaveLength(5);
+    // By default the user's own buy goes ahead and the failed checks are a heads-up.
+    const asked = checkIntents([token(0.5)], ctx({ usdPrices: { SOL: 180 }, tokenFacts: facts }));
+    expect(asked.approved).toHaveLength(1);
+    expect(asked.warnings[0]!.reasons).toHaveLength(5);
+    expect(asked.warnings[0]!.reasons).toContain("top-10 holders own 61.0% (max 35%)");
   });
 });
 
@@ -61,8 +66,8 @@ describe("tokenized stocks", () => {
     if (x.type !== "open" || x.instrument.kind !== "token") throw new Error();
     x.instrument = { ...x.instrument, assetClass: "equity" };
     const facts = { ...healthy, mint_authority_revoked: false, freeze_authority_revoked: false, top10_holders_pct: 73 };
-    expect(checkIntents([x], ctx({ usdPrices: { SOL: 180 }, tokenFacts: { [PUMP_MINT]: facts } })).approved).toHaveLength(1);
-    const thin = checkIntents([x], ctx({ usdPrices: { SOL: 180 }, tokenFacts: { [PUMP_MINT]: { ...facts, liquidity_usd: 1_000 } } }));
+    expect(checkIntents([x], strict({ usdPrices: { SOL: 180 }, tokenFacts: { [PUMP_MINT]: facts } })).approved).toHaveLength(1);
+    const thin = checkIntents([x], strict({ usdPrices: { SOL: 180 }, tokenFacts: { [PUMP_MINT]: { ...facts, liquidity_usd: 1_000 } } }));
     expect(thin.rejected[0]!.reasons[0]).toMatch(/liquidity/);
   });
 });

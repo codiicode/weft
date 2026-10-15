@@ -333,13 +333,18 @@ describe("Solana tokens", () => {
     exits: { stopLoss: { pct: 20 } },
   });
 
-  async function run(facts: typeof HEALTHY | null, solPrice: number | null = 180) {
+  const strict = simpleStrategy(
+    { instrument: TOKEN, side: "long", size: { unit: "native", value: 0.5 }, order: { maxPriceImpactBps: 200 }, exits: { stopLoss: { pct: 20 } } },
+    { risk: { token: { enforce: true } } as never }
+  );
+
+  async function run(facts: typeof HEALTHY | null, solPrice: number | null = 180, s = strategy) {
     const t = setup();
     t.market.set(TOKEN, 0.004);
     if (solPrice != null) t.market.set(SOL_PERP, solPrice);
     t.tokenFacts.facts = facts;
     t.signals.set("go", { value: 1 });
-    const d = await t.engine.createDeployment({ strategy, allocationUsd: 10_000 });
+    const d = await t.engine.createDeployment({ strategy: s, allocationUsd: 10_000 });
     await t.engine.tick(d.id);
     return { ...t, d, fills: await t.engine.getFills(d.id), events: await t.engine.getEvents(d.id) };
   }
@@ -354,16 +359,27 @@ describe("Solana tokens", () => {
     expect((await r.engine.getSnapshot(r.d.id))!.builderFeesUsd).toBeCloseTo(0.45, 8);
   });
 
-  it("blocks the buy when token gates fail", async () => {
+  it("buys anyway when token checks fail (the user chose it) and says so", async () => {
     const r = await run({ ...HEALTHY, mint_authority_revoked: false, top10_holders_pct: 60 });
-    expect(r.fills).toHaveLength(0);
-    const rej = r.events.find((e) => e.type === "rejected")!;
-    expect(rej.message).toMatch(/mint authority not revoked/);
-    expect(rej.message).toMatch(/top-10 holders own 60%/);
+    expect(r.fills).toHaveLength(1);
+    const w = r.events.find((e) => e.type === "warning" && /Heads up/.test(e.message))!;
+    expect(w.message).toMatch(/mint authority not revoked/);
+    expect(w.message).toMatch(/top-10 holders own 60\.0%/);
   });
 
-  it("fails closed without on-chain facts or a SOL price", async () => {
-    expect((await run(null)).events.find((e) => e.type === "rejected")?.message).toMatch(/no on-chain safety data/);
+  it("blocks when the user asked for the checks, and tries again on later checks instead of giving up", async () => {
+    const r = await run({ ...HEALTHY, mint_authority_revoked: false }, 180, strict);
+    expect(r.fills).toHaveLength(0);
+    expect(r.events.find((e) => e.type === "rejected")!.message).toMatch(/yet: mint authority not revoked/);
+    // The issue clears: the same rule buys on the next check.
+    r.tokenFacts.facts = HEALTHY;
+    r.clock.t += MIN;
+    await r.engine.tick(r.d.id);
+    expect(await r.engine.getFills(r.d.id)).toHaveLength(1);
+  });
+
+  it("waits for missing data (on-chain facts, a SOL price) rather than buying blind", async () => {
+    expect((await run(null, 180, strict)).events.find((e) => e.type === "rejected")?.message).toMatch(/no on-chain safety data/);
     expect((await run(HEALTHY, null)).events.find((e) => e.type === "rejected")?.message).toMatch(/no USD price for a native-sized order/);
   });
 });

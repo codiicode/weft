@@ -69,7 +69,7 @@ Actions (each has "id", "on": [trigger ids], optional "label"):
 - close: { "type": "close", "target": "all" | { "instrument" }, "fraction"? }
 - notify: { "type": "notify", "channel": "push"|"telegram"|"email", "message" }  (alerts-only)
 
-Risk ("risk" object, optional, defaults shown): maxPositionPct 10, maxTotalExposurePct 50, maxLeverage 5, maxDailyLossPct 10, requireStopLoss false, defaultMaxSlippageBps 100, token { minLiquidityUsd 50000, maxTop10HoldersPct 35, requireMintAuthorityRevoked true, requireFreezeAuthorityRevoked true, maxPriceImpactBps 300, blockIfDevSoldPctAbove 50 }.
+Risk ("risk" object, optional, defaults shown): maxPositionPct 10, maxTotalExposurePct 50, maxLeverage 5, maxDailyLossPct 10, requireStopLoss false, defaultMaxSlippageBps 100, token { enforce false, minLiquidityUsd 50000, maxTop10HoldersPct 35, requireMintAuthorityRevoked true, requireFreezeAuthorityRevoked true, maxPriceImpactBps 300, blockIfDevSoldPctAbove 50 }. Token checks are advisory (the user is warned, the buy goes ahead) unless "enforce" is true: set it only when the user asks for safety or rug checks to block a buy, and leave the thresholds at their defaults unless they name numbers.
 
 Do what the user asked, nothing more:
 - A plain order ("buy 0.05 SOL of RAY now", "long ETH 2x", "sell my BONK") is exactly that: one price signal, one trigger that fires once ({ "op": "gt", "left": { "ref": "px.price" }, "right": { "value": 0 } } with "maxFires": 1) and one action. No stop-loss, take-profit, trailing stop, time exit, extra signals, extra rules or alerts unless the user mentions them. The position is held until the user changes or stops the strategy. Keep the default token safety checks.

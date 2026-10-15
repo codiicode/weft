@@ -364,9 +364,14 @@ export async function runTick(s: Session): Promise<void> {
       usdPrices,
       tokenFacts,
     });
+    for (const w of risk.warnings) {
+      const name = w.intent.type === "open" ? instrumentLabel(w.intent.instrument) : "this market";
+      s.warn(`gates:${w.intent.actionId}`, `Heads up on ${name}: ${w.reasons.join("; ")}. Buying anyway, as you asked.`, { reasons: w.reasons });
+    }
     for (const r of risk.rejected) {
-      s.emit("rejected", `Blocked ${describeIntent(s, r.intent).toLowerCase()}: ${r.reasons.join("; ")}`, { intentKey: r.intent.key, reasons: r.reasons });
-      s.intentKeys.push({ key: r.intent.key, ts: s.now });
+      // Nothing was sent: the rule stays live and tries again on a later check (reported once per reason).
+      refund(s, r.intent);
+      s.emit("rejected", `Didn’t ${lowerFirst(describeIntent(s, r.intent))} yet: ${r.reasons.join("; ")}`, { intentKey: r.intent.key, reasons: r.reasons }, { key: `blocked:${r.intent.actionId}:${r.reasons.join(";")}`, gapMs: 10 * 60_000 });
     }
     approved = risk.approved;
   }
@@ -697,8 +702,8 @@ async function execute(s: Session, intent: Intent, usdPrices: Record<string, num
 
 async function executeOpen(s: Session, i: OpenIntent, usdPrices: Record<string, number>): Promise<void> {
   const usd = intentUsd(i, usdPrices);
-  if (usd == null || !(usd > 0)) return reject(s, i, "cannot size order: no USD price");
-  if (s.rt.cashUsd < usd * 1.01) return reject(s, i, `insufficient cash: need ${fmtUsd(usd)}, have ${fmtUsd(s.rt.cashUsd)}`);
+  if (usd == null || !(usd > 0)) return retryLater(s, i, "cannot size order: no USD price");
+  if (s.rt.cashUsd < usd * 1.01) return retryLater(s, i, `insufficient cash: need ${fmtUsd(usd)}, have ${fmtUsd(s.rt.cashUsd)}`);
   // Prediction markets: make sure the position could be sold straight back before buying it.
   if (i.instrument.kind === "outcome") {
     const max = s.deployment.strategy.risk.maxExitLossPct ?? 10;
@@ -710,9 +715,9 @@ async function executeOpen(s: Session, i: OpenIntent, usdPrices: Record<string, 
       const buy = b.fillPrice ?? b.ask ?? b.price;
       const sell = x.fillPrice ?? x.bid ?? x.price;
       const loss = buy > 0 ? (1 - sell / buy) * 100 : Infinity;
-      if (!(loss <= max)) return reject(s, i, `the market is too thin: selling straight back would lose ${Number.isFinite(loss) ? `${loss.toFixed(1)}%` : "everything"} (limit ${max}%)`);
+      if (!(loss <= max)) return retryLater(s, i, `the market is too thin: selling straight back would lose ${Number.isFinite(loss) ? `${loss.toFixed(1)}%` : "everything"} (limit ${max}%)`);
     } catch (e) {
-      return reject(s, i, `couldn’t check how easy it is to sell back: ${errMsg(e)}`);
+      return retryLater(s, i, `couldn’t check how easy it is to sell back: ${errMsg(e)}`);
     }
   }
   let res;
@@ -801,8 +806,30 @@ async function executeClose(s: Session, i: CloseIntent): Promise<void> {
 }
 
 function reject(s: Session, i: Intent, reason: string, pending = false): void {
-  s.emit("rejected", `Didn’t ${describeIntent(s, i).toLowerCase()}: ${reason}`, { intentKey: i.key, reasons: [reason], ...(pending ? { pending: true } : {}) });
+  s.emit("rejected", `Didn’t ${lowerFirst(describeIntent(s, i))}: ${reason}`, { intentKey: i.key, reasons: [reason], ...(pending ? { pending: true } : {}) });
 }
+
+/** Rejected before anything reached the market: keep the rule live so it tries again later. */
+function retryLater(s: Session, i: Intent, reason: string): void {
+  refund(s, i);
+  s.emit("rejected", `Didn’t ${lowerFirst(describeIntent(s, i))} yet: ${reason}`, { intentKey: i.key, reasons: [reason], retry: true }, { key: `blocked:${i.actionId}:${reason}`, gapMs: 10 * 60_000 });
+}
+
+/** Undo a fire whose order never went out: the trigger re-arms, counts drop back, the key is forgotten. */
+function refund(s: Session, i: Intent): void {
+  const t = s.rt.evalState.triggers[i.triggerId];
+  if (t) {
+    t.fires = Math.max(0, t.fires - 1);
+    t.armed = true;
+    t.lastFiredAt = null;
+  }
+  const a = s.rt.evalState.actions[i.actionId];
+  if (a) a.fires = Math.max(0, a.fires - 1);
+  const k = s.intentKeys.findIndex((x) => x.key === i.key);
+  if (k >= 0) s.intentKeys.splice(k, 1);
+}
+
+const lowerFirst = (t: string) => t.replace(/^\w/, (c) => c.toLowerCase());
 
 /* ---- formatting ---- */
 

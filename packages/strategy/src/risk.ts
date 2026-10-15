@@ -44,11 +44,14 @@ export interface Rejection {
 export interface RiskResult {
   approved: Intent[];
   rejected: Rejection[];
+  /** Advisory token checks that failed (the order still goes ahead). */
+  warnings: Rejection[];
 }
 
 export function checkIntents(intents: Intent[], ctx: RiskContext): RiskResult {
   const approved: Intent[] = [];
   const rejected: Rejection[] = [];
+  const warnings: Rejection[] = [];
   let exposure = ctx.exposureUsd;
 
   for (const intent of intents) {
@@ -81,12 +84,16 @@ export function checkIntents(intents: Intent[], ctx: RiskContext): RiskResult {
       if (!reasons.length) exposure += notional;
     }
 
-    if (intent.type === "open" && intent.instrument.kind === "token") reasons.push(...tokenGateReasons(intent, ctx));
+    if (intent.type === "open" && intent.instrument.kind === "token") {
+      const gates = tokenGateReasons(intent, ctx);
+      if (ctx.risk.token.enforce) reasons.push(...gates);
+      else if (gates.length) warnings.push({ intent, reasons: gates });
+    }
 
     if (reasons.length) rejected.push({ intent, reasons });
     else approved.push(intent);
   }
-  return { approved, rejected };
+  return { approved, rejected, warnings };
 }
 
 function sizeUsd(intent: OpenIntent | OptionsIntent, ctx: RiskContext): number | null {
@@ -108,7 +115,7 @@ export function tokenGateReasons(intent: OpenIntent, ctx: RiskContext): string[]
   // Tokenized stocks (xStocks) are issuer-controlled by design: the issuer keeps mint/freeze authority
   // and custodial wallets hold most supply. Rug gates don't apply; liquidity and impact gates still do.
   const issuerBacked = intent.instrument.assetClass === "equity";
-  if (!issuerBacked && f.top10_holders_pct > g.maxTop10HoldersPct) out.push(`top-10 holders own ${f.top10_holders_pct}% (max ${g.maxTop10HoldersPct}%)`);
+  if (!issuerBacked && f.top10_holders_pct > g.maxTop10HoldersPct) out.push(`top-10 holders own ${f.top10_holders_pct.toFixed(1)}% (max ${g.maxTop10HoldersPct}%)`);
   if (!issuerBacked && g.requireMintAuthorityRevoked && !f.mint_authority_revoked) out.push("mint authority not revoked");
   if (!issuerBacked && g.requireFreezeAuthorityRevoked && !f.freeze_authority_revoked) out.push("freeze authority not revoked");
   if (f.age_minutes < g.minAgeMinutes) out.push(`token is ${f.age_minutes} min old (min ${g.minAgeMinutes})`);

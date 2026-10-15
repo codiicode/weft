@@ -7,8 +7,12 @@ import { Action } from "./actions.ts";
 /* Risk policy                                                          */
 /* ------------------------------------------------------------------ */
 
-/** Safety gates applied before buying any Solana token. */
+/**
+ * Safety checks on Solana tokens. Advisory by default: a failed check is shown as a heads-up and the
+ * buy goes ahead, because the user chose the token. `enforce: true` (the user asked for it) blocks.
+ */
 export const TokenGates = z.object({
+  enforce: z.boolean().default(false),
   minLiquidityUsd: z.number().nonnegative().default(50_000),
   maxTop10HoldersPct: z.number().min(0).max(100).default(35),
   requireMintAuthorityRevoked: z.boolean().default(true),
@@ -128,6 +132,7 @@ export function effectiveRisk(strategy: RiskPolicy, caps: RiskCaps = {}): RiskPo
     defaultMaxSlippageBps: min(strategy.defaultMaxSlippageBps, caps.defaultMaxSlippageBps),
     maxExitLossPct: strategy.maxExitLossPct ?? 10,
     token: {
+      enforce: t.enforce || Boolean((u as { enforce?: boolean } | undefined)?.enforce),
       minLiquidityUsd: max(t.minLiquidityUsd, u?.minLiquidityUsd),
       maxTop10HoldersPct: min(t.maxTop10HoldersPct, u?.maxTop10HoldersPct),
       requireMintAuthorityRevoked: t.requireMintAuthorityRevoked || !!u?.requireMintAuthorityRevoked,
