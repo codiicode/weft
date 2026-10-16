@@ -32,6 +32,8 @@ export interface JupiterExecutorConfig {
   onBuilt?: (b: { clientId: string; quote: QuoteResponse; swap: BuiltSwap; report: InspectReport }) => void;
   /** After a sell that empties the wallet of a token, its account was closed and the rent returned. */
   onAccountsClosed?: (r: { mint: string; accounts: number; signature: string } | { mint: string; error: string }) => void;
+  /** Wait between looks for the emptied account (RPC indexes lag the confirmed sell). Default 2500 ms. */
+  closeRetryMs?: number;
 }
 
 /**
@@ -168,8 +170,13 @@ export class JupiterExecutor implements Executor {
     if (!rpc.emptyTokenAccounts || !rpc.getLatestBlockhash || this.cfg.dryRun) return null;
     const user = this.cfg.signer.publicKey;
     try {
-      const empty = await rpc.emptyTokenAccounts(user, mint);
-      if (!empty.length) return null;
+      // Right after the sell the RPC can still list the account with its old balance: look again a few times.
+      let empty: Awaited<ReturnType<NonNullable<JupiterRpc["emptyTokenAccounts"]>>> = [];
+      for (let attempt = 0; attempt < 4 && !empty.length; attempt++) {
+        if (attempt) await new Promise((r) => setTimeout(r, this.cfg.closeRetryMs ?? 2500));
+        empty = await rpc.emptyTokenAccounts(user, mint);
+      }
+      if (!empty.length) throw new Error("no empty token account found after the sell");
       const { blockhash, lastValidBlockHeight } = await rpc.getLatestBlockhash();
       const ixs = empty.map(
         (a) =>
