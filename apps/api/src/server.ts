@@ -22,6 +22,7 @@ import { LiveRouterExecutor, LiveService, hlBaseUrl, liveConfigFromEnv } from ".
 import { NativeStops } from "./live/native-stops.ts";
 import { SolanaWithdrawals } from "./live/solana-withdraw.ts";
 import { earnings } from "./lib/earnings.ts";
+import { R2, r2ConfigFromEnv, uploadSnapshot } from "./lib/offsite.ts";
 import { CompositeEngine } from "./live/composite.ts";
 import { Reconciler } from "./live/reconcile.ts";
 import { TelegramBot } from "./lib/telegram.ts";
@@ -110,8 +111,18 @@ const holders = new HolderDiscount(holderCfg, {
     return out;
   },
 });
-// Hourly snapshots of every database in the data directory (24 hourly + 14 daily kept).
-const backups = process.env.WEFT_BACKUPS === "0" ? null : new Backups({ dataDir: DATA_DIR, log: (m) => console.log(`  ${m}`) });
+// Hourly snapshots of every database in the data directory (24 hourly + 14 daily kept), and a copy
+// of each in Cloudflare R2 when R2_* is set (latest + 30 daily), so a lost disk loses nothing.
+const r2Cfg = r2ConfigFromEnv();
+const r2 = r2Cfg ? new R2(r2Cfg) : null;
+const backups =
+  process.env.WEFT_BACKUPS === "0"
+    ? null
+    : new Backups({
+        dataDir: DATA_DIR,
+        log: (m) => console.log(`  ${m}`),
+        offsite: r2 ? (folder, files, now, firstOfDay) => uploadSnapshot(r2, folder, files, now, 30, firstOfDay) : undefined,
+      });
 backups?.start();
 
 // Solana positions follow the wallet: tokens moved or sold by hand are booked out (every 2 minutes).
@@ -249,6 +260,7 @@ const server = serve({ fetch: app.fetch, port: PORT, hostname: HOST }, (info) =>
   console.log(
     `  live: ${live ? `${liveCfg.enabled ? "ON" : "off (WEFT_LIVE_ENABLED=1 to enable)"} · ${liveCfg.network} · agents ${agents ? "Privy" : "need PRIVY_APP_SECRET"} · cap ${liveCfg.maxAllocationUsd != null ? `$${liveCfg.maxAllocationUsd}` : "none"} · builder ${liveCfg.builder?.address ?? "none"}` : "unavailable (needs PRIVY_APP_ID)"}`
   );
+  console.log(`  backups: ${process.env.WEFT_BACKUPS === "0" ? "off" : `hourly on the volume${r2Cfg ? ` + Cloudflare R2 (${r2Cfg.bucket})` : " (set R2_* for an off-site copy)"}`}`);
   console.log(`  deposits: ${deposits?.relayerAddress ? `gas-free via relayer ${deposits.relayerAddress}` : "user pays gas (set WEFT_RELAYER_KEY for gas-free deposits)"}`);
   if (deposits?.relayerAddress)
     void deposits.relayerEth().then((eth) => eth != null && eth < 0.0005 && console.warn(`  deposits: relayer has only ${eth.toFixed(5)} ETH on Arbitrum ${liveCfg.network === "mainnet" ? "One" : "Sepolia"}; top it up`)).catch(() => {});

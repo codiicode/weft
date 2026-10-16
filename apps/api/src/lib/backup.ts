@@ -21,6 +21,8 @@ export interface BackupOptions {
   daily?: number;
   now?: () => Date;
   log?: (msg: string) => void;
+  /** Copy each snapshot off the server too (e.g. Cloudflare R2). `firstOfDay` marks the daily one. */
+  offsite?: (folder: string, files: { name: string; bytes: number }[], now: Date, firstOfDay: boolean) => Promise<void>;
 }
 
 export interface BackupResult {
@@ -32,7 +34,7 @@ export interface BackupResult {
 const stamp = (d: Date, hours: boolean) => d.toISOString().slice(0, hours ? 13 : 10).replace(":", "");
 
 export class Backups {
-  private readonly o: Required<Omit<BackupOptions, "log">> & { log?: (m: string) => void };
+  private readonly o: Required<Omit<BackupOptions, "log" | "offsite">> & Pick<BackupOptions, "log" | "offsite">;
   private timer: ReturnType<typeof setInterval> | null = null;
   private running: Promise<BackupResult> | null = null;
   last: BackupResult | null = null;
@@ -89,9 +91,17 @@ export class Backups {
 
     // The first snapshot of each day is also kept as that day's daily.
     const day = join(dailyDir, stamp(now, false));
-    if (!existsSync(day)) {
+    const firstOfDay = !existsSync(day);
+    if (firstOfDay) {
       mkdirSync(dailyDir, { recursive: true });
       cpSync(folder, day, { recursive: true });
+    }
+    if (this.o.offsite) {
+      try {
+        await this.o.offsite(folder, files, now, firstOfDay);
+      } catch (e) {
+        this.o.log?.(`backup: off-site copy failed: ${(e as Error).message}`);
+      }
     }
     prune(hourlyDir, this.o.hourly);
     prune(dailyDir, this.o.daily);
