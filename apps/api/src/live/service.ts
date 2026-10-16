@@ -48,7 +48,8 @@ export function liveConfigFromEnv(env: NodeJS.ProcessEnv = process.env): LiveCon
     network: env.WEFT_HL_NETWORK === "mainnet" ? "mainnet" : "testnet",
     builder,
     maxAllocationUsd: Number(env.WEFT_LIVE_MAX_ALLOCATION_USD ?? 100),
-    maxLeverage: Number(env.WEFT_LIVE_MAX_LEVERAGE ?? 3),
+    // Hyperliquid's own per-market maximum is enforced on every order; 50× is the highest it lists anywhere.
+    maxLeverage: Number(env.WEFT_LIVE_MAX_LEVERAGE ?? 50),
   };
 }
 

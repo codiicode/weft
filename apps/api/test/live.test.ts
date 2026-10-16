@@ -72,7 +72,7 @@ const btcLong = defineStrategy({
 describe("live trading", () => {
   it("defaults to testnet, off, $100 cap", () => {
     const c = liveConfigFromEnv({});
-    expect(c).toMatchObject({ enabled: false, network: "testnet", maxAllocationUsd: 100, maxLeverage: 3, builder: null });
+    expect(c).toMatchObject({ enabled: false, network: "testnet", maxAllocationUsd: 100, maxLeverage: 50, builder: null });
     expect(liveConfigFromEnv({ WEFT_HL_NETWORK: "mainnet", WEFT_BUILDER_ADDRESS: "0xnope" }).builder).toBeNull();
   });
 
@@ -138,8 +138,12 @@ describe("live trading", () => {
     expect(() => live.assertDeployable("u1", yes("hyperliquid"), 50, new Set())).not.toThrow();
     expect(() => live.assertDeployable("u1", yes("hyperliquid"), 50, new Set(["hl:outcome:11454:NE"]))).toThrow(/already trades/);
     expect(() => live.assertDeployable("u1", yes("jupiter"), 50, new Set())).toThrow(/Hyperliquid's own markets only/);
-    const lev = defineStrategy({ ...btcLong, risk: { maxLeverage: 10 }, actions: [{ ...(btcLong.actions[0] as object), leverage: 5 } as never] });
-    expect(() => live.assertDeployable("u1", lev, 50, new Set())).toThrow(/capped at 3×/);
+    const lev = defineStrategy({ ...btcLong, risk: { maxLeverage: 20 }, actions: [{ ...(btcLong.actions[0] as object), leverage: 20 } as never] });
+    expect(() => live.assertDeployable("u1", lev, 50, new Set())).not.toThrow();
+    const { live: capped, accounts: cappedAccounts } = setup({ maxLeverage: 10 });
+    cappedAccounts.setLiveAccount("u1", "testnet", "0x" + "1".repeat(40));
+    cappedAccounts.markApproved("u1", "agent");
+    expect(() => capped.assertDeployable("u1", lev, 50, new Set())).toThrow(/capped at 10×/);
     const { live: off } = setup({ enabled: false });
     expect(() => off.assertDeployable("u1", btcLong, 50, new Set())).toThrow(/switched off/);
     const limit = defineStrategy({ ...btcLong, actions: [{ ...(btcLong.actions[0] as object), order: { type: "limit", limitPrice: 1 } } as never] });
