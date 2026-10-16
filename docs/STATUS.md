@@ -68,6 +68,16 @@ is Weft's revenue. Holding $WEFT halves the fee: set `WEFT_TOKEN_MINT` and `WEFT
 launch (`WEFT_HOLDER_DISCOUNT`, default 0.5); holdings are read on-chain from the user's trading wallet
 and Solana wallets linked to their Privy account. Not built yet: the buyback job and its public ledger.
 
+## Hyperliquid live on mainnet (since 2026-10-16)
+
+Verified with real money: a Weft wallet per user (Privy embedded, exportable), gas-free USDC deposits from
+Arbitrum (permit signed in the background, `batchedDepositWithPermit` sent by Weft's relayer,
+`WEFT_RELAYER_KEY`), agent approval in the background once funds arrive, a 20x ETH long, a venue-side
+stop-loss kept in line with the strategy (`NativeStops`, positionTpsl orders), moving the stop, and the sale.
+Users who already trade on Hyperliquid can link their own MetaMask/Rabby wallet instead. Leverage: each
+market's own max. Stop-loss/take-profit percentages are on the position (`positionPct`), not the price.
+Still missing: Weft's builder address (`WEFT_BUILDER_ADDRESS`), so no Hyperliquid fee is taken yet.
+
 ## Solana live (open to everyone since 2026-10-16)
 
 Verified with real money on mainnet: buy, sell, the 1% fee into the fee wallet (WSOL/USDC accounts created with
