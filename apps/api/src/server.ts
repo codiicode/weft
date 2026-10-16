@@ -21,6 +21,7 @@ import { HlDeposits, depositConfigFromEnv } from "./live/deposits.ts";
 import { LiveRouterExecutor, LiveService, hlBaseUrl, liveConfigFromEnv } from "./live/service.ts";
 import { NativeStops } from "./live/native-stops.ts";
 import { SolanaWithdrawals } from "./live/solana-withdraw.ts";
+import { earnings } from "./lib/earnings.ts";
 import { CompositeEngine } from "./live/composite.ts";
 import { Reconciler } from "./live/reconcile.ts";
 import { TelegramBot } from "./lib/telegram.ts";
@@ -172,6 +173,14 @@ const app = createApp({
   solana: solana ?? undefined,
   deposits: deposits ?? undefined,
   solanaWithdrawals: solana ? new SolanaWithdrawals(new Connection(solCfg.rpcUrl, "confirmed")) : undefined,
+  isAdmin: (userId) => Boolean(solana?.isTester(userId)),
+  earnings: () =>
+    earnings({
+      engine,
+      hlBaseUrl: live ? hlBaseUrl(liveCfg.network) : null,
+      builder: liveCfg.builder?.address ?? null,
+      solana: solCfg.feeWallet ? { conn: new Connection(solCfg.rpcUrl, "confirmed"), feeWallet: solCfg.feeWallet } : null,
+    }),
   onExitsChanged: () => nativeStops?.poke(500),
   telegram: telegram ?? undefined,
   webOrigins: process.env.WEB_ORIGINS ? process.env.WEB_ORIGINS.split(",").map((o) => o.trim()).filter(Boolean) : undefined,

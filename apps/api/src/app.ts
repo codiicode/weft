@@ -63,6 +63,10 @@ export interface AppDeps {
   allowPaper?: boolean;
   /** Live Solana token trading (the user's own Privy wallet, Weft as a limited signer). */
   solana?: SolanaLive;
+  /** Weft's owners (see earnings). */
+  isAdmin?: (userId: string) => boolean;
+  /** What Weft has earned in fees (owners only). */
+  earnings?: () => Promise<unknown>;
   /** Withdrawals from users' Weft Solana wallets (signed by the user's own wallet). */
   solanaWithdrawals?: SolanaWithdrawals;
   /** Called after an owner changes a run's exits (venue-side stops re-sync right away). */
@@ -215,7 +219,15 @@ export function createApp(deps: AppDeps) {
       authEnabled,
       user: user ? (accounts?.get(user.id) ?? { id: user.id }) : null,
       ai: user ? { usedToday: accounts?.aiUsedToday(user.id) ?? 0, dailyLimit: authEnabled ? aiDailyLimit : null } : null,
+      isAdmin: user ? Boolean(deps.isAdmin?.(user.id)) : false,
     });
+  });
+
+  /** Weft's fee earnings (owners only). */
+  app.get("/admin/earnings", async (c) => {
+    const user = await requireUser(c);
+    if (!deps.isAdmin?.(user.id) || !deps.earnings) return c.json({ error: "not found" }, 404);
+    return c.json(await deps.earnings());
   });
 
   /** Client reports linked wallets / display name (display only; never used for authorization). */

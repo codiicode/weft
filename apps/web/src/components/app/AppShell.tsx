@@ -116,6 +116,15 @@ function OpeningSoon() {
   );
 }
 
+/** Owners only: the earnings page. */
+function AdminNav({ active }: { active: (href: string) => boolean }) {
+  const auth = useAuth();
+  const me = useApi(auth.enabled && auth.authenticated ? () => api.me() : null, [auth.authenticated]);
+  if (!me.data?.isAdmin) return null;
+  const n = { href: "/app/earnings", label: "Earnings", icon: "M10 3v14M13.5 6H8.25a2.25 2.25 0 0 0 0 4.5h3.5a2.25 2.25 0 0 1 0 4.5H6" };
+  return <NavLink n={n} active={active(n.href)} />;
+}
+
 export function AppShell({ children }: { children: ReactNode }) {
   const path = usePathname();
   const [more, setMore] = useState(false);
@@ -153,6 +162,7 @@ export function AppShell({ children }: { children: ReactNode }) {
           {ACCOUNT_NAV.map((n) => (
             <NavLink key={n.href} n={n} active={active(n.href)} />
           ))}
+          <AdminNav active={active} />
         </nav>
         <div className="mt-auto space-y-4 px-1">
           {appOpen !== false && <AccountButton />}

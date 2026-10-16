@@ -206,6 +206,18 @@ export interface Me {
   authEnabled: boolean;
   user: { id: string; wallets?: string[]; displayName?: string | null } | null;
   ai: { usedToday: number; dailyLimit: number | null } | null;
+  /** Weft's owners: they see the earnings page. */
+  isAdmin?: boolean;
+}
+
+/** Mirrors apps/api/src/lib/earnings.ts */
+export interface Earnings {
+  hyperliquid: { builder: string; earnedUsd: number; unclaimedUsd: number; claimedUsd: number; accountValueUsd: number } | null;
+  solana: { feeWallet: string; wsol: number; usdc: number; sol: number; solUsd: number | null; usd: number } | null;
+  recordedUsd: number;
+  totalUsd: number;
+  buybackUsd: number;
+  weftUsd: number;
 }
 
 export interface LiveStatus {
@@ -303,6 +315,7 @@ export const api = {
   submitDeposit: (signature: string) => req<{ tx: string; usdc: number }>("/live/deposit/submit", { method: "POST", json: { signature } }),
 
   me: () => req<Me>("/me"),
+  earnings: () => req<Earnings>("/admin/earnings"),
   reportProfile: (body: { wallets?: string[]; displayName?: string | null }) => req<Me["user"]>("/me", { method: "POST", json: body }),
 
   health: () =>

@@ -245,6 +245,11 @@ export class SolanaLive {
   }
 
   /** Open to this user: switched on for everyone, or they're a tester. */
+  /** One of the configured testers (also Weft's owners: they see the earnings page). */
+  isTester(userId: string): boolean {
+    return this.testerIds.has(userId);
+  }
+
   openFor(userId: string): boolean {
     return this.cfg.enabled || this.testerIds.has(userId);
   }
