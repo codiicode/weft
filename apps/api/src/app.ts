@@ -23,6 +23,7 @@ import type { LiveService } from "./live/service.ts";
 import { SECOND_INTERVALS, type SecondInterval, type TradeTape } from "./lib/tape.ts";
 import { tradesSolana, type SolanaLive } from "./live/solana.ts";
 import type { HlDeposits } from "./live/deposits.ts";
+import type { SolanaWithdrawals } from "./live/solana-withdraw.ts";
 import { parseInstruction, withExits, type Step } from "./lib/instructions.ts";
 
 /** Chart ranges and the bar size each one uses (about 60–370 bars). */
@@ -62,6 +63,8 @@ export interface AppDeps {
   allowPaper?: boolean;
   /** Live Solana token trading (the user's own Privy wallet, Weft as a limited signer). */
   solana?: SolanaLive;
+  /** Withdrawals from users' Weft Solana wallets (signed by the user's own wallet). */
+  solanaWithdrawals?: SolanaWithdrawals;
   /** Called after an owner changes a run's exits (venue-side stops re-sync right away). */
   onExitsChanged?: () => void;
   /** Gas-free Hyperliquid deposits: USDC on Arbitrum → permit → Weft's relayer → Hyperliquid bridge. */
@@ -753,6 +756,56 @@ export function createApp(deps: AppDeps) {
     deps.live.linkAccount(user.id, hlAddress);
     return c.json(await deps.live.status(user.id));
   });
+  // Withdrawals from the user's Solana wallet: Weft builds, the user's wallet signs, Weft checks and sends.
+  app.post("/live/solana/withdraw/prepare", async (c) => {
+    if (!deps.solanaWithdrawals || !accounts) return c.json({ error: "Solana is not configured on this server" }, 501);
+    const user = await requireUser(c);
+    const w = accounts.solanaAccount(user.id);
+    if (!w) return c.json({ error: "set up your Solana wallet first" }, 409);
+    const b = z.object({ asset: z.string().min(3).max(64), amount: z.union([z.number().positive(), z.literal("max")]), destination: z.string().min(32).max(64) }).parse(await c.req.json());
+    try {
+      return c.json(await deps.solanaWithdrawals.prepare(user.id, w.address, b.asset, b.amount, b.destination));
+    } catch (e) {
+      return c.json({ error: (e as Error).message }, 422);
+    }
+  });
+  app.post("/live/solana/withdraw/submit", async (c) => {
+    if (!deps.solanaWithdrawals) return c.json({ error: "Solana is not configured on this server" }, 501);
+    const user = await requireUser(c);
+    const { transaction } = z.object({ transaction: z.string().min(100).max(4000) }).parse(await c.req.json());
+    try {
+      const r = await deps.solanaWithdrawals.submit(user.id, transaction);
+      console.log(`[withdraw ${user.id.slice(-6)}] Solana transfer ${r.signature}`);
+      return c.json(r);
+    } catch (e) {
+      return c.json({ error: (e as Error).message }, 422);
+    }
+  });
+
+  // Withdrawals from the user's Hyperliquid account to Arbitrum, signed by the account owner.
+  app.post("/live/withdraw/prepare", async (c) => {
+    if (!deps.live) return c.json({ error: "live trading is not configured on this server" }, 501);
+    const user = await requireUser(c);
+    const b = z.object({ destination: z.string(), amountUsd: z.number().positive(), signatureChainId: z.string().regex(/^0x[0-9a-fA-F]+$/) }).parse(await c.req.json());
+    try {
+      return c.json(await deps.live.prepareWithdraw(user.id, b.destination, b.amountUsd, b.signatureChainId));
+    } catch (e) {
+      return c.json({ error: (e as Error).message }, 422);
+    }
+  });
+  app.post("/live/withdraw/submit", async (c) => {
+    if (!deps.live) return c.json({ error: "live trading is not configured on this server" }, 501);
+    const user = await requireUser(c);
+    const { signature } = z.object({ signature: z.string().regex(/^0x[0-9a-fA-F]{130}$/) }).parse(await c.req.json());
+    try {
+      const r = await deps.live.submitWithdraw(user.id, signature as `0x${string}`);
+      console.log(`[withdraw ${user.id.slice(-6)}] Hyperliquid withdrawal sent`);
+      return c.json(r);
+    } catch (e) {
+      return c.json({ error: (e as Error).message }, 422);
+    }
+  });
+
   // Deposits into the linked Hyperliquid address (the user's Weft wallet), gas paid by Weft.
   const depositOwner = (userId: string) => {
     const a = deps.accounts?.liveAccount(userId);

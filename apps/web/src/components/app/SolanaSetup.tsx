@@ -7,6 +7,7 @@ import { useAuth, shortAddress } from "@/lib/auth";
 import { useApi } from "@/lib/use-api";
 import { Card, Btn, Pill, Empty } from "./AppShell";
 import { IconCheck, IconKey, IconLock } from "@/components/graph/icons";
+import { SolanaWithdraw } from "./Withdraw";
 
 export function Step({ n, title, done, active, children }: { n: number; title: string; done: boolean; active: boolean; children: React.ReactNode }) {
   return (
@@ -154,6 +155,7 @@ export function SolanaSetup() {
       </div>
 
       <div className="space-y-4">
+        {delegated && (s.balances?.sol ?? 0) > 0 && <SolanaWithdraw status={s} onDone={status.refresh} />}
         <Card className="p-5">
           <div className="flex items-center justify-between">
             <div className="text-[15px] font-semibold tracking-[-0.015em]">Solana</div>

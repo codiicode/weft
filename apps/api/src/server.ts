@@ -20,6 +20,7 @@ import { AgentWallets, privyAgentApi } from "./live/agents.ts";
 import { HlDeposits, depositConfigFromEnv } from "./live/deposits.ts";
 import { LiveRouterExecutor, LiveService, hlBaseUrl, liveConfigFromEnv } from "./live/service.ts";
 import { NativeStops } from "./live/native-stops.ts";
+import { SolanaWithdrawals } from "./live/solana-withdraw.ts";
 import { CompositeEngine } from "./live/composite.ts";
 import { Reconciler } from "./live/reconcile.ts";
 import { TelegramBot } from "./lib/telegram.ts";
@@ -170,6 +171,7 @@ const app = createApp({
   live: live ?? undefined,
   solana: solana ?? undefined,
   deposits: deposits ?? undefined,
+  solanaWithdrawals: solana ? new SolanaWithdrawals(new Connection(solCfg.rpcUrl, "confirmed")) : undefined,
   onExitsChanged: () => nativeStops?.poke(500),
   telegram: telegram ?? undefined,
   webOrigins: process.env.WEB_ORIGINS ? process.env.WEB_ORIGINS.split(",").map((o) => o.trim()).filter(Boolean) : undefined,

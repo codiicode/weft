@@ -7,6 +7,7 @@ import { hlFreeUsd } from "@/lib/trading";
 import { useApi, fmtUsd } from "@/lib/use-api";
 import { Card, Btn, Pill } from "./AppShell";
 import { CopyAddress, Step } from "./SolanaSetup";
+import { HyperliquidWithdraw } from "./Withdraw";
 import { IconCheck, IconKey, IconLock } from "@/components/graph/icons";
 
 /** Hyperliquid's approvals are signed for Arbitrum (mainnet) or Arbitrum Sepolia (testnet). */
@@ -215,6 +216,7 @@ export function HyperliquidWallet({ status, onChange, autoLink }: { status: Live
             Perps and stocks, up to each market’s own max leverage.{status.config.maxAllocationUsd != null ? ` Up to $${status.config.maxAllocationUsd.toLocaleString()} per strategy.` : ""}
           </p>
         </Card>
+        {linked && funded && <HyperliquidWithdraw status={status} onDone={onChange} />}
         <Card className="p-5">
           <div className="text-[15px] font-semibold tracking-[-0.015em]">What Weft can do</div>
           <ul className="mt-3 space-y-2 text-[13.5px]">

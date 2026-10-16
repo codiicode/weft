@@ -289,6 +289,12 @@ export const api = {
   liveStatus: () => req<LiveStatus>("/live/status"),
   solanaStatus: () => req<SolanaStatus>("/live/solana"),
   linkSolana: (address: string) => req<SolanaStatus>("/live/solana/link", { method: "POST", json: { address } }),
+  prepareSolanaWithdraw: (body: { asset: string; amount: number | "max"; destination: string }) =>
+    req<{ transaction: string; asset: string; amount: number; destination: string }>("/live/solana/withdraw/prepare", { method: "POST", json: body }),
+  submitSolanaWithdraw: (transaction: string) => req<{ signature: string }>("/live/solana/withdraw/submit", { method: "POST", json: { transaction } }),
+  prepareWithdraw: (body: { destination: string; amountUsd: number; signatureChainId: string }) =>
+    req<{ amountUsd: number; receiveUsd: number; destination: string; typedData: Record<string, unknown> }>("/live/withdraw/prepare", { method: "POST", json: body }),
+  submitWithdraw: (signature: string) => req<{ ok: true }>("/live/withdraw/submit", { method: "POST", json: { signature } }),
   linkLive: (hlAddress: string) => req<LiveStatus>("/live/account", { method: "POST", json: { hlAddress } }),
   prepareApprovals: (signatureChainId: string) => req<ApprovalRequests>("/live/approvals/prepare", { method: "POST", json: { signatureChainId } }),
   submitApproval: (kind: "agent" | "builder", signature: string) => req<{ ok: true }>("/live/approvals/submit", { method: "POST", json: { kind, signature } }),

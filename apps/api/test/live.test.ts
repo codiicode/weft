@@ -224,3 +224,28 @@ describe("live reconciliation", async () => {
     expect(notes).toHaveLength(1); // matches now: nothing to say
   });
 });
+
+describe("withdrawals from Hyperliquid", () => {
+  it("only the account owner can withdraw, up to what's free, to the address they give", async () => {
+    const { live, hl } = setup();
+    live.linkAccount("u1", userKey.address);
+    const to = "0x" + "a".repeat(40);
+    await expect(live.prepareWithdraw("u1", to, 500, "0xa4b1")).rejects.toThrow(/up to \$250/);
+    await expect(live.prepareWithdraw("u1", "not-an-address", 10, "0xa4b1")).rejects.toThrow(/Arbitrum/);
+    await expect(live.prepareWithdraw("u1", to, 1, "0xa4b1")).rejects.toThrow(/more than \$1/);
+
+    const prep = await live.prepareWithdraw("u1", to, 100, "0xa4b1");
+    expect(prep).toMatchObject({ amountUsd: 100, receiveUsd: 99 });
+    const td = prep.typedData as { types: Record<string, unknown> };
+    const { EIP712Domain: _d, ...types } = td.types;
+    const imposter = privateKeyToAccount(generatePrivateKey());
+    await expect(live.submitWithdraw("u1", await imposter.signTypedData({ ...(td as object), types } as never))).rejects.toThrow(/expected/);
+    expect(hl.posts).toHaveLength(0);
+
+    const again = await live.prepareWithdraw("u1", to, 100, "0xa4b1");
+    const t2 = again.typedData as { types: Record<string, unknown> };
+    const { EIP712Domain: _e, ...types2 } = t2.types;
+    await live.submitWithdraw("u1", await userKey.signTypedData({ ...(t2 as object), types: types2 } as never));
+    expect(hl.posts.at(-1)!.action).toMatchObject({ type: "withdraw3", destination: to, amount: "100" });
+  });
+});

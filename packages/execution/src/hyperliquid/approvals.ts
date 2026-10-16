@@ -2,6 +2,7 @@ import type { Hex } from "viem";
 import {
   APPROVE_AGENT_TYPES,
   APPROVE_BUILDER_FEE_TYPES,
+  WITHDRAW_TYPES,
   DEFAULT_SIGNATURE_CHAIN_ID,
   floatToWire,
   recoverUserSigner,
@@ -115,4 +116,25 @@ export function buildApproveBuilderFee(
     hyperliquidChain: opts.isMainnet ? "Mainnet" : "Testnet",
   };
   return build("HyperliquidTransaction:ApproveBuilderFee", APPROVE_BUILDER_FEE_TYPES, signed, { ...signed }, nonce);
+}
+
+/**
+ * Python: `Exchange.withdraw_from_bridge`. Sends USDC from the user's Hyperliquid account to
+ * `destination` on Arbitrum (Hyperliquid charges a $1 fee). Only the account owner can sign
+ * this: agent wallets cannot withdraw.
+ */
+export function buildWithdraw(
+  opts: CommonOpts & { destination: Hex; amountUsd: number }
+): UserSignRequest<Record<string, unknown> & { signatureChainId: string }> {
+  const nonce = opts.nonce ?? Date.now();
+  if (!(opts.amountUsd > 0)) throw new Error("withdraw amount must be positive");
+  const signed = {
+    destination: opts.destination,
+    amount: floatToWire(opts.amountUsd),
+    time: nonce,
+    type: "withdraw3",
+    signatureChainId: opts.signatureChainId ?? DEFAULT_SIGNATURE_CHAIN_ID,
+    hyperliquidChain: opts.isMainnet ? "Mainnet" : "Testnet",
+  };
+  return build("HyperliquidTransaction:Withdraw", WITHDRAW_TYPES, signed, { ...signed }, nonce);
 }

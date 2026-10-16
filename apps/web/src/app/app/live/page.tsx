@@ -3,6 +3,7 @@ import { Suspense, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { SolanaSetup } from "@/components/app/SolanaSetup";
 import { HyperliquidWallet } from "@/components/app/HyperliquidWallet";
+import { HyperliquidWithdraw } from "@/components/app/Withdraw";
 import { usePrivy, useWallets } from "@privy-io/react-auth";
 import { api, ApiError, type LiveStatus } from "@/lib/api";
 import { useAuth, shortAddress } from "@/lib/auth";
@@ -204,6 +205,7 @@ function OwnWallet({ s, refresh }: { s: LiveStatus; refresh: () => Promise<unkno
       </div>
 
       <div className="space-y-4">
+        {linked && funded && <HyperliquidWithdraw status={s} onDone={refresh} />}
         <Card className="p-5">
           <div className="flex items-center justify-between">
             <div className="text-[15px] font-semibold tracking-[-0.015em]">{net === "mainnet" ? "Hyperliquid" : "Hyperliquid testnet"}</div>

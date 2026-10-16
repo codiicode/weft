@@ -1,6 +1,7 @@
 import {
   buildApproveAgent,
   buildApproveBuilderFee,
+  buildWithdraw,
   HlExchangeClient,
   HttpHlInfo,
   HyperliquidExecutor,
@@ -85,7 +86,7 @@ export interface LiveStatus {
   holder?: HolderStatus | null;
 }
 
-type Pending = { kind: "agent" | "builder"; req: UserSignRequest<Record<string, unknown> & { signatureChainId: string }>; hlAddress: Hex; expires: number };
+type Pending = { kind: "agent" | "builder" | "withdraw"; req: UserSignRequest<Record<string, unknown> & { signatureChainId: string }>; hlAddress: Hex; expires: number };
 
 export class LiveService {
   private readonly pending = new Map<string, Pending>();
@@ -226,6 +227,38 @@ export class LiveService {
     this.pending.delete(`${userId}:${kind}`);
     this.accounts.markApproved(userId, kind);
     return { ok: true as const, response: res };
+  }
+
+  /**
+   * A withdrawal from the user's Hyperliquid account to an address on Arbitrum. Only the account
+   * owner can sign it (Weft's agent can't withdraw); Hyperliquid takes a $1 fee from the amount.
+   */
+  async prepareWithdraw(userId: string, destination: string, amountUsd: number, signatureChainId: string) {
+    const account = this.accounts.liveAccount(userId);
+    if (!account || account.network !== this.cfg.network) throw new Error("set up your Hyperliquid account first");
+    if (!/^0x[0-9a-fA-F]{40}$/.test(destination)) throw new Error("that isn’t an Arbitrum (0x…) address");
+    if (!(amountUsd > 1)) throw new Error("withdrawals must be more than $1 (Hyperliquid’s fee)");
+    const st = (await new HttpHlInfo(this.base, this.fetchFn).clearinghouseState(account.hlAddress)) as { withdrawable?: string };
+    const free = Number(st.withdrawable ?? 0);
+    if (amountUsd > free + 1e-6) throw new Error(`you can withdraw up to $${Math.floor(free * 100) / 100} right now (money held by open positions stays until they close)`);
+    const amount = Math.floor(amountUsd * 1e6) / 1e6;
+    const req = buildWithdraw({ isMainnet: this.isMainnet, destination: destination as Hex, amountUsd: amount, signatureChainId, nonce: Date.now() });
+    this.pending.set(`${userId}:withdraw`, { kind: "withdraw", req, hlAddress: account.hlAddress, expires: Date.now() + 10 * 60_000 });
+    return { amountUsd: amount, receiveUsd: Math.max(0, amount - 1), destination, typedData: withDomainType(req.typedData) };
+  }
+
+  async submitWithdraw(userId: string, signature: Hex) {
+    const p = this.pending.get(`${userId}:withdraw`);
+    if (!p || p.expires < Date.now()) throw new Error("no pending withdrawal (start again)");
+    const request = await p.req.toRequest(signature, p.hlAddress);
+    const client = new HlExchangeClient({ baseUrl: this.base, isMainnet: this.isMainnet, fetch: this.fetchFn, allowMainnetSend: this.isMainnet } as never);
+    const res = await client.post(request);
+    this.pending.delete(`${userId}:withdraw`);
+    if ((res as { status?: string }).status !== "ok") {
+      const why = typeof (res as { response?: unknown }).response === "string" ? (res as { response: string }).response : JSON.stringify(res).slice(0, 300);
+      throw new Error(`Hyperliquid refused the withdrawal: ${why}`);
+    }
+    return { ok: true as const };
   }
 
   /** Throws with a user-facing reason when a strategy can't go live as configured. */

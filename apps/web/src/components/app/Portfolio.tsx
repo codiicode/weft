@@ -64,6 +64,10 @@ export function Portfolio({ runs, onChange }: { runs: Snapshot[]; onChange: () =
               </dd>
             </div>
           </dl>
+          <div className="mt-3 flex gap-4 text-[12.5px]">
+            <Link href="/app/live" className="font-medium text-ink underline decoration-line-2 underline-offset-4 hover:decoration-ink">Add money</Link>
+            <Link href="/app/live" className="font-medium text-ink underline decoration-line-2 underline-offset-4 hover:decoration-ink">Withdraw</Link>
+          </div>
         </div>
         <div className="bg-card p-5">
           <div className="text-[13px] text-muted">In positions</div>
