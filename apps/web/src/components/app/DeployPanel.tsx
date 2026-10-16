@@ -6,6 +6,7 @@ import { api, ApiError } from "@/lib/api";
 import { useAuth, useRequireAuth } from "@/lib/auth";
 import { useApi } from "@/lib/use-api";
 import { hlFreeUsd, tradesSolana, useTradingVenues, type Venues } from "@/lib/trading";
+import { useHlApprove } from "@/lib/hl-approve";
 import Link from "next/link";
 import { Btn, Card } from "./AppShell";
 
@@ -104,6 +105,9 @@ export function DeployPanel({ strategy, strategyId, compact = false }: { strateg
   const live = useApi(signedIn && !onSolana ? () => api.liveStatus() : null, [signedIn, onSolana]);
   const sol = useApi(signedIn && onSolana ? () => api.solanaStatus() : null, [signedIn, onSolana]);
   const ready = onSolana ? !!sol.data?.ready : !!live.data?.ready;
+  // An account that only lacks an approval (e.g. Weft's fee was just switched on) is set up: a
+  // Weft wallet approves in the background right here, an own wallet gets a clear one-step ask.
+  const hl = useHlApprove(onSolana ? null : live.data, live.refresh);
   const loadingStatus = onSolana ? sol.loading && !sol.data : live.loading && !live.data;
   const cap = (onSolana ? sol.data?.maxAllocationUsd : live.data?.config.maxAllocationUsd) ?? 1000;
   const testnet = !onSolana && live.data?.config.network === "testnet";
@@ -172,6 +176,28 @@ export function DeployPanel({ strategy, strategyId, compact = false }: { strateg
           <p className="mt-3 text-[13.5px] leading-relaxed text-muted">Trades with real money from your own Hyperliquid account. Sign in to set it up.</p>
         ) : loadingStatus ? (
           <div className="mt-4 h-24 animate-pulse rounded-[10px] bg-paper-2" />
+        ) : !ready && !onSolana && hl.needsApproval ? (
+          <div className="mt-3 rounded-[10px] bg-paper-2 p-4">
+            <p className="text-[13.5px] font-medium text-ink">{hl.agentOk ? "Approve Weft’s trading fee" : "Turn on trading"}</p>
+            <p className="mt-1 text-[13px] leading-relaxed text-muted">
+              {hl.agentOk
+                ? `Weft now takes ${(live.data?.config.builderFeeBps ?? 0) / 100}% per trade on Hyperliquid. Your account approves it once.`
+                : "Your account approves Weft’s trading-only key once."}
+              {hl.silent ? (hl.busy ? " Approving in the background…" : "") : " Sign it on the Trading accounts page."}
+            </p>
+            {hl.error && <p className="mt-2 text-[12.5px] text-short">{hl.error}</p>}
+            {hl.silent ? (
+              (hl.error || !hl.busy) && (
+                <Btn className="mt-3" onClick={() => void hl.approve()} disabled={hl.busy}>
+                  {hl.busy ? "Approving…" : "Approve"}
+                </Btn>
+              )
+            ) : (
+              <Link href="/app/live" className="mt-3 inline-flex h-9 items-center rounded-[10px] bg-ink px-3.5 text-[14px] font-medium text-paper hover:bg-ink/85">
+                Approve in Trading accounts
+              </Link>
+            )}
+          </div>
         ) : !ready ? (
           <div className="mt-3 rounded-[10px] bg-paper-2 p-4">
             <p className="text-[13.5px] font-medium text-ink">{onSolana ? "Set up your Solana trading wallet" : "Set up your Hyperliquid wallet"}</p>
