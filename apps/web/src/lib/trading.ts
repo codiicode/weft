@@ -44,6 +44,19 @@ export function useTradingVenues(): Venues | null {
   return v && solanaForMe && !v.solana ? { ...v, solana: true } : v;
 }
 
+type HlVenue = { accountValueUsd: number | null; positionsWorthUsd?: number | null; withdrawableUsd: number | null };
+
+/**
+ * Money free to trade on Hyperliquid: account value minus what the open positions are worth, so
+ * free + in positions always adds up to the account value. (Not Hyperliquid's "withdrawable",
+ * which drops to 0 while a leveraged position is open.)
+ */
+export function hlFreeUsd(venue: HlVenue | null | undefined): number | null {
+  if (!venue || venue.accountValueUsd == null) return null;
+  if (venue.positionsWorthUsd != null) return Math.max(0, venue.accountValueUsd - venue.positionsWorthUsd);
+  return venue.withdrawableUsd ?? venue.accountValueUsd;
+}
+
 /** True when a strategy opens positions in Solana tokens. */
 export function tradesSolana(s: Strategy | undefined): boolean {
   return Boolean(s?.actions.some((a) => a.type === "open" && a.instrument.kind === "token"));

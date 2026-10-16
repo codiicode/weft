@@ -64,6 +64,10 @@ export interface LiveStatus {
   venue: {
     accountValueUsd: number | null;
     withdrawableUsd: number | null;
+    /** Margin held by open positions. */
+    marginUsedUsd: number | null;
+    /** What the open positions are worth (margin + unrealized P&L): accountValue − this is free to trade. */
+    positionsWorthUsd: number | null;
     agentApprovedOnVenue: boolean | null;
     builderMaxFeeTenthsBps: number | null;
   } | null;
@@ -114,10 +118,17 @@ export class LiveService {
         postJson<{ address: string; name: string }[]>(this.fetchFn, `${this.base}/info`, { type: "extraAgents", user: account.hlAddress }).catch(() => null),
         this.cfg.builder ? info.maxBuilderFee(account.hlAddress, this.cfg.builder.address).catch(() => null) : Promise.resolve(null),
       ]);
-      const ms = (state as { marginSummary?: { accountValue?: string } } | null)?.marginSummary;
+      const ms = (state as { marginSummary?: { accountValue?: string; totalMarginUsed?: string } } | null)?.marginSummary;
       venue = {
         accountValueUsd: ms?.accountValue != null ? Number(ms.accountValue) : null,
         withdrawableUsd: (state as { withdrawable?: string } | null)?.withdrawable != null ? Number((state as { withdrawable: string }).withdrawable) : null,
+        marginUsedUsd: ms?.totalMarginUsed != null ? Number(ms.totalMarginUsed) : null,
+        positionsWorthUsd: state
+          ? ((state as { assetPositions?: { position?: { marginUsed?: string; unrealizedPnl?: string } }[] }).assetPositions ?? []).reduce(
+              (n, a) => n + Number(a.position?.marginUsed ?? 0) + Number(a.position?.unrealizedPnl ?? 0),
+              0,
+            )
+          : null,
         agentApprovedOnVenue: agents && agent ? agents.some((a) => a.address.toLowerCase() === agent.address.toLowerCase()) : agents ? false : null,
         builderMaxFeeTenthsBps: typeof maxFee === "number" ? maxFee : null,
       };

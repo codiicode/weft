@@ -2,7 +2,7 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, type ReactNode } from "react";
 import { PrivyProvider, usePrivy } from "@privy-io/react-auth";
 import { toSolanaWalletConnectors } from "@privy-io/react-auth/solana";
-import { api, setTokenGetter } from "./api";
+import { api, authLoaded, authLoading, setTokenGetter } from "./api";
 
 /**
  * Sign-in for the app. With NEXT_PUBLIC_PRIVY_APP_ID set, users sign in with
@@ -62,6 +62,8 @@ function PrivyBridge({ children }: { children: ReactNode }) {
   // effect: child effects run before this component's, and a page's first request must already
   // carry the token (otherwise it fails with "sign in required" until the next poll).
   setTokenGetter(authenticated ? () => getAccessToken() : null);
+  if (ready) authLoaded();
+  else authLoading();
   useEffect(() => () => setTokenGetter(null), []);
 
   const wallets = useMemo<AuthState["wallets"]>(() => {

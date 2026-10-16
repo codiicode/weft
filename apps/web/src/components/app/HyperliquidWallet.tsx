@@ -3,6 +3,7 @@ import { useEffect, useRef, useState } from "react";
 import { useCreateWallet, useExportWallet, useSignTypedData, useWallets } from "@privy-io/react-auth";
 import { api, type DepositStatus, type LiveStatus } from "@/lib/api";
 import { shortAddress } from "@/lib/auth";
+import { hlFreeUsd } from "@/lib/trading";
 import { useApi, fmtUsd } from "@/lib/use-api";
 import { Card, Btn, Pill } from "./AppShell";
 import { CopyAddress, Step } from "./SolanaSetup";
@@ -129,6 +130,18 @@ export function HyperliquidWallet({ status, onChange, autoLink }: { status: Live
                 <dt className="text-muted">On Hyperliquid</dt>
                 <dd className={`tnum mt-0.5 font-medium ${funded ? "text-ink" : "text-muted"}`}>{fmtUsd(status.venue?.accountValueUsd ?? 0, 2)}</dd>
               </div>
+              {funded && (
+                <>
+                  <div>
+                    <dt className="text-muted">Free to trade</dt>
+                    <dd className="tnum mt-0.5 font-medium text-ink">{fmtUsd(hlFreeUsd(status.venue) ?? 0, 2)}</dd>
+                  </div>
+                  <div>
+                    <dt className="text-muted">In positions</dt>
+                    <dd className="tnum mt-0.5 font-medium text-ink">{fmtUsd(status.venue?.positionsWorthUsd ?? 0, 2)}</dd>
+                  </div>
+                </>
+              )}
               <div>
                 <dt className="text-muted">Arriving on Arbitrum</dt>
                 <dd className="tnum mt-0.5 font-medium text-ink">{d ? `${d.walletUsdc.toFixed(2)} USDC` : "…"}</dd>

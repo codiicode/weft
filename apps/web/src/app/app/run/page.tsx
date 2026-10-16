@@ -7,6 +7,7 @@ import type { EngineEvent } from "@weft/engine";
 import { instrumentLabel } from "@weft/strategy";
 import { api, type Snapshot } from "@/lib/api";
 import { useRequireAuth } from "@/lib/auth";
+import { runMoney } from "@/lib/run-money";
 import { useApi, fmtUsd, fmtPct, fmtPrice, ago } from "@/lib/use-api";
 import { PageHeader, Card, Btn, Stat, Empty } from "@/components/app/AppShell";
 import { RunStatus } from "@/components/app/RunCard";
@@ -221,6 +222,7 @@ function Run() {
   }
 
   const d = s.deployment;
+  const money = runMoney(s);
   const status = d.status;
   // Owner actions on a live (or legacy) run that is still going. Alerts-only runs hold nothing.
   const canAct = (status === "running" || status === "paused") && !d.alertsOnly;
@@ -311,9 +313,9 @@ function Run() {
           </div>
         )}
         <div className={`grid grid-cols-2 gap-x-6 gap-y-5 border-y border-line py-5 sm:grid-cols-5 ${d.alertsOnly ? "hidden" : ""}`}>
-          <Stat label="Value" value={fmtUsd(s.equityUsd, 2)} sub={`started with ${fmtUsd(d.allocationUsd, 0)}`} />
-          <Stat label="Return" value={fmtPct(s.returnPct)} tone={tone(s.returnPct)} />
-          <Stat label="Open profit" value={fmtUsd(s.unrealizedPnlUsd, 2)} tone={tone(s.unrealizedPnlUsd)} />
+          <Stat label={s.positions.length ? "Put in" : "Budget"} value={fmtUsd(money.putIn, 2)} sub={s.positions.length ? `worth ${fmtUsd(money.worth, 2)} now` : undefined} />
+          <Stat label="Return" value={fmtPct(money.returnPct)} tone={tone(money.returnPct)} sub={money.fees > 0 ? `after ${fmtUsd(money.fees, 2)} fees` : undefined} />
+          <Stat label="Open profit" value={fmtUsd(s.unrealizedPnlUsd, 2)} tone={tone(s.unrealizedPnlUsd)} sub={s.positions.length ? fmtPct(money.openPct) : undefined} />
           <Stat label="Closed profit" value={fmtUsd(s.realizedPnlUsd, 2)} tone={tone(s.realizedPnlUsd)} />
           <Stat label="Last check" value={ago(s.lastTickAt)} sub={s.builderFeesUsd ? `fees ${fmtUsd(s.builderFeesUsd, 2)}` : undefined} />
         </div>

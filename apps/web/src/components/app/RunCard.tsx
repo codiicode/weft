@@ -2,6 +2,7 @@
 import Link from "next/link";
 import { AssetStack } from "@/components/ui/AssetIcon";
 import { strategyIcons } from "@/lib/assets";
+import { runMoney } from "@/lib/run-money";
 import type { Snapshot } from "@/lib/api";
 import { fmtUsd, fmtPct, ago } from "@/lib/use-api";
 import { Card } from "./AppShell";
@@ -27,7 +28,8 @@ export function RunStatus({ s }: { s: Snapshot }) {
 export function RunRow({ s }: { s: Snapshot }) {
   const d = s.deployment;
   const curve = s.equityCurve.map((p) => p[1]);
-  const up = s.returnPct >= 0;
+  const money = runMoney(s);
+  const up = money.returnPct >= 0;
   return (
     <Link
       href={`/app/run?id=${encodeURIComponent(d.id)}`}
@@ -43,10 +45,10 @@ export function RunRow({ s }: { s: Snapshot }) {
       <div className="hidden sm:block">
         <RunStatus s={s} />
       </div>
-      <div className={`tnum text-right text-[14.5px] font-medium ${s.returnPct === 0 ? "text-ink-2" : up ? "text-long" : "text-short"}`}>{fmtPct(s.returnPct)}</div>
-      <div className="tnum hidden text-right text-[13.5px] text-ink-2 sm:block">{fmtUsd(s.equityUsd, 0)}</div>
+      <div className={`tnum text-right text-[14.5px] font-medium ${money.returnPct === 0 ? "text-ink-2" : up ? "text-long" : "text-short"}`}>{fmtPct(money.returnPct)}</div>
+      <div className="tnum hidden text-right text-[13.5px] text-ink-2 sm:block">{fmtUsd(money.worth, 2)}</div>
       <div className="hidden justify-end sm:flex">
-        {curve.length > 1 ? <Sparkline data={curve} width={96} height={26} color={trendColor(s.returnPct)} strokeWidth={1.4} /> : <span className="text-[12px] text-faint">—</span>}
+        {curve.length > 1 ? <Sparkline data={curve} width={96} height={26} color={trendColor(money.returnPct)} strokeWidth={1.4} /> : <span className="text-[12px] text-faint">—</span>}
       </div>
     </Link>
   );
@@ -58,7 +60,7 @@ export function RunListHeader() {
       <span>Strategy</span>
       <span>Status</span>
       <span className="text-right">Return</span>
-      <span className="text-right">Equity</span>
+      <span className="text-right">Worth</span>
       <span className="text-right">Since start</span>
     </div>
   );
@@ -66,8 +68,9 @@ export function RunListHeader() {
 
 export function RunCard({ s }: { s: Snapshot }) {
   const d = s.deployment;
+  const money = runMoney(s);
   const curve = s.equityCurve.map((p) => p[1]);
-  const up = s.returnPct >= 0;
+  const up = money.returnPct >= 0;
   return (
     <Link href={`/app/run?id=${encodeURIComponent(d.id)}`} className="group block">
       <Card className="h-full p-5 transition-colors group-hover:border-line-2">
@@ -82,12 +85,12 @@ export function RunCard({ s }: { s: Snapshot }) {
         <div className="mt-0.5 line-clamp-1 text-[13.5px] text-muted">{d.strategy.thesis}</div>
         <div className="mt-4 flex items-end justify-between gap-3">
           <div>
-            <div className={`tnum text-[22px] font-medium tracking-[-0.02em] ${s.returnPct === 0 ? "text-ink" : up ? "text-long" : "text-short"}`}>{fmtPct(s.returnPct)}</div>
+            <div className={`tnum text-[22px] font-medium tracking-[-0.02em] ${money.returnPct === 0 ? "text-ink" : up ? "text-long" : "text-short"}`}>{fmtPct(money.returnPct)}</div>
             <div className="tnum text-[12.5px] text-faint">
-              {fmtUsd(s.equityUsd, 2)} · {s.positions.length} open
+              {fmtUsd(money.worth, 2)} · {s.positions.length} open
             </div>
           </div>
-          {curve.length > 1 && <Sparkline data={curve} width={120} height={36} color={trendColor(s.returnPct)} />}
+          {curve.length > 1 && <Sparkline data={curve} width={120} height={36} color={trendColor(money.returnPct)} />}
         </div>
       </Card>
     </Link>

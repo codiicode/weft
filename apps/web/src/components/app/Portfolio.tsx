@@ -6,6 +6,7 @@ import { useAuth } from "@/lib/auth";
 import { useApi, fmtUsd, fmtPct } from "@/lib/use-api";
 import { instrumentIcon } from "@/lib/assets";
 import { priceFormatter } from "@/lib/market-ideas";
+import { hlFreeUsd } from "@/lib/trading";
 import { AssetIcon } from "@/components/ui/AssetIcon";
 import { Card } from "./AppShell";
 import { SellButton } from "./RunControls";
@@ -30,7 +31,7 @@ export function Portfolio({ runs, onChange }: { runs: Snapshot[]; onChange: () =
   const value = invested + open;
   const closed = live.reduce((n, s) => n + s.realizedPnlUsd, 0);
 
-  const hlFree = hl.data?.venue ? (hl.data.venue.withdrawableUsd ?? hl.data.venue.accountValueUsd) : null;
+  const hlFree = hlFreeUsd(hl.data?.venue);
   const solFree = sol.data?.balances?.usd ?? null;
   const testnet = hl.data?.config.network === "testnet";
 

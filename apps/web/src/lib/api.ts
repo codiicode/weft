@@ -20,10 +20,25 @@ export class ApiError extends Error {
 
 /** Set by the auth provider: returns the signed-in user's access token (or null). */
 let tokenGetter: (() => Promise<string | null>) | null = null;
+/**
+ * While sign-in is still loading, requests wait for it (up to a few seconds) instead of going out
+ * without a token and showing "sign in required" or "private run" for a moment.
+ */
+let authSettled: Promise<void> = Promise.resolve();
+let settleAuth: (() => void) | null = null;
+export function authLoading() {
+  if (settleAuth) return;
+  authSettled = new Promise((r) => (settleAuth = r));
+}
+export function authLoaded() {
+  settleAuth?.();
+  settleAuth = null;
+}
 export function setTokenGetter(fn: (() => Promise<string | null>) | null) {
   tokenGetter = fn;
 }
 async function authHeader(): Promise<Record<string, string>> {
+  await Promise.race([authSettled, new Promise((r) => setTimeout(r, 4000))]);
   const t = tokenGetter ? await tokenGetter().catch(() => null) : null;
   return t ? { authorization: `Bearer ${t}` } : {};
 }
@@ -197,7 +212,7 @@ export interface LiveStatus {
   config: { enabled: boolean; network: "testnet" | "mainnet"; builder: string | null; builderFeeBps: number | null; maxAllocationUsd: number; maxLeverage: number };
   account: { userId: string; network: string; hlAddress: string; agentApprovedAt: number | null; builderApprovedAt: number | null } | null;
   agentAddress: string | null;
-  venue: { accountValueUsd: number | null; withdrawableUsd: number | null; agentApprovedOnVenue: boolean | null; builderMaxFeeTenthsBps: number | null } | null;
+  venue: { accountValueUsd: number | null; withdrawableUsd: number | null; marginUsedUsd?: number | null; positionsWorthUsd?: number | null; agentApprovedOnVenue: boolean | null; builderMaxFeeTenthsBps: number | null } | null;
   ready: boolean;
   blockers: string[];
 }

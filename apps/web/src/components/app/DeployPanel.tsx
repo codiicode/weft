@@ -5,7 +5,7 @@ import { instrumentLabel, type Strategy } from "@weft/strategy";
 import { api, ApiError } from "@/lib/api";
 import { useAuth, useRequireAuth } from "@/lib/auth";
 import { useApi } from "@/lib/use-api";
-import { tradesSolana, useTradingVenues, type Venues } from "@/lib/trading";
+import { hlFreeUsd, tradesSolana, useTradingVenues, type Venues } from "@/lib/trading";
 import Link from "next/link";
 import { Btn, Card } from "./AppShell";
 
@@ -107,7 +107,7 @@ export function DeployPanel({ strategy, strategyId, compact = false }: { strateg
   const loadingStatus = onSolana ? sol.loading && !sol.data : live.loading && !live.data;
   const cap = (onSolana ? sol.data?.maxAllocationUsd : live.data?.config.maxAllocationUsd) ?? 1000;
   const testnet = !onSolana && live.data?.config.network === "testnet";
-  const available = onSolana ? null : (live.data?.venue?.withdrawableUsd ?? live.data?.venue?.accountValueUsd ?? null);
+  const available = onSolana ? null : hlFreeUsd(live.data?.venue);
   const solBalance = sol.data?.balances?.sol ?? null;
   const walletUsd = sol.data?.balances?.usd ?? null;
   // Stated amounts need no budget: it's the amount itself plus room for fees and price moves.
