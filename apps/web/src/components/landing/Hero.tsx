@@ -22,7 +22,7 @@ export function Hero() {
             <Button href="/new" size="lg">
               Start trading
             </Button>
-            <Button href="#work" size="lg" variant="quiet">
+            <Button href="#demo" size="lg" variant="quiet">
               See it work
             </Button>
           </div>

@@ -5,7 +5,7 @@ import { useInView, useReducedMotion } from "@/lib/hooks";
 import { IconSend } from "../graph/icons";
 import { Reveal } from "../ui/Reveal";
 
-const ideas = ["Long BTC if ETF inflows stay positive for 3 days", "Fade SOL when funding gets crowded", "Buy YES on a Fed cut if odds dip below 60%"];
+const ideas = ["Long ETH 20x if it breaks $2,600 and funding stays low", "Short SOL 5x when funding stays above 0.05% an hour", "Buy $BONK with 0.1 SOL if it drops 10% in an hour"];
 
 export function Closing() {
   const [v, setV] = useState("");
@@ -13,7 +13,7 @@ export function Closing() {
   const [ph, setPh] = useState("Type a trade idea…");
   useEffect(() => {
     if (v || matchMedia("(prefers-reduced-motion: reduce)").matches) return;
-    const examples = ["Buy $WIF if it gets back above 2.40", "Short ETH if funding stays above 0.1% for a day", "Buy YES on a Fed cut if the odds dip below 60%", "Long gold when real yields fall for a week"];
+    const examples = ["Long ETH 20x with $50 if it breaks $2,600, 20% stop", "Buy $WIF with 0.5 SOL if it gets back above 2.40", "Long BTC 10x if it drops 5% in a day", "Short SOL 5x when funding stays above 0.05% an hour"];
     let i = 0;
     let n = 0;
     let dir = 1;
