@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { Position } from "@weft/engine";
-import { parseInstruction } from "../src/lib/instructions.ts";
+import { buysAgain, parseInstruction } from "../src/lib/instructions.ts";
 
 const pos = (id: string, key: string) => ({ id, instrumentKey: key }) as Position;
 const RAY = pos("p1", "sol:token:4k3Dyjzvzp8eMZWUXbBCjEvwSkkk59S5iCNLY3QrkX6R");
@@ -35,5 +35,20 @@ describe("instructions for a running strategy", () => {
   it("leaves everything else to Claude", () => {
     expect(parseInstruction("also buy more if it dips 10%", [BTC])).toBeNull();
     expect(parseInstruction("sell when funding flips negative", [BTC])).toBeNull();
+  });
+});
+
+describe("what an exits change covers", () => {
+  const strat = (maxFires: number | undefined, reentry: "never" | "after_close") =>
+    ({
+      triggers: [{ id: "go", when: {}, ...(maxFires != null ? { maxFires } : {}) }],
+      actions: [{ id: "a", type: "open", on: ["go"], reentry, exits: {} }],
+    }) as never;
+
+  it("mentions this strategy's next buys only when it can buy again", () => {
+    expect(buysAgain(strat(1, "never"))).toBe(false);
+    expect(buysAgain(strat(undefined, "after_close"))).toBe(true);
+    expect(parseInstruction("stop at 10%", [BTC], strat(1, "never"))![0]!.label).toBe("Set a stop at −10% on BTC");
+    expect(parseInstruction("stop at 10%", [BTC], strat(undefined, "after_close"))![0]!.label).toBe("Set a stop at −10% on BTC, and on this strategy’s next buys");
   });
 });

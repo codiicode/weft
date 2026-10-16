@@ -571,7 +571,7 @@ export function createApp(deps: AppDeps) {
     let steps: Step[] | null;
     let rationale = "";
     try {
-      steps = parseInstruction(text, snap.positions);
+      steps = parseInstruction(text, snap.positions, snap.deployment.strategy);
     } catch (e) {
       return c.json({ error: (e as Error).message }, 422);
     }

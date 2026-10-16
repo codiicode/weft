@@ -29,8 +29,18 @@ function fractionOf(text: string): number | null {
   return null;
 }
 
-/** Steps for the instruction, or null when it needs Claude. Throws with a plain reason when it can't apply. */
-export function parseInstruction(text: string, positions: Position[]): Step[] | null {
+/** True when this strategy can open another position later (so an exits change also covers those). */
+export function buysAgain(s: Strategy): boolean {
+  return s.actions.some(
+    (a) => a.type === "open" && a.reentry !== "never" && a.on.some((id) => (s.triggers.find((t) => t.id === id)?.maxFires ?? Infinity) > 1),
+  );
+}
+
+/**
+ * Steps for the instruction, or null when it needs Claude. Throws with a plain reason when it can't apply.
+ * Exits changes only ever touch this strategy: its open positions, and its own later buys if it makes any.
+ */
+export function parseInstruction(text: string, positions: Position[], strategy?: Strategy): Step[] | null {
   const t = text.trim().toLowerCase();
   if (!t) return null;
   const pos = targets(t, positions);
@@ -89,7 +99,9 @@ export function parseInstruction(text: string, positions: Position[]): Step[] | 
     }
   }
   if (!said.length) return steps.length ? steps : null;
-  const label = `${said.join(", ").replace(/^./, (c) => c.toUpperCase())}${pos.length ? ` on ${names(pos)}` : ""}, and on future buys`;
+  const again = strategy ? buysAgain(strategy) : true;
+  const scope = pos.length ? ` on ${names(pos)}${again ? ", and on this strategy’s next buys" : ""}` : " on this strategy’s next buys";
+  const label = `${said.join(", ").replace(/^./, (c) => c.toUpperCase())}${scope}`;
   return [...steps, { kind: "exits", patch, positionIds: pos.map((p) => p.id), label }];
 }
 

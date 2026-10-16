@@ -27,7 +27,7 @@ describe("instructing a running strategy over the API", () => {
   it("previews a plan, changes nothing until applied, then applies it once", async () => {
     const { t, d, call } = await running();
     const prev = (await (await call(`/deployments/${d.id}/instruct`, { text: "set a stop at 10% and sell half" })).json()) as { planId: string; steps: { label: string }[] };
-    expect(prev.steps.map((x) => x.label)).toEqual(["Sell 50% of BTC at market, now", "Set a stop at −10% on BTC, and on future buys"]);
+    expect(prev.steps.map((x) => x.label)).toEqual(["Sell 50% of BTC at market, now", "Set a stop at −10% on BTC"]); // it buys once: no later buys to mention
     expect((await t.engine.getSnapshot(d.id))!.positions[0]!.qty).toBeCloseTo(10, 9);
 
     const stop = (await (await call(`/deployments/${d.id}/instruct`, { text: "stop at 10%" })).json()) as { planId: string; steps: { label: string }[] };
