@@ -58,11 +58,11 @@ function PrivyBridge({ children }: { children: ReactNode }) {
   const { ready, authenticated, user, login, logout, getAccessToken } = usePrivy();
   const reported = useRef<string | null>(null);
 
-  // Every API request carries the Privy access token while signed in.
-  useEffect(() => {
-    setTokenGetter(authenticated ? () => getAccessToken() : null);
-    return () => setTokenGetter(null);
-  }, [authenticated, getAccessToken]);
+  // Every API request carries the Privy access token while signed in. Set during render, not in an
+  // effect: child effects run before this component's, and a page's first request must already
+  // carry the token (otherwise it fails with "sign in required" until the next poll).
+  setTokenGetter(authenticated ? () => getAccessToken() : null);
+  useEffect(() => () => setTokenGetter(null), []);
 
   const wallets = useMemo<AuthState["wallets"]>(() => {
     const out: AuthState["wallets"] = [];
