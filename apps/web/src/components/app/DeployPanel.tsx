@@ -1,7 +1,7 @@
 "use client";
 import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
-import type { Strategy } from "@weft/strategy";
+import { instrumentLabel, type Strategy } from "@weft/strategy";
 import { api, ApiError } from "@/lib/api";
 import { useAuth, useRequireAuth } from "@/lib/auth";
 import { useApi } from "@/lib/use-api";
@@ -79,6 +79,20 @@ export function liveBlocker(s: Strategy | undefined, venues: Venues | null = nul
   return null;
 }
 
+/** "Buy $RAY" when the strategy is a single order that fires right away; null for anything conditional. */
+function orderNow(s: Strategy | undefined): string | null {
+  if (!s) return null;
+  const opens = s.actions.filter((a) => a.type === "open");
+  if (opens.length !== 1) return null;
+  const open = opens[0] as { on: string[]; side?: string; instrument: Parameters<typeof instrumentLabel>[0] };
+  const immediate = open.on.every((id) => {
+    const w = s.triggers.find((t) => t.id === id)?.when as { op?: string; right?: { value?: unknown } } | undefined;
+    return w?.op === "gt" && w.right?.value === 0;
+  });
+  if (!immediate) return null;
+  return `${open.side === "short" ? "Short" : "Buy"} ${instrumentLabel(open.instrument)}`;
+}
+
 /** Start a strategy with real money (or as alerts only) and jump to its run page. */
 export function DeployPanel({ strategy, strategyId, compact = false }: { strategy?: Strategy; strategyId?: string; compact?: boolean }) {
   const router = useRouter();
@@ -108,16 +122,15 @@ export function DeployPanel({ strategy, strategyId, compact = false }: { strateg
   const [allocation, setAllocation] = useState(100);
   // How often the agent looks at the market is Weft's job, not the user's: fast where prices move fast.
   const interval = useMemo(() => checkInterval(strategy), [strategy]);
-  const [agree, setAgree] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const isLive = mode === "live";
   const alerts = useApi(signedIn && !isLive ? () => api.alertsMe() : null, [signedIn, isLive]);
   const max = Math.max(10, Math.min(cap, available ?? cap));
+  const now = useMemo(() => orderNow(strategy), [strategy]);
 
   const deploy = async () => {
     if (!requireAuth()) return;
-    if (isLive && !agree) return setError("Tick the box to confirm this trades real money.");
     setBusy(true);
     setError(null);
     try {
@@ -243,13 +256,6 @@ export function DeployPanel({ strategy, strategyId, compact = false }: { strateg
 
       {blocker && <p className="mt-3 rounded-[10px] bg-[var(--trigger-soft)] px-3 py-2.5 text-[13px] leading-relaxed text-ink-2">{blocker} You can run it as alerts in the meantime.</p>}
 
-      {isLive && ready && (
-        <label className="mt-4 flex cursor-pointer items-start gap-2.5 text-[13px] leading-relaxed text-ink-2">
-          <input type="checkbox" checked={agree} onChange={(e) => setAgree(e.target.checked)} className="mt-[3px] h-4 w-4 shrink-0 accent-[var(--ink)]" />
-          <span>I understand this trades real money from my account, and that I can lose it.</span>
-        </label>
-      )}
-
       {error && <p className="mt-3 whitespace-pre-wrap rounded-[10px] bg-[var(--short-soft)] px-3 py-2.5 text-[13px] text-short">{error}</p>}
 
       {isLive && !signedIn ? (
@@ -257,11 +263,25 @@ export function DeployPanel({ strategy, strategyId, compact = false }: { strateg
           Sign in to trade
         </Btn>
       ) : (!isLive || ready) && (
-        <Btn onClick={deploy} disabled={busy || (isLive && !agree)} className="mt-5 h-10 w-full">
-          {busy ? "Starting…" : isLive ? (autoBudget != null ? "Start trading" : `Start trading $${Math.min(allocation, max).toLocaleString("en-US")}`) : "Start alerts"}
+        <Btn onClick={deploy} disabled={busy} className="mt-5 h-11 w-full text-[15px]">
+          {busy
+            ? "Starting…"
+            : !isLive
+              ? "Start alerts"
+              : now && stated
+                ? `${now} for ${stated.text}`
+                : autoBudget != null
+                  ? "Start trading"
+                  : `Start trading with $${Math.min(allocation, max).toLocaleString("en-US")}`}
         </Btn>
       )}
-      <p className="mt-2.5 text-center text-[12.5px] text-faint">{isLive ? "Pause or stop any time. Stopping closes every position." : "Pause or stop any time."}</p>
+      <p className="mt-2.5 text-center text-[12.5px] leading-relaxed text-faint">
+        {isLive && ready
+          ? `${now ? "Buys right away with" : "Trades"} real money from your ${onSolana ? "wallet" : "account"}, and you can lose it. Stop any time.`
+          : isLive
+            ? "Pause or stop any time. Stopping closes every position."
+            : "Pause or stop any time."}
+      </p>
     </Card>
   );
 }
