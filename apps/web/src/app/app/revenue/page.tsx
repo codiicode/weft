@@ -16,14 +16,14 @@ function Stat({ label, value, sub }: { label: string; value: string; sub?: strin
   );
 }
 
-/** What Weft has earned in fees, and how it splits. Owners only. */
-export default function EarningsPage() {
+/** Protocol revenue: what Weft has earned in fees, and how it splits. Owners only. */
+export default function RevenuePage() {
   const auth = useAuth();
-  const e = useApi(auth.enabled && auth.authenticated ? () => api.earnings() : null, [auth.authenticated], { pollMs: 60_000 });
+  const e = useApi(auth.enabled && auth.authenticated ? () => api.revenue() : null, [auth.authenticated], { pollMs: 60_000 });
   const d = e.data;
   return (
     <>
-      <PageHeader title="Earnings" sub="Weft’s fees from every trade, and how they split." />
+      <PageHeader title="Protocol revenue" sub="Weft’s fees from every trade, and how they split." />
       <div className="space-y-6 px-5 pb-16 pt-6 lg:px-10">
         {e.error && !d ? (
           <Empty title="Not available" sub="This page is for Weft’s owners." />
@@ -32,7 +32,7 @@ export default function EarningsPage() {
         ) : (
           <>
             <div className="grid gap-px overflow-hidden rounded-[12px] border border-line bg-line sm:grid-cols-3">
-              <Stat label="Earned so far" value={fmtUsd(d.totalUsd, 2)} sub="Hyperliquid builder fees + Solana swap fees" />
+              <Stat label="Revenue so far" value={fmtUsd(d.totalUsd, 2)} sub="Hyperliquid builder fees + Solana swap fees" />
               <Stat label="For $WEFT buybacks" value={fmtUsd(d.buybackUsd, 2)} sub="Half of all fees" />
               <Stat label="Weft’s share" value={fmtUsd(d.weftUsd, 2)} sub="The other half" />
             </div>

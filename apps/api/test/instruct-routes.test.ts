@@ -74,9 +74,9 @@ describe("earnings are for Weft's owners only", () => {
   it("hides the page from everyone else", async () => {
     const t = setup();
     const base = { catalog: { async list() { return []; } }, marketData: t.market, engine: t.engine, library: new StrategyLibrary(join(mkdtempSync(join(tmpdir(), "weft-earn-")), "lib.db")), signalModes: {}, earnings: async () => ({ totalUsd: 1 }) };
-    expect((await createApp({ ...base, isAdmin: () => false }).request("/admin/earnings")).status).toBe(404);
+    expect((await createApp({ ...base, isAdmin: () => false }).request("/admin/revenue")).status).toBe(404);
     const owner = createApp({ ...base, isAdmin: () => true });
-    expect(await (await owner.request("/admin/earnings")).json()).toEqual({ totalUsd: 1 });
+    expect(await (await owner.request("/admin/revenue")).json()).toEqual({ totalUsd: 1 });
     expect(((await (await owner.request("/me")).json()) as { isAdmin: boolean }).isAdmin).toBe(true);
   });
 });

@@ -223,8 +223,8 @@ export function createApp(deps: AppDeps) {
     });
   });
 
-  /** Weft's fee earnings (owners only). */
-  app.get("/admin/earnings", async (c) => {
+  /** Protocol revenue: Weft's fee earnings (owners only). */
+  app.get("/admin/revenue", async (c) => {
     const user = await requireUser(c);
     if (!deps.isAdmin?.(user.id) || !deps.earnings) return c.json({ error: "not found" }, 404);
     return c.json(await deps.earnings());

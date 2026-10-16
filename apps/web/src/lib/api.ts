@@ -206,7 +206,7 @@ export interface Me {
   authEnabled: boolean;
   user: { id: string; wallets?: string[]; displayName?: string | null } | null;
   ai: { usedToday: number; dailyLimit: number | null } | null;
-  /** Weft's owners: they see the earnings page. */
+  /** Weft's owners: they see the protocol revenue page. */
   isAdmin?: boolean;
 }
 
@@ -315,7 +315,7 @@ export const api = {
   submitDeposit: (signature: string) => req<{ tx: string; usdc: number }>("/live/deposit/submit", { method: "POST", json: { signature } }),
 
   me: () => req<Me>("/me"),
-  earnings: () => req<Earnings>("/admin/earnings"),
+  revenue: () => req<Earnings>("/admin/revenue"),
   reportProfile: (body: { wallets?: string[]; displayName?: string | null }) => req<Me["user"]>("/me", { method: "POST", json: body }),
 
   health: () =>
