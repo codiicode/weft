@@ -2,6 +2,9 @@ import { PublicKey, VersionedTransaction } from "@solana/web3.js";
 import type { FetchLike } from "../hyperliquid/info.ts";
 import { USDC_MINT, WSOL_MINT } from "./programs.ts";
 
+/** Rate-limit warnings go to the log at most once a minute. */
+let lastRateLimitWarning = 0;
+
 export const JUPITER_LITE_SWAP_V1 = "https://lite-api.jup.ag/swap/v1";
 
 export interface QuoteParams {
@@ -104,6 +107,10 @@ export class JupiterSwapBuilder {
       fetchFn(url, { method: init.method, headers: this.headers(), body: init.body ?? (undefined as unknown as string) }),
       new Promise<never>((_, rej) => setTimeout(() => rej(new Error(`jupiter ${url} timed out`)), this.o.timeoutMs ?? 15_000).unref?.()),
     ]);
+    if (res.status === 429 && Date.now() - lastRateLimitWarning > 60_000) {
+      lastRateLimitWarning = Date.now();
+      console.warn(`[jupiter] rate limited (429) on ${new URL(url).host}: if this repeats, Weft needs a higher Jupiter plan (portal.jup.ag)`);
+    }
     const text = await res.text();
     let json: unknown;
     try {
