@@ -92,6 +92,12 @@ describe("venue-side stops on Hyperliquid", () => {
     await w.ns.run();
     expect(w.reconciled).toEqual([["d1", "p1", 0]]);
 
+    // A position the venue no longer has never gets a fresh stop.
+    const u = world();
+    u.state.venueHas = false;
+    await u.ns.run();
+    expect(u.placed).toHaveLength(0);
+
     const v = world();
     await v.ns.run();
     v.state.positions = [];

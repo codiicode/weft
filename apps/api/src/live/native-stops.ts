@@ -100,13 +100,18 @@ export class NativeStops {
         live.add(p.id);
         const coin = coinOf(p.instrument);
 
-        // Did Hyperliquid's own stop (or anything else) close it? Core perps only, and only after a minute.
-        if (!p.instrument.dex && Date.now() - p.openedAt > 60_000) {
-          let venue = positionsByUser.get(userId);
+        // Core perps: only ever put a stop on a position Hyperliquid actually has (a run's own close
+        // can land between the engine's snapshot and here), and notice when the venue closed it.
+        let venue: Map<string, number> | null = null;
+        if (!p.instrument.dex) {
+          venue = positionsByUser.get(userId) ?? null;
           if (!venue) {
             venue = await this.venuePositions(address);
             positionsByUser.set(userId, venue);
           }
+          if (!venue.has(coin) && Date.now() - p.openedAt <= 60_000) continue;
+        }
+        if (venue && Date.now() - p.openedAt > 60_000) {
           if (!venue.has(coin)) {
             if (this.goneOnce.has(p.id)) {
               this.goneOnce.delete(p.id);
