@@ -67,8 +67,12 @@ export function statedSpend(s: Strategy | undefined, solUsd: number | null): { u
 }
 
 /** Why a strategy can't trade with real money yet (null when it can). */
+const SIGNAL_NAMES: Record<string, string> = { social: "social sentiment", news: "news", post_match: "match results", model: "model forecasts" };
+
 export function liveBlocker(s: Strategy | undefined, venues: Venues | null = null): string | null {
   if (!s) return null;
+  const fake = [...new Set(s.signals.filter((x) => venues?.simulated?.includes(x.kind)).map((x) => SIGNAL_NAMES[x.kind] ?? x.kind))];
+  if (fake.length) return `This strategy uses ${fake.join(" and ")}, which Weft doesn’t have live data for yet, so it can’t trade real money.`;
   for (const a of s.actions) {
     if (a.type === "options") return "Options can’t be traded live yet.";
     if (a.type !== "open") continue;

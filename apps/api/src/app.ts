@@ -78,6 +78,9 @@ export interface AppDeps {
 
 const PRODUCTS = ["perps", "stocks", "predictions", "tokens", "options"] as const;
 
+/** Plain names for signal kinds in messages. */
+const SIGNAL_NAMES: Record<string, string> = { social: "social sentiment", news: "news", post_match: "match results", model: "model forecasts" };
+
 const DeployBody = z.object({
   mode: z.enum(["paper", "live"]).default("paper"),
   /** Live only: the user typed this to confirm real-money trading. */
@@ -452,6 +455,13 @@ export function createApp(deps: AppDeps) {
     const strategy = v.strategy;
     if (body.mode === "paper" && !body.alertsOnly && !allowPaper)
       return c.json({ error: "Weft trades with real money only. Start it live, or as alerts only." }, 400);
+    // Real money never rides on made-up data: signals Weft only simulates (no live feed yet) can run
+    // as alerts, not trades.
+    if (body.mode === "live" && !body.alertsOnly) {
+      const fake = [...new Set(strategy.signals.filter((s) => deps.signalModes[s.kind] === "simulated").map((s) => SIGNAL_NAMES[s.kind] ?? s.kind))];
+      if (fake.length)
+        return c.json({ error: `This strategy uses ${fake.join(" and ")}, which Weft doesn’t have live data for yet. Run it as alerts only, or change that rule.` }, 409);
+    }
     if (body.mode === "live") return withLiveLock(user.id, async () => {
       if (body.confirm !== "GO LIVE") return c.json({ error: 'type "GO LIVE" to confirm real-money trading' }, 400);
       const mineAll = accounts ? accounts.deploymentsOf(user.id) : new Set<string>();

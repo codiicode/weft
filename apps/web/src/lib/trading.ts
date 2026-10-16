@@ -4,7 +4,13 @@ import type { Strategy } from "@weft/strategy";
 import { api } from "./api";
 import { useAuth } from "./auth";
 
-export type Venues = { hyperliquid: boolean; solana: boolean; network: "testnet" | "mainnet" | null };
+export type Venues = {
+  hyperliquid: boolean;
+  solana: boolean;
+  network: "testnet" | "mainnet" | null;
+  /** Signal kinds Weft only simulates (no live feed): fine for alerts, never for real trades. */
+  simulated?: string[];
+};
 let cached: Promise<Venues> | null = null;
 
 /**
@@ -30,7 +36,10 @@ export function useTradingVenues(): Venues | null {
   useEffect(() => {
     cached ??= api
       .health()
-      .then((h) => h.trading ?? { hyperliquid: false, solana: false, network: null })
+      .then((h) => ({
+        ...(h.trading ?? { hyperliquid: false, solana: false, network: null }),
+        simulated: Object.entries(h.signals ?? {}).filter(([, m]) => m === "simulated").map(([k]) => k),
+      }))
       .catch(() => {
         cached = null;
         return { hyperliquid: false, solana: false, network: null };

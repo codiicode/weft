@@ -50,3 +50,22 @@ describe("instructing a running strategy over the API", () => {
     expect((await call(`/deployments/${d.id}/positions/${p.id}/close`, { fraction: 1 })).status).toBe(409);
   });
 });
+
+describe("simulated data never trades real money", () => {
+  it("refuses a live start on a simulated signal, and allows it as alerts", async () => {
+    const t = setup();
+    const app = createApp({
+      catalog: { async list() { return []; } },
+      marketData: t.market,
+      engine: t.engine,
+      library: new StrategyLibrary(join(mkdtempSync(join(tmpdir(), "weft-sim-")), "lib.db")),
+      signalModes: { macro: "simulated" },
+    });
+    const strategy = simpleStrategy({ instrument: BTC, side: "long", size: { unit: "usd", value: 100 }, leverage: 1, exits: {} });
+    const post = (body: unknown) => app.request("/deployments", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(body) });
+    const live = await post({ strategy, allocationUsd: 100, mode: "live", confirm: "GO LIVE" });
+    expect(live.status).toBe(409);
+    expect(((await live.json()) as { error: string }).error).toMatch(/doesn’t have live data/);
+    expect((await post({ strategy, allocationUsd: 100, mode: "paper", alertsOnly: true })).status).toBeLessThan(300);
+  });
+});
