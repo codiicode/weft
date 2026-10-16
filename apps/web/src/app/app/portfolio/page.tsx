@@ -26,11 +26,11 @@ export default function PortfolioPage() {
       <PageHeader title="Portfolio" sub="Your money, your positions, and every strategy you’ve started." />
       <div className="px-5 pb-16 pt-6 lg:px-10">
         {error && !runs.length ? (
-          <Empty title="Can’t reach the Weft server" sub="Your runs will appear here once it’s back." />
+          <Empty title="Can’t reach the Weft server" sub="Your portfolio will appear here once it’s back." />
         ) : loading && !runs.length ? (
           <div className="h-64 animate-pulse rounded-[12px] bg-paper-2" />
         ) : !runs.length && auth.enabled && !auth.authenticated ? (
-          <Empty title="Sign in to see your runs" sub="Runs belong to your account, so they follow you to any device." action={<Btn onClick={auth.login}>Sign in</Btn>} />
+          <Empty title="Sign in to see your portfolio" sub="Your money, positions and strategies belong to your account, so they follow you to any device." action={<Btn onClick={auth.login}>Sign in</Btn>} />
         ) : !runs.length ? (
           <Empty title="Nothing running yet" sub="Write a thesis or start from a strategy someone else made." action={<Btn href="/app/new">Write a thesis</Btn>} />
         ) : (
