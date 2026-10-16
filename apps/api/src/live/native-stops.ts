@@ -11,8 +11,8 @@ import type { Accounts } from "../lib/accounts.ts";
  *  - placed right after an entry fills (`poke`) and checked every pass;
  *  - moved when the owner changes the stop, removed when they remove it;
  *  - only orders Weft placed are ever cancelled (tracked by cloid), never the user's own.
- * When Hyperliquid's stop fires first, the engine's position is booked out (`reconcilePosition`)
- * once the venue shows the position gone on two passes in a row.
+ * When Hyperliquid holds less than the engine thinks (its stop fired first, or part was sold on the
+ * venue directly), the engine follows the venue (`reconcilePosition`) once two passes in a row agree.
  */
 
 type Kind = "sl" | "tp";
@@ -111,19 +111,25 @@ export class NativeStops {
           }
           if (!venue.has(coin) && Date.now() - p.openedAt <= 60_000) continue;
         }
+        // Hyperliquid holds less than the engine thinks (its stop fired, or some was sold on the venue
+        // directly): seen on two passes in a row, the engine follows the venue.
         if (venue && Date.now() - p.openedAt > 60_000) {
-          if (!venue.has(coin)) {
+          const held = venue.get(coin) ?? 0;
+          if (held < p.qty * 0.98) {
             if (this.goneOnce.has(p.id)) {
               this.goneOnce.delete(p.id);
-              const booked = (await this.d.engine.reconcilePosition?.(dep.id, p.id, 0)) ?? 0;
-              if (booked > 0) this.d.log?.(`[native stops ${dep.id.slice(0, 8)}] ${coin} closed on Hyperliquid (its stop or take-profit fired); booked out`);
-              this.forget(p.id);
-              continue;
+              const booked = (await this.d.engine.reconcilePosition?.(dep.id, p.id, held)) ?? 0;
+              if (booked > 0)
+                this.d.log?.(`[native stops ${dep.id.slice(0, 8)}] ${coin} ${held > 0 ? `is ${held} on Hyperliquid, not ${p.qty}` : "closed on Hyperliquid (its stop or take-profit fired)"}; engine follows the venue`);
+              if (held <= 0) {
+                this.forget(p.id);
+                continue;
+              }
+            } else {
+              this.goneOnce.add(p.id);
+              if (held <= 0) continue;
             }
-            this.goneOnce.add(p.id);
-            continue;
-          }
-          this.goneOnce.delete(p.id);
+          } else this.goneOnce.delete(p.id);
         }
 
         const want: Record<Kind, number | null> = {

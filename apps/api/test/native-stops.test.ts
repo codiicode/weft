@@ -13,7 +13,7 @@ function world() {
   const accounts = new Accounts(join(mkdtempSync(join(tmpdir(), "weft-ns-")), "a.db"));
   accounts.setDeploymentOwner("d1", "u1");
   const position = { id: "p1", instrument: ETH, side: "long" as const, leverage: 20, qty: 0.041, entryPrice: 2000, openedAt: 0, exits: { stopLoss: { positionPct: 20 } } as Record<string, unknown> };
-  const state = { positions: [position], venueHas: true };
+  const state = { positions: [position], venueHas: true, venueSize: "0.041" };
   const reconciled: unknown[] = [];
   const engine = {
     listDeployments: async () => [{ id: "d1", mode: "live", status: "running" }],
@@ -41,7 +41,7 @@ function world() {
     const payload =
       body.type === "frontendOpenOrders"
         ? resting
-        : { assetPositions: state.venueHas ? [{ position: { coin: "ETH", szi: "0.041" } }] : [] };
+        : { assetPositions: state.venueHas ? [{ position: { coin: "ETH", szi: state.venueSize } }] : [] };
     return { ok: true, status: 200, text: async () => JSON.stringify(payload), json: async () => payload };
   };
   const ns = new NativeStops({ engine, accounts, executorFor: async () => ex, addressOf: () => "0xabc", baseUrl: "https://hl", fetch: fetch as never });
@@ -91,6 +91,15 @@ describe("venue-side stops on Hyperliquid", () => {
     expect(w.reconciled).toHaveLength(0); // one sighting is not enough
     await w.ns.run();
     expect(w.reconciled).toEqual([["d1", "p1", 0]]);
+
+    // Partly sold on the venue: the engine follows the smaller size after two sightings.
+    const p = world();
+    await p.ns.run();
+    p.state.venueSize = "0.02";
+    await p.ns.run();
+    expect(p.reconciled).toHaveLength(0);
+    await p.ns.run();
+    expect(p.reconciled).toEqual([["d1", "p1", 0.02]]);
 
     // A position the venue no longer has never gets a fresh stop.
     const u = world();
