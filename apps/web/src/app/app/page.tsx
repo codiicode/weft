@@ -4,6 +4,7 @@ import { AssetStack } from "@/components/ui/AssetIcon";
 import { strategyIcons } from "@/lib/assets";
 import { cardLine } from "@/lib/strategy-view";
 import { useTradingVenues } from "@/lib/trading";
+import { liveBlocker } from "@/components/app/DeployPanel";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { api } from "@/lib/api";
@@ -39,8 +40,8 @@ export default function Home() {
   const runs = useApi(() => api.deployments(), [auth.authenticated], { pollMs: 8_000 });
   const lib = useApi(() => api.strategies(), []);
   const venues = useTradingVenues();
-  // Popular: strategies that can actually trade (none built on data Weft only simulates).
-  const popular = !venues ? [] : (lib.data?.strategies ?? []).filter((e) => !e.strategy.signals.some((sig) => venues?.simulated?.includes(sig.kind)));
+  // Popular: strategies that can actually trade live (same check as the start button).
+  const popular = !venues ? [] : (lib.data?.strategies ?? []).filter((e) => liveBlocker(e.strategy, venues) == null);
   const alerts = useApi(auth.enabled && !auth.authenticated ? null : () => api.alerts(), [auth.authenticated], { pollMs: 30_000 });
   const go = (t: string) => router.push(`/app/new?go=1&thesis=${encodeURIComponent(t)}`);
   const list = runs.data?.deployments ?? [];
