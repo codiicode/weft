@@ -14,8 +14,10 @@ import { useInView, useReducedMotion, useWidth } from "@/lib/hooks";
  */
 
 /** A condition of the rule: its value (fixed: the moment the rule was met) and what the rule needs. */
-type Thread = { label: string; value: number; fmt: (v: number) => string; need: string; icon?: string };
+type Thread = { label: string; value: number; fmt: (v: number) => string; need: string; icon?: string; /** false: this condition isn't met, so no trade */ met?: boolean };
 type Scene = { name: string; threads: Thread[]; rule: string; trade: string; detail: string };
+/** A scene where one condition fails: the agent waits instead of trading. */
+const waits = (s: Scene) => s.threads.some((t) => t.met === false);
 
 const f5 = (v: number) => v.toFixed(5);
 const sign2 = (v: number) => `${v >= 0 ? "+" : ""}${v.toFixed(2)}`;
@@ -40,13 +42,13 @@ const SCENES: Scene[] = [
     name: "Perps",
     threads: [
       { icon: "/coins/ETH.svg", label: "ETH", value: 2604, fmt: usd(0), need: "> $2,600" },
-      { label: "Funding, per hour", value: 0.004, fmt: (v) => `${v.toFixed(4)}%`, need: "< 0.01%" },
+      { label: "Funding, per hour", value: 0.018, fmt: (v) => `${v.toFixed(4)}%`, need: "< 0.01%", met: false },
       { label: "Open interest, 24h", value: 3.8, fmt: (v) => `+${v.toFixed(1)}%`, need: "rising" },
       { label: "24h volume", value: 1.38, fmt: (v) => `$${v.toFixed(2)}B`, need: "> $1B" },
     ],
-    rule: "All four conditions met",
-    trade: "Long ETH at 20×",
-    detail: "Stop at −20% on the position · Hyperliquid",
+    rule: "3 of 4 conditions met",
+    trade: "No trade: funding is too high",
+    detail: "The crowd is already long. Weft waits for every condition.",
   },
   {
     name: "Macro",
@@ -200,7 +202,7 @@ export function Loom() {
         viewBox={`0 0 ${W} ${H}`}
         className="block overflow-visible"
         role="img"
-        aria-label={`Example: ${s.threads.map((t) => t.label).join(", ")} lead to: ${s.trade}`}
+        aria-label={`Example: ${s.threads.map((t) => `${t.label} ${t.met === false ? "not met" : "met"}`).join(", ")}: ${s.trade}`}
       >
         <defs>
           <linearGradient id="loom-fade" x1="0" x2="0" y1="0" y2="1">
@@ -249,19 +251,24 @@ export function Loom() {
 
         <AnimatePresence mode="wait">
           <motion.g key={scene} initial={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: 90, transition: { duration: 0.5, ease: [0.55, 0, 0.75, 0] } }}>
-            {paths.map((d, i) => (
-              <motion.path
-                key={i}
-                d={d}
-                fill="none"
-                strokeWidth={narrow ? 2.4 : 3}
-                strokeLinecap="round"
-                style={{ stroke: "var(--signal)", opacity: OPACITY[i] }}
-                initial={{ pathLength: reduce ? 1 : 0 }}
-                animate={{ pathLength: 1 }}
-                transition={{ duration: 1.1, delay: i * 0.09, ease: EASE }}
-              />
-            ))}
+            {paths.map((d, i) => {
+              const miss = s.threads[i]?.met === false;
+              return (
+                <motion.path
+                  key={i}
+                  d={d}
+                  fill="none"
+                  strokeWidth={narrow ? 2.4 : 3}
+                  strokeLinecap="round"
+                  strokeDasharray={miss ? "3 9" : undefined}
+                  style={{ stroke: miss ? "var(--short)" : "var(--signal)", opacity: miss ? 0.45 : OPACITY[i] }}
+                  initial={{ pathLength: reduce ? 1 : 0 }}
+                  // An unmet condition never reaches the rule.
+                  animate={{ pathLength: miss ? 0.62 : 1 }}
+                  transition={{ duration: 1.1, delay: i * 0.09, ease: EASE }}
+                />
+              );
+            })}
             {/* where the warp passes over the weft */}
             {ys.map((y, i) =>
               warps
@@ -304,8 +311,8 @@ export function Loom() {
                 <tspan dx={8} style={{ fill: "var(--ink)", fontWeight: 500, fontVariantNumeric: "tabular-nums" }}>
                   {live(t)}
                 </tspan>
-                <tspan dx={10} style={{ fill: "var(--long)", fontVariantNumeric: "tabular-nums" }}>
-                  ✓ {t.need}
+                <tspan dx={10} style={{ fill: t.met === false ? "var(--short)" : "var(--long)", fontVariantNumeric: "tabular-nums" }}>
+                  {t.met === false ? "✗" : "✓"} {t.need}
                 </tspan>
               </motion.text>
             ))}
@@ -319,9 +326,9 @@ export function Loom() {
                   initial={{ scale: 0 }}
                   animate={{ scale: [0, 1.35, 1] }}
                   transition={{ duration: 0.55, times: [0, 0.55, 1], ease: [0.22, 1, 0.36, 1] }}
-                  style={{ fill: "var(--paper)", stroke: "var(--trigger)", strokeWidth: 2.4, transformOrigin: `${knot.x}px ${knot.y}px` }}
+                  style={{ fill: "var(--paper)", stroke: waits(s) ? "var(--muted)" : "var(--trigger)", strokeWidth: 2.4, transformOrigin: `${knot.x}px ${knot.y}px` }}
                 />
-                <motion.circle
+                {!waits(s) && <motion.circle
                   cx={knot.x}
                   cy={knot.y}
                   r={narrow ? 10 : 12}
@@ -329,19 +336,19 @@ export function Loom() {
                   animate={{ scale: 3, opacity: 0 }}
                   transition={{ duration: 1.2, ease: "easeOut", repeat: reduce ? 0 : 2, repeatDelay: 1.3 }}
                   style={{ fill: "none", stroke: "var(--trigger)", strokeWidth: 1.5, transformOrigin: `${knot.x}px ${knot.y}px` }}
-                />
+                />}
                 <motion.text
                   y={knot.y - 16}
                   fontSize={narrow ? 12 : 13.5}
                   initial={{ opacity: 0, x: knot.x + 10 }}
                   animate={{ opacity: 1, x: knot.x + 18 }}
-                  style={{ fill: "var(--trigger)", fontWeight: 500, paintOrder: "stroke", stroke: "var(--paper)", strokeWidth: 8 }}
+                  style={{ fill: waits(s) ? "var(--muted)" : "var(--trigger)", fontWeight: 500, paintOrder: "stroke", stroke: "var(--paper)", strokeWidth: 8 }}
                 >
                   {s.rule}
                 </motion.text>
               </>
             )}
-            {stage >= 2 && (
+            {stage >= 2 && !waits(s) && (
               <motion.path
                 d={`M${knot.x} ${knot.y} L${W} ${knot.y}`}
                 fill="none"
@@ -372,13 +379,20 @@ export function Loom() {
             }
             style={narrow ? undefined : { left: knot.x + 56, top: knot.y + 28 }}
           >
-            <div className="flex items-center gap-1.5 text-[12.5px] text-long">
-              <span className="relative flex h-1.5 w-1.5">
-                <span className="pulse-ring absolute inset-0 rounded-full bg-long" />
-                <span className="relative h-1.5 w-1.5 rounded-full bg-long" />
-              </span>
-              Order filled
-            </div>
+            {waits(s) ? (
+              <div className="flex items-center gap-1.5 text-[12.5px] text-muted">
+                <span className="h-1.5 w-1.5 rounded-full" style={{ background: "var(--muted)" }} />
+                Still watching
+              </div>
+            ) : (
+              <div className="flex items-center gap-1.5 text-[12.5px] text-long">
+                <span className="relative flex h-1.5 w-1.5">
+                  <span className="pulse-ring absolute inset-0 rounded-full bg-long" />
+                  <span className="relative h-1.5 w-1.5 rounded-full bg-long" />
+                </span>
+                Order filled
+              </div>
+            )}
             <div className="mt-1 whitespace-nowrap text-[16px] font-medium tracking-[-0.01em] text-ink sm:text-[17px]">{s.trade}</div>
             <div className="mt-0.5 text-[13px] text-muted">{s.detail}</div>
           </motion.div>
