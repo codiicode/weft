@@ -115,6 +115,10 @@ export function semanticIssues(s: Strategy): Issue[] {
         err(`${p}.exits.stopLoss`, "a stop-loss is required on every position (risk.requireStopLoss)");
       checkLevel(inst, a.exits.takeProfit, `${p}.exits.takeProfit`, err);
       checkLevel(inst, a.exits.stopLoss, `${p}.exits.stopLoss`, err);
+      if (a.leverage > 1 && a.exits.stopLoss && "positionPct" in a.exits.stopLoss && a.exits.stopLoss.positionPct >= 90)
+        warn(`${p}.exits.stopLoss`, `a ${a.exits.stopLoss.positionPct}% stop on a ${a.leverage}× position sits at or past liquidation, so it may never fire`);
+      if (a.leverage > 1 && a.exits.stopLoss && "pct" in a.exits.stopLoss && a.exits.stopLoss.pct * a.leverage >= 90)
+        warn(`${p}.exits.stopLoss`, `a ${a.exits.stopLoss.pct}% price stop at ${a.leverage}× sits at or past liquidation, so it may never fire`);
       if (inst.kind === "token" && a.exits.stopLoss)
         warn(`${p}.exits.stopLoss`, "AMM tokens have no native stop orders; the agent sells at market when hit and may fill worse in thin liquidity");
       if (inst.kind === "token" && !a.order.maxPriceImpactBps)

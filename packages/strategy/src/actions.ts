@@ -22,7 +22,14 @@ export type Size = z.infer<typeof Size>;
  * - `prob`: absolute probability, for outcome shares (0–1).
  */
 export const Level = z.union([
+  /** Price move from entry, in percent. */
   z.object({ pct: z.number().positive().max(1000) }),
+  /**
+   * Gain or loss on the position, as a percent of the money put in (margin). With leverage L a
+   * 1% price move is L% of the position, so { positionPct: 20 } at 20× is a 1% price move.
+   * Without leverage it is the same as { pct }.
+   */
+  z.object({ positionPct: z.number().positive().max(1000) }),
   z.object({ price: z.number().positive() }),
   z.object({ prob: z.number().gt(0).lt(1) }),
 ]);

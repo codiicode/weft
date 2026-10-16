@@ -27,16 +27,16 @@ describe("instructing a running strategy over the API", () => {
   it("previews a plan, changes nothing until applied, then applies it once", async () => {
     const { t, d, call } = await running();
     const prev = (await (await call(`/deployments/${d.id}/instruct`, { text: "set a stop at 10% and sell half" })).json()) as { planId: string; steps: { label: string }[] };
-    expect(prev.steps.map((x) => x.label)).toEqual(["Sell 50% of BTC at market, now", "Set a stop 10% below entry on BTC, and on future buys"]);
+    expect(prev.steps.map((x) => x.label)).toEqual(["Sell 50% of BTC at market, now", "Set a stop at −10% on BTC, and on future buys"]);
     expect((await t.engine.getSnapshot(d.id))!.positions[0]!.qty).toBeCloseTo(10, 9);
 
     const stop = (await (await call(`/deployments/${d.id}/instruct`, { text: "stop at 10%" })).json()) as { planId: string; steps: { label: string }[] };
-    expect(stop.steps[0]!.label).toMatch(/stop 10% below entry on BTC/);
+    expect(stop.steps[0]!.label).toMatch(/stop at −10% on BTC/);
     const done = (await (await call(`/deployments/${d.id}/instruct/${stop.planId}/apply`)).json()) as { done: string[] };
     expect(done.done).toHaveLength(1);
     const s = (await t.engine.getSnapshot(d.id))!;
-    expect(s.positions[0]!.exits.stopLoss).toEqual({ pct: 10 });
-    expect(s.deployment.strategy.actions[0]).toMatchObject({ exits: { stopLoss: { pct: 10 } } }); // future buys too
+    expect(s.positions[0]!.exits.stopLoss).toEqual({ positionPct: 10 });
+    expect(s.deployment.strategy.actions[0]).toMatchObject({ exits: { stopLoss: { positionPct: 10 } } }); // future buys too
     expect((await call(`/deployments/${d.id}/instruct/${stop.planId}/apply`)).status).toBe(410); // only once
   });
 

@@ -62,8 +62,9 @@ export function parseInstruction(text: string, positions: Position[]): Step[] | 
     const m = /(?<!trailing[- ])\bstop(?:[- ]?loss)?\b(?!\s*trail)\D*?(\$)?(\d+(?:\.\d+)?)\s*(%)?/.exec(t);
     if (m && !/trail(ing)?[- ]?stop/.test(t)) {
       const n = Number(m[2]);
-      patch.stopLoss = m[3] ? { pct: n } : { price: n };
-      said.push(m[3] ? `set a stop ${n}% below entry` : `set a stop at ${n}`);
+      // A percentage is on the position (the money put in), never the price: Weft converts it with the leverage.
+      patch.stopLoss = m[3] ? { positionPct: n } : { price: n };
+      said.push(m[3] ? `set a stop at −${n}%` : `set a stop at ${n}`);
     }
   }
   if (/\b(remove|delete|cancel|drop|no)\b[^.]*\b(take[- ]?profit|target|tp)\b/.test(t)) {
@@ -73,8 +74,8 @@ export function parseInstruction(text: string, positions: Position[]): Step[] | 
     const m = /\b(?:take[- ]?profit|target|tp)\b\D*?(\$)?(\d+(?:\.\d+)?)\s*(%|x)?/.exec(t);
     if (m) {
       const n = Number(m[2]);
-      patch.takeProfit = m[3] === "x" ? { pct: (n - 1) * 100 } : m[3] === "%" ? { pct: n } : { price: n };
-      said.push(m[3] === "x" ? `take profit at ${n}× entry` : m[3] === "%" ? `take profit ${n}% above entry` : `take profit at ${n}`);
+      patch.takeProfit = m[3] === "x" ? { positionPct: (n - 1) * 100 } : m[3] === "%" ? { positionPct: n } : { price: n };
+      said.push(m[3] === "x" ? `take profit when the position is worth ${n}×` : m[3] === "%" ? `take profit at +${n}%` : `take profit at ${n}`);
     }
   }
   if (/\b(remove|delete|cancel|drop|no)\b[^.]*\btrail/.test(t)) {

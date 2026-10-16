@@ -16,20 +16,20 @@ describe("instructions for a running strategy", () => {
   });
 
   it("sets and removes stops, targets and trailing stops", () => {
-    expect(parseInstruction("set a stop at 15%", [BTC])![0]).toMatchObject({ kind: "exits", patch: { stopLoss: { pct: 15 } } });
+    expect(parseInstruction("set a stop at 15%", [BTC])![0]).toMatchObject({ kind: "exits", patch: { stopLoss: { positionPct: 15 } } });
     expect(parseInstruction("stop loss at $80000", [BTC])![0]).toMatchObject({ patch: { stopLoss: { price: 80000 } } });
-    expect(parseInstruction("take profit at 30%", [BTC])![0]).toMatchObject({ patch: { takeProfit: { pct: 30 } } });
-    expect(parseInstruction("tp 2x", [BTC])![0]).toMatchObject({ patch: { takeProfit: { pct: 100 } } });
+    expect(parseInstruction("take profit at 30%", [BTC])![0]).toMatchObject({ patch: { takeProfit: { positionPct: 30 } } });
+    expect(parseInstruction("tp 2x", [BTC])![0]).toMatchObject({ patch: { takeProfit: { positionPct: 100 } } });
     expect(parseInstruction("trailing stop 10%", [BTC])![0]).toMatchObject({ patch: { trailingStopPct: 10 } });
     expect(parseInstruction("remove the stop", [BTC])![0]).toMatchObject({ patch: { stopLoss: null } });
-    expect(parseInstruction("stop at 15% and take profit at 40%", [BTC])![0]).toMatchObject({ patch: { stopLoss: { pct: 15 }, takeProfit: { pct: 40 } } });
+    expect(parseInstruction("stop at 15% and take profit at 40%", [BTC])![0]).toMatchObject({ patch: { stopLoss: { positionPct: 15 }, takeProfit: { positionPct: 40 } } });
   });
 
   it("does both when asked for both, and never mistakes a stop's % for a sell size", () => {
     const steps = parseInstruction("set a stop at 10% and sell half", [BTC])!;
     expect(steps.map((x) => x.kind)).toEqual(["sell", "exits"]);
     expect(steps[0]).toMatchObject({ fraction: 0.5 });
-    expect(steps[1]).toMatchObject({ patch: { stopLoss: { pct: 10 } } });
+    expect(steps[1]).toMatchObject({ patch: { stopLoss: { positionPct: 10 } } });
   });
 
   it("leaves everything else to Claude", () => {

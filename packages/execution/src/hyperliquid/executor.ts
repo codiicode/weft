@@ -364,8 +364,8 @@ export class HyperliquidExecutor implements Executor {
     const ref = intent.order.type === "limit" && intent.order.limitPrice ? intent.order.limitPrice : mid;
     const tpsl: TpslPrices = {};
     if (i.kind === "perp") {
-      if (intent.exits.takeProfit) tpsl.takeProfit = levelToPrice(intent.exits.takeProfit, ref, isBuy, "tp");
-      if (intent.exits.stopLoss) tpsl.stopLoss = levelToPrice(intent.exits.stopLoss, ref, isBuy, "sl");
+      if (intent.exits.takeProfit) tpsl.takeProfit = levelToPrice(intent.exits.takeProfit, ref, isBuy, "tp", leverage);
+      if (intent.exits.stopLoss) tpsl.stopLoss = levelToPrice(intent.exits.stopLoss, ref, isBuy, "sl", leverage);
     }
     const size = intent.size.usd != null ? { notionalUsd: intent.size.usd * leverage } : { qty: intent.size.native! };
     const placed = await this.placeOrder({
@@ -478,10 +478,14 @@ export class HyperliquidExecutor implements Executor {
   }
 }
 
-/** Strategy exit level → absolute trigger price. `pct` is a favourable (TP) / adverse (SL) move from `ref`. */
-export function levelToPrice(level: Level, ref: number, isLong: boolean, kind: "tp" | "sl"): number {
+/**
+ * Strategy exit level → absolute trigger price. `pct` is a favourable (TP) / adverse (SL) price move
+ * from `ref`; `positionPct` is gain/loss on the margin, so the price move is positionPct / leverage.
+ */
+export function levelToPrice(level: Level, ref: number, isLong: boolean, kind: "tp" | "sl", leverage = 1): number {
   if ("price" in level) return level.price;
   if ("prob" in level) return level.prob;
+  const move = "pct" in level ? level.pct : level.positionPct / Math.max(1, leverage);
   const up = (kind === "tp") === isLong;
-  return ref * (1 + ((up ? 1 : -1) * level.pct) / 100);
+  return ref * (1 + ((up ? 1 : -1) * move) / 100);
 }

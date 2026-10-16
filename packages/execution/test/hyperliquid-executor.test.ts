@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { encodeAbiParameters, hashStruct, keccak256, toBytes, type Hex } from "viem";
 import { generatePrivateKey, privateKeyToAccount } from "viem/accounts";
 import type { CloseIntent, Instrument, OpenIntent } from "@weft/strategy";
-import { HyperliquidExecutor } from "../src/hyperliquid/executor.ts";
+import { HyperliquidExecutor, levelToPrice } from "../src/hyperliquid/executor.ts";
 import { buildApproveAgent, feeTenthsBpsToPercent } from "../src/hyperliquid/approvals.ts";
 import { APPROVE_AGENT_TYPES, recoverL1Signer, recoverUserSigner, signerFromPrivateKey, signUserSignedAction } from "../src/hyperliquid/signing.ts";
 import { AssetResolver, builderPerpAssetId, outcomeAssetId, type HlInfo, type PerpDexs, type PerpMeta } from "../src/hyperliquid/info.ts";
@@ -471,5 +471,14 @@ describe("approveAgent payload (signed by the user's wallet, never by Weft)", ()
     expect(feeTenthsBpsToPercent(50)).toBe("0.05%");
     expect(feeTenthsBpsToPercent(1)).toBe("0.001%");
     expect(feeTenthsBpsToPercent(100)).toBe("0.1%");
+  });
+});
+
+describe("levelToPrice", () => {
+  it("puts a position-based stop at the price move that loses that share of the margin", () => {
+    expect(levelToPrice({ positionPct: 20 }, 2000, true, "sl", 20)).toBeCloseTo(1980, 9); // −1% at 20×
+    expect(levelToPrice({ positionPct: 20 }, 2000, false, "sl", 20)).toBeCloseTo(2020, 9); // short: +1%
+    expect(levelToPrice({ positionPct: 50 }, 2000, true, "tp", 10)).toBeCloseTo(2100, 9); // +5% at 10×
+    expect(levelToPrice({ pct: 5 }, 2000, true, "sl", 20)).toBeCloseTo(1900, 9); // price levels ignore leverage
   });
 });

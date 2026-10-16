@@ -9,6 +9,13 @@ import type { GenerateResult } from "./generate.ts";
 
 const num = (s: string) => Number(s.replace(/,/g, ""));
 
+/** A relative stop scaled (tighter < 1 < wider); absolute price levels are left as they are. */
+function scaleLevel<L extends { pct: number } | { positionPct: number } | { price: number } | { prob: number }>(l: L, f: number): L {
+  if ("pct" in l) return { pct: Math.max(0.5, +(l.pct * f).toFixed(2)) } as L;
+  if ("positionPct" in l) return { positionPct: Math.max(0.5, +(l.positionPct * f).toFixed(2)) } as L;
+  return l;
+}
+
 export function refineByRules(base: Strategy, instruction: string): GenerateResult {
   const t = instruction.toLowerCase();
   const s = structuredClone(base) as Strategy;
@@ -18,19 +25,19 @@ export function refineByRules(base: Strategy, instruction: string): GenerateResu
 
   const stop = t.match(/(?:stop(?:[- ]?loss)?|\bsl\b)[^\d%]{0,14}(\d+(?:\.\d+)?)\s*%/);
   if (stop) {
-    for (const a of withExits) if (!(a.type === "open" && a.instrument.kind === "outcome")) a.exits.stopLoss = { pct: num(stop[1]!) };
+    for (const a of withExits) if (!(a.type === "open" && a.instrument.kind === "outcome")) a.exits.stopLoss = { positionPct: num(stop[1]!) };
     changes.push(`stop-loss set to ${stop[1]}%`);
   } else if (/\b(?:tight(?:er|en)?|closer)\b.*\bstops?\b|\bstops?\b.*\b(?:tight(?:er|en)?|closer)\b/.test(t)) {
-    for (const a of withExits) if (a.exits.stopLoss && "pct" in a.exits.stopLoss) a.exits.stopLoss = { pct: Math.max(0.5, +(a.exits.stopLoss.pct / 2).toFixed(2)) };
+    for (const a of withExits) if (a.exits.stopLoss) a.exits.stopLoss = scaleLevel(a.exits.stopLoss, 0.5);
     changes.push("stops tightened to half their distance");
   } else if (/\b(?:wid(?:e|er|en)|loos(?:e|er|en))\b.*\bstops?\b|\bstops?\b.*\b(?:wid(?:e|er|en)|loos(?:e|er|en))\b/.test(t)) {
-    for (const a of withExits) if (a.exits.stopLoss && "pct" in a.exits.stopLoss) a.exits.stopLoss = { pct: +(a.exits.stopLoss.pct * 1.5).toFixed(2) };
+    for (const a of withExits) if (a.exits.stopLoss) a.exits.stopLoss = scaleLevel(a.exits.stopLoss, 1.5);
     changes.push("stops widened by half");
   }
 
   const tp = t.match(/(?:take[- ]?profit|target|\btp\b)[^\d%]{0,14}(\d+(?:\.\d+)?)\s*%/);
   if (tp) {
-    for (const a of withExits) if (!(a.type === "open" && a.instrument.kind === "outcome")) a.exits.takeProfit = { pct: num(tp[1]!) };
+    for (const a of withExits) if (!(a.type === "open" && a.instrument.kind === "outcome")) a.exits.takeProfit = { positionPct: num(tp[1]!) };
     changes.push(`take-profit set to ${tp[1]}%`);
   }
 

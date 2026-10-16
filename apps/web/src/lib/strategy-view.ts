@@ -90,9 +90,14 @@ function sizeLabel(size: Size): string {
   return `${size.value}`;
 }
 
-function levelLabel(l: Level | undefined, sign: "+" | "−"): string | undefined {
+/**
+ * `sign` is the price direction for this exit. A `positionPct` level is about the position, so a stop
+ * reads "−20%" and a take-profit "+50%" whichever way the trade goes.
+ */
+function levelLabel(l: Level | undefined, sign: "+" | "−", kind: "tp" | "sl" = sign === "+" ? "tp" : "sl"): string | undefined {
   if (!l) return undefined;
   if ("pct" in l) return `${sign}${l.pct}%`;
+  if ("positionPct" in l) return `${kind === "sl" ? "−" : "+"}${l.positionPct}%`;
   if ("prob" in l) return `${Math.round(l.prob * 100)}¢`;
   return `$${fmtNum(l.price)}`;
 }
@@ -166,8 +171,8 @@ export function strategyToSpec(s: Strategy, live: LiveOverlay = {}): { spec: Gra
         venue: venueOf(a),
         alloc: sizeLabel(a.size) + (a.size.unit === "native" && a.instrument.kind === "token" ? ` ${a.instrument.quote}` : ""),
         lev: a.leverage > 1 ? `${a.leverage}×` : undefined,
-        tp: levelLabel(a.exits.takeProfit, sign[0]),
-        sl: levelLabel(a.exits.stopLoss, sign[1]),
+        tp: levelLabel(a.exits.takeProfit, sign[0], "tp"),
+        sl: levelLabel(a.exits.stopLoss, sign[1], "sl"),
         pnl: pos ? pos.unrealizedPnlPct : undefined,
       });
     } else if (a.type === "options") {
@@ -178,8 +183,8 @@ export function strategyToSpec(s: Strategy, live: LiveOverlay = {}): { spec: Gra
         asset: a.label ?? `${a.legs[0]!.instrument.underlying} ${a.legs.length}-leg`,
         venue: venueOf(a),
         alloc: sizeLabel(a.size),
-        tp: levelLabel(a.exits.takeProfit, "+"),
-        sl: levelLabel(a.exits.stopLoss, "−"),
+        tp: levelLabel(a.exits.takeProfit, "+", "tp"),
+        sl: levelLabel(a.exits.stopLoss, "−", "sl"),
         pnl: pos ? pos.unrealizedPnlPct : undefined,
       });
     } else if (a.type === "close") {
@@ -327,10 +332,13 @@ function sizePhrase(a: { size: Size }, quote?: string): string {
   return `${s.value}${quote ? ` ${quote}` : ""}`;
 }
 
-function exitPhrase(e: { takeProfit?: Level; stopLoss?: Level; trailingStopPct?: number; timeExitHours?: number }, sign: ["+" | "−", "+" | "−"]): string {
+function exitPhrase(e: { takeProfit?: Level; stopLoss?: Level; trailingStopPct?: number; timeExitHours?: number }, sign: ["+" | "−", "+" | "−"], leverage = 1): string {
   const parts: string[] = [];
-  const sl = levelLabel(e.stopLoss, sign[1]);
-  const tp = levelLabel(e.takeProfit, sign[0]);
+  // On a leveraged position, say both: what happens to the position, and the price move that means.
+  const withPrice = (l: Level | undefined, label: string | undefined, priceSign: "+" | "−") =>
+    label && l && "positionPct" in l && leverage > 1 ? `${label} on the position (price ${priceSign}${+(l.positionPct / leverage).toFixed(2)}%)` : label;
+  const sl = withPrice(e.stopLoss, levelLabel(e.stopLoss, sign[1], "sl"), sign[1]);
+  const tp = withPrice(e.takeProfit, levelLabel(e.takeProfit, sign[0], "tp"), sign[0]);
   if (sl) parts.push(`stop at ${sl}`);
   if (tp) parts.push(`take profit at ${tp}`);
   if (e.trailingStopPct) parts.push(`trailing stop ${e.trailingStopPct}%`);
@@ -394,7 +402,7 @@ export function describeStrategy(s: Strategy): { watches: string[]; watchKinds: 
           const quote = a.instrument.kind === "token" ? a.instrument.quote : undefined;
           const lev = a.leverage > 1 ? ` at ${a.leverage}×` : "";
           const sign: ["+" | "−", "+" | "−"] = a.side === "long" ? ["+", "−"] : ["−", "+"];
-          const ex = exitPhrase(a.exits, sign);
+          const ex = exitPhrase(a.exits, sign, a.leverage);
           // A label that already says what to do ("Buy 0.05 SOL of RAY") is used as the whole phrase.
           const said = a.label && /^(buy|sell|go long|go short|long|short)\b/i.test(a.label);
           return {

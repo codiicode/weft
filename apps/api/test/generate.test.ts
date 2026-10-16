@@ -99,8 +99,8 @@ describe("refine by rules (offline)", async () => {
   it("changes stop, target, size and leverage from plain words", () => {
     const r = refineByRules(pumpMomentum, "stop at 8% and take profit at 25%, use 2 SOL");
     const buy = r.strategy.actions.find((a) => a.type === "open")!;
-    expect(buy.type === "open" && buy.exits.stopLoss).toEqual({ pct: 8 });
-    expect(buy.type === "open" && buy.exits.takeProfit).toEqual({ pct: 25 });
+    expect(buy.type === "open" && buy.exits.stopLoss).toEqual({ positionPct: 8 });
+    expect(buy.type === "open" && buy.exits.takeProfit).toEqual({ positionPct: 25 });
     expect(buy.type === "open" && buy.size).toEqual({ unit: "native", value: 2 });
     expect(r.rationale).toMatch(/stop-loss set to 8%/);
     const lev = refineByRules(elNino, "go 3x on the perps");

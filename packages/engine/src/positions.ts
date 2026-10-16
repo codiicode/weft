@@ -25,9 +25,14 @@ export const unrealizedOf = (positions: Position[]) => positions.reduce((s, p) =
 
 const levelValue = (l: Level): number => ("price" in l ? l.price : "prob" in l ? l.prob : NaN);
 
+/** A relative level as a price move from entry, in percent: `positionPct` is spread over the leverage. */
+export const levelMovePct = (l: Level, leverage: number): number | null =>
+  "pct" in l ? l.pct : "positionPct" in l ? l.positionPct / Math.max(1, leverage) : null;
+
 /**
  * Exit check for a single position. Order: stop-loss, trailing stop, take-profit, time.
  * - `pct` levels are price moves from entry: in favour for TP, against for SL (not leveraged ROE).
+ * - `positionPct` levels are gain/loss on the position's margin (leveraged ROE): pct × leverage.
  * - `price` / `prob` levels are absolute: long TP when mark ≥ level, SL when mark ≤ level; mirrored for shorts.
  * - trailing: long exits when mark ≤ peak × (1 − t%), short when mark ≥ trough × (1 + t%).
  */
@@ -38,7 +43,8 @@ export function exitReason(p: Position, now: number): FillReason | null {
   const movePct = ((px - p.entryPrice) / p.entryPrice) * 100 * d;
   if (e.stopLoss) {
     const sl = e.stopLoss;
-    const hit = "pct" in sl ? movePct <= -sl.pct : d === 1 ? px <= levelValue(sl) : px >= levelValue(sl);
+    const rel = levelMovePct(sl, p.leverage);
+    const hit = rel != null ? movePct <= -rel : d === 1 ? px <= levelValue(sl) : px >= levelValue(sl);
     if (hit) return "stop_loss";
   }
   if (e.trailingStopPct != null) {
@@ -48,7 +54,8 @@ export function exitReason(p: Position, now: number): FillReason | null {
   }
   if (e.takeProfit) {
     const tp = e.takeProfit;
-    const hit = "pct" in tp ? movePct >= tp.pct : d === 1 ? px >= levelValue(tp) : px <= levelValue(tp);
+    const rel = levelMovePct(tp, p.leverage);
+    const hit = rel != null ? movePct >= rel : d === 1 ? px >= levelValue(tp) : px <= levelValue(tp);
     if (hit) return "take_profit";
   }
   if (timeUp(e, p.openedAt, now)) return "time_exit";
@@ -71,7 +78,8 @@ export function groupExitReason(legs: Position[], now: number): FillReason | nul
   const value = groupUnitValue(legs);
   if (e.stopLoss) {
     const sl = e.stopLoss;
-    if ("pct" in sl ? pnlPct <= -sl.pct : value <= levelValue(sl)) return "stop_loss";
+    const rel = levelMovePct(sl, 1);
+    if (rel != null ? pnlPct <= -rel : value <= levelValue(sl)) return "stop_loss";
   }
   if (e.trailingStopPct != null) {
     const peak = first.group.peakValue;
@@ -79,7 +87,8 @@ export function groupExitReason(legs: Position[], now: number): FillReason | nul
   }
   if (e.takeProfit) {
     const tp = e.takeProfit;
-    if ("pct" in tp ? pnlPct >= tp.pct : value >= levelValue(tp)) return "take_profit";
+    const rel = levelMovePct(tp, 1);
+    if (rel != null ? pnlPct >= rel : value >= levelValue(tp)) return "take_profit";
   }
   if (timeUp(e, first.openedAt, now)) return "time_exit";
   return null;
