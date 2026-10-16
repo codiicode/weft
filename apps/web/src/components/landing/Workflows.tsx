@@ -13,13 +13,13 @@ import { AssetIcon } from "../ui/AssetIcon";
  * then show how it went. Scroll position is the playhead.
  */
 
-type Signal = { label: string; from: number; to: number; fmt: (v: number) => string; icon?: string };
+/** One condition of the rule: the live value moves toward `need` while the agent watches, then holds. */
+type Signal = { label: string; from: number; to: number; fmt: (v: number) => string; need: string; icon?: string };
 type Flow = {
   tag: string;
   thesis: string;
   note: string;
   signals: Signal[];
-  conditions: string[];
   action: string;
   fill: string;
   venue: string;
@@ -38,12 +38,10 @@ const FLOWS: Flow[] = [
     thesis: "Buy $PUMP if it drops to 0.004 and the mood on X turns bullish.",
     note: "Matched by contract address, never by ticker. Rug checks run before every swap.",
     signals: [
-      { icon: "PUMP", label: "$PUMP price", from: 0.00431, to: 0.00398, fmt: (v) => v.toFixed(5) },
-      { label: "Mood on X", from: 0.06, to: 0.41, fmt: (v) => `${v >= 0 ? "+" : ""}${v.toFixed(2)}` },
-      { label: "Mentions, last hour", from: 40, to: 180, fmt: (v) => `+${Math.round(v)}%` },
-      { label: "Liquidity", from: 1.84, to: 2.07, fmt: (v) => `$${v.toFixed(2)}M` },
+      { icon: "PUMP", label: "$PUMP price", from: 0.00431, to: 0.00398, fmt: (v) => v.toFixed(5), need: "0.004 or lower" },
+      { label: "Mood on X", from: 0.06, to: 0.41, fmt: (v) => `${v >= 0 ? "+" : ""}${v.toFixed(2)}`, need: "above +0.3" },
+      { label: "Liquidity", from: 1.84, to: 2.07, fmt: (v) => `$${v.toFixed(2)}M`, need: "above $1M" },
     ],
-    conditions: ["Price at 0.004 or lower", "Mood above +0.3"],
     action: "Buy $PUMP with 0.5 SOL",
     fill: "Filled at 0.00398 · stop at −20%",
     venue: "Solana via Jupiter",
@@ -60,11 +58,9 @@ const FLOWS: Flow[] = [
     thesis: "Open a 20× ETH long if it breaks $2,600 while funding stays low.",
     note: "Breakouts with cheap funding: the crowd isn’t long yet. The stop sits on Hyperliquid itself.",
     signals: [
-      { icon: "ETH", label: "ETH price", from: 2_548, to: 2_604, fmt: usd(0) },
-      { label: "Funding, per hour", from: 0.006, to: 0.004, fmt: (v) => `${v.toFixed(4)}%` },
-      { label: "Open interest, 24h", from: 1.2, to: 3.8, fmt: (v) => `+${v.toFixed(1)}%` },
+      { icon: "ETH", label: "ETH price", from: 2_548, to: 2_604, fmt: usd(0), need: "above $2,600" },
+      { label: "Funding, per hour", from: 0.006, to: 0.004, fmt: (v) => `${v.toFixed(4)}%`, need: "under 0.01%" },
     ],
-    conditions: ["ETH above $2,600", "Funding under 0.01% an hour"],
     action: "Long ETH at 20× with $50",
     fill: "Filled at $2,604 · stop at −20% on the position",
     venue: "Hyperliquid",
@@ -79,16 +75,13 @@ const FLOWS: Flow[] = [
   {
     tag: "Macro",
     thesis: "The Fed cuts in December and nobody’s positioned for it.",
-    note: "Watches the odds, the bond market and inflation, and only acts when they agree.",
+    note: "Watches the odds and the bond market, and only acts when they agree.",
     signals: [
-      { label: "Fed cut odds", from: 54, to: 68, fmt: pct },
-      { label: "2-year yield", from: 3.55, to: 3.41, fmt: (v) => `${v.toFixed(2)}%` },
-      { label: "Inflation nowcast", from: 2.9, to: 2.6, fmt: (v) => `${v.toFixed(1)}%` },
-      { icon: "BTC", label: "Bitcoin", from: 112_400, to: 118_420, fmt: usd(0) },
+      { label: "Fed cut odds", from: 54, to: 68, fmt: pct, need: "above 65%" },
+      { label: "2-year yield, 5 days", from: -2, to: -14, fmt: (v) => `${Math.round(v)} bp`, need: "down 10 bp or more" },
     ],
-    conditions: ["Cut odds above 65%", "Yield down 10+ bp in 5 days"],
     action: "Long BTC at 2×",
-    fill: "Filled at $118,420 · stop at −5%",
+    fill: "Filled at $118,420 · stop at −10% on the position",
     venue: "Hyperliquid",
     pnl: 6.1,
     seed: 44,
@@ -102,11 +95,9 @@ const FLOWS: Flow[] = [
     thesis: "NVIDIA rallies into earnings. Be out before the report.",
     note: "Opens two days out and closes itself an hour before the numbers land.",
     signals: [
-      { icon: "NVDA", label: "NVIDIA", from: 176.4, to: 184.2, fmt: usd() },
-      { label: "Earnings in", from: 72, to: 40, fmt: (v) => `${Math.round(v)} h` },
-      { label: "Analyst revisions", from: 0, to: 3, fmt: (v) => `+${Math.round(v)}` },
+      { label: "Earnings in", from: 72, to: 40, fmt: (v) => `${Math.round(v)} h`, need: "48 hours or less" },
+      { icon: "NVDA", label: "NVIDIA vs 20-day average", from: -0.8, to: 3.1, fmt: (v) => `${v >= 0 ? "+" : "−"}${Math.abs(v).toFixed(1)}%`, need: "above it" },
     ],
-    conditions: ["Within 48 hours of earnings", "Price above its 20-day average"],
     action: "Long NVDA at 2×, out before the report",
     fill: "Filled at $178.10 · closed at $184.20",
     venue: "Hyperliquid",
@@ -169,7 +160,7 @@ function Thesis({ f, p }: { f: Flow; p: number }) {
 
 function Console({ f, p }: { f: Flow; p: number }) {
   const watch = ease(clamp01(p / 0.2));
-  const ruleMet = p > COND_AT + f.conditions.length * COND_STEP;
+  const ruleMet = p > COND_AT + (f.signals.length - 1) * COND_STEP;
   const sending = p > 0.42;
   const filled = p > FILL_AT;
   const result = clamp01((p - 0.5) / 0.3);
@@ -191,43 +182,37 @@ function Console({ f, p }: { f: Flow; p: number }) {
         </span>
       </div>
 
-      <div className="grid gap-px bg-line sm:grid-cols-2">
-        {/* Watch */}
-        <div className="bg-card px-4 py-3 sm:px-5 sm:py-4">
-          <p className="text-[12px] text-muted">Watching</p>
-          <ul className="mt-2 space-y-1.5 sm:mt-2.5 sm:space-y-2">
-            {f.signals.map((s) => (
-              <li key={s.label} className="flex items-baseline justify-between gap-3 text-[13.5px]">
-                <span className="flex min-w-0 items-center gap-2 truncate text-ink-2">
-                  {s.icon && <AssetIcon symbol={s.icon} size={16} />}
-                  {s.label}
-                </span>
-                <span className="tnum shrink-0 font-medium text-ink">{s.fmt(s.from + (s.to - s.from) * watch)}</span>
-              </li>
-            ))}
-          </ul>
+      {/* Each condition: the live value next to what the rule needs, ticked once it's true. */}
+      <div className="px-4 py-3 sm:px-5 sm:py-4">
+        <div className="grid grid-cols-[minmax(0,1fr)_auto_auto] items-baseline gap-x-4 text-[12px] text-muted">
+          <span>Watching</span>
+          <span className="text-right">Now</span>
+          <span>Needs</span>
         </div>
-        {/* When */}
-        <div className="bg-card px-4 py-3 sm:px-5 sm:py-4">
-          <p className="text-[12px] text-muted">When</p>
-          <ul className="mt-2 space-y-1.5 sm:mt-2.5 sm:space-y-2">
-            {f.conditions.map((c, j) => {
-              const on = p > COND_AT + j * COND_STEP;
-              return (
-                <li key={c} className={`flex items-center gap-2 text-[13.5px] transition-colors duration-300 ${on ? "text-ink" : "text-faint"}`}>
+        <ul className="mt-2 space-y-2 sm:mt-2.5">
+          {f.signals.map((sig, j) => {
+            const on = p > COND_AT + j * COND_STEP;
+            // The value travels toward the threshold while the agent watches, then holds still.
+            const t = on ? 1 : watch;
+            return (
+              <li key={sig.label} className="grid grid-cols-[minmax(0,1fr)_auto_auto] items-center gap-x-4 text-[13.5px]">
+                <span className="flex min-w-0 items-center gap-2 truncate text-ink-2">
+                  {sig.icon && <AssetIcon symbol={sig.icon} size={16} />}
+                  {sig.label}
+                </span>
+                <span className={`tnum text-right font-medium transition-colors duration-300 ${on ? "text-ink" : "text-ink-2"}`}>{sig.fmt(sig.from + (sig.to - sig.from) * t)}</span>
+                <span className={`flex items-center gap-2 transition-colors duration-300 ${on ? "text-ink" : "text-faint"}`}>
                   <span
-                    className={`grid h-4 w-4 shrink-0 place-items-center rounded-full border transition-all duration-300 ${
-                      on ? "border-long bg-long text-paper" : "border-line-2"
-                    }`}
+                    className={`grid h-4 w-4 shrink-0 place-items-center rounded-full border transition-all duration-300 ${on ? "border-long bg-long text-paper" : "border-line-2"}`}
                   >
                     {on && <IconCheck size={9} strokeWidth={3} />}
                   </span>
-                  {c}
-                </li>
-              );
-            })}
-          </ul>
-        </div>
+                  <span className="whitespace-nowrap">{sig.need}</span>
+                </span>
+              </li>
+            );
+          })}
+        </ul>
       </div>
 
       {/* Do */}

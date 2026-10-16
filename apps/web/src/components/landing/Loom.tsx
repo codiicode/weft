@@ -9,10 +9,12 @@ import { useInView, useReducedMotion, useWidth } from "@/lib/hooks";
  * until the threads meet in a knot (the rule) and leave as one trade.
  *
  * Drawn in real pixels across the full width of the page. The warp parts
- * around the pointer like cloth; values on the threads tick while you watch.
+ * around the pointer like cloth. Each thread is one condition of the rule, shown as it was
+ * the moment the rule was met.
  */
 
-type Thread = { label: string; value: number; fmt: (v: number) => string; jitter: number; icon?: string };
+/** A condition of the rule: its value (fixed: the moment the rule was met) and what the rule needs. */
+type Thread = { label: string; value: number; fmt: (v: number) => string; need: string; icon?: string };
 type Scene = { name: string; threads: Thread[]; rule: string; trade: string; detail: string };
 
 const f5 = (v: number) => v.toFixed(5);
@@ -25,48 +27,48 @@ const SCENES: Scene[] = [
   {
     name: "Memecoins",
     threads: [
-      { icon: "/coins/PUMP.svg", label: "$PUMP price", value: 0.00398, fmt: f5, jitter: 0.00003 },
-      { label: "Mood on X", value: 0.41, fmt: sign2, jitter: 0.02 },
-      { label: "Mentions, last hour", value: 180, fmt: pctS, jitter: 6 },
-      { label: "Liquidity", value: 2.07, fmt: (v) => `$${v.toFixed(2)}M`, jitter: 0.01 },
+      { icon: "/coins/PUMP.svg", label: "$PUMP price", value: 0.00398, fmt: f5, need: "≤ 0.004" },
+      { label: "Mood on X", value: 0.41, fmt: sign2, need: "> +0.3" },
+      { label: "Mentions, last hour", value: 180, fmt: pctS, need: "> +100%" },
+      { label: "Liquidity", value: 2.07, fmt: (v) => `$${v.toFixed(2)}M`, need: "> $1M" },
     ],
-    rule: "Price and mood line up",
+    rule: "All four conditions met",
     trade: "Buy $PUMP with 0.5 SOL",
     detail: "Stop at −20% · Solana via Jupiter",
   },
   {
     name: "Perps",
     threads: [
-      { icon: "/coins/ETH.svg", label: "ETH", value: 2604, fmt: usd(0), jitter: 3 },
-      { label: "Funding, per hour", value: 0.004, fmt: (v) => `${v.toFixed(4)}%`, jitter: 0.0002 },
-      { label: "Open interest, 24h", value: 3.8, fmt: (v) => `+${v.toFixed(1)}%`, jitter: 0.1 },
-      { label: "24h volume", value: 1.38, fmt: (v) => `$${v.toFixed(2)}B`, jitter: 0.01 },
+      { icon: "/coins/ETH.svg", label: "ETH", value: 2604, fmt: usd(0), need: "> $2,600" },
+      { label: "Funding, per hour", value: 0.004, fmt: (v) => `${v.toFixed(4)}%`, need: "< 0.01%" },
+      { label: "Open interest, 24h", value: 3.8, fmt: (v) => `+${v.toFixed(1)}%`, need: "rising" },
+      { label: "24h volume", value: 1.38, fmt: (v) => `$${v.toFixed(2)}B`, need: "> $1B" },
     ],
-    rule: "Breakout, funding still cheap",
+    rule: "All four conditions met",
     trade: "Long ETH at 20×",
     detail: "Stop at −20% on the position · Hyperliquid",
   },
   {
     name: "Macro",
     threads: [
-      { label: "Fed cut odds", value: 68, fmt: pct, jitter: 1 },
-      { label: "2-year yield", value: 3.41, fmt: (v) => `${v.toFixed(2)}%`, jitter: 0.01 },
-      { label: "Inflation nowcast", value: 2.6, fmt: (v) => `${v.toFixed(1)}%`, jitter: 0 },
-      { icon: "/coins/BTC.svg", label: "Bitcoin", value: 118420, fmt: usd(0), jitter: 60 },
+      { label: "Fed cut odds", value: 68, fmt: pct, need: "> 65%" },
+      { label: "2-year yield, 5 days", value: -14, fmt: (v) => `${v} bp`, need: "≤ −10 bp" },
+      { label: "Inflation nowcast", value: 2.6, fmt: (v) => `${v.toFixed(1)}%`, need: "< 3%" },
+      { icon: "/coins/BTC.svg", label: "Bitcoin vs 50-day average", value: 2.1, fmt: (v) => `+${v.toFixed(1)}%`, need: "above it" },
     ],
-    rule: "Odds firm, yields fall",
+    rule: "All four conditions met",
     trade: "Long BTC at 2×",
-    detail: "Stop at −5% · Hyperliquid",
+    detail: "Stop at −10% on the position · Hyperliquid",
   },
   {
     name: "Earnings",
     threads: [
-      { icon: "/coins/NVDA.svg", label: "NVIDIA", value: 184.2, fmt: usd(2), jitter: 0.15 },
-      { label: "Earnings in", value: 40, fmt: (v) => `${Math.round(v)} hours`, jitter: 0 },
-      { label: "Analyst revisions", value: 3, fmt: (v) => `+${Math.round(v)} this week`, jitter: 0 },
-      { label: "Options flow", value: 2, fmt: (v) => `calls ${v.toFixed(1)} : 1`, jitter: 0.05 },
+      { icon: "/coins/NVDA.svg", label: "NVIDIA vs 20-day average", value: 3.1, fmt: (v) => `+${v.toFixed(1)}%`, need: "above it" },
+      { label: "Earnings in", value: 40, fmt: (v) => `${Math.round(v)} hours`, need: "≤ 48 hours" },
+      { label: "Analyst revisions", value: 3, fmt: (v) => `+${Math.round(v)} this week`, need: "up" },
+      { label: "Options flow", value: 2, fmt: (v) => `calls ${v.toFixed(1)} : 1`, need: "> 1.5 : 1" },
     ],
-    rule: "Two days before earnings",
+    rule: "All four conditions met",
     trade: "Long NVDA at 2×",
     detail: "Closes an hour before the report",
   },
@@ -97,7 +99,6 @@ export function Loom() {
 
   const [scene, setScene] = useState(0);
   const [stage, setStage] = useState(0); // 0 drawing, 1 knot, 2 trade, 3 card
-  const [tick, setTick] = useState(0);
   const gatherUntil = useRef(0);
   const kickRef = useRef<() => void>(() => {});
   const knotRef = useRef({ x: 0, y: 0 });
@@ -127,17 +128,8 @@ export function Loom() {
     kickRef.current();
   }, [stage, reduce, narrow]);
 
-  // Values tick while you watch.
-  useEffect(() => {
-    if (reduce || !inView) return;
-    const id = setInterval(() => setTick((n) => n + 1), 1100);
-    return () => clearInterval(id);
-  }, [reduce, inView]);
-  const live = (t: Thread, i: number) => {
-    if (!t.jitter || tick === 0) return t.fmt(t.value);
-    const r = Math.sin((tick + 1) * (i + 2) * 12.9898) * 43758.5453;
-    return t.fmt(t.value + (r - Math.floor(r) - 0.5) * 2 * t.jitter);
-  };
+  // Values are fixed: they are the conditions at the moment the rule was met.
+  const live = (t: Thread) => t.fmt(t.value);
 
   const warps = useMemo(() => Array.from({ length: Math.floor(W / gap) + 1 }, (_, k) => k * gap + gap / 2), [W, gap]);
   const paths = ys.map((y) => {
@@ -310,7 +302,10 @@ export function Loom() {
               >
                 <tspan style={{ fill: "var(--muted)" }}>{t.label}</tspan>
                 <tspan dx={8} style={{ fill: "var(--ink)", fontWeight: 500, fontVariantNumeric: "tabular-nums" }}>
-                  {live(t, i)}
+                  {live(t)}
+                </tspan>
+                <tspan dx={10} style={{ fill: "var(--long)", fontVariantNumeric: "tabular-nums" }}>
+                  ✓ {t.need}
                 </tspan>
               </motion.text>
             ))}
