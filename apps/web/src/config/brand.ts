@@ -8,8 +8,8 @@ export const brand = {
   tagline: "Trade the thesis.",
   description:
     "Write a market view in plain English. Weft turns it into rules you can read, tests them on real history, and trades them from your own wallet: perps, stocks, prediction markets and Solana tokens.",
-  domain: "weft.trade",
-  url: "https://weft.trade",
+  domain: "weft.fi",
+  url: "https://weft.fi",
   contractAddress: "PLACEHOLDER_CONTRACT_ADDRESS_SOLANA",
   chain: "Solana",
   /** Where $WEFT launches. Swap to "pump.fun" (+ curve "bonding curve") and the copy follows. */

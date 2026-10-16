@@ -25,6 +25,8 @@ cat > "$TMP/vercel.json" <<'JSON'
   "outputDirectory": ".",
   "cleanUrls": true,
   "redirects": [
+    { "source": "/:path*", "has": [{ "type": "host", "value": "www.weft.fi" }], "destination": "https://weft.fi/:path*", "permanent": true },
+    { "source": "/", "has": [{ "type": "host", "value": "app.weft.fi" }], "destination": "/home", "permanent": false },
     { "source": "/app", "destination": "/home", "permanent": false },
     { "source": "/app/library", "destination": "/strategies", "permanent": false },
     { "source": "/app/live", "destination": "/accounts", "permanent": false },
