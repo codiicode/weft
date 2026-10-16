@@ -90,7 +90,32 @@ export function Portfolio({ runs, onChange }: { runs: Snapshot[]; onChange: () =
 
       {positions.length > 0 && (
         <Card className="overflow-hidden">
-          <div className="overflow-x-auto">
+          {/* Phones: one compact row per position instead of a seven-column table. */}
+          <ul className="divide-y divide-line sm:hidden">
+            {positions.map(({ p, run }) => (
+              <li key={p.id} className="flex items-center gap-3 px-4 py-3">
+                <AssetIcon {...instrumentIcon(p.instrument)} size={26} />
+                <Link href={`/app/run?id=${encodeURIComponent(run.deployment.id)}`} className="min-w-0 flex-1">
+                  <div className="truncate text-[14px] font-medium text-ink">
+                    {instrumentLabel(p.instrument)}
+                    {p.leverage > 1 && <span className="ml-1.5 text-[12px] font-normal text-muted">{p.leverage}×</span>}
+                    {p.side === "short" && <span className="ml-1.5 text-[12px] font-normal text-short">short</span>}
+                  </div>
+                  <div className="tnum truncate text-[12px] text-muted">
+                    {fmtUsd(p.sizeUsd + p.unrealizedPnlUsd, 2)} · bought for {fmtUsd(p.sizeUsd, 2)}
+                  </div>
+                </Link>
+                <div className={`tnum text-right text-[13px] font-medium ${tone(p.unrealizedPnlUsd)}`}>
+                  {signed(p.unrealizedPnlUsd)}
+                  <div className="text-[11.5px] font-normal opacity-80">{fmtPct(p.unrealizedPnlPct)}</div>
+                </div>
+                {(run.deployment.status === "running" || run.deployment.status === "paused") && (
+                  <SellButton deploymentId={run.deployment.id} positionId={p.id} label={instrumentLabel(p.instrument)} onDone={onChange} />
+                )}
+              </li>
+            ))}
+          </ul>
+          <div className="hidden overflow-x-auto sm:block">
             <table className="w-full min-w-[720px] text-left text-[13.5px]">
               <thead className="text-[12.5px] text-muted">
                 <tr className="border-b border-line">
