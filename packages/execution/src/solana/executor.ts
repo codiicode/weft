@@ -34,6 +34,11 @@ export interface JupiterExecutorConfig {
   onAccountsClosed?: (r: { mint: string; accounts: number; signature: string } | { mint: string; error: string }) => void;
   /** Wait between looks for the emptied account (RPC indexes lag the confirmed sell). Default 2500 ms. */
   closeRetryMs?: number;
+  /**
+   * Durable record of sent swaps by clientId, so a restart can never send the same order twice
+   * (the in-memory map alone forgets on restart).
+   */
+  sentStore?: { get(clientId: string): string | null; set(clientId: string, signature: string): void };
 }
 
 /**
@@ -41,9 +46,9 @@ export interface JupiterExecutorConfig {
  * (fail closed) → policy signer → send → confirm. The reported fill uses the quoted amounts;
  * TODO: reconcile against the confirmed transaction's token balance changes.
  *
- * Idempotency: Jupiter transactions carry no client id, so duplicates are blocked in-process by
- * `clientId`, and a blockhash-bound transaction can never land twice. TODO: persist sent
- * signatures by clientId so a restart cannot re-send.
+ * Idempotency: Jupiter transactions carry no client id, so duplicates are blocked by `clientId`
+ * (in memory, and in `sentStore` across restarts), and a blockhash-bound transaction can never
+ * land twice.
  */
 export class JupiterExecutor implements Executor {
   readonly mode = "live" as const;
@@ -79,7 +84,8 @@ export class JupiterExecutor implements Executor {
       const i = req.instrument;
       if (i.kind !== "token") return { status: "rejected", reason: `JupiterExecutor cannot trade ${i.kind}` };
       if (req.order?.type === "limit") return { status: "rejected", reason: "limit orders on Solana tokens are not supported (TODO: Jupiter Trigger API)" };
-      if (this.sent.has(req.clientId)) return { status: "rejected", reason: `duplicate: ${req.clientId} already sent as ${this.sent.get(req.clientId)}` };
+      const already = this.sent.get(req.clientId) ?? this.cfg.sentStore?.get(req.clientId) ?? null;
+      if (already) return { status: "rejected", reason: `duplicate: ${req.clientId} already sent as ${already}` };
       const token = new PublicKey(i.mint);
       const quoteAsset = quoteMint(i.quote);
       const buy = req.side === "buy";
@@ -208,6 +214,7 @@ export class JupiterExecutor implements Executor {
     const signed = await this.cfg.signer.signTransaction(tx);
     const sig = await this.cfg.rpc.sendRawTransaction(signed.serialize(), { skipPreflight: false, maxRetries: 3 });
     this.sent.set(clientId, sig);
+    this.cfg.sentStore?.set(clientId, sig);
     const conf = await this.cfg.rpc.confirmTransaction({ signature: sig, blockhash, lastValidBlockHeight }, "confirmed");
     if (conf.value.err) throw new Error(`swap ${sig} failed: ${JSON.stringify(conf.value.err)}`);
     return sig;

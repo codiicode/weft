@@ -510,6 +510,16 @@ describe("JupiterExecutor", () => {
     expect(closed).toHaveLength(2);
   });
 
+  it("never re-sends an order recorded as sent before a restart", async () => {
+    const store = new Map<string, string>([["c9", "sig-before-restart"]]);
+    const { ex, sent } = setup(v0(goodInstructions()), { sentStore: { get: (id) => store.get(id) ?? null, set: (id, sig) => void store.set(id, sig) } });
+    const res = await ex.execute({ clientId: "c9", instrument: TOKEN, instrumentKey: "k", side: "buy", phase: "open", notionalUsd: 1.5 }, 0);
+    expect(res).toMatchObject({ status: "rejected", reason: expect.stringMatching(/already sent as sig-before-restart/) });
+    expect(sent).toHaveLength(0);
+    await ex.execute({ clientId: "c10", instrument: TOKEN, instrumentKey: "k", side: "buy", phase: "open", notionalUsd: 1.5 }, 0);
+    expect(store.get("c10")).toBe("sig1"); // recorded for the next restart
+  });
+
   it("signs + sends a clean swap and reports the quoted fill; duplicate clientIds are refused", async () => {
     const { ex, sent } = setup(v0(goodInstructions()));
     const res = await ex.execute({ clientId: "c3", instrument: TOKEN, instrumentKey: "k", side: "buy", phase: "open", notionalUsd: 1.5 }, 0);

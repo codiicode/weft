@@ -410,6 +410,10 @@ export class SolanaLive {
       signer: new PrivyWalletSigner(this.api, acct.walletId, acct.address),
       rpc,
       maxPriorityFeeLamports: 1_000_000,
+      sentStore: {
+        get: (id) => this.accounts.kvGet(`solsent:${id}`) || null,
+        set: (id, sig) => this.accounts.kvSet(`solsent:${id}`, sig),
+      },
       onAccountsClosed: (r) =>
         console.log(
           "error" in r
