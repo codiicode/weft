@@ -260,7 +260,7 @@ export function AgentDemo() {
                 {ticks > 0 && <path d={path} fill="none" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" style={{ stroke: priceOk ? "var(--long)" : "var(--signal)" }} />}
                 {ticks > 0 && <circle cx={x(ticks - 1)} cy={y(now)} r={3.6} style={{ fill: priceOk ? "var(--long)" : "var(--signal)" }} />}
               </svg>
-              <ul className="mt-2 space-y-1 font-mono text-[11.5px]">
+              <ul className="mt-2 min-h-[82px] space-y-1 font-mono text-[11.5px]">
                 {log.map((i) => {
                   const p = series[i]!;
                   const ok = p > THRESHOLD;
@@ -280,29 +280,42 @@ export function AgentDemo() {
           </div>
         </div>
 
-        {/* The trade */}
-        <AnimatePresence>
-          {filled && (
+        {/* The outcome: always there, so the window never jumps; it says what the agent is doing. */}
+        <div className="flex min-h-[72px] flex-wrap items-center justify-between gap-3 border-t border-line px-4 py-4 sm:px-6">
+          <AnimatePresence mode="wait">
             <motion.div
-              initial={{ opacity: 0, y: 8 }}
+              key={filled ? "filled" : watching ? "waiting" : "idle"}
+              initial={{ opacity: 0, y: 6 }}
               animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0 }}
-              transition={{ duration: 0.45, ease: [0.22, 1, 0.36, 1] }}
-              className="flex flex-wrap items-center justify-between gap-3 border-t border-line px-4 py-4 sm:px-6"
+              exit={{ opacity: 0, y: -4 }}
+              transition={{ duration: 0.35, ease: [0.22, 1, 0.36, 1] }}
+              className="flex items-center gap-3"
             >
-              <div className="flex items-center gap-3">
-                <span className="grid h-7 w-7 place-items-center rounded-full bg-[var(--long-soft)] text-long">
-                  <IconCheck size={14} strokeWidth={2.4} />
-                </span>
-                <div>
-                  <div className="text-[15px] font-medium text-ink">Long ETH 20× filled at $2,604</div>
-                  <div className="text-[13px] text-muted">Stop placed on Hyperliquid at $2,578 (−20% on the position)</div>
-                </div>
-              </div>
-              <span className="text-[13px] text-muted">From your own account · Weft can’t withdraw</span>
+              {filled ? (
+                <>
+                  <span className="grid h-7 w-7 place-items-center rounded-full bg-[var(--long-soft)] text-long">
+                    <IconCheck size={14} strokeWidth={2.4} />
+                  </span>
+                  <div>
+                    <div className="text-[15px] font-medium text-ink">Long ETH 20× filled at $2,604</div>
+                    <div className="text-[13px] text-muted">Stop placed on Hyperliquid at $2,578 (−20% on the position)</div>
+                  </div>
+                </>
+              ) : (
+                <>
+                  <span className="grid h-7 w-7 place-items-center rounded-full bg-paper-2">
+                    <span className={`h-2 w-2 rounded-full ${watching ? "animate-pulse" : ""}`} style={{ background: watching ? "var(--signal)" : "var(--muted)" }} />
+                  </span>
+                  <div>
+                    <div className="text-[15px] font-medium text-ink">{watching ? (met ? "Both conditions true: buying" : "Waiting: 1 of 2 conditions true") : "No trade yet"}</div>
+                    <div className="text-[13px] text-muted">{watching ? "ETH is still under $2,600. Weft doesn’t guess, it waits." : "Nothing trades until every rule is true."}</div>
+                  </div>
+                </>
+              )}
             </motion.div>
-          )}
-        </AnimatePresence>
+          </AnimatePresence>
+          <span className="text-[13px] text-muted">From your own account · Weft can’t withdraw</span>
+        </div>
       </div>
     </Section>
   );
