@@ -277,6 +277,8 @@ export class LiveService {
 /** Routes a live engine's orders to the right user's executor via the deployment owner. */
 export class LiveRouterExecutor implements Executor {
   readonly mode = "live" as const;
+  /** Called after any filled order (venue-side stops are re-synced right away). */
+  onFilled: ((userId: string, req: OrderRequest) => void) | null = null;
   private readonly live: LiveService;
   private readonly ownerOf: (deploymentId: string) => string | null;
   constructor(live: LiveService, ownerOf: (deploymentId: string) => string | null) {
@@ -291,7 +293,9 @@ export class LiveRouterExecutor implements Executor {
     const blocked = this.live.blockReason(owner);
     if (blocked) return { status: "rejected", reason: blocked };
     try {
-      return await (await this.live.executorReady(owner)).execute(req, now);
+      const res = await (await this.live.executorReady(owner)).execute(req, now);
+      if (res.status === "filled") this.onFilled?.(owner, req);
+      return res;
     } catch (e) {
       return { status: "rejected", reason: (e as Error).message };
     }

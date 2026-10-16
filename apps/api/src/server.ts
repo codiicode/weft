@@ -18,7 +18,8 @@ import { createAuthenticator } from "./lib/auth.ts";
 import { Accounts } from "./lib/accounts.ts";
 import { AgentWallets, privyAgentApi } from "./live/agents.ts";
 import { HlDeposits, depositConfigFromEnv } from "./live/deposits.ts";
-import { LiveRouterExecutor, LiveService, liveConfigFromEnv } from "./live/service.ts";
+import { LiveRouterExecutor, LiveService, hlBaseUrl, liveConfigFromEnv } from "./live/service.ts";
+import { NativeStops } from "./live/native-stops.ts";
 import { CompositeEngine } from "./live/composite.ts";
 import { Reconciler } from "./live/reconcile.ts";
 import { TelegramBot } from "./lib/telegram.ts";
@@ -46,6 +47,7 @@ const liveCfg = liveConfigFromEnv();
 const agents = process.env.PRIVY_APP_ID && process.env.PRIVY_APP_SECRET ? new AgentWallets(privyAgentApi(process.env.PRIVY_APP_ID, process.env.PRIVY_APP_SECRET), accounts) : null;
 const live = process.env.PRIVY_APP_ID ? new LiveService(liveCfg, accounts, agents) : null;
 const deposits = live ? new HlDeposits(depositConfigFromEnv(liveCfg.network)) : null;
+const liveRouter = live ? new LiveRouterExecutor(live, (id) => accounts.deploymentOwner(id)) : null;
 const liveEngine = live
   ? createEngine({
       // One store per network: testnet runs can never wake up on mainnet.
@@ -53,9 +55,26 @@ const liveEngine = live
       marketData: venues.marketData,
       signalProviders: venues.signalProviders,
       tokenFacts: venues.tokenFacts,
-      executor: new LiveRouterExecutor(live, (id) => accounts.deploymentOwner(id)),
+      executor: liveRouter!,
     })
   : null;
+// Real stop-loss / take-profit trigger orders on Hyperliquid for every live perp position, so a
+// position keeps its stop even if Weft is down.
+const nativeStops =
+  live && liveEngine
+    ? new NativeStops({
+        engine: liveEngine,
+        accounts,
+        executorFor: (userId) => live.executorReady(userId),
+        addressOf: (userId) => {
+          const a = accounts.liveAccount(userId);
+          return a && a.network === liveCfg.network ? a.hlAddress : null;
+        },
+        baseUrl: hlBaseUrl(liveCfg.network),
+        log: (m) => console.log(m),
+      })
+    : null;
+if (liveRouter && nativeStops) liveRouter.onFilled = () => nativeStops.poke();
 // Live Solana tokens: the user's own Privy wallet with Weft as a limited signer. Always mainnet, so
 // these runs get their own store. Off unless WEFT_SOL_LIVE=1.
 const solCfg = solanaConfigFromEnv();
@@ -95,6 +114,7 @@ backups?.start();
 
 // Solana positions follow the wallet: tokens moved or sold by hand are booked out (every 2 minutes).
 const solanaReconciler = solanaEngine ? new SolanaReconciler(solanaEngine, accounts, connectionBalances(new Connection(solCfg.rpcUrl, "confirmed"))) : null;
+nativeStops?.start();
 const solanaReconcileTimer = solanaReconciler
   ? setInterval(() => void solanaReconciler.run().catch((e) => console.warn("solana reconcile failed:", (e as Error).message)), 120_000)
   : null;
@@ -254,6 +274,7 @@ for (const sig of ["SIGINT", "SIGTERM"] as const) {
     tape?.stop();
     if (reconcileTimer) clearInterval(reconcileTimer);
     if (solanaReconcileTimer) clearInterval(solanaReconcileTimer);
+    nativeStops?.stop();
     backups?.stop();
     server.close();
     await engine.shutdown();
