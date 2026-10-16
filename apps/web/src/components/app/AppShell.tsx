@@ -13,7 +13,8 @@ import { Toasts } from "./Toasts";
 
 const NAV = [
   { href: "/app", label: "Home", icon: "M3.5 9 10 4l6.5 5v7a.5.5 0 0 1-.5.5h-3.5V12h-5v4.5H4a.5.5 0 0 1-.5-.5z" },
-  { href: "/app/runs", label: "Runs", icon: "M6 4.5v11l9-5.5z" },
+  // Also lit on a single run's page (/app/run?id=…).
+  { href: "/app/portfolio", label: "Portfolio", icon: "M10 3.5a6.5 6.5 0 1 0 6.5 6.5H10zM12.5 2.8v4.7h4.7a6.5 6.5 0 0 0-4.7-4.7z", also: ["/app/run"] },
   { href: "/app/library", label: "Strategies", icon: "M4 4.5h12M4 10h12M4 15.5h7" },
   { href: "/app/markets", label: "Markets", icon: "M3.5 14.5 8 9.5l3 3 5.5-6.5" },
   { href: "/app/leaderboard", label: "Leaderboard", icon: "M5 16V10M10 16V4.5M15 16v-4" },
@@ -119,7 +120,11 @@ export function AppShell({ children }: { children: ReactNode }) {
   const path = usePathname();
   const [more, setMore] = useState(false);
   const appOpen = APP_OPEN;
-  const active = (href: string) => (href === "/app" ? path === "/app" || path === "/app/" : path.startsWith(href));
+  const active = (href: string) => {
+    if (href === "/app") return path === "/app" || path === "/app/";
+    const n = [...NAV, ...ACCOUNT_NAV].find((x) => x.href === href) as { also?: string[] } | undefined;
+    return path.startsWith(href) || (n?.also ?? []).some((a) => path === a || path === `${a}/`);
+  };
   return (
     <div className="min-h-screen bg-paper lg:grid lg:grid-cols-[232px_minmax(0,1fr)]">
       {/* Sidebar */}

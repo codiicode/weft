@@ -249,6 +249,8 @@ export class Session {
     this.rt.cashUsd -= sizeUsd + res.feeUsd;
     this.addRealized(-res.feeUsd, res.feeUsd, res.builderFeeUsd);
     this.upsert(p);
+    const inUse = [...this.positions.values()].reduce((n, q) => n + q.sizeUsd, 0);
+    this.rt.peakInUseUsd = Math.max(this.rt.peakInUseUsd ?? 0, inUse);
     const fill: Fill = {
       id: this.deps.newId(),
       deploymentId: this.id,

@@ -571,6 +571,17 @@ describe("owner instructions on a running deployment", () => {
     await expect(t.engine.closePosition!(t.d.id, pos.id, 1)).rejects.toThrow(/no longer open/);
   });
 
+  it("counts what was put in the same way while open and after closing", async () => {
+    const t = await opened(perp("long", {}));
+    const open = (await t.engine.getSnapshot(t.d.id))!;
+    const margin = open.positions[0]!.sizeUsd;
+    expect(open.investedUsd).toBeCloseTo(margin, 9);
+    await t.engine.closePosition!(t.d.id, open.positions[0]!.id, 1);
+    const closed = (await t.engine.getSnapshot(t.d.id))!;
+    expect(closed.positions).toHaveLength(0);
+    expect(closed.investedUsd).toBeCloseTo(margin, 9);
+  });
+
   it("adds, changes and removes a stop on an open position, and the new stop fires", async () => {
     const t = await opened(perp("long", {}));
     expect(await t.engine.setExits!(t.d.id, { stopLoss: { pct: 10 }, takeProfit: { pct: 50 } })).toBe(1);

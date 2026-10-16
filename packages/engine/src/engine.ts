@@ -159,6 +159,20 @@ export function createEngine(opts: EngineOptions): EngineRuntime {
     return { d, rt };
   }
 
+  /**
+   * Money put in: the peak in positions at once. Runs from before it was tracked estimate it from
+   * their entry fills (cost ÷ the strategy's leverage), largest single position.
+   */
+  async function investedOf(d: DeploymentRecord, rt: DeploymentRuntime, positions: Position[]): Promise<number | null> {
+    const open = marginOf(positions);
+    if (rt.peakInUseUsd != null) return Math.max(rt.peakInUseUsd, open) || null;
+    const levs = d.strategy.actions.filter((a) => a.type === "open").map((a) => (a as { leverage?: number }).leverage ?? 1);
+    const lev = levs.length && levs.every((l) => l === levs[0]) ? Math.max(1, levs[0]!) : 1;
+    const cost = new Map<string, number>();
+    for (const f of await store.listFills(d.id)) if (f.reason === "entry") cost.set(f.positionId, (cost.get(f.positionId) ?? 0) + (f.qty * f.price) / lev);
+    return Math.max(open, ...cost.values(), 0) || null;
+  }
+
   async function doTick(id: string, t: number): Promise<void> {
     const { d, rt } = await load(id);
     if (d.status !== "running") return;
@@ -283,6 +297,7 @@ export function createEngine(opts: EngineOptions): EngineRuntime {
         feesUsd: rt.feesUsd,
         builderFeesUsd: rt.builderFeesUsd,
         fundingUsd: rt.fundingUsd ?? 0,
+        investedUsd: await investedOf(d, rt, positions),
       };
     },
 

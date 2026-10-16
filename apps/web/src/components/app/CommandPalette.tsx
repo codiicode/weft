@@ -9,7 +9,7 @@ type Item = { id: string; label: string; hint?: string; group: string; run: () =
 const PAGES: [string, string][] = [
   ["Home", "/app"],
   ["New strategy", "/app/new"],
-  ["Runs", "/app/runs"],
+  ["Portfolio", "/app/portfolio"],
   ["Strategies", "/app/library"],
   ["Markets", "/app/markets"],
   ["Leaderboard", "/app/leaderboard"],

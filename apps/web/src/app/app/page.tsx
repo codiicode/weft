@@ -70,7 +70,7 @@ export default function Home() {
       </div>
 
       <section className="mt-14">
-        <SectionHead title="Your runs" href={list.length ? "/app/runs" : undefined} link="View all" />
+        <SectionHead title="Your strategies" href={list.length ? "/app/portfolio" : undefined} link="View all" />
         {runs.error ? (
           <Card className="px-5 py-8 text-center text-[14px] text-muted">Can’t reach the Weft server right now. Your runs will show up when it’s back.</Card>
         ) : !runs.data ? (

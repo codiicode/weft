@@ -167,6 +167,11 @@ export interface DeploymentSnapshot {
   builderFeesUsd?: number;
   /** Optional (additive): net perp funding paid, USD (positive = paid, negative = received). Included in realizedPnlUsd. */
   fundingUsd?: number;
+  /**
+   * Optional (additive): the most money that was in positions at once, USD (null before anything
+   * opened). Returns on this read the same while positions are open and after they close.
+   */
+  investedUsd?: number | null;
 }
 
 export interface CreateDeploymentInput {

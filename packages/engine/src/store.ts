@@ -24,6 +24,8 @@ export interface DeploymentRuntime {
   /** Last good snapshot per signal id: carried forward when a fetch fails (staleness still applies). */
   lastSnapshots: Record<string, SignalSnapshot>;
   lastEquitySampleAt?: number | null;
+  /** Optional (additive): the most money that was in positions at once (margin), USD. Returns are on this. */
+  peakInUseUsd?: number;
 }
 
 /**

@@ -212,11 +212,11 @@ function Run() {
     [s, events]
   );
 
-  if (!id) return <div className="p-10"><Empty title="No run selected" action={<Btn href="/app/runs">All runs</Btn>} /></div>;
+  if (!id) return <div className="p-10"><Empty title="No run selected" action={<Btn href="/app/portfolio">Portfolio</Btn>} /></div>;
   if (!s) {
     return (
       <div className="p-10">
-        {snap.error ? <Empty title="Couldn’t load this run" sub={snap.error.message} action={<Btn href="/app/runs">All runs</Btn>} /> : <div className="h-64 animate-pulse rounded-[12px] bg-paper-2" />}
+        {snap.error ? <Empty title="Couldn’t load this run" sub={snap.error.message} action={<Btn href="/app/portfolio">Portfolio</Btn>} /> : <div className="h-64 animate-pulse rounded-[12px] bg-paper-2" />}
       </div>
     );
   }
@@ -252,7 +252,7 @@ function Run() {
   return (
     <>
       <PageHeader
-        back={{ href: "/app/runs", label: "Runs" }}
+        back={{ href: "/app/portfolio", label: "Portfolio" }}
         title={d.strategy.name}
         sub={
           <span className="flex flex-wrap items-center gap-x-3 gap-y-1">
@@ -313,7 +313,11 @@ function Run() {
           </div>
         )}
         <div className={`grid grid-cols-2 gap-x-6 gap-y-5 border-y border-line py-5 sm:grid-cols-5 ${d.alertsOnly ? "hidden" : ""}`}>
-          <Stat label={s.positions.length ? "Put in" : "Budget"} value={fmtUsd(money.putIn, 2)} sub={s.positions.length ? `worth ${fmtUsd(money.worth, 2)} now` : undefined} />
+          <Stat
+            label={money.traded ? "Put in" : "Budget"}
+            value={fmtUsd(money.putIn, 2)}
+            sub={money.open ? `worth ${fmtUsd(money.worth, 2)} now` : money.traded ? `got back ${fmtUsd(money.worth, 2)}` : undefined}
+          />
           <Stat label="Return" value={fmtPct(money.returnPct)} tone={tone(money.returnPct)} sub={money.fees > 0 ? `after ${fmtUsd(money.fees, 2)} fees` : undefined} />
           <Stat label="Open profit" value={fmtUsd(s.unrealizedPnlUsd, 2)} tone={tone(s.unrealizedPnlUsd)} sub={s.positions.length ? fmtPct(money.openPct) : undefined} />
           <Stat label="Closed profit" value={fmtUsd(s.realizedPnlUsd, 2)} tone={tone(s.realizedPnlUsd)} />
