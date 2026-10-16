@@ -44,6 +44,8 @@ export interface SolanaLiveConfig {
   authorizationKey: string | null;
   /** Users who may trade before it's switched on for everyone (Privy DIDs or sign-in emails). */
   testers: string[];
+  /** Jupiter API key (portal.jup.ag): api.jup.ag with higher limits instead of the throttled lite-api. */
+  jupiterApiKey?: string | null;
 }
 
 export function solanaConfigFromEnv(env: NodeJS.ProcessEnv = process.env): SolanaLiveConfig {
@@ -61,6 +63,7 @@ export function solanaConfigFromEnv(env: NodeJS.ProcessEnv = process.env): Solan
     feeWallet,
     authorizationKey: env.PRIVY_AUTHORIZATION_KEY || null,
     testers: (env.WEFT_SOL_TESTERS ?? "").split(",").map((x) => x.trim()).filter(Boolean),
+    jupiterApiKey: env.JUPITER_API_KEY || null,
   };
 }
 
@@ -194,7 +197,12 @@ export class SolanaLive {
     this.accounts = accounts;
     this.api = api;
     this.conn = conn ?? new Connection(cfg.rpcUrl, "confirmed");
-    this.builder = new JupiterSwapBuilder({ platformFeeBps: 0 });
+    this.builder = this.swapBuilder({ platformFeeBps: 0 });
+  }
+
+  private swapBuilder(o: ConstructorParameters<typeof JupiterSwapBuilder>[0]): JupiterSwapBuilder {
+    const key = this.cfg.jupiterApiKey;
+    return new JupiterSwapBuilder(key ? { ...o, apiKey: key, baseUrl: "https://api.jup.ag/swap/v1" } : o);
   }
 
   /** The fee wallet's WSOL and USDC token accounts, when they exist (Jupiter fails on a missing one). */
@@ -214,7 +222,7 @@ export class SolanaLive {
     const feeAccounts = await this.feeAccounts();
     this.feeAccountsNow = feeAccounts;
     const on = Object.keys(feeAccounts).length > 0;
-    this.builder = new JupiterSwapBuilder({ platformFeeBps: on ? this.cfg.platformFeeBps : 0, feeAccounts });
+    this.builder = this.swapBuilder({ platformFeeBps: on ? this.cfg.platformFeeBps : 0, feeAccounts });
     this.executors.clear();
   }
 
@@ -375,7 +383,7 @@ export class SolanaLive {
     const builder =
       feeMultiplier === 1 || !Object.keys(this.feeAccountsNow).length
         ? this.builder
-        : new JupiterSwapBuilder({ platformFeeBps: Math.round(this.cfg.platformFeeBps * feeMultiplier), feeAccounts: this.feeAccountsNow });
+        : this.swapBuilder({ platformFeeBps: Math.round(this.cfg.platformFeeBps * feeMultiplier), feeAccounts: this.feeAccountsNow });
     const conn = this.conn;
     const rpc: JupiterRpc = {
       getAccountInfo: (k) => conn.getAccountInfo(k),
