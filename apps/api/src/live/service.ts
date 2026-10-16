@@ -35,8 +35,16 @@ export interface LiveConfig {
   network: "testnet" | "mainnet";
   /** Weft's builder address and fee (tenths of a bp). Null: no builder fee. */
   builder: { address: Hex; feeTenthsBps: number } | null;
-  maxAllocationUsd: number;
+  /** Optional ceiling per live run, USD. Null: none (people trade whatever amount they choose). */
+  maxAllocationUsd: number | null;
   maxLeverage: number;
+}
+
+/** A USD cap from the environment: unset, empty, "0" or "none" mean no cap. */
+export function capFromEnv(v: string | undefined): number | null {
+  if (v == null || v.trim() === "" || /^(0|none|off)$/i.test(v.trim())) return null;
+  const n = Number(v);
+  return Number.isFinite(n) && n > 0 ? n : null;
 }
 
 export function liveConfigFromEnv(env: NodeJS.ProcessEnv = process.env): LiveConfig {
@@ -47,7 +55,7 @@ export function liveConfigFromEnv(env: NodeJS.ProcessEnv = process.env): LiveCon
     enabled: env.WEFT_LIVE_ENABLED === "1",
     network: env.WEFT_HL_NETWORK === "mainnet" ? "mainnet" : "testnet",
     builder,
-    maxAllocationUsd: Number(env.WEFT_LIVE_MAX_ALLOCATION_USD ?? 100),
+    maxAllocationUsd: capFromEnv(env.WEFT_LIVE_MAX_ALLOCATION_USD),
     // Hyperliquid's own per-market maximum is enforced on every order; 50× is the highest it lists anywhere.
     maxLeverage: Number(env.WEFT_LIVE_MAX_LEVERAGE ?? 50),
   };
@@ -57,7 +65,7 @@ export const hlBaseUrl = (network: "testnet" | "mainnet") =>
   network === "mainnet" ? "https://api.hyperliquid.xyz" : "https://api.hyperliquid-testnet.xyz";
 
 export interface LiveStatus {
-  config: { enabled: boolean; network: "testnet" | "mainnet"; builder: string | null; builderFeeBps: number | null; maxAllocationUsd: number; maxLeverage: number };
+  config: { enabled: boolean; network: "testnet" | "mainnet"; builder: string | null; builderFeeBps: number | null; maxAllocationUsd: number | null; maxLeverage: number };
   account: LiveAccount | null;
   agentAddress: string | null;
   /** From Hyperliquid, when an account is linked. */
@@ -227,7 +235,7 @@ export class LiveService {
     if (!account || !account.agentApprovedAt) throw new Error("approve the Weft agent for your Hyperliquid account first");
     if (account.network !== this.cfg.network) throw new Error(`your linked account is on ${account.network}; this server trades on ${this.cfg.network}. Link it again.`);
     if (this.cfg.builder && !account.builderApprovedAt) throw new Error("approve the builder fee first");
-    if (allocationUsd > this.cfg.maxAllocationUsd) throw new Error(`live allocation is capped at $${this.cfg.maxAllocationUsd} for now`);
+    if (this.cfg.maxAllocationUsd != null && allocationUsd > this.cfg.maxAllocationUsd) throw new Error(`live allocation is capped at $${this.cfg.maxAllocationUsd} for now`);
     for (const a of strategy.actions) {
       if (a.type === "options") throw new Error("options can't trade live yet");
       if (a.type !== "open") continue;

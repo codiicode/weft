@@ -240,7 +240,7 @@ function OwnWallet({ s, refresh }: { s: LiveStatus; refresh: () => Promise<unkno
           </div>
           <dl className="mt-3 grid grid-cols-2 gap-y-2">
             <dt className="text-muted">Per live run</dt>
-            <dd className="tnum text-right">up to ${s.config.maxAllocationUsd.toLocaleString()}</dd>
+            <dd className="tnum text-right">{s.config.maxAllocationUsd != null ? `up to $${s.config.maxAllocationUsd.toLocaleString()}` : "any amount"}</dd>
             <dt className="text-muted">Leverage</dt>
             <dd className="text-right">each market’s max</dd>
             <dt className="text-muted">Markets</dt>

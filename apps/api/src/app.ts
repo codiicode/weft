@@ -474,9 +474,10 @@ export function createApp(deps: AppDeps) {
         } catch (e) {
           return c.json({ error: (e as Error).message }, 409);
         }
-        const total = deps.liveMaxTotalUsd ?? deps.solana.cfg.maxAllocationUsd * 5;
-        const open = await openLive();
-        if (open + body.allocationUsd > total)
+        const perRun = deps.solana.cfg.maxAllocationUsd;
+        const total = deps.liveMaxTotalUsd ?? (perRun != null ? perRun * 5 : null);
+        const open = total != null ? await openLive() : 0;
+        if (total != null && open + body.allocationUsd > total)
           return c.json({ error: `you already have $${open.toLocaleString()} live; the limit across all live runs is $${total.toLocaleString()}` }, 409);
         return create();
       }
@@ -498,11 +499,12 @@ export function createApp(deps: AppDeps) {
         return c.json({ error: (e as Error).message }, 409);
       }
       // A ceiling on everything this user has live at once, not just per run.
-      const total = deps.liveMaxTotalUsd ?? deps.live.cfg.maxAllocationUsd * 5;
+      const perRun = deps.live.cfg.maxAllocationUsd;
+      const total = deps.liveMaxTotalUsd ?? (perRun != null ? perRun * 5 : null);
       let open = 0;
       for (const d of await engine.listDeployments())
         if (d.mode === "live" && mine.has(d.id) && (d.status === "running" || d.status === "paused")) open += d.allocationUsd;
-      if (open + body.allocationUsd > total)
+      if (total != null && open + body.allocationUsd > total)
         return c.json({ error: `you already have $${open.toLocaleString()} live; the limit across all live runs is $${total.toLocaleString()}` }, 409);
       return create();
     });

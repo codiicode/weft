@@ -199,7 +199,7 @@ export default function SettingsPage() {
                   title={live.data?.ready ? "Ready" : "Not set up"}
                   sub={
                     live.data?.ready
-                      ? `Hyperliquid${live.data.config.network === "testnet" ? " testnet" : ""}, up to $${live.data.config.maxAllocationUsd.toLocaleString()} per run.`
+                      ? `Hyperliquid${live.data.config.network === "testnet" ? " testnet" : ""}${live.data.config.maxAllocationUsd != null ? `, up to $${live.data.config.maxAllocationUsd.toLocaleString()} per run` : ""}.`
                       : "Connect your Hyperliquid account to trade with real money."
                   }
                 >

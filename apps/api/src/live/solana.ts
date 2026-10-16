@@ -17,6 +17,7 @@ import {
 import type { Strategy } from "@weft/strategy";
 import type { Accounts } from "../lib/accounts.ts";
 import type { HolderDiscount, HolderStatus } from "./holders.ts";
+import { capFromEnv } from "./service.ts";
 
 /**
  * Live trading of Solana tokens, non-custodially.
@@ -35,7 +36,8 @@ export const SOLANA_POLICY_NAME = "weft-solana-swaps-v1";
 export interface SolanaLiveConfig {
   enabled: boolean;
   rpcUrl: string;
-  maxAllocationUsd: number;
+  /** Optional ceiling per run, USD. Null: none. */
+  maxAllocationUsd: number | null;
   /** Weft's platform fee, bps (charged only when fee accounts are configured). */
   platformFeeBps: number;
   /** Weft's fee wallet; its WSOL and USDC token accounts receive the platform fee. */
@@ -58,7 +60,7 @@ export function solanaConfigFromEnv(env: NodeJS.ProcessEnv = process.env): Solan
   return {
     enabled: env.WEFT_SOL_LIVE === "1",
     rpcUrl: env.SOLANA_RPC_URL || "https://api.mainnet-beta.solana.com",
-    maxAllocationUsd: Number(env.WEFT_SOL_MAX_ALLOCATION_USD ?? env.WEFT_LIVE_MAX_ALLOCATION_USD ?? 100),
+    maxAllocationUsd: capFromEnv(env.WEFT_SOL_MAX_ALLOCATION_USD ?? env.WEFT_LIVE_MAX_ALLOCATION_USD),
     platformFeeBps: Number(env.WEFT_SOL_FEE_BPS ?? 100),
     feeWallet,
     authorizationKey: env.PRIVY_AUTHORIZATION_KEY || null,
@@ -168,7 +170,8 @@ export interface SolanaStatus {
   balances: { sol: number | null; usdc: number | null; usd: number | null } | null;
   /** USD per SOL (Jupiter), for sizing in the UI. */
   solUsd: number | null;
-  maxAllocationUsd: number;
+  /** Optional ceiling per run, USD. Null: none. */
+  maxAllocationUsd: number | null;
   feeBps: number;
   /** $WEFT holder discount, when the token is live. */
   holder: HolderStatus | null;
@@ -349,7 +352,7 @@ export class SolanaLive {
   assertDeployable(userId: string, strategy: Strategy, allocationUsd: number, otherMints: Set<string> = new Set()) {
     if (!this.openFor(userId)) throw new Error("Solana trading isn’t switched on yet");
     if (!this.accounts.solanaAccount(userId)) throw new Error("set up your Solana trading wallet first");
-    if (allocationUsd > this.cfg.maxAllocationUsd) throw new Error(`Solana runs are capped at $${this.cfg.maxAllocationUsd} for now`);
+    if (this.cfg.maxAllocationUsd != null && allocationUsd > this.cfg.maxAllocationUsd) throw new Error(`Solana runs are capped at $${this.cfg.maxAllocationUsd} for now`);
     for (const a of strategy.actions) {
       if (a.type === "options") throw new Error("options can't trade live yet");
       if (a.type !== "open") continue;

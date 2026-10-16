@@ -70,9 +70,11 @@ const btcLong = defineStrategy({
 });
 
 describe("live trading", () => {
-  it("defaults to testnet, off, $100 cap", () => {
+  it("defaults to testnet, off, no allocation cap", () => {
     const c = liveConfigFromEnv({});
-    expect(c).toMatchObject({ enabled: false, network: "testnet", maxAllocationUsd: 100, maxLeverage: 50, builder: null });
+    expect(c).toMatchObject({ enabled: false, network: "testnet", maxAllocationUsd: null, maxLeverage: 50, builder: null });
+    expect(liveConfigFromEnv({ WEFT_LIVE_MAX_ALLOCATION_USD: "250" }).maxAllocationUsd).toBe(250);
+    expect(liveConfigFromEnv({ WEFT_LIVE_MAX_ALLOCATION_USD: "none" }).maxAllocationUsd).toBeNull();
     expect(liveConfigFromEnv({ WEFT_HL_NETWORK: "mainnet", WEFT_BUILDER_ADDRESS: "0xnope" }).builder).toBeNull();
   });
 
@@ -132,7 +134,11 @@ describe("live trading", () => {
     live.linkAccount("u1", userKey.address);
     accounts.markApproved("u1", "agent");
     expect(() => live.assertDeployable("u1", btcLong, 50, new Set())).not.toThrow();
-    expect(() => live.assertDeployable("u1", btcLong, 500, new Set())).toThrow(/capped at \$100/);
+    expect(() => live.assertDeployable("u1", btcLong, 50_000, new Set())).not.toThrow(); // any amount
+    const { live: small, accounts: smallAccounts } = setup({ maxAllocationUsd: 100 });
+    smallAccounts.setLiveAccount("u1", "testnet", "0x" + "1".repeat(40));
+    smallAccounts.markApproved("u1", "agent");
+    expect(() => small.assertDeployable("u1", btcLong, 500, new Set())).toThrow(/capped at \$100/); // a cap still works when set
     expect(() => live.assertDeployable("u1", btcLong, 50, new Set(["hl:perp:BTC"]))).toThrow(/already trades BTC/);
     const token = defineStrategy({ ...btcLong, actions: [{ id: "buy", type: "open", on: ["go"], instrument: { kind: "token", chain: "solana", mint: "JUPyiwrYJFskUPiHa7hkeR8VUtAeFoSYbKedZNsDvCN" }, side: "long", size: { unit: "usd", value: 10 }, exits: { stopLoss: { pct: 10 } } }] });
     expect(() => live.assertDeployable("u1", token, 50, new Set())).toThrow(/token instruments can't trade on Hyperliquid/);

@@ -212,7 +212,7 @@ export function HyperliquidWallet({ status, onChange, autoLink }: { status: Live
             <Pill tone={testnet ? "trigger" : "short"}>{testnet ? "Test money" : "Real money"}</Pill>
           </div>
           <p className="mt-2 text-[13px] leading-relaxed text-ink-2">
-            Perps and stocks, up to each market’s own max leverage. Up to ${status.config.maxAllocationUsd.toLocaleString()} per strategy while Weft is new.
+            Perps and stocks, up to each market’s own max leverage.{status.config.maxAllocationUsd != null ? ` Up to $${status.config.maxAllocationUsd.toLocaleString()} per strategy.` : ""}
           </p>
         </Card>
         <Card className="p-5">

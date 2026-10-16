@@ -109,7 +109,8 @@ export function DeployPanel({ strategy, strategyId, compact = false }: { strateg
   // Weft wallet approves in the background right here, an own wallet gets a clear one-step ask.
   const hl = useHlApprove(onSolana ? null : live.data, live.refresh);
   const loadingStatus = onSolana ? sol.loading && !sol.data : live.loading && !live.data;
-  const cap = (onSolana ? sol.data?.maxAllocationUsd : live.data?.config.maxAllocationUsd) ?? 1000;
+  // No cap unless the server sets one: people trade whatever amount they choose.
+  const cap = (onSolana ? sol.data?.maxAllocationUsd : live.data?.config.maxAllocationUsd) ?? null;
   const testnet = !onSolana && live.data?.config.network === "testnet";
   const available = onSolana ? null : hlFreeUsd(live.data?.venue);
   const solBalance = sol.data?.balances?.sol ?? null;
@@ -130,7 +131,8 @@ export function DeployPanel({ strategy, strategyId, compact = false }: { strateg
   const [error, setError] = useState<string | null>(null);
   const isLive = mode === "live";
   const alerts = useApi(signedIn && !isLive ? () => api.alertsMe() : null, [signedIn, isLive]);
-  const max = Math.max(10, Math.min(cap, available ?? cap));
+  const limit = Math.min(cap ?? Infinity, available ?? Infinity);
+  const max = Number.isFinite(limit) ? Math.max(10, limit) : Infinity;
   const now = useMemo(() => orderNow(strategy), [strategy]);
 
   const deploy = async () => {
@@ -254,12 +256,14 @@ export function DeployPanel({ strategy, strategyId, compact = false }: { strateg
                   className="tnum w-full bg-transparent pl-1 text-[15px] text-ink outline-none"
                   aria-label="Amount in USD"
                 />
-                <button type="button" onClick={() => setAllocation(Math.floor(max))} className="shrink-0 text-[12.5px] text-muted hover:text-ink">
-                  Max
-                </button>
+                {Number.isFinite(max) && (
+                  <button type="button" onClick={() => setAllocation(Math.floor(max))} className="shrink-0 text-[12.5px] text-muted hover:text-ink">
+                    Max
+                  </button>
+                )}
               </div>
               <span className="mt-1 block text-[12px] leading-relaxed text-faint">
-                The most this strategy can put into trades; nothing moves until a rule fires. Up to ${cap.toLocaleString("en-US")} while Weft is new.
+                The most this strategy can put into trades; nothing moves until a rule fires.{cap != null ? ` Up to $${cap.toLocaleString("en-US")} per strategy.` : ""}
               </span>
             </label>
             )}

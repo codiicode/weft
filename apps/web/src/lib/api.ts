@@ -209,7 +209,7 @@ export interface Me {
 }
 
 export interface LiveStatus {
-  config: { enabled: boolean; network: "testnet" | "mainnet"; builder: string | null; builderFeeBps: number | null; maxAllocationUsd: number; maxLeverage: number };
+  config: { enabled: boolean; network: "testnet" | "mainnet"; builder: string | null; builderFeeBps: number | null; maxAllocationUsd: number | null; maxLeverage: number };
   account: { userId: string; network: string; hlAddress: string; agentApprovedAt: number | null; builderApprovedAt: number | null } | null;
   agentAddress: string | null;
   venue: { accountValueUsd: number | null; withdrawableUsd: number | null; marginUsedUsd?: number | null; positionsWorthUsd?: number | null; agentApprovedOnVenue: boolean | null; builderMaxFeeTenthsBps: number | null } | null;
@@ -224,7 +224,7 @@ export interface SolanaStatus {
   wallet: { address: string; delegated: boolean } | null;
   balances: { sol: number | null; usdc: number | null; usd: number | null } | null;
   solUsd: number | null;
-  maxAllocationUsd: number;
+  maxAllocationUsd: number | null;
   feeBps: number;
   holder: { active: boolean; holds: number; minAmount: number; discount: number; feeMultiplier: number } | null;
   ready: boolean;
