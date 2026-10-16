@@ -2,6 +2,7 @@
 import Link from "next/link";
 import { AssetStack } from "@/components/ui/AssetIcon";
 import { strategyIcons } from "@/lib/assets";
+import { cardLine } from "@/lib/strategy-view";
 import { runMoney } from "@/lib/run-money";
 import type { Snapshot } from "@/lib/api";
 import { fmtUsd, fmtPct, ago } from "@/lib/use-api";
@@ -39,7 +40,7 @@ export function RunRow({ s }: { s: Snapshot }) {
         <AssetStack items={strategyIcons(d.strategy)} size={26} max={2} />
         <div className="min-w-0">
           <div className="truncate text-[14.5px] font-medium text-ink">{d.strategy.name}</div>
-          <div className="truncate text-[13px] text-muted">{d.strategy.thesis}</div>
+          <div className="truncate text-[13px] text-muted">{cardLine(d.strategy)}</div>
         </div>
       </div>
       <div className="hidden sm:block">
@@ -82,7 +83,7 @@ export function RunCard({ s }: { s: Snapshot }) {
           <AssetStack items={strategyIcons(d.strategy)} size={24} max={3} />
           <div className="truncate text-[16px] font-semibold tracking-[-0.015em] text-ink">{d.strategy.name}</div>
         </div>
-        <div className="mt-0.5 line-clamp-1 text-[13.5px] text-muted">{d.strategy.thesis}</div>
+        <div className="mt-0.5 line-clamp-1 text-[13.5px] text-muted">{cardLine(d.strategy)}</div>
         <div className="mt-4 flex items-end justify-between gap-3">
           <div>
             <div className={`tnum text-[22px] font-medium tracking-[-0.02em] ${money.returnPct === 0 ? "text-ink" : up ? "text-long" : "text-short"}`}>{fmtPct(money.returnPct)}</div>

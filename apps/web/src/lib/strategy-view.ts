@@ -366,7 +366,7 @@ export function describeStrategy(s: Strategy): { watches: string[]; watchKinds: 
     if (/^[a-z0-9]+(-[a-z0-9]+)+$/.test(q)) q = q.replaceAll("-", " ");
     return q.length > 34 ? `${q.slice(0, 32).replace(/[\s,:;·-]+\S*$/, "")}…` : q;
   };
-  const titles = new Map(s.signals.map((sig) => [sig.id, short(titleOf(sig))]));
+  const titles = new Map(s.signals.map((sig) => [sig.id, short(titleOf(sig)).replace(/ on-chain health$/i, "")]));
   const watchLabel = (sig: Signal) => {
     const t = short(titleOf(sig));
     if (sig.kind === "price" && !/price/i.test(t)) return `${t} price`;
@@ -425,13 +425,44 @@ export function describeStrategy(s: Strategy): { watches: string[]; watchKinds: 
         }
         return { text: `Send an alert: “${a.message}”`, tone: "alert" };
       });
+    // "price > 0" is how a "do it now" order is written: say so instead of showing the comparison.
+    const lines = c.lines.filter((l) => !/^[a-z][a-z0-9_]*\.price > 0$/.test(l.trim()));
     return {
       id: t.id,
       match: c.logic === "OR" ? "any" : "all",
-      when: c.lines.map((l) => humanize(l, titles)),
+      when: lines.length ? lines.map((l) => humanize(l, titles)) : ["Right away"],
       hold: t.forMinutes ? `for ${minutesLabel(t.forMinutes)}` : undefined,
       then,
     };
   });
   return { watches, watchKinds, rules };
+}
+
+/** Words of a sentence, for comparing a title with its thesis ("Buy 0.05 SOL of RAY" ≈ "Buy 0.05 sol of RAY now"). */
+const words = (t: string) =>
+  t
+    .toLowerCase()
+    .replace(/[$’'`".,!?:;()]/g, " ")
+    .split(/\s+/)
+    .filter((w) => w && !["now", "right", "away", "a", "the", "of", "with", "and"].includes(w));
+
+/**
+ * The line under a strategy's name on cards. The thesis, unless it just repeats the name (plain
+ * orders: "Buy 0.05 SOL of RAY" / "Buy 0.05 sol of RAY now"); then what the strategy does.
+ */
+export function thesisRepeatsName(s: Strategy): boolean {
+  const name = new Set(words(s.name));
+  const thesis = words(s.thesis);
+  return thesis.length === 0 || thesis.filter((w) => name.has(w)).length / thesis.length >= 0.75;
+}
+
+export function cardLine(s: Strategy): string {
+  if (!thesisRepeatsName(s)) return s.thesis;
+  const { rules } = describeStrategy(s);
+  const r = rules[0];
+  if (!r) return s.thesis;
+  const once = s.triggers.every((t) => t.maxFires === 1);
+  const when = r.when.length === 1 && r.when[0] === "Right away" ? "Right away" : `When ${r.when.join(r.match === "any" ? " or " : " and ")}`;
+  const exits = r.then.map((x) => x.text.split("; ")[1]).filter(Boolean)[0];
+  return `${when}${once ? ", once" : ""}${exits ? `, with a ${exits.replace(/^stop at /, "stop at ")}` : ", then holds until you change it"}.`;
 }

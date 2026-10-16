@@ -14,7 +14,7 @@ import { BacktestPanel } from "@/components/app/BacktestPanel";
 import { IconSend, IconCheck } from "@/components/graph/icons";
 
 const SUGGESTIONS = [
-  "Buy $BONK if it dips 10% and sentiment turns positive. 0.5 SOL, tight stop.",
+  "Buy $BONK with 0.1 SOL if it drops 10% in an hour, 20% stop.",
   "El Niño is coming. What's the trade?",
   "The Fed cuts in December and nobody's positioned for it.",
   "NVDA rallies into earnings. Be out before the report.",

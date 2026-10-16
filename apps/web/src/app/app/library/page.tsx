@@ -7,7 +7,11 @@ import { useMemo, useState } from "react";
 import { api } from "@/lib/api";
 import { useRequireAuth } from "@/lib/auth";
 import { useApi } from "@/lib/use-api";
-import { describeStrategy } from "@/lib/strategy-view";
+import { describeStrategy, thesisRepeatsName } from "@/lib/strategy-view";
+
+/** Tags as people write them. */
+const TAG_LABEL: Record<string, string> = { defi: "DeFi", "spot-buy": "Spot", memecoin: "Memecoins", stocks: "Stocks", earnings: "Earnings", options: "Options", events: "Events", solana: "Solana", macro: "Macro", perps: "Perps", predictions: "Predictions" };
+const tagLabel = (t: string) => TAG_LABEL[t.toLowerCase()] ?? t.replace(/-/g, " ").replace(/^./, (c) => c.toUpperCase());
 import { PageHeader, Btn, Empty } from "@/components/app/AppShell";
 import type { LibraryEntry } from "@/lib/api";
 
@@ -22,11 +26,17 @@ function Row({ e, onCopy }: { e: LibraryEntry; onCopy: () => void }) {
             {e.strategy.name}
           </Link>
         </div>
-        <p className="mt-0.5 line-clamp-1 text-[14px] text-muted">{e.strategy.thesis}</p>
+        {!thesisRepeatsName(e.strategy) && <p className="mt-0.5 line-clamp-1 text-[14px] text-muted">{e.strategy.thesis}</p>}
         {first && (
           <p className="mt-2 line-clamp-1 text-[13.5px] text-ink-2">
-            <span className="text-muted">When </span>
-            {first.when.join(first.match === "any" ? " or " : " and ")}
+            {first.when.length === 1 && first.when[0] === "Right away" ? (
+              <span className="text-muted">Right away</span>
+            ) : (
+              <>
+                <span className="text-muted">When </span>
+                {first.when.join(first.match === "any" ? " or " : " and ")}
+              </>
+            )}
             {first.then[0] && (
               <>
                 <span className="text-muted"> → </span>
@@ -55,9 +65,9 @@ export default function LibraryPage() {
   const [tag, setTag] = useState<string | null>(null);
   const [q, setQ] = useState("");
   const all = data?.strategies ?? [];
-  const tags = [...new Set(all.flatMap((e) => e.strategy.tags))].slice(0, 8);
+  const tags = [...new Set(all.flatMap((e) => e.strategy.tags.map((t) => t.toLowerCase())))].slice(0, 8);
   const list = all.filter(
-    (e) => (!tag || e.strategy.tags.includes(tag)) && (!q || `${e.strategy.name} ${e.strategy.thesis}`.toLowerCase().includes(q.toLowerCase())),
+    (e) => (!tag || e.strategy.tags.some((t) => t.toLowerCase() === tag)) && (!q || `${e.strategy.name} ${e.strategy.thesis}`.toLowerCase().includes(q.toLowerCase())),
   );
   const copy = async (id: string) => {
     if (!requireAuth()) return;
@@ -74,9 +84,9 @@ export default function LibraryPage() {
               <button
                 key={t ?? "all"}
                 onClick={() => setTag(t)}
-                className={`h-8 shrink-0 rounded-[8px] px-3 text-[13.5px] capitalize transition-colors ${tag === t ? "bg-paper-2 font-medium text-ink" : "text-muted hover:text-ink"}`}
+                className={`h-8 shrink-0 rounded-[8px] px-3 text-[13.5px] transition-colors ${tag === t ? "bg-paper-2 font-medium text-ink" : "text-muted hover:text-ink"}`}
               >
-                {t ?? "All"}
+                {t ? tagLabel(t) : "All"}
               </button>
             ))}
           </div>

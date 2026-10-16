@@ -2,6 +2,8 @@
 import { useState } from "react";
 import { AssetStack } from "@/components/ui/AssetIcon";
 import { strategyIcons } from "@/lib/assets";
+import { cardLine } from "@/lib/strategy-view";
+import { useTradingVenues } from "@/lib/trading";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { api } from "@/lib/api";
@@ -12,7 +14,7 @@ import { RunListHeader, RunRow } from "@/components/app/RunCard";
 import { IconSend } from "@/components/graph/icons";
 
 const IDEAS = [
-  "Buy $BONK if it dips 10% and sentiment turns positive",
+  "Buy $BONK with 0.1 SOL if it drops 10% in an hour",
   "Short SOL when funding gets crowded",
   "Long gold if real yields fall for a week",
 ];
@@ -36,6 +38,9 @@ export default function Home() {
   const auth = useAuth();
   const runs = useApi(() => api.deployments(), [auth.authenticated], { pollMs: 8_000 });
   const lib = useApi(() => api.strategies(), []);
+  const venues = useTradingVenues();
+  // Popular: strategies that can actually trade (none built on data Weft only simulates).
+  const popular = !venues ? [] : (lib.data?.strategies ?? []).filter((e) => !e.strategy.signals.some((sig) => venues?.simulated?.includes(sig.kind)));
   const alerts = useApi(auth.enabled && !auth.authenticated ? null : () => api.alerts(), [auth.authenticated], { pollMs: 30_000 });
   const go = (t: string) => router.push(`/app/new?go=1&thesis=${encodeURIComponent(t)}`);
   const list = runs.data?.deployments ?? [];
@@ -103,11 +108,11 @@ export default function Home() {
         )}
       </section>
 
-      {lib.data?.strategies.length ? (
+      {popular.length ? (
         <section className="mt-14">
           <SectionHead title="Popular strategies" href="/app/library" link="See all" />
           <div className="grid gap-3 md:grid-cols-3">
-            {lib.data.strategies.slice(0, 3).map((e) => (
+            {popular.slice(0, 3).map((e) => (
               <Link
                 key={e.id}
                 href={`/app/strategy?id=${encodeURIComponent(e.id)}`}
@@ -115,7 +120,7 @@ export default function Home() {
               >
                 <AssetStack items={strategyIcons(e.strategy)} size={26} max={3} />
                 <div className="mt-3 text-[14.5px] font-medium text-ink">{e.strategy.name}</div>
-                <div className="mt-1 line-clamp-2 text-[13.5px] leading-relaxed text-muted">{e.strategy.thesis}</div>
+                <div className="mt-1 line-clamp-2 text-[13.5px] leading-relaxed text-muted">{cardLine(e.strategy)}</div>
               </Link>
             ))}
           </div>

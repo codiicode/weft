@@ -6,14 +6,14 @@ export function ideasFor(r: MarketListing): string[] {
   switch (r.product) {
     case "tokens":
       return [
-        `Buy $${name} when it dips 10% and sentiment turns bullish, 0.5 SOL, stop −20%`,
-        `Buy $${name} if mentions on X double in an hour and the dev wallet hasn't sold`,
+        `Buy $${name} with 0.1 SOL if it drops 10% in an hour, 20% stop`,
+        `Buy $${name} if its 24h volume passes $5M and liquidity stays above $500k`,
         `Sell my $${name} if liquidity drops 30% in a day`,
       ];
     case "predictions":
       return [
         `Buy ${r.label} under 40¢ if the odds move 10 points our way`,
-        `Buy ${r.label} if our model disagrees with the market by 10+ points`,
+        `Buy ${r.label} if the odds jump 10 points in a day`,
         `Sell ${r.label} if the price jumps 15¢ in an hour`,
       ];
     case "options":
@@ -28,7 +28,7 @@ export function ideasFor(r: MarketListing): string[] {
       return [
         `${name} breakout: long 2× on a 3% move up with a trailing stop`,
         `Short ${name} when funding stays above 0.05% an hour for 8 hours`,
-        `Buy ${name} if it drops 6% in a day and sentiment turns positive`,
+        `Buy ${name} if it drops 6% in a day, take profit at +8%`,
       ];
   }
 }
