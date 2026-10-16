@@ -284,7 +284,7 @@ export function AgentDemo() {
         <div className="flex min-h-[72px] flex-wrap items-center justify-between gap-3 border-t border-line px-4 py-4 sm:px-6">
           <AnimatePresence mode="wait">
             <motion.div
-              key={filled ? "filled" : watching ? "waiting" : "idle"}
+              key={filled ? "filled" : met ? "met" : watching ? "waiting" : "idle"}
               initial={{ opacity: 0, y: 6 }}
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: -4 }}
@@ -308,7 +308,7 @@ export function AgentDemo() {
                   </span>
                   <div>
                     <div className="text-[15px] font-medium text-ink">{watching ? (met ? "Both conditions true: buying" : "Waiting: 1 of 2 conditions true") : "No trade yet"}</div>
-                    <div className="text-[13px] text-muted">{watching ? "ETH is still under $2,600. Weft doesn’t guess, it waits." : "Nothing trades until every rule is true."}</div>
+                    <div className="text-[13px] text-muted">{met ? "ETH broke $2,600 with funding still low. Sending the order…" : watching ? "ETH is still under $2,600. Weft doesn’t guess, it waits." : "Nothing trades until every rule is true."}</div>
                   </div>
                 </>
               )}
