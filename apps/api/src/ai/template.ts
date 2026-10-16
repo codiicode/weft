@@ -1,5 +1,5 @@
 import { validateStrategy, type Instrument, type StrategyInput } from "@weft/strategy";
-import { crowdedFade, elNino, fedPivot } from "@weft/strategy/examples";
+import { crowdedFade, fedPivot } from "@weft/strategy/examples";
 import type { Catalog, MarketListing } from "@weft/venues";
 import type { GenerateResult } from "./generate.ts";
 
@@ -268,10 +268,6 @@ export async function templateStrategy(thesis: string, catalog: Catalog): Promis
 
     if (/\boption|call spread|put spread|\bcalls?\b|\bputs?\b/i.test(t) && major) {
       s = await optionsStrategy(thesis, major, catalog);
-    } else if (/el ni[nñ]o|la ni[nñ]a|weather|drought|harvest|wheat|crop/i.test(t)) {
-      const r = await predictionSwap(elNino as StrategyInput, catalog, "el nino");
-      notes.push(...r.notes);
-      s = { ...r.s, thesis };
     } else if (/\bfed\b|fomc|rate cut|rates|powell|cpi|inflation/i.test(t)) {
       const r = await predictionSwap(fedPivot as StrategyInput, catalog, "fed");
       notes.push(...r.notes);

@@ -82,7 +82,7 @@ describe("generateStrategy with Claude", () => {
       { stop_reason: "end_turn", content: [{ type: "text", text: "Here is my plan…", citations: null } as unknown as Anthropic.Beta.BetaContentBlock] },
       { stop_reason: "tool_use", content: [toolUse("t1", "submit_strategy", { strategy: examples[0], rationale: "ok" })] },
     ]);
-    const r = await generateStrategy("El Niño", { catalog, client });
+    const r = await generateStrategy("ETH breakout", { catalog, client });
     expect(r.source).toBe("claude");
     expect(requests[1]!.messages.at(-1)).toEqual({ role: "user", content: "Please call submit_strategy with the complete strategy." });
   });
@@ -95,7 +95,7 @@ describe("generateStrategy with Claude", () => {
 
 describe("refine by rules (offline)", async () => {
   const { refineByRules } = await import("../src/ai/refine.ts");
-  const { pumpMomentum, elNino } = await import("@weft/strategy/examples");
+  const { pumpMomentum, crowdedFade } = await import("@weft/strategy/examples");
   it("changes stop, target, size and leverage from plain words", () => {
     const r = refineByRules(pumpMomentum, "stop at 8% and take profit at 25%, use 2 SOL");
     const buy = r.strategy.actions.find((a) => a.type === "open")!;
@@ -103,7 +103,7 @@ describe("refine by rules (offline)", async () => {
     expect(buy.type === "open" && buy.exits.takeProfit).toEqual({ positionPct: 25 });
     expect(buy.type === "open" && buy.size).toEqual({ unit: "native", value: 2 });
     expect(r.rationale).toMatch(/stop-loss set to 8%/);
-    const lev = refineByRules(elNino, "go 3x on the perps");
+    const lev = refineByRules(crowdedFade, "go 3x on the perps");
     expect(lev.strategy.actions.filter((a) => a.type === "open" && a.instrument.kind === "perp").every((a) => a.type === "open" && a.leverage === 3)).toBe(true);
   });
   it("tightens stops without a number, and refuses what it can't do", () => {

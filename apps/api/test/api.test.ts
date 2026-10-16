@@ -77,7 +77,7 @@ describe("template generator", () => {
   });
 
   it("always returns a valid strategy", async () => {
-    for (const t of ["", "hello world", "short ETH if funding is crowded", "El Niño is coming"]) {
+    for (const t of ["", "hello world", "short ETH if funding is crowded", "long ETH 20x if it breaks 2600"]) {
       const r = await templateStrategy(t || "x y z", fakeCatalog);
       expect(r.strategy.schemaVersion).toBe(1);
     }

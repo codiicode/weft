@@ -66,7 +66,7 @@ export function Markets() {
       layout="stack"
       label="Markets"
       title="What it can trade"
-      lead="One strategy can watch a weather forecast and trade commodities, or watch X and buy a memecoin. Weft picks where to trade."
+      lead="One strategy can watch funding and open a 20× ETH long, or watch a token’s price and liquidity and buy the dip. Weft picks where to trade."
     >
       <div className="grid gap-10 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)] lg:gap-14">
         <ul ref={listRef} className="border-t border-line" onMouseEnter={() => setPaused(true)} onMouseLeave={() => setPaused(false)}>

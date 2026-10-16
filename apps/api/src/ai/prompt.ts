@@ -1,5 +1,5 @@
 import { SIGNAL_KINDS, SIGNAL_KIND_NAMES, type SignalKind } from "@weft/strategy";
-import { elNino, pumpMomentum, fedPivot } from "@weft/strategy/examples";
+import { ethBreakout, pumpMomentum, fedPivot } from "@weft/strategy/examples";
 
 /**
  * The system prompt is generated from the schema registry so it can never
@@ -16,7 +16,7 @@ const PARAM_HINTS: Record<SignalKind, string> = {
   social: '{ cashtags?: string[], keywords?: string[], accounts?: string[] }  (at least one; cashtags without "$")',
   post_match: "{ accounts: string[], claim: string, contradiction?: string }",
   news: "{ query: string }",
-  forecast: '{ source: "noaa_cpc", series: "nino34_anomaly" }  (other series return no data yet)',
+  forecast: "{ source, series }  (no forecast series are available yet: don't use this kind)",
   model: "{ question: string, instrument?: outcome }",
   calendar: '{ event: "earnings"|"fomc"|"cpi"|"custom", symbol?: string, at?: ISO datetime (required for custom) }',
   macro: '{ series: string }  (e.g. "USDBRL", "US2Y")',
@@ -89,7 +89,7 @@ Strategy document: { "schemaVersion": 1, "id", "name", "thesis" (the user's word
 
 Example (memecoin): ${strip(pumpMomentum)}
 
-Example (weather + commodities + predictions): ${strip(elNino)}
+Example (perps breakout with leverage and a stop on the position): ${strip(ethBreakout)}
 
 Example (macro + prediction + perps): ${strip(fedPivot)}
 

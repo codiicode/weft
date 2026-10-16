@@ -2,6 +2,9 @@ import { DatabaseSync } from "node:sqlite";
 import { validateStrategy, type Strategy } from "@weft/strategy";
 import { examples } from "@weft/strategy/examples";
 
+/** Seeded examples that were removed from the code. */
+const RETIRED_EXAMPLES = ["el-nino-harvest"];
+
 /** Public strategy library: saved, shareable, forkable strategy documents. */
 
 export interface LibraryEntry {
@@ -36,6 +39,10 @@ export class StrategyLibrary {
     if (count === 0) {
       examples.forEach((s) => this.save(s, { author: "" }));
     } else {
+      // Examples taken out of the code leave the library too (only the seeded originals, never copies).
+      for (const id of RETIRED_EXAMPLES) this.db.prepare("DELETE FROM strategies WHERE id = ? AND forked_from IS NULL").run(id);
+      // New examples join an existing library.
+      for (const ex of examples) if (!this.get(ex.id)) this.save(ex, { author: "" });
       // Keep seeded examples' wording in step with the code (instruments may have been resolved since).
       const upd = this.db.prepare("UPDATE strategies SET doc = ?, updated_at = ? WHERE id = ? AND forked_from IS NULL");
       for (const ex of examples) {

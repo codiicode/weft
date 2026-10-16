@@ -14,11 +14,11 @@ import { BacktestPanel } from "@/components/app/BacktestPanel";
 import { IconSend, IconCheck } from "@/components/graph/icons";
 
 const SUGGESTIONS = [
+  "Open a 20x ETH long with $50 if ETH breaks $2,600 and funding stays under 0.01% an hour. 20% stop.",
+  "Long BTC 10x with $100 if it drops 5% in a day. Take profit at 30%, stop at 20%.",
+  "Short SOL 5x with $50 when funding stays above 0.05% an hour for 8 hours.",
   "Buy $BONK with 0.1 SOL if it drops 10% in an hour, 20% stop.",
-  "El Niño is coming. What's the trade?",
-  "The Fed cuts in December and nobody's positioned for it.",
   "NVDA rallies into earnings. Be out before the report.",
-  "SOL longs are too crowded. Fade them.",
 ];
 
 /** "Half the size" as an instruction the offline editor also understands. */

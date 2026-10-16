@@ -12,92 +12,43 @@ import type { Strategy } from "../strategy.ts";
 export const PUMP_MINT = "PumpExampLeMint11111111111111111111111111111";
 export const NVDAX_MINT = "NVDAxExampLeMint1111111111111111111111111111";
 
-/** Weather → commodity perps (HIP-3) + prediction-market mispricing. */
-export const elNino = defineStrategy({
+/** Perps: a 20× ETH breakout while funding is still cheap (the crowd isn't long yet). */
+export const ethBreakout = defineStrategy({
   schemaVersion: 1,
-  id: "el-nino-harvest",
-  name: "El Niño Harvest",
-  thesis: "El Niño is coming — what's the trade?",
-  tags: ["weather", "commodities", "predictions"],
+  id: "eth-breakout-20x",
+  name: "ETH Breakout 20×",
+  thesis: "Open a 20× ETH long if ETH breaks $2,600 while funding stays under 0.01% an hour.",
+  tags: ["perps", "breakout"],
+  risk: { maxLeverage: 20 },
   signals: [
-    { id: "nino", kind: "forecast", label: "ENSO outlook", params: { source: "noaa_cpc", series: "nino34_anomaly" } },
-    { id: "nino_odds", kind: "odds", label: "El Niño by winter?", params: { instrument: { kind: "outcome", venue: "hyperliquid", market: "elnino-djf-2026", outcome: "YES", question: "El Niño by winter?" } } },
-    { id: "nino_model", kind: "model", params: { question: "Will NOAA declare El Niño conditions for DJF 2026–27?" } },
-    { id: "copper", kind: "price", label: "COPPER (HIP-3)", params: { instrument: { kind: "perp", venue: "hyperliquid", dex: "xyz", symbol: "COPPER", assetClass: "commodity" } } },
-    { id: "natgas", kind: "price", label: "NATGAS (HIP-3)", params: { instrument: { kind: "perp", venue: "hyperliquid", dex: "xyz", symbol: "NATGAS", assetClass: "commodity" } } },
-    { id: "desks", kind: "social", label: "Weather & mining desks", params: { keywords: ["El Niño", "Peru floods", "mild winter"] } },
+    { id: "eth_px", kind: "price", params: { instrument: { kind: "perp", venue: "hyperliquid", symbol: "ETH" } } },
+    { id: "eth_funding", kind: "funding", params: { instrument: { kind: "perp", venue: "hyperliquid", symbol: "ETH" } } },
   ],
   triggers: [
     {
-      id: "enso_mispriced",
-      label: "ENSO strong & market lagging",
+      id: "breakout",
       when: {
         op: "and",
         args: [
-          { op: "gt", left: { ref: "nino.value" }, right: { value: 1.5 } },
-          { op: "gt", left: { op: "sub", args: [{ ref: "nino_model.prob" }, { ref: "nino_odds.prob" }] }, right: { value: 0.15 } },
+          { op: "gt", left: { ref: "eth_px.price" }, right: { value: 2600 } },
+          { op: "lt", left: { ref: "eth_funding.rate_1h_pct" }, right: { value: 0.01 } },
         ],
       },
+      maxFires: 1,
     },
-    {
-      id: "supply_shock",
-      label: "Andean mining disruption",
-      when: {
-        op: "and",
-        args: [
-          { op: "gt", left: { ref: "nino.value" }, right: { value: 1.5 } },
-          { op: "gt", left: { ref: "copper.change_24h_pct" }, right: { value: 0 } },
-        ],
-      },
-      forMinutes: 60,
-    },
-    {
-      id: "mild_winter",
-      label: "Mild northern winter priced in",
-      when: {
-        op: "and",
-        args: [
-          { op: "gt", left: { ref: "nino.value" }, right: { value: 1.5 } },
-          { op: "lt", left: { ref: "natgas.change_24h_pct" }, right: { value: 0 } },
-          { op: "gt", left: { ref: "desks.sentiment" }, right: { value: 0.2 } },
-        ],
-      },
-      forMinutes: 60,
-    },
-    { id: "enso_fades", when: { op: "lt", left: { ref: "nino.value" }, right: { value: 0.5 } } },
   ],
   actions: [
     {
-      id: "buy_yes",
+      id: "long_eth",
       type: "open",
-      on: ["enso_mispriced"],
-      instrument: { kind: "outcome", venue: "hyperliquid", market: "elnino-djf-2026", outcome: "YES" },
+      on: ["breakout"],
+      instrument: { kind: "perp", venue: "hyperliquid", symbol: "ETH" },
       side: "long",
-      size: { unit: "pct_equity", value: 8 },
-      order: { maxSlippageBps: 800 },
-      exits: { takeProfit: { prob: 0.92 }, stopLoss: { prob: 0.45 } },
+      size: { unit: "usd", value: 50 },
+      leverage: 20,
+      reentry: "never",
+      exits: { stopLoss: { positionPct: 20 }, takeProfit: { positionPct: 50 } },
     },
-    {
-      id: "long_copper",
-      type: "open",
-      on: ["supply_shock"],
-      instrument: { kind: "perp", venue: "hyperliquid", dex: "xyz", symbol: "COPPER", assetClass: "commodity" },
-      side: "long",
-      size: { unit: "pct_equity", value: 10 },
-      leverage: 2,
-      exits: { takeProfit: { pct: 12 }, stopLoss: { pct: 5 } },
-    },
-    {
-      id: "short_natgas",
-      type: "open",
-      on: ["mild_winter"],
-      instrument: { kind: "perp", venue: "hyperliquid", dex: "xyz", symbol: "NATGAS", assetClass: "commodity" },
-      side: "short",
-      size: { unit: "pct_equity", value: 6 },
-      leverage: 2,
-      exits: { takeProfit: { pct: 15 }, stopLoss: { pct: 6 } },
-    },
-    { id: "exit_all", type: "close", on: ["enso_fades"], target: "all" },
   ],
 });
 
@@ -314,4 +265,4 @@ export const nvdaxEarnings = defineStrategy({
   ],
 });
 
-export const examples: Strategy[] = [elNino, pumpMomentum, fedPivot, crowdedFade, ethCallSpread, nvdaxEarnings];
+export const examples: Strategy[] = [ethBreakout, pumpMomentum, fedPivot, crowdedFade, ethCallSpread, nvdaxEarnings];

@@ -15,9 +15,9 @@ import { RunListHeader, RunRow } from "@/components/app/RunCard";
 import { IconSend } from "@/components/graph/icons";
 
 const IDEAS = [
+  "Open a 20x ETH long if ETH breaks $2,600 and funding stays low",
+  "Long BTC 10x with $100 if it drops 5% in a day",
   "Buy $BONK with 0.1 SOL if it drops 10% in an hour",
-  "Short SOL when funding gets crowded",
-  "Long gold if real yields fall for a week",
 ];
 
 function SectionHead({ title, href, link }: { title: string; href?: string; link?: string }) {

@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { z } from "zod";
-import { examples } from "../src/examples/index.ts";
+import { crowdedFade, ethBreakout, examples } from "../src/examples/index.ts";
 import { Strategy, semanticIssues, toGraph, validateStrategy } from "../src/index.ts";
 
 describe("examples", () => {
@@ -25,14 +25,13 @@ describe("examples", () => {
   });
 
   it("projects to a graph with edges derived from refs and `on`", () => {
-    const g = toGraph(examples[0]!);
-    expect(g.nodes.filter((n) => n.kind === "signal")).toHaveLength(6);
-    expect(g.edges).toContainEqual(["nino", "enso_mispriced"]);
-    expect(g.edges).toContainEqual(["nino_model", "enso_mispriced"]);
-    expect(g.edges).toContainEqual(["supply_shock", "long_copper"]);
-    expect(g.nodes.find((n) => n.id === "exit_all")?.kind).toBe("exit");
-    const trig = g.nodes.find((n) => n.id === "enso_mispriced");
-    expect(trig).toMatchObject({ kind: "trigger", logic: "AND", lines: ["nino.value > 1.5", "(nino_model.prob − nino_odds.prob) > 0.15"] });
+    const g = toGraph(ethBreakout);
+    expect(g.nodes.filter((n) => n.kind === "signal")).toHaveLength(2);
+    expect(g.edges).toContainEqual(["eth_px", "breakout"]);
+    expect(g.edges).toContainEqual(["eth_funding", "breakout"]);
+    expect(g.edges).toContainEqual(["breakout", "long_eth"]);
+    expect(g.nodes.find((n) => n.id === "breakout")).toMatchObject({ kind: "trigger", logic: "AND", lines: ["eth_px.price > 2600", "eth_funding.rate_1h_pct < 0.01"] });
+    expect(toGraph(crowdedFade).nodes.find((n) => n.id === "exit_sol")?.kind).toBe("exit");
   });
 
   it("exports a JSON Schema for structured LLM output", () => {
