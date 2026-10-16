@@ -62,6 +62,8 @@ export interface AppDeps {
   allowPaper?: boolean;
   /** Live Solana token trading (the user's own Privy wallet, Weft as a limited signer). */
   solana?: SolanaLive;
+  /** Called after an owner changes a run's exits (venue-side stops re-sync right away). */
+  onExitsChanged?: () => void;
   /** Gas-free Hyperliquid deposits: USDC on Arbitrum → permit → Weft's relayer → Hyperliquid bridge. */
   deposits?: HlDeposits;
   /** Records Hyperliquid trades for second-level charts. */
@@ -561,8 +563,30 @@ export function createApp(deps: AppDeps) {
     }
   });
 
-  /** Plans waiting for the owner's confirmation (10 minutes). */
-  const plans = new Map<string, { userId: string; deploymentId: string; steps: Step[]; expires: number }>();
+  /**
+   * Plans waiting for the owner's confirmation (10 minutes). Kept in the accounts database when
+   * there is one, so a server restart between Review and Confirm doesn't lose them.
+   */
+  type Plan = { userId: string; deploymentId: string; steps: Step[]; expires: number };
+  const memPlans = new Map<string, Plan>();
+  const plans = {
+    get(id: string): Plan | undefined {
+      if (!accounts) return memPlans.get(id);
+      const raw = accounts.kvGet(`plan:${id}`);
+      return raw ? (JSON.parse(raw) as Plan) : undefined;
+    },
+    set(id: string, p: Plan) {
+      if (accounts) accounts.kvSet(`plan:${id}`, JSON.stringify(p));
+      else memPlans.set(id, p);
+    },
+    delete(id: string) {
+      if (accounts) accounts.kvSet(`plan:${id}`, "");
+      memPlans.delete(id);
+    },
+    sweep() {
+      for (const [k, p] of memPlans) if (p.expires < Date.now()) memPlans.delete(k);
+    },
+  };
 
   /** Turn a plain instruction into reviewable steps (nothing happens yet). */
   app.post("/deployments/:id/instruct", async (c) => {
@@ -602,7 +626,7 @@ export function createApp(deps: AppDeps) {
       }
     }
     const planId = crypto.randomUUID();
-    for (const [k, p] of plans) if (p.expires < Date.now()) plans.delete(k);
+    plans.sweep();
     plans.set(planId, { userId: user.id, deploymentId: id, steps, expires: Date.now() + 10 * 60_000 });
     return c.json({ planId, steps: steps.map((s) => ({ kind: s.kind, label: s.label })), rationale });
   });
@@ -620,9 +644,11 @@ export function createApp(deps: AppDeps) {
           const ok = await engine.closePosition!(id, s.positionId, s.fraction);
           done.push(ok ? s.label : `${s.label}: didn’t fill`);
         } else if (s.kind === "exits") {
-          await engine.setExits!(id, s.patch, s.positionIds);
+          const changed = await engine.setExits!(id, s.patch, s.positionIds);
           const cur = await engine.getSnapshot(id);
           if (cur) await engine.updateStrategy!(id, withExits(cur.deployment.strategy, s.patch));
+          console.log(`[instruct ${id.slice(0, 8)}] ${s.label} (${changed} position${changed === 1 ? "" : "s"}): ${JSON.stringify(s.patch)}`);
+          deps.onExitsChanged?.();
           done.push(s.label);
         } else {
           await engine.updateStrategy!(id, s.strategy);

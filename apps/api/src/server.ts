@@ -170,6 +170,7 @@ const app = createApp({
   live: live ?? undefined,
   solana: solana ?? undefined,
   deposits: deposits ?? undefined,
+  onExitsChanged: () => nativeStops?.poke(500),
   telegram: telegram ?? undefined,
   webOrigins: process.env.WEB_ORIGINS ? process.env.WEB_ORIGINS.split(",").map((o) => o.trim()).filter(Boolean) : undefined,
   liveMaxTotalUsd: process.env.WEFT_LIVE_MAX_TOTAL_USD ? Number(process.env.WEFT_LIVE_MAX_TOTAL_USD) : undefined,
