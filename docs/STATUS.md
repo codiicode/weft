@@ -68,7 +68,11 @@ is Weft's revenue. Holding $WEFT halves the fee: set `WEFT_TOKEN_MINT` and `WEFT
 launch (`WEFT_HOLDER_DISCOUNT`, default 0.5); holdings are read on-chain from the user's trading wallet
 and Solana wallets linked to their Privy account. Not built yet: the buyback job and its public ledger.
 
-## Solana live (built 2026-10-15, off until tested)
+## Solana live (open to everyone since 2026-10-16)
+
+Verified with real money on mainnet: buy, sell, the 1% fee into the fee wallet (WSOL/USDC accounts created with
+`scripts/fee-accounts.mjs`), and closing emptied token accounts (rent back to the user; one-off cleanup with
+`apps/api/scripts/close-empty-accounts.ts`). Swaps and token data use `JUPITER_API_KEY` (api.jup.ag).
 
 Users get a Weft trading wallet on Solana: a Privy embedded wallet they own and can export. They add Weft
 as a limited signer (a Privy key quorum + policy that only allows the swap programs); every Jupiter swap is
@@ -98,8 +102,8 @@ tokens out by hand.
 3. **Solana indexer** (Helius / Birdeye / GMGN): `dev_sold_pct`, `lp_locked` and smart-wallet buys need one.
    Until then unknown dev selling defaults to 0 (permissive). Set `devSoldPctWhenUnknown: 100` in
    `createVenues()` to fail closed instead.
-4. **Private Solana RPC + Jupiter API key**: the public endpoints throttle hard.
-5. **Turnkey account** for the Solana policy wallet; then verify `packages/execution/docs/turnkey-policy.md`.
+4. ~~Private Solana RPC + Jupiter API key~~: done (Helius, Jupiter free key; upgrade the plan if `[jupiter] rate limited` shows in logs).
+5. ~~Turnkey account~~: not needed, Solana signing goes through Privy with a swap-only policy.
 6. **Hyperliquid builder address** (`WEFT_BUILDER_ADDRESS`, needs ≥100 USDC in perps on that network) and fee
    rate (default 5 bps), and the token-side platform fee (default 50 bps).
 7. **Legal review** before any live trading or the token launch (automated trading for others + fee buybacks).
