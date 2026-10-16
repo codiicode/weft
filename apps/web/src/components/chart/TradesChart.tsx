@@ -55,7 +55,7 @@ export function TradesChart({ instruments, fills, startedAt }: { instruments: In
           <span className="inline-flex items-center gap-1.5"><span className="text-long">▲</span> Bought{buys ? ` · ${buys}` : ""}</span>
           <span className="inline-flex items-center gap-1.5"><span className="text-short">▼</span> Sold{sells ? ` · ${sells}` : ""}</span>
           {key && (
-            <Link href={`/app/market?key=${encodeURIComponent(key)}`} className="text-ink-2 hover:text-ink">
+            <Link href={`/market?key=${encodeURIComponent(key)}`} className="text-ink-2 hover:text-ink">
               Open market →
             </Link>
           )}

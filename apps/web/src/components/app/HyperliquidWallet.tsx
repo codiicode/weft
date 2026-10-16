@@ -200,8 +200,8 @@ export function HyperliquidWallet({ status, onChange, autoLink }: { status: Live
             </ul>
           )}
           <div className="mt-3 flex gap-2">
-            <Btn href="/app/new" variant="ghost">New strategy</Btn>
-            <Btn href="/app/markets" variant="ghost">Browse markets</Btn>
+            <Btn href="/new" variant="ghost">New strategy</Btn>
+            <Btn href="/markets" variant="ghost">Browse markets</Btn>
           </div>
         </Step>
       </div>

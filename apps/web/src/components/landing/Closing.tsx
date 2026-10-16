@@ -47,7 +47,7 @@ export function Closing() {
     return () => ro.disconnect();
   }, []);
   const go = (t: string) => {
-    window.location.href = `/app/new?thesis=${encodeURIComponent(t)}`;
+    window.location.href = `/new?thesis=${encodeURIComponent(t)}`;
   };
   return (
     <section ref={sec} className="relative overflow-hidden border-t border-line">

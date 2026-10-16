@@ -52,7 +52,7 @@ const CARDS: Card[] = [
 function StrategyCard({ c }: { c: Card }) {
   return (
     <a
-      href={`/app/new?thesis=${encodeURIComponent(c.thesis)}`}
+      href={`/new?thesis=${encodeURIComponent(c.thesis)}`}
       className="group flex flex-col rounded-[14px] border border-line bg-card p-6 transition-[border-color,transform] duration-300 hover:-translate-y-0.5 hover:border-line-2"
     >
       <div className="text-[13px] text-muted">{c.tag}</div>
@@ -92,7 +92,7 @@ export function Strategies() {
         ))}
       </div>
       <div className="mt-8 flex flex-wrap items-center gap-4">
-        <a href="/app/library" className={buttonClass("secondary", "md")}>
+        <a href="/strategies" className={buttonClass("secondary", "md")}>
           Browse all strategies
         </a>
         <span className="text-[13px] text-muted">Examples to start from, not advice. Charts show each market’s real price.</span>

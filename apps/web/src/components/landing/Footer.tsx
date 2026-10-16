@@ -2,7 +2,7 @@ import { Logo } from "../ui/Logo";
 import { brand } from "@/config/brand";
 
 const cols: [string, [string, string][]][] = [
-  ["Product", [["Open app", "/app"], ["Strategies", "/app/library"], ["Markets", "/app/markets"], ["Live trading", "/app/live"]]],
+  ["Product", [["Open app", "/home"], ["Strategies", "/strategies"], ["Markets", "/markets"], ["Live trading", "/accounts"]]],
   ["Learn", [["How it works", "#work"], ["Safety", "#safety"], ["Token", "#token"], ["Questions", "#faq"]]],
   ["Follow", [["X", brand.socials.x], ["Telegram", brand.socials.telegram], ["GitHub", brand.socials.github]]],
 ];

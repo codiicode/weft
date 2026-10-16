@@ -150,7 +150,7 @@ export function DeployPanel({ strategy, strategyId, compact = false }: { strateg
         intervalSec: interval,
         ...(isLive ? { mode: "live", allocationUsd: autoBudget ?? Math.min(allocation, max), confirm: "GO LIVE" } : { mode: "paper", alertsOnly: true, allocationUsd: 1000 }),
       });
-      router.push(`/app/run?id=${encodeURIComponent(rec.id)}`);
+      router.push(`/run?id=${encodeURIComponent(rec.id)}`);
     } catch (e) {
       setError(e instanceof ApiError && e.issues?.length ? e.issues.map((i) => `${i.path}: ${i.message}`).join("\n") : (e as Error).message);
       setBusy(false);
@@ -199,7 +199,7 @@ export function DeployPanel({ strategy, strategyId, compact = false }: { strateg
                 </Btn>
               )
             ) : (
-              <Link href="/app/live" className="mt-3 inline-flex h-9 items-center rounded-[10px] bg-ink px-3.5 text-[14px] font-medium text-paper hover:bg-ink/85">
+              <Link href="/accounts" className="mt-3 inline-flex h-9 items-center rounded-[10px] bg-ink px-3.5 text-[14px] font-medium text-paper hover:bg-ink/85">
                 Approve in Trading accounts
               </Link>
             )}
@@ -212,7 +212,7 @@ export function DeployPanel({ strategy, strategyId, compact = false }: { strateg
                 ? "Create your wallet, allow Weft to swap from it, and add some SOL. About a minute."
                 : "Weft makes you a wallet. Send it USDC and you’re ready to trade. About a minute."}
             </p>
-            <Link href={onSolana ? "/app/live?venue=solana" : "/app/live"} className="mt-3 inline-flex h-9 items-center rounded-[10px] bg-ink px-3.5 text-[14px] font-medium text-paper hover:bg-ink/85">
+            <Link href={onSolana ? "/accounts?venue=solana" : "/accounts"} className="mt-3 inline-flex h-9 items-center rounded-[10px] bg-ink px-3.5 text-[14px] font-medium text-paper hover:bg-ink/85">
               Set up trading
             </Link>
           </div>
@@ -279,7 +279,7 @@ export function DeployPanel({ strategy, strategyId, compact = false }: { strateg
           {signedIn && alerts.data && !alerts.data.telegram && (
             <>
               {" "}
-              <Link href="/app/settings" className={link}>
+              <Link href="/settings" className={link}>
                 Connect Telegram
               </Link>{" "}
               to get them on your phone.

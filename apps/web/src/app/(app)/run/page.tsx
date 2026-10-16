@@ -212,11 +212,11 @@ function Run() {
     [s, events]
   );
 
-  if (!id) return <div className="p-10"><Empty title="No run selected" action={<Btn href="/app/portfolio">Portfolio</Btn>} /></div>;
+  if (!id) return <div className="p-10"><Empty title="No run selected" action={<Btn href="/portfolio">Portfolio</Btn>} /></div>;
   if (!s) {
     return (
       <div className="p-10">
-        {snap.error ? <Empty title="Couldn’t load this run" sub={snap.error.message} action={<Btn href="/app/portfolio">Portfolio</Btn>} /> : <div className="h-64 animate-pulse rounded-[12px] bg-paper-2" />}
+        {snap.error ? <Empty title="Couldn’t load this run" sub={snap.error.message} action={<Btn href="/portfolio">Portfolio</Btn>} /> : <div className="h-64 animate-pulse rounded-[12px] bg-paper-2" />}
       </div>
     );
   }
@@ -252,7 +252,7 @@ function Run() {
   return (
     <>
       <PageHeader
-        back={{ href: "/app/portfolio", label: "Portfolio" }}
+        back={{ href: "/portfolio", label: "Portfolio" }}
         title={d.strategy.name}
         sub={
           <span className="flex flex-wrap items-center gap-x-3 gap-y-1">
@@ -263,7 +263,7 @@ function Run() {
         }
         actions={
           <>
-            <Btn variant="quiet" href={`/app/new?from=${encodeURIComponent(`run:${d.id}`)}`}>
+            <Btn variant="quiet" href={`/new?from=${encodeURIComponent(`run:${d.id}`)}`}>
               Edit a copy
             </Btn>
             {(status === "running" || status === "paused") && (
@@ -297,7 +297,7 @@ function Run() {
         {d.mode === "paper" && !d.alertsOnly && (
           <div className="rounded-[12px] border border-line bg-card px-4 py-3 text-[14px] text-ink-2">
             A paper run from before Weft traded with real money. Its history stays here.{" "}
-            <Link href={`/app/new?from=${encodeURIComponent(`run:${d.id}`)}`} className="text-ink underline decoration-line-2 underline-offset-4 hover:decoration-ink">
+            <Link href={`/new?from=${encodeURIComponent(`run:${d.id}`)}`} className="text-ink underline decoration-line-2 underline-offset-4 hover:decoration-ink">
               Start this strategy for real
             </Link>
           </div>
@@ -307,7 +307,7 @@ function Run() {
         {d.alertsOnly && (
           <div className="rounded-[12px] border border-line bg-card px-4 py-3 text-[14px] text-ink-2">
             Alerts only. This run never trades: when a rule would buy or sell, you get a message instead.{" "}
-            <Link href="/app/settings" className="text-ink underline decoration-line-2 underline-offset-4 hover:decoration-ink">
+            <Link href="/settings" className="text-ink underline decoration-line-2 underline-offset-4 hover:decoration-ink">
               Alert settings
             </Link>
           </div>

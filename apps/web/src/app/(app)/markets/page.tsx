@@ -92,7 +92,7 @@ function Markets() {
     } catch {
       // storage off: the page fetches it instead
     }
-    router.push(`/app/market?key=${encodeURIComponent(r.instrumentKey)}`);
+    router.push(`/market?key=${encodeURIComponent(r.instrumentKey)}`);
   };
   const cols = useMemo(() => {
     const has = (k: keyof MarketListing) => rows.some((r) => r[k] != null);
@@ -108,7 +108,7 @@ function Markets() {
             {PRODUCTS.map((p) => (
               <button
                 key={p.id}
-                onClick={() => router.replace(`/app/markets?p=${p.id}`)}
+                onClick={() => router.replace(`/markets?p=${p.id}`)}
                 className={`relative h-8 shrink-0 rounded-[8px] px-3 text-[13.5px] ${product === p.id ? "font-medium text-ink" : "text-muted hover:text-ink"}`}
               >
                 {product === p.id && <motion.span layoutId="mk-tab" className="absolute inset-0 rounded-[8px] bg-paper-2" transition={{ type: "spring", stiffness: 420, damping: 34 }} />}
@@ -178,7 +178,7 @@ function Markets() {
                         <div className="flex items-center gap-2.5">
                           <AssetIcon {...instrumentIcon(r.instrument, r.meta)} size={22} />
                           <Link
-                            href={`/app/market?key=${encodeURIComponent(r.instrumentKey)}`}
+                            href={`/market?key=${encodeURIComponent(r.instrumentKey)}`}
                             onClick={(e) => {
                               e.preventDefault();
                               e.stopPropagation();

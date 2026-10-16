@@ -26,7 +26,7 @@ export default function LeaderboardPage() {
           <Empty
             title="No shared results yet"
             sub="Running a strategy? Share its return from the run’s page and it shows up here."
-            action={<Btn href="/app/new">New strategy</Btn>}
+            action={<Btn href="/new">New strategy</Btn>}
           />
         ) : (
           <Card className="overflow-hidden">
@@ -66,7 +66,7 @@ export default function LeaderboardPage() {
                       <td className="whitespace-nowrap px-3 py-3.5 text-right text-[13px] text-muted">{ago(r.since).replace(" ago", "")}</td>
                       <td className="px-5 py-3.5 text-right">
                         {r.strategy && (
-                          <Link href={`/app/new?from=${encodeURIComponent(`shared:${r.deploymentId}`)}`} className="whitespace-nowrap text-[13.5px] font-medium text-ink hover:underline">
+                          <Link href={`/new?from=${encodeURIComponent(`shared:${r.deploymentId}`)}`} className="whitespace-nowrap text-[13.5px] font-medium text-ink hover:underline">
                             Copy →
                           </Link>
                         )}

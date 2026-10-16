@@ -22,7 +22,7 @@ function Row({ e, onCopy }: { e: LibraryEntry; onCopy: () => void }) {
       <div className="min-w-0">
         <div className="flex items-center gap-2.5">
           <AssetStack items={strategyIcons(e.strategy)} size={24} max={3} />
-          <Link href={`/app/strategy?id=${encodeURIComponent(e.id)}`} className="text-[15.5px] font-medium text-ink after:absolute after:inset-0">
+          <Link href={`/strategy?id=${encodeURIComponent(e.id)}`} className="text-[15.5px] font-medium text-ink after:absolute after:inset-0">
             {e.strategy.name}
           </Link>
         </div>
@@ -50,7 +50,7 @@ function Row({ e, onCopy }: { e: LibraryEntry; onCopy: () => void }) {
         <span className="hidden whitespace-nowrap sm:inline">
           {e.forks ? `${e.forks} ${e.forks === 1 ? "copy" : "copies"}` : ""}
         </span>
-        <Btn variant="ghost" href={`/app/new?from=${encodeURIComponent(e.id)}`}>
+        <Btn variant="ghost" href={`/new?from=${encodeURIComponent(e.id)}`}>
           Edit a copy
         </Btn>
       </div>
@@ -72,7 +72,7 @@ export default function LibraryPage() {
   const copy = async (id: string) => {
     if (!requireAuth()) return;
     const f = await api.fork(id);
-    router.push(`/app/strategy?id=${encodeURIComponent(f.id)}`);
+    router.push(`/strategy?id=${encodeURIComponent(f.id)}`);
   };
   return (
     <>
@@ -103,7 +103,7 @@ export default function LibraryPage() {
         ) : loading && !all.length ? (
           <div className="h-80 animate-pulse rounded-[12px] bg-paper-2" />
         ) : !list.length ? (
-          <Empty title="Nothing matches" sub="Try another filter, or write your own." action={<Btn href="/app/new">New strategy</Btn>} />
+          <Empty title="Nothing matches" sub="Try another filter, or write your own." action={<Btn href="/new">New strategy</Btn>} />
         ) : (
           <ul className="divide-y divide-line overflow-hidden rounded-[12px] border border-line bg-card">
             {list.map((e) => (

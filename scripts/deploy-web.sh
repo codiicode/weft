@@ -24,6 +24,17 @@ cat > "$TMP/vercel.json" <<'JSON'
   "installCommand": "echo skip",
   "outputDirectory": ".",
   "cleanUrls": true,
+  "redirects": [
+    { "source": "/app", "destination": "/home", "permanent": false },
+    { "source": "/app/library", "destination": "/strategies", "permanent": false },
+    { "source": "/app/live", "destination": "/accounts", "permanent": false },
+    { "source": "/app/earnings", "destination": "/revenue", "permanent": false },
+    { "source": "/app/runs", "destination": "/portfolio", "permanent": false },
+    { "source": "/app/:path*", "destination": "/:path*", "permanent": false },
+    { "source": "/library", "destination": "/strategies", "permanent": false },
+    { "source": "/live", "destination": "/accounts", "permanent": false },
+    { "source": "/runs", "destination": "/portfolio", "permanent": false }
+  ],
   "trailingSlash": false,
   "headers": [
     { "source": "/_next/static/(.*)", "headers": [{ "key": "Cache-Control", "value": "public, max-age=31536000, immutable" }] },

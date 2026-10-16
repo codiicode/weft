@@ -19,7 +19,7 @@ export function Hero() {
             Say what you think will happen. Weft turns it into rules you can read, tests them on real history, and trades them from your own wallet.
           </p>
           <div className="enter flex shrink-0 flex-wrap items-center gap-2" style={{ animationDelay: "340ms" }}>
-            <Button href="/app/new" size="lg">
+            <Button href="/new" size="lg">
               Start trading
             </Button>
             <Button href="#work" size="lg" variant="quiet">

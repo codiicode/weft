@@ -148,8 +148,8 @@ export function SolanaSetup() {
             </ul>
           )}
           <div className="mt-3 flex gap-2">
-            <Btn href="/app/markets?p=tokens" variant="ghost">Browse tokens</Btn>
-            <Btn href="/app/new" variant="ghost">New strategy</Btn>
+            <Btn href="/markets?p=tokens" variant="ghost">Browse tokens</Btn>
+            <Btn href="/new" variant="ghost">New strategy</Btn>
           </div>
         </Step>
       </div>

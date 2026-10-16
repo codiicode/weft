@@ -52,7 +52,7 @@ export function Toasts() {
               <div className="flex items-center gap-2 text-[12.5px]">
                 <span className="h-1.5 w-1.5 rounded-full" style={{ background: color }} />
                 <span className="font-medium text-ink-2">{label}</span>
-                <Link href={`/app/run?id=${encodeURIComponent(e.deploymentId)}`} className="ml-auto text-muted hover:text-ink">
+                <Link href={`/run?id=${encodeURIComponent(e.deploymentId)}`} className="ml-auto text-muted hover:text-ink">
                   Open →
                 </Link>
               </div>

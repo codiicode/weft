@@ -169,7 +169,7 @@ function Builder() {
                 setChangeNote(null);
                 setThesis("");
                 setEditing(false);
-                window.history.replaceState(null, "", "/app/new");
+                window.history.replaceState(null, "", "/new");
               }}
             >
               Start over
@@ -365,7 +365,7 @@ function Builder() {
                 <div className="text-[15px] font-semibold tracking-[-0.015em] text-ink">Share it</div>
                 <p className="mt-1 text-[13.5px] leading-relaxed text-muted">Others can read and copy the rules. Your wallet and amounts stay private.</p>
                 {saved ? (
-                  <Link href={`/app/strategy?id=${encodeURIComponent(saved)}`} className="mt-3 inline-flex items-center gap-1.5 text-[14px] font-medium text-long">
+                  <Link href={`/strategy?id=${encodeURIComponent(saved)}`} className="mt-3 inline-flex items-center gap-1.5 text-[14px] font-medium text-long">
                     <IconCheck size={14} /> Published. View it →
                   </Link>
                 ) : (

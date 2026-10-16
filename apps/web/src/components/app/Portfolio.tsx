@@ -47,7 +47,7 @@ export function Portfolio({ runs, onChange }: { runs: Snapshot[]; onChange: () =
             <div className="flex justify-between gap-3">
               <dt className="text-muted">Hyperliquid{testnet ? " (testnet)" : ""}</dt>
               <dd className="tnum text-ink-2">
-                {hlFree != null ? fmtUsd(hlFree, 2) : <Link href="/app/live" className="text-ink underline decoration-line-2 underline-offset-4">Connect</Link>}
+                {hlFree != null ? fmtUsd(hlFree, 2) : <Link href="/accounts" className="text-ink underline decoration-line-2 underline-offset-4">Connect</Link>}
               </dd>
             </div>
             <div className="flex justify-between gap-3">
@@ -59,14 +59,14 @@ export function Portfolio({ runs, onChange }: { runs: Snapshot[]; onChange: () =
                     {sol.data?.balances?.sol != null && <span className="text-faint"> · {sol.data.balances.sol.toFixed(3)} SOL</span>}
                   </>
                 ) : (
-                  <Link href="/app/live?venue=solana" className="text-ink underline decoration-line-2 underline-offset-4">Set up</Link>
+                  <Link href="/accounts?venue=solana" className="text-ink underline decoration-line-2 underline-offset-4">Set up</Link>
                 )}
               </dd>
             </div>
           </dl>
           <div className="mt-3 flex gap-4 text-[12.5px]">
-            <Link href="/app/live" className="font-medium text-ink underline decoration-line-2 underline-offset-4 hover:decoration-ink">Add money</Link>
-            <Link href="/app/live" className="font-medium text-ink underline decoration-line-2 underline-offset-4 hover:decoration-ink">Withdraw</Link>
+            <Link href="/accounts" className="font-medium text-ink underline decoration-line-2 underline-offset-4 hover:decoration-ink">Add money</Link>
+            <Link href="/accounts" className="font-medium text-ink underline decoration-line-2 underline-offset-4 hover:decoration-ink">Withdraw</Link>
           </div>
         </div>
         <div className="bg-card p-5">
@@ -95,7 +95,7 @@ export function Portfolio({ runs, onChange }: { runs: Snapshot[]; onChange: () =
             {positions.map(({ p, run }) => (
               <li key={p.id} className="flex items-center gap-3 px-4 py-3">
                 <AssetIcon {...instrumentIcon(p.instrument)} size={26} />
-                <Link href={`/app/run?id=${encodeURIComponent(run.deployment.id)}`} className="min-w-0 flex-1">
+                <Link href={`/run?id=${encodeURIComponent(run.deployment.id)}`} className="min-w-0 flex-1">
                   <div className="truncate text-[14px] font-medium text-ink">
                     {instrumentLabel(p.instrument)}
                     {p.leverage > 1 && <span className="ml-1.5 text-[12px] font-normal text-muted">{p.leverage}×</span>}
@@ -142,7 +142,7 @@ export function Portfolio({ runs, onChange }: { runs: Snapshot[]; onChange: () =
                               {p.side === "short" && <span className="ml-1.5 text-[12px] font-normal text-short">short</span>}
                               {p.leverage > 1 && <span className="ml-1.5 text-[12px] font-normal text-muted">{p.leverage}×</span>}
                             </div>
-                            <Link href={`/app/run?id=${encodeURIComponent(run.deployment.id)}`} className="block truncate text-[12px] text-muted hover:text-ink">
+                            <Link href={`/run?id=${encodeURIComponent(run.deployment.id)}`} className="block truncate text-[12px] text-muted hover:text-ink">
                               {run.deployment.strategy.name}
                             </Link>
                           </div>

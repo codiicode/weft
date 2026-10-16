@@ -12,18 +12,18 @@ import { CommandPalette } from "./CommandPalette";
 import { Toasts } from "./Toasts";
 
 const NAV = [
-  { href: "/app", label: "Home", icon: "M3.5 9 10 4l6.5 5v7a.5.5 0 0 1-.5.5h-3.5V12h-5v4.5H4a.5.5 0 0 1-.5-.5z" },
-  // Also lit on a single run's page (/app/run?id=…).
-  { href: "/app/portfolio", label: "Portfolio", icon: "M10 3.5a6.5 6.5 0 1 0 6.5 6.5H10zM12.5 2.8v4.7h4.7a6.5 6.5 0 0 0-4.7-4.7z", also: ["/app/run"] },
-  { href: "/app/library", label: "Strategies", icon: "M4 4.5h12M4 10h12M4 15.5h7" },
-  { href: "/app/markets", label: "Markets", icon: "M3.5 14.5 8 9.5l3 3 5.5-6.5" },
-  { href: "/app/leaderboard", label: "Leaderboard", icon: "M5 16V10M10 16V4.5M15 16v-4" },
+  { href: "/home", label: "Home", icon: "M3.5 9 10 4l6.5 5v7a.5.5 0 0 1-.5.5h-3.5V12h-5v4.5H4a.5.5 0 0 1-.5-.5z" },
+  // Also lit on a single run's page (/run?id=…).
+  { href: "/portfolio", label: "Portfolio", icon: "M10 3.5a6.5 6.5 0 1 0 6.5 6.5H10zM12.5 2.8v4.7h4.7a6.5 6.5 0 0 0-4.7-4.7z", also: ["/run"] },
+  { href: "/strategies", label: "Strategies", icon: "M4 4.5h12M4 10h12M4 15.5h7" },
+  { href: "/markets", label: "Markets", icon: "M3.5 14.5 8 9.5l3 3 5.5-6.5" },
+  { href: "/leaderboard", label: "Leaderboard", icon: "M5 16V10M10 16V4.5M15 16v-4" },
 ];
 const ACCOUNT_NAV = [
-  { href: "/app/live", label: "Trading accounts", icon: "M10.5 3 5 11h4.5l-1 6 5.5-8H9.5z" },
-  { href: "/app/settings", label: "Settings", icon: "M10 12.5a2.5 2.5 0 1 0 0-5 2.5 2.5 0 0 0 0 5zM16 10l1.5-1-1.5-2.6-1.7.4a6 6 0 0 0-1.3-.8L12.5 4h-3l-.5 2a6 6 0 0 0-1.3.8L6 6.4 4.5 9 6 10l-1.5 1L6 13.6l1.7-.4c.4.3.8.6 1.3.8l.5 2h3l.5-2c.5-.2.9-.5 1.3-.8l1.7.4L17.5 11z" },
+  { href: "/accounts", label: "Trading accounts", icon: "M10.5 3 5 11h4.5l-1 6 5.5-8H9.5z" },
+  { href: "/settings", label: "Settings", icon: "M10 12.5a2.5 2.5 0 1 0 0-5 2.5 2.5 0 0 0 0 5zM16 10l1.5-1-1.5-2.6-1.7.4a6 6 0 0 0-1.3-.8L12.5 4h-3l-.5 2a6 6 0 0 0-1.3.8L6 6.4 4.5 9 6 10l-1.5 1L6 13.6l1.7-.4c.4.3.8.6 1.3.8l.5 2h3l.5-2c.5-.2.9-.5 1.3-.8l1.7.4L17.5 11z" },
 ];
-const MOBILE_NAV = [NAV[0]!, NAV[1]!, { href: "/app/new", label: "New", icon: "M10 4.5v11M4.5 10h11" }, NAV[2]!];
+const MOBILE_NAV = [NAV[0]!, NAV[1]!, { href: "/new", label: "New", icon: "M10 4.5v11M4.5 10h11" }, NAV[2]!];
 const MORE_NAV = [NAV[3]!, NAV[4]!, ...ACCOUNT_NAV];
 
 function NavIcon({ d }: { d: string }) {
@@ -121,7 +121,7 @@ function AdminNav({ active }: { active: (href: string) => boolean }) {
   const auth = useAuth();
   const me = useApi(auth.enabled && auth.authenticated ? () => api.me() : null, [auth.authenticated]);
   if (!me.data?.isAdmin) return null;
-  const n = { href: "/app/revenue", label: "Revenue", icon: "M10 3v14M13.5 6H8.25a2.25 2.25 0 0 0 0 4.5h3.5a2.25 2.25 0 0 1 0 4.5H6" };
+  const n = { href: "/revenue", label: "Revenue", icon: "M10 3v14M13.5 6H8.25a2.25 2.25 0 0 0 0 4.5h3.5a2.25 2.25 0 0 1 0 4.5H6" };
   return <NavLink n={n} active={active(n.href)} />;
 }
 
@@ -130,7 +130,7 @@ export function AppShell({ children }: { children: ReactNode }) {
   const [more, setMore] = useState(false);
   const appOpen = APP_OPEN;
   const active = (href: string) => {
-    if (href === "/app") return path === "/app" || path === "/app/";
+    if (href === "/home") return path === "/home" || path === "/home/";
     const n = [...NAV, ...ACCOUNT_NAV].find((x) => x.href === href) as { also?: string[] } | undefined;
     return path.startsWith(href) || (n?.also ?? []).some((a) => path === a || path === `${a}/`);
   };
@@ -141,7 +141,7 @@ export function AppShell({ children }: { children: ReactNode }) {
         <Link href="/" className="px-2.5" aria-label="Weft home">
           <Logo />
         </Link>
-        <Link href="/app/new" className="mx-0.5 mt-6 flex h-9 items-center justify-center gap-2 rounded-[10px] bg-ink text-[14px] font-medium text-paper transition-opacity hover:opacity-85">
+        <Link href="/new" className="mx-0.5 mt-6 flex h-9 items-center justify-center gap-2 rounded-[10px] bg-ink text-[14px] font-medium text-paper transition-opacity hover:opacity-85">
           <NavIcon d="M10 4.5v11M4.5 10h11" /> New strategy
         </Link>
         <button
@@ -175,7 +175,7 @@ export function AppShell({ children }: { children: ReactNode }) {
 
       {/* Mobile top bar */}
       <header className="sticky top-0 z-40 flex h-14 items-center justify-between border-b border-line bg-paper/90 px-4 backdrop-blur-md lg:hidden">
-        <Link href="/app" aria-label="Weft app">
+        <Link href="/home" aria-label="Weft app">
           <Logo />
         </Link>
         <div className="flex items-center gap-1">

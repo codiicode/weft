@@ -32,7 +32,7 @@ export default function PortfolioPage() {
         ) : !runs.length && auth.enabled && !auth.authenticated ? (
           <Empty title="Sign in to see your portfolio" sub="Your money, positions and strategies belong to your account, so they follow you to any device." action={<Btn onClick={auth.login}>Sign in</Btn>} />
         ) : !runs.length ? (
-          <Empty title="Nothing running yet" sub="Write a thesis or start from a strategy someone else made." action={<Btn href="/app/new">Write a thesis</Btn>} />
+          <Empty title="Nothing running yet" sub="Write a thesis or start from a strategy someone else made." action={<Btn href="/new">Write a thesis</Btn>} />
         ) : (
           <>
             <Portfolio runs={runs} onChange={() => void refresh()} />

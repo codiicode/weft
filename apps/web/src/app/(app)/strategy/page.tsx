@@ -18,18 +18,18 @@ function StrategyView() {
   const [view, setView] = useState<"rules" | "graph" | "json">("rules");
   const requireAuth = useRequireAuth();
   const [copied, setCopied] = useState(false);
-  if (!id) return <div className="p-10"><Empty title="No strategy selected" action={<Btn href="/app/library">Browse strategies</Btn>} /></div>;
+  if (!id) return <div className="p-10"><Empty title="No strategy selected" action={<Btn href="/strategies">Browse strategies</Btn>} /></div>;
   if (!e)
     return (
       <div className="p-10">
-        {error ? <Empty title="Strategy not found" sub="It may have been removed." action={<Btn href="/app/library">Browse strategies</Btn>} /> : <div className="h-72 animate-pulse rounded-[12px] bg-paper-2" />}
+        {error ? <Empty title="Strategy not found" sub="It may have been removed." action={<Btn href="/strategies">Browse strategies</Btn>} /> : <div className="h-72 animate-pulse rounded-[12px] bg-paper-2" />}
       </div>
     );
   const s = e.strategy;
   return (
     <>
       <PageHeader
-        back={{ href: "/app/library", label: "Strategies" }}
+        back={{ href: "/strategies", label: "Strategies" }}
         title={s.name}
         sub={s.thesis}
         actions={
@@ -47,7 +47,7 @@ function StrategyView() {
               {copied ? "Link copied" : "Share"}
             </Btn>
 
-            <Btn variant="ghost" href={`/app/new?from=${encodeURIComponent(e.id)}`}>
+            <Btn variant="ghost" href={`/new?from=${encodeURIComponent(e.id)}`}>
               Edit a copy
             </Btn>
           </>
@@ -103,7 +103,7 @@ function StrategyView() {
                 <div className="flex justify-between gap-4">
                   <dt className="text-muted">Based on</dt>
                   <dd className="truncate">
-                    <Link href={`/app/strategy?id=${encodeURIComponent(e.forkedFrom)}`} className="text-ink underline decoration-line-2 underline-offset-4 hover:decoration-ink">
+                    <Link href={`/strategy?id=${encodeURIComponent(e.forkedFrom)}`} className="text-ink underline decoration-line-2 underline-offset-4 hover:decoration-ink">
                       {e.forkedFrom}
                     </Link>
                   </dd>

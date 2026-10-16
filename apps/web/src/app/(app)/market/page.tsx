@@ -95,7 +95,7 @@ function IdeasCard({ row }: { row: MarketListing }) {
       <ul className="mt-3 divide-y divide-line">
         {ideas.map((t) => (
           <li key={t}>
-            <Link href={`/app/new?go=1&thesis=${encodeURIComponent(t)}`} className="group flex items-start justify-between gap-3 py-3 text-[13.5px] leading-snug text-ink-2 hover:text-ink">
+            <Link href={`/new?go=1&thesis=${encodeURIComponent(t)}`} className="group flex items-start justify-between gap-3 py-3 text-[13.5px] leading-snug text-ink-2 hover:text-ink">
               <span>{t}</span>
               <span className="mt-px text-faint transition-transform duration-200 group-hover:translate-x-0.5 group-hover:text-ink">→</span>
             </Link>
@@ -103,7 +103,7 @@ function IdeasCard({ row }: { row: MarketListing }) {
         ))}
       </ul>
       <Link
-        href={`/app/new?thesis=${encodeURIComponent(`${row.label.replace(/^\$/, "")} `)}`}
+        href={`/new?thesis=${encodeURIComponent(`${row.label.replace(/^\$/, "")} `)}`}
         className="mt-2 inline-flex h-9 w-full items-center justify-center rounded-[10px] bg-ink text-[14px] font-medium text-paper transition-colors hover:bg-ink/85"
       >
         Write your own
@@ -147,8 +147,8 @@ function Market() {
     };
   }, [instrumentJson, isPerp]);
 
-  if (!key) return <div className="px-5 pt-10 lg:px-10"><Empty title="No market picked" sub="Choose one from the markets list." action={<Link href="/app/markets" className="text-[14px] font-medium text-ink underline">Markets</Link>} /></div>;
-  if (!row && fetched.error) return <div className="px-5 pt-10 lg:px-10"><Empty title="Market not found" sub="It may have closed or been delisted." action={<Link href="/app/markets" className="text-[14px] font-medium text-ink underline">Back to markets</Link>} /></div>;
+  if (!key) return <div className="px-5 pt-10 lg:px-10"><Empty title="No market picked" sub="Choose one from the markets list." action={<Link href="/markets" className="text-[14px] font-medium text-ink underline">Markets</Link>} /></div>;
+  if (!row && fetched.error) return <div className="px-5 pt-10 lg:px-10"><Empty title="Market not found" sub="It may have closed or been delisted." action={<Link href="/markets" className="text-[14px] font-medium text-ink underline">Back to markets</Link>} /></div>;
 
   const stats: [string, string, string?][] = [];
   if (row) {
@@ -165,7 +165,7 @@ function Market() {
 
   return (
     <div className="px-5 pb-20 pt-6 lg:px-10 lg:pt-8">
-      <Link href={`/app/markets${row ? `?p=${row.product}` : ""}`} className="text-[13.5px] text-muted hover:text-ink">
+      <Link href={`/markets${row ? `?p=${row.product}` : ""}`} className="text-[13.5px] text-muted hover:text-ink">
         ← {row ? PRODUCT_LABEL[row.product] ?? "Markets" : "Markets"}
       </Link>
 

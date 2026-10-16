@@ -43,7 +43,7 @@ export default function Home() {
   // Popular: strategies that can actually trade live (same check as the start button).
   const popular = !venues ? [] : (lib.data?.strategies ?? []).filter((e) => liveBlocker(e.strategy, venues) == null);
   const alerts = useApi(auth.enabled && !auth.authenticated ? null : () => api.alerts(), [auth.authenticated], { pollMs: 30_000 });
-  const go = (t: string) => router.push(`/app/new?go=1&thesis=${encodeURIComponent(t)}`);
+  const go = (t: string) => router.push(`/new?go=1&thesis=${encodeURIComponent(t)}`);
   const list = runs.data?.deployments ?? [];
 
   return (
@@ -76,7 +76,7 @@ export default function Home() {
       </div>
 
       <section className="mt-14">
-        <SectionHead title="Your strategies" href={list.length ? "/app/portfolio" : undefined} link="View all" />
+        <SectionHead title="Your strategies" href={list.length ? "/portfolio" : undefined} link="View all" />
         {runs.error ? (
           <Card className="px-5 py-8 text-center text-[14px] text-muted">Can’t reach the Weft server right now. Your runs will show up when it’s back.</Card>
         ) : !runs.data ? (
@@ -101,7 +101,7 @@ export default function Home() {
                 Sign in
               </Btn>
             ) : (
-              <Btn href="/app/library" variant="ghost">
+              <Btn href="/strategies" variant="ghost">
                 Browse strategies
               </Btn>
             )}
@@ -111,12 +111,12 @@ export default function Home() {
 
       {popular.length ? (
         <section className="mt-14">
-          <SectionHead title="Popular strategies" href="/app/library" link="See all" />
+          <SectionHead title="Popular strategies" href="/strategies" link="See all" />
           <div className="grid gap-3 md:grid-cols-3">
             {popular.slice(0, 3).map((e) => (
               <Link
                 key={e.id}
-                href={`/app/strategy?id=${encodeURIComponent(e.id)}`}
+                href={`/strategy?id=${encodeURIComponent(e.id)}`}
                 className="rounded-[12px] border border-line bg-card p-4 transition-colors hover:border-line-2"
               >
                 <AssetStack items={strategyIcons(e.strategy)} size={26} max={3} />
@@ -137,7 +137,7 @@ export default function Home() {
         ) : (
           <span className="text-muted">Trades run from your own Hyperliquid account.</span>
         )}
-        <Link href="/app/live" className="text-muted hover:text-ink">
+        <Link href="/accounts" className="text-muted hover:text-ink">
           Set up trading →
         </Link>
       </section>

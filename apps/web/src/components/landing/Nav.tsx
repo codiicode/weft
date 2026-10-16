@@ -52,7 +52,7 @@ export function Nav() {
         </nav>
         <div className="ml-auto flex items-center gap-2">
           <ThemeToggle />
-          <Button href="/app" size="sm" className="hidden sm:inline-flex">
+          <Button href="/home" size="sm" className="hidden sm:inline-flex">
             Open app
           </Button>
           <button
@@ -75,7 +75,7 @@ export function Nav() {
               {l}
             </a>
           ))}
-          <Button href="/app" size="lg" className="mt-4 w-full">
+          <Button href="/home" size="lg" className="mt-4 w-full">
             Open app
           </Button>
         </nav>

@@ -7,14 +7,14 @@ import { api, type LibraryEntry } from "@/lib/api";
 type Item = { id: string; label: string; hint?: string; group: string; run: () => void };
 
 const PAGES: [string, string][] = [
-  ["Home", "/app"],
-  ["New strategy", "/app/new"],
-  ["Portfolio", "/app/portfolio"],
-  ["Strategies", "/app/library"],
-  ["Markets", "/app/markets"],
-  ["Leaderboard", "/app/leaderboard"],
-  ["Trading accounts", "/app/live"],
-  ["Settings", "/app/settings"],
+  ["Home", "/home"],
+  ["New strategy", "/new"],
+  ["Portfolio", "/portfolio"],
+  ["Strategies", "/strategies"],
+  ["Markets", "/markets"],
+  ["Leaderboard", "/leaderboard"],
+  ["Trading accounts", "/accounts"],
+  ["Settings", "/settings"],
 ];
 
 /** ⌘K: jump anywhere, open a strategy, or start drafting from whatever you typed. */
@@ -59,13 +59,13 @@ export function CommandPalette() {
     const t = q.trim().toLowerCase();
     const out: Item[] = [];
     const draft: Item | null =
-      t.length > 2 ? { id: "draft", group: "Draft", label: `Draft a strategy: “${q.trim()}”`, run: () => go(`/app/new?go=1&thesis=${encodeURIComponent(q.trim())}`) } : null;
+      t.length > 2 ? { id: "draft", group: "Draft", label: `Draft a strategy: “${q.trim()}”`, run: () => go(`/new?go=1&thesis=${encodeURIComponent(q.trim())}`) } : null;
     const sentence = t.split(/\s+/).length >= 4;
     if (draft && sentence) out.push(draft);
     for (const [label, href] of PAGES) if (!t || label.toLowerCase().includes(t)) out.push({ id: href, group: "Go to", label, run: () => go(href) });
     for (const e of lib ?? [])
       if (!t || `${e.strategy.name} ${e.strategy.thesis}`.toLowerCase().includes(t))
-        out.push({ id: `s:${e.id}`, group: "Strategies", label: e.strategy.name, hint: e.strategy.thesis, run: () => go(`/app/strategy?id=${encodeURIComponent(e.id)}`) });
+        out.push({ id: `s:${e.id}`, group: "Strategies", label: e.strategy.name, hint: e.strategy.thesis, run: () => go(`/strategy?id=${encodeURIComponent(e.id)}`) });
     if (draft && !sentence) out.push(draft);
     return out.slice(0, 12);
     // eslint-disable-next-line react-hooks/exhaustive-deps

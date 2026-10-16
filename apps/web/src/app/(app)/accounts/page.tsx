@@ -198,8 +198,8 @@ function OwnWallet({ s, refresh }: { s: LiveStatus; refresh: () => Promise<unkno
             </ul>
           )}
           <div className="mt-3 flex gap-2">
-            <Btn href="/app/library" variant="ghost">Browse strategies</Btn>
-            <Btn href="/app/new" variant="ghost">New strategy</Btn>
+            <Btn href="/strategies" variant="ghost">Browse strategies</Btn>
+            <Btn href="/new" variant="ghost">New strategy</Btn>
           </div>
         </Step>
       </div>
@@ -287,7 +287,7 @@ function Live() {
                   key={id}
                   role="tab"
                   aria-selected={tab === id}
-                  onClick={() => router.replace(`/app/live${id === "solana" ? "?venue=solana" : ""}`)}
+                  onClick={() => router.replace(`/accounts${id === "solana" ? "?venue=solana" : ""}`)}
                   className={`rounded-[8px] px-4 py-2 text-left transition-colors ${tab === id ? "bg-[var(--raised)] shadow-[0_1px_2px_rgba(0,0,0,0.08)]" : "hover:bg-paper-2"}`}
                 >
                   <div className={`text-[14px] ${tab === id ? "font-medium text-ink" : "text-ink-2"}`}>{label}</div>

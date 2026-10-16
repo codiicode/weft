@@ -33,7 +33,7 @@ export function RunRow({ s }: { s: Snapshot }) {
   const up = money.returnPct >= 0;
   return (
     <Link
-      href={`/app/run?id=${encodeURIComponent(d.id)}`}
+      href={`/run?id=${encodeURIComponent(d.id)}`}
       className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-x-6 gap-y-1 px-4 py-3.5 transition-colors hover:bg-paper-2/50 sm:grid-cols-[minmax(0,1fr)_140px_90px_110px_100px] sm:px-5"
     >
       <div className="flex min-w-0 items-center gap-3">
@@ -73,7 +73,7 @@ export function RunCard({ s }: { s: Snapshot }) {
   const curve = s.equityCurve.map((p) => p[1]);
   const up = money.returnPct >= 0;
   return (
-    <Link href={`/app/run?id=${encodeURIComponent(d.id)}`} className="group block">
+    <Link href={`/run?id=${encodeURIComponent(d.id)}`} className="group block">
       <Card className="h-full p-5 transition-colors group-hover:border-line-2">
         <div className="flex items-center justify-between gap-2">
           <RunStatus s={s} />
