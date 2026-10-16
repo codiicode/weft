@@ -179,10 +179,23 @@ export class LiveService {
     const agent = await this.agents.forUser(userId);
     const out: { kind: "agent" | "builder"; typedData: unknown }[] = [];
     const now = Date.now();
-    const agentReq = buildApproveAgent({ isMainnet: this.isMainnet, agentAddress: agent.address, agentName: AGENT_NAME, signatureChainId, nonce: now });
-    this.pending.set(`${userId}:agent`, { kind: "agent", req: agentReq, hlAddress: account.hlAddress, expires: now + 10 * 60_000 });
-    out.push({ kind: "agent", typedData: withDomainType(agentReq.typedData) });
-    if (this.cfg.builder) {
+    // Only what's missing: Hyperliquid refuses to approve the same agent twice ("Extra agent already
+    // used"), which would also stop the fee approval behind it.
+    const info = new HttpHlInfo(this.base, this.fetchFn);
+    const [agents, maxFee] = await Promise.all([
+      postJson<{ address: string }[]>(this.fetchFn, `${this.base}/info`, { type: "extraAgents", user: account.hlAddress }).catch(() => null),
+      this.cfg.builder ? info.maxBuilderFee(account.hlAddress, this.cfg.builder.address).catch(() => null) : Promise.resolve(null),
+    ]);
+    const agentDone = !!agents?.some((a) => a.address.toLowerCase() === agent.address.toLowerCase());
+    const builderDone = !this.cfg.builder || (typeof maxFee === "number" && maxFee >= this.cfg.builder.feeTenthsBps);
+    if (agentDone) this.accounts.markApproved(userId, "agent");
+    if (builderDone && this.cfg.builder) this.accounts.markApproved(userId, "builder");
+    if (!agentDone) {
+      const agentReq = buildApproveAgent({ isMainnet: this.isMainnet, agentAddress: agent.address, agentName: AGENT_NAME, signatureChainId, nonce: now });
+      this.pending.set(`${userId}:agent`, { kind: "agent", req: agentReq, hlAddress: account.hlAddress, expires: now + 10 * 60_000 });
+      out.push({ kind: "agent", typedData: withDomainType(agentReq.typedData) });
+    }
+    if (this.cfg.builder && !builderDone) {
       const b = buildApproveBuilderFee({ isMainnet: this.isMainnet, builder: this.cfg.builder.address, maxFeeTenthsBps: this.cfg.builder.feeTenthsBps, signatureChainId, nonce: now + 1 });
       this.pending.set(`${userId}:builder`, { kind: "builder", req: b, hlAddress: account.hlAddress, expires: now + 10 * 60_000 });
       out.push({ kind: "builder", typedData: withDomainType(b.typedData) });

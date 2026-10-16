@@ -107,9 +107,12 @@ describe("live trading", () => {
     s = await live.status("u1");
     expect(s.venue?.agentApprovedOnVenue).toBe(true);
     expect(s.ready).toBe(true);
-    // Agent wallet is reused, not recreated.
-    await live.prepareApprovals("u1", "0xa4b1");
+    // Agent wallet is reused, not recreated; nothing is asked again once everything is approved.
+    expect((await live.prepareApprovals("u1", "0xa4b1")).requests).toEqual([]);
     expect(privy.created).toBe(1);
+    // A fee switched on (or raised) later asks for the fee only: re-approving the agent would fail on the venue.
+    hl.state.maxBuilderFee = 0;
+    expect((await live.prepareApprovals("u1", "0xa4b1")).requests.map((r) => r.kind)).toEqual(["builder"]);
   });
 
   it("refuses an approval signed by a different wallet than the linked account", async () => {
