@@ -218,6 +218,16 @@ export interface Earnings {
   totalUsd: number;
   buybackUsd: number;
   weftUsd: number;
+  buybacks: {
+    mint: string | null;
+    boughtTokens: number;
+    spentUsd: number;
+    burnedTokens: number;
+    supply: number | null;
+    initialSupply: number | null;
+    setAsideUsd: number;
+    events: { at: number; tx: string; spentUsd: number; boughtTokens: number; burnTx?: string | null; burnedTokens?: number }[];
+  };
 }
 
 export interface LiveStatus {

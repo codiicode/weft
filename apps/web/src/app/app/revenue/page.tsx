@@ -3,6 +3,9 @@ import { api } from "@/lib/api";
 import { useAuth } from "@/lib/auth";
 import { useApi, fmtUsd } from "@/lib/use-api";
 import { PageHeader, Card, Empty } from "@/components/app/AppShell";
+import { $T } from "@/config/brand";
+
+const tokens = (n: number) => (n >= 1e6 ? `${(n / 1e6).toFixed(2)}M` : n >= 1e3 ? `${(n / 1e3).toFixed(1)}K` : n.toLocaleString("en-US", { maximumFractionDigits: 2 }));
 
 const short = (a: string) => `${a.slice(0, 6)}…${a.slice(-4)}`;
 
@@ -77,6 +80,46 @@ export default function RevenuePage() {
                 )}
               </Card>
             </div>
+            <section>
+              <h2 className="mb-3 text-[15px] font-semibold tracking-[-0.015em] text-ink">{$T} buybacks</h2>
+              <div className="grid gap-px overflow-hidden rounded-[12px] border border-line bg-line sm:grid-cols-3">
+                <Stat
+                  label="Bought back"
+                  value={d.buybacks.boughtTokens > 0 ? `${tokens(d.buybacks.boughtTokens)} ${$T}` : "—"}
+                  sub={d.buybacks.spentUsd > 0 ? `for ${fmtUsd(d.buybacks.spentUsd, 2)} of fees` : "Nothing bought yet"}
+                />
+                <Stat
+                  label="Burned"
+                  value={d.buybacks.burnedTokens > 0 ? `${tokens(d.buybacks.burnedTokens)} ${$T}` : "—"}
+                  sub={
+                    d.buybacks.initialSupply && d.buybacks.burnedTokens > 0
+                      ? `${((d.buybacks.burnedTokens / d.buybacks.initialSupply) * 100).toFixed(3)}% of the supply, gone for good`
+                      : "Read from the chain: supply at launch minus supply now"
+                  }
+                />
+                <Stat label="Set aside for buybacks" value={fmtUsd(d.buybacks.setAsideUsd, 2)} sub={d.buybacks.mint ? "Waiting for the next buyback" : `Buybacks start when ${$T} launches`} />
+              </div>
+              {d.buybacks.events.length > 0 && (
+                <Card className="mt-4 overflow-hidden">
+                  <ul className="divide-y divide-line text-[13.5px]">
+                    {d.buybacks.events.map((ev) => (
+                      <li key={ev.tx} className="flex flex-wrap items-center justify-between gap-3 px-5 py-3">
+                        <span className="text-muted">{new Date(ev.at).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" })}</span>
+                        <span className="tnum text-ink">
+                          {tokens(ev.boughtTokens)} {$T} for {fmtUsd(ev.spentUsd, 2)}
+                          {ev.burnedTokens ? <span className="text-muted"> · {tokens(ev.burnedTokens)} burned</span> : null}
+                        </span>
+                        <span className="flex gap-3 text-[12.5px]">
+                          <a className="text-ink underline decoration-line-2 underline-offset-4" href={`https://solscan.io/tx/${ev.tx}`} target="_blank" rel="noopener noreferrer">Buy ↗</a>
+                          {ev.burnTx && <a className="text-ink underline decoration-line-2 underline-offset-4" href={`https://solscan.io/tx/${ev.burnTx}`} target="_blank" rel="noopener noreferrer">Burn ↗</a>}
+                        </span>
+                      </li>
+                    ))}
+                  </ul>
+                </Card>
+              )}
+            </section>
+
             <p className="text-[12.5px] text-faint">
               Weft’s own records of fees paid by live runs: {fmtUsd(d.recordedUsd, 2)}. The venue figures above are what actually arrived.
             </p>

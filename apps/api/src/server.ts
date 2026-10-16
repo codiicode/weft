@@ -191,6 +191,16 @@ const app = createApp({
       hlBaseUrl: live ? hlBaseUrl(liveCfg.network) : null,
       builder: liveCfg.builder?.address ?? null,
       solana: solCfg.feeWallet ? { conn: new Connection(solCfg.rpcUrl, "confirmed"), feeWallet: solCfg.feeWallet } : null,
+      token: holderCfg.mint
+        ? { mint: holderCfg.mint, initialSupply: Number(process.env.WEFT_TOKEN_INITIAL_SUPPLY ?? 1_000_000_000), conn: new Connection(solCfg.rpcUrl, "confirmed") }
+        : null,
+      buybackLog: () => {
+        try {
+          return JSON.parse(accounts.kvGet("buybacks") || "[]");
+        } catch {
+          return [];
+        }
+      },
     }),
   onExitsChanged: () => nativeStops?.poke(500),
   telegram: telegram ?? undefined,

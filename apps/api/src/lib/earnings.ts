@@ -10,6 +10,32 @@ import type { Engine } from "@weft/engine";
 
 export const BUYBACK_SHARE = 0.5;
 
+/** One buyback, as the buyback job records it (spent fees → bought tokens → burned some or all). */
+export interface BuybackEvent {
+  at: number;
+  /** Swap transaction (Solana). */
+  tx: string;
+  spentUsd: number;
+  boughtTokens: number;
+  /** Burn transaction, when the bought tokens were burned. */
+  burnTx?: string | null;
+  burnedTokens?: number;
+}
+
+export interface Buybacks {
+  /** The token's mint; null before launch. */
+  mint: string | null;
+  boughtTokens: number;
+  spentUsd: number;
+  /** From the chain: initial supply − current supply. */
+  burnedTokens: number;
+  supply: number | null;
+  initialSupply: number | null;
+  /** Half of revenue, minus what has been spent on buybacks. */
+  setAsideUsd: number;
+  events: BuybackEvent[];
+}
+
 export interface Earnings {
   hyperliquid: { builder: string; earnedUsd: number; unclaimedUsd: number; claimedUsd: number; accountValueUsd: number } | null;
   solana: { feeWallet: string; wsol: number; usdc: number; sol: number; solUsd: number | null; usd: number } | null;
@@ -18,6 +44,7 @@ export interface Earnings {
   totalUsd: number;
   buybackUsd: number;
   weftUsd: number;
+  buybacks: Buybacks;
 }
 
 export async function earnings(o: {
@@ -25,6 +52,10 @@ export async function earnings(o: {
   hlBaseUrl: string | null;
   builder: string | null;
   solana: { conn: Connection; feeWallet: PublicKey } | null;
+  /** The token, once launched: its mint and supply at launch (burns are measured against it). */
+  token?: { mint: PublicKey; initialSupply: number; conn: Connection } | null;
+  /** Buybacks recorded by the buyback job. */
+  buybackLog?: () => BuybackEvent[];
   fetch?: FetchLike;
 }): Promise<Earnings> {
   const f = o.fetch ?? (globalThis.fetch as unknown as FetchLike);
@@ -74,5 +105,25 @@ export async function earnings(o: {
   }
 
   const totalUsd = (hyperliquid?.earnedUsd ?? 0) + (solana?.usd ?? 0);
-  return { hyperliquid, solana, recordedUsd, totalUsd, buybackUsd: totalUsd * BUYBACK_SHARE, weftUsd: totalUsd * (1 - BUYBACK_SHARE) };
+  const buybackUsd = totalUsd * BUYBACK_SHARE;
+
+  const events = o.buybackLog?.() ?? [];
+  const spentUsd = events.reduce((n, e) => n + e.spentUsd, 0);
+  let supply: number | null = null;
+  if (o.token) {
+    const s = await o.token.conn.getTokenSupply(o.token.mint).catch(() => null);
+    supply = s ? Number(s.value.uiAmountString ?? 0) : null;
+  }
+  const buybacks: Buybacks = {
+    mint: o.token?.mint.toBase58() ?? null,
+    boughtTokens: events.reduce((n, e) => n + e.boughtTokens, 0),
+    spentUsd,
+    // The chain is the source of truth for burns: whatever left the supply is gone for good.
+    burnedTokens: o.token && supply != null ? Math.max(0, o.token.initialSupply - supply) : events.reduce((n, e) => n + (e.burnedTokens ?? 0), 0),
+    supply,
+    initialSupply: o.token?.initialSupply ?? null,
+    setAsideUsd: Math.max(0, buybackUsd - spentUsd),
+    events: [...events].sort((a, b) => b.at - a.at),
+  };
+  return { hyperliquid, solana, recordedUsd, totalUsd, buybackUsd, weftUsd: totalUsd * (1 - BUYBACK_SHARE), buybacks };
 }
