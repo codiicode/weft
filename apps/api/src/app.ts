@@ -22,6 +22,7 @@ import type { Accounts } from "./lib/accounts.ts";
 import type { LiveService } from "./live/service.ts";
 import { SECOND_INTERVALS, type SecondInterval, type TradeTape } from "./lib/tape.ts";
 import { tradesSolana, type SolanaLive } from "./live/solana.ts";
+import type { HlDeposits } from "./live/deposits.ts";
 import { parseInstruction, withExits, type Step } from "./lib/instructions.ts";
 
 /** Chart ranges and the bar size each one uses (about 60–370 bars). */
@@ -61,6 +62,8 @@ export interface AppDeps {
   allowPaper?: boolean;
   /** Live Solana token trading (the user's own Privy wallet, Weft as a limited signer). */
   solana?: SolanaLive;
+  /** Gas-free Hyperliquid deposits: USDC on Arbitrum → permit → Weft's relayer → Hyperliquid bridge. */
+  deposits?: HlDeposits;
   /** Records Hyperliquid trades for second-level charts. */
   tape?: TradeTape;
   /** Per-user Telegram alerts (TELEGRAM_BOT_TOKEN). */
@@ -711,6 +714,40 @@ export function createApp(deps: AppDeps) {
     const { hlAddress } = z.object({ hlAddress: z.string().regex(/^0x[0-9a-fA-F]{40}$/) }).parse(await c.req.json());
     deps.live.linkAccount(user.id, hlAddress);
     return c.json(await deps.live.status(user.id));
+  });
+  // Deposits into the linked Hyperliquid address (the user's Weft wallet), gas paid by Weft.
+  const depositOwner = (userId: string) => {
+    const a = deps.accounts?.liveAccount(userId);
+    if (!a || a.network !== deps.live?.cfg.network) throw new HTTPException(409, { message: "set up your Hyperliquid wallet first" });
+    return a.hlAddress;
+  };
+  app.get("/live/deposit", async (c) => {
+    if (!deps.live || !deps.deposits) return c.json({ error: "deposits are not configured on this server" }, 501);
+    const user = await requireUser(c);
+    return c.json(await deps.deposits.status(user.id, depositOwner(user.id)));
+  });
+  app.post("/live/deposit/prepare", async (c) => {
+    if (!deps.live || !deps.deposits) return c.json({ error: "deposits are not configured on this server" }, 501);
+    const user = await requireUser(c);
+    try {
+      return c.json(await deps.deposits.prepare(user.id, depositOwner(user.id)));
+    } catch (e) {
+      if (e instanceof HTTPException) throw e;
+      return c.json({ error: (e as Error).message }, 422);
+    }
+  });
+  app.post("/live/deposit/submit", async (c) => {
+    if (!deps.live || !deps.deposits) return c.json({ error: "deposits are not configured on this server" }, 501);
+    const user = await requireUser(c);
+    const { signature } = z.object({ signature: z.string().regex(/^0x[0-9a-fA-F]{130}$/) }).parse(await c.req.json());
+    try {
+      const r = await deps.deposits.submit(user.id, signature as `0x${string}`);
+      console.log(`[deposit ${user.id.slice(-6)}] ${r.usdc} USDC to Hyperliquid ${deps.live.cfg.network}: ${r.tx}`);
+      return c.json(r);
+    } catch (e) {
+      console.warn(`[deposit ${user.id.slice(-6)}] failed: ${(e as Error).message.slice(0, 300)}`);
+      return c.json({ error: (e as Error).message.split("\n")[0] }, 422);
+    }
   });
   app.post("/live/approvals/prepare", async (c) => {
     if (!deps.live) return c.json({ error: "live trading is not configured on this server" }, 501);

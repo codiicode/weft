@@ -174,11 +174,11 @@ export function DeployPanel({ strategy, strategyId, compact = false }: { strateg
           <div className="mt-4 h-24 animate-pulse rounded-[10px] bg-paper-2" />
         ) : !ready ? (
           <div className="mt-3 rounded-[10px] bg-paper-2 p-4">
-            <p className="text-[13.5px] font-medium text-ink">{onSolana ? "Set up your Solana trading wallet" : "Connect your Hyperliquid account"}</p>
+            <p className="text-[13.5px] font-medium text-ink">{onSolana ? "Set up your Solana trading wallet" : "Set up your Hyperliquid wallet"}</p>
             <p className="mt-1 text-[13px] leading-relaxed text-muted">
               {onSolana
                 ? "Create your wallet, allow Weft to swap from it, and add some SOL. About a minute."
-                : "Two signatures from your wallet: one lets Weft place orders, nothing can be withdrawn. Takes about a minute."}
+                : "Weft makes you a wallet. Send it USDC and you’re ready to trade. About a minute."}
             </p>
             <Link href={onSolana ? "/app/live?venue=solana" : "/app/live"} className="mt-3 inline-flex h-9 items-center rounded-[10px] bg-ink px-3.5 text-[14px] font-medium text-paper hover:bg-ink/85">
               Set up trading

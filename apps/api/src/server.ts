@@ -17,6 +17,7 @@ import { createNotifier, sinksFromEnv } from "./lib/alerts.ts";
 import { createAuthenticator } from "./lib/auth.ts";
 import { Accounts } from "./lib/accounts.ts";
 import { AgentWallets, privyAgentApi } from "./live/agents.ts";
+import { HlDeposits, depositConfigFromEnv } from "./live/deposits.ts";
 import { LiveRouterExecutor, LiveService, liveConfigFromEnv } from "./live/service.ts";
 import { CompositeEngine } from "./live/composite.ts";
 import { Reconciler } from "./live/reconcile.ts";
@@ -44,6 +45,7 @@ const paperEngine = createEngine({
 const liveCfg = liveConfigFromEnv();
 const agents = process.env.PRIVY_APP_ID && process.env.PRIVY_APP_SECRET ? new AgentWallets(privyAgentApi(process.env.PRIVY_APP_ID, process.env.PRIVY_APP_SECRET), accounts) : null;
 const live = process.env.PRIVY_APP_ID ? new LiveService(liveCfg, accounts, agents) : null;
+const deposits = live ? new HlDeposits(depositConfigFromEnv(liveCfg.network)) : null;
 const liveEngine = live
   ? createEngine({
       // One store per network: testnet runs can never wake up on mainnet.
@@ -147,6 +149,7 @@ const app = createApp({
   aiDailyLimit: Number(process.env.WEFT_AI_DAILY_LIMIT ?? 30),
   live: live ?? undefined,
   solana: solana ?? undefined,
+  deposits: deposits ?? undefined,
   telegram: telegram ?? undefined,
   webOrigins: process.env.WEB_ORIGINS ? process.env.WEB_ORIGINS.split(",").map((o) => o.trim()).filter(Boolean) : undefined,
   liveMaxTotalUsd: process.env.WEFT_LIVE_MAX_TOTAL_USD ? Number(process.env.WEFT_LIVE_MAX_TOTAL_USD) : undefined,
@@ -214,6 +217,9 @@ const server = serve({ fetch: app.fetch, port: PORT, hostname: HOST }, (info) =>
   console.log(
     `  live: ${live ? `${liveCfg.enabled ? "ON" : "off (WEFT_LIVE_ENABLED=1 to enable)"} · ${liveCfg.network} · agents ${agents ? "Privy" : "need PRIVY_APP_SECRET"} · cap $${liveCfg.maxAllocationUsd} · builder ${liveCfg.builder?.address ?? "none"}` : "unavailable (needs PRIVY_APP_ID)"}`
   );
+  console.log(`  deposits: ${deposits?.relayerAddress ? `gas-free via relayer ${deposits.relayerAddress}` : "user pays gas (set WEFT_RELAYER_KEY for gas-free deposits)"}`);
+  if (deposits?.relayerAddress)
+    void deposits.relayerEth().then((eth) => eth != null && eth < 0.0005 && console.warn(`  deposits: relayer has only ${eth.toFixed(5)} ETH on Arbitrum ${liveCfg.network === "mainnet" ? "One" : "Sepolia"}; top it up`)).catch(() => {});
   console.log(
     `  solana: ${solana ? `${solCfg.enabled ? "ON" : "off (WEFT_SOL_LIVE=1 to enable)"} · signer ${solCfg.authorizationKey ? "set" : "needs PRIVY_AUTHORIZATION_KEY"} · fee ${solCfg.feeWallet ? `${solCfg.platformFeeBps} bps` : "none (WEFT_SOL_FEE_WALLET)"} · rpc ${new URL(solCfg.rpcUrl).host} · cap $${solCfg.maxAllocationUsd} · jupiter ${solCfg.jupiterApiKey ? "api key" : "free tier (JUPITER_API_KEY)"}` : "unavailable (needs Privy)"}`
   );

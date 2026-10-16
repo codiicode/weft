@@ -2,6 +2,7 @@
 import { Suspense, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { SolanaSetup } from "@/components/app/SolanaSetup";
+import { HyperliquidWallet } from "@/components/app/HyperliquidWallet";
 import { usePrivy, useWallets } from "@privy-io/react-auth";
 import { api, ApiError, type LiveStatus } from "@/lib/api";
 import { useAuth, shortAddress } from "@/lib/auth";
@@ -28,12 +29,14 @@ function Step({ n, title, done, active, children }: { n: number; title: string; 
   );
 }
 
-function Setup() {
-  const { wallets, ready: walletsReady } = useWallets();
-  const { linkWallet } = usePrivy();
+/**
+ * Hyperliquid: a Weft wallet by default (no extension, gas-free deposits), or the user's own
+ * MetaMask/Rabby account for people who already trade on Hyperliquid.
+ */
+function Hyperliquid() {
+  const auth = useAuth();
   const status = useApi(() => api.liveStatus(), [], { pollMs: 10_000 });
-  const [busy, setBusy] = useState<string | null>(null);
-  const [error, setError] = useState<string | null>(null);
+  const [choice, setChoice] = useState<"weft" | "own" | null>(null);
   const s: LiveStatus | null = status.data;
 
   if (status.error && !s) {
@@ -41,6 +44,35 @@ function Setup() {
     return <Empty title={notConfigured ? "Live trading isn't configured on this server" : "Couldn't load live status"} sub={status.error.message} />;
   }
   if (!s) return <div className="h-64 animate-pulse rounded-[12px] bg-paper-2" />;
+
+  // Someone who already linked their own wallet keeps it; everyone else starts with a Weft wallet.
+  // (From the account's linked wallets, not just the ones connected in this browser.)
+  const weftWallet = auth.wallets.find((w) => w.chain === "ethereum" && w.embedded)?.address.toLowerCase();
+  const linkedOwn = !!s.account && s.account.network === s.config.network && s.account.hlAddress.toLowerCase() !== weftWallet;
+  const mode = choice ?? (linkedOwn ? "own" : "weft");
+  const switcher = (
+    <p className="mt-6 text-[13px] text-muted">
+      {mode === "weft" ? "Already trade on Hyperliquid? " : "New to Hyperliquid? "}
+      <button onClick={() => setChoice(mode === "weft" ? "own" : "weft")} className="font-medium text-ink underline decoration-line-2 underline-offset-4 hover:decoration-ink">
+        {mode === "weft" ? "Use your own wallet instead" : "Use a Weft wallet instead"}
+      </button>
+    </p>
+  );
+  return (
+    <>
+      {mode === "weft" ? <HyperliquidWallet status={s} onChange={status.refresh} autoLink={choice === "weft" || !linkedOwn} /> : <OwnWallet s={s} refresh={status.refresh} />}
+      {switcher}
+    </>
+  );
+}
+
+/** The user's own Hyperliquid account in MetaMask or Rabby: they sign the approvals in their wallet. */
+function OwnWallet({ s, refresh }: { s: LiveStatus; refresh: () => Promise<unknown> }) {
+  const { wallets, ready: walletsReady } = useWallets();
+  const { linkWallet } = usePrivy();
+  const [busy, setBusy] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const status = { refresh };
 
   const net = s.config.network;
   const linked = s.account && s.account.network === net ? s.account : null;
@@ -107,10 +139,10 @@ function Setup() {
           <div className="mt-3 flex flex-wrap gap-2">
             {!walletsReady ? (
               <span className="text-[12px] text-faint">Loading wallets…</span>
-            ) : wallets.length === 0 ? (
-              <span className="text-[13.5px] text-muted">No Ethereum wallet on your account yet. Sign in with MetaMask or Rabby.</span>
+            ) : !wallets.some((w) => w.walletClientType !== "privy" && w.address.startsWith("0x")) ? (
+              <span className="text-[13.5px] text-muted">No MetaMask or Rabby wallet on your account yet.</span>
             ) : (
-              wallets.filter((w) => w.address.startsWith("0x")).map((w) => (
+              wallets.filter((w) => w.walletClientType !== "privy" && w.address.startsWith("0x")).map((w) => (
                 <button
                   key={w.address}
                   disabled={busy != null || linked?.hlAddress.toLowerCase() === w.address.toLowerCase()}
@@ -119,7 +151,7 @@ function Setup() {
                     linked?.hlAddress.toLowerCase() === w.address.toLowerCase() ? "border-long bg-[var(--long-soft)] text-long" : "border-line text-ink-2 hover:border-ink hover:text-ink"
                   }`}
                 >
-                  {shortAddress(w.address)} · {w.walletClientType === "privy" ? "Weft wallet" : w.walletClientType}
+                  {shortAddress(w.address)} · {w.walletClientType}
                 </button>
               ))
             )}
@@ -130,11 +162,6 @@ function Setup() {
               + Use MetaMask or Rabby
             </button>
           </div>
-          {linked && wallets.find((w) => w.address.toLowerCase() === linked.hlAddress.toLowerCase())?.walletClientType === "privy" && !funded && (
-            <p className="mt-3 text-[12.5px] leading-relaxed text-muted">
-              This is your Weft wallet, which has no money on Hyperliquid yet. If you already trade on Hyperliquid, connect that wallet instead.
-            </p>
-          )}
         </Step>
 
         <Step n={2} title="Allow Weft to trade" done={agentOk && builderOk} active={!!linked}>
@@ -266,7 +293,7 @@ function Live() {
                 </button>
               ))}
             </div>
-            {tab === "solana" ? <SolanaSetup /> : <Setup />}
+            {tab === "solana" ? <SolanaSetup /> : <Hyperliquid />}
           </>
         )}
         <p className="mt-6 text-[12.5px] text-faint">Not financial advice. Leverage can lose more than you expect, and tokens can go to zero.</p>

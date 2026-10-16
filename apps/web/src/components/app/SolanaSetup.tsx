@@ -8,7 +8,7 @@ import { useApi } from "@/lib/use-api";
 import { Card, Btn, Pill, Empty } from "./AppShell";
 import { IconCheck, IconKey, IconLock } from "@/components/graph/icons";
 
-function Step({ n, title, done, active, children }: { n: number; title: string; done: boolean; active: boolean; children: React.ReactNode }) {
+export function Step({ n, title, done, active, children }: { n: number; title: string; done: boolean; active: boolean; children: React.ReactNode }) {
   return (
     <Card className={`p-5 transition-opacity ${active || done ? "" : "opacity-50"}`}>
       <div className="flex items-center gap-3">
@@ -22,7 +22,7 @@ function Step({ n, title, done, active, children }: { n: number; title: string; 
   );
 }
 
-function CopyAddress({ address }: { address: string }) {
+export function CopyAddress({ address }: { address: string }) {
   const [copied, setCopied] = useState(false);
   return (
     <button

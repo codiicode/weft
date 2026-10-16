@@ -216,6 +216,16 @@ export interface SolanaStatus {
   blockers: string[];
 }
 
+/** Mirrors apps/api/src/live/deposits.ts */
+export interface DepositStatus {
+  network: "testnet" | "mainnet";
+  chain: string;
+  walletUsdc: number;
+  minUsdc: number;
+  relayer: { ready: boolean; address: string | null };
+  inFlight: { usdc: number; tx: string | null; since: number } | null;
+}
+
 export interface ApprovalRequests {
   agentAddress: string;
   network: "testnet" | "mainnet";
@@ -267,6 +277,9 @@ export const api = {
   linkLive: (hlAddress: string) => req<LiveStatus>("/live/account", { method: "POST", json: { hlAddress } }),
   prepareApprovals: (signatureChainId: string) => req<ApprovalRequests>("/live/approvals/prepare", { method: "POST", json: { signatureChainId } }),
   submitApproval: (kind: "agent" | "builder", signature: string) => req<{ ok: true }>("/live/approvals/submit", { method: "POST", json: { kind, signature } }),
+  depositStatus: () => req<DepositStatus>("/live/deposit"),
+  prepareDeposit: () => req<{ usdc: number; typedData: Record<string, unknown> }>("/live/deposit/prepare", { method: "POST", json: {} }),
+  submitDeposit: (signature: string) => req<{ tx: string; usdc: number }>("/live/deposit/submit", { method: "POST", json: { signature } }),
 
   me: () => req<Me>("/me"),
   reportProfile: (body: { wallets?: string[]; displayName?: string | null }) => req<Me["user"]>("/me", { method: "POST", json: body }),
