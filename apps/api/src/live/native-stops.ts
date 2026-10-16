@@ -21,8 +21,8 @@ type Tracked = { userId: string; deploymentId: string; positionId: string; instr
 type OpenOrder = { coin: string; cloid?: string | null; isTrigger?: boolean; reduceOnly?: boolean; triggerPx?: string };
 
 const KEY = "native-stops";
-/** Prices within this fraction count as the same trigger (venue tick rounding). */
-const SAME_PX = 0.0015;
+/** Only float noise counts as "the same trigger": any real move of the stop (even $1) is sent. */
+const SAME_PX = 1e-7;
 
 export interface NativeStopsDeps {
   engine: Engine;

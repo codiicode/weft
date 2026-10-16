@@ -64,6 +64,9 @@ describe("venue-side stops on Hyperliquid", () => {
     await w.ns.run();
     expect(w.placed.slice(1)).toEqual([{ px: 1990, kind: "sl" }, { px: 2050, kind: "tp" }]);
     expect(w.cancelled).toHaveLength(1);
+    w.position.exits = { stopLoss: { price: 1989 } }; // a $1 move still moves the order
+    await w.ns.run();
+    expect(w.placed.at(-1)).toEqual({ px: 1989, kind: "sl" });
     w.position.exits = {};
     await w.ns.run();
     expect(w.resting).toHaveLength(0);
