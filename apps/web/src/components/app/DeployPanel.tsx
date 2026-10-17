@@ -125,7 +125,8 @@ export function DeployPanel({ strategy, strategyId, compact = false }: { strateg
   const ready = onSolana ? !!sol.data?.ready : !!live.data?.ready;
   // An account that only lacks an approval (e.g. Weft's fee was just switched on) is set up: a
   // Weft wallet approves in the background right here, an own wallet gets a clear one-step ask.
-  const hl = useHlApprove(onSolana ? null : live.data, live.refresh);
+  // The approvals sign themselves in the background (WalletAutopilot); the button is the fallback.
+  const hl = useHlApprove(onSolana ? null : live.data, live.refresh, false);
   const loadingStatus = onSolana ? sol.loading && !sol.data : live.loading && !live.data;
   // No cap unless the server sets one: people trade whatever amount they choose.
   const cap = (onSolana ? sol.data?.maxAllocationUsd : live.data?.config.maxAllocationUsd) ?? null;

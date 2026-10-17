@@ -10,6 +10,7 @@ import { useApi } from "@/lib/use-api";
 import { useAuth } from "@/lib/auth";
 import { CommandPalette } from "./CommandPalette";
 import { Toasts } from "./Toasts";
+import { WalletAutopilot } from "./WalletAutopilot";
 
 const NAV = [
   { href: "/home", label: "Home", icon: "M3.5 9 10 4l6.5 5v7a.5.5 0 0 1-.5.5h-3.5V12h-5v4.5H4a.5.5 0 0 1-.5-.5z" },
@@ -177,6 +178,7 @@ export function AppShell({ children }: { children: ReactNode }) {
       <main className="min-w-0 pb-24 lg:pb-0">{appOpen === false ? <OpeningSoon /> : children}</main>
       <CommandPalette />
       <Toasts />
+      <WalletAutopilot />
 
       {/* Mobile bottom nav */}
       {more && (

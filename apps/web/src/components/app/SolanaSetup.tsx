@@ -110,7 +110,7 @@ export function SolanaSetup() {
 
         <Step n={2} title="Let Weft trade from it" done={delegated} active={!!address}>
           <p className="text-[13.5px] leading-relaxed text-ink-2">
-            Weft gets a limited key that can only sign swaps through Jupiter. It can’t send your coins anywhere else, and every trade is checked before it’s signed.
+            Weft gets a limited key that can only sign swaps through Jupiter. It can’t send your coins anywhere else, and every trade is checked before it’s signed. This happens by itself when you sign in; the button is here in case it didn’t.
           </p>
           <div className="mt-3 flex flex-wrap items-center gap-2">
             <Btn onClick={allow} disabled={!address || busy != null || delegated} variant={delegated ? "ghost" : "ink"}>

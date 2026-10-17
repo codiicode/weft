@@ -76,21 +76,18 @@ export function HyperliquidWallet({ status, onChange, autoLink }: { status: Live
       }
     });
 
-  // Each step runs by itself once its turn comes; the buttons are there if one fails.
+  // Creating, depositing and approving run by themselves on every page (WalletAutopilot); the
+  // buttons below are there if one fails. Here only: switching to the Weft wallet when the user
+  // picked it over an account they had linked themselves.
   const once = (key: string, fn: () => void) => {
     if (busy || tried.current.has(key)) return;
     tried.current.add(key);
     fn();
   };
   useEffect(() => {
-    if (!walletsReady) return;
-    if (!embedded) once("create", create);
-    // Never swap out an account the user linked themselves unless they chose the Weft wallet.
-    else if (!linked) autoLink && once(`link:${embedded.address}`, link);
-    else if (waiting && d.relayer.ready) once(`deposit:${d.walletUsdc}`, deposit);
-    else if (funded && !tradingOn) once("approve", turnOn);
+    if (walletsReady && embedded && !linked && autoLink && status.account) once(`link:${embedded.address}`, link);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [walletsReady, embedded?.address, linked, autoLink, waiting, d?.walletUsdc, funded, tradingOn, busy]);
+  }, [walletsReady, embedded?.address, linked, autoLink, busy]);
 
   const address = embedded?.address ?? null;
   const testnet = net === "testnet";
