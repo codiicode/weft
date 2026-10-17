@@ -101,6 +101,25 @@ and Solana wallets linked to their Privy account. Not built yet: the buyback job
 - Launch wallet: `jaoKYAcEXGVwEVwT6YRwqogvRiXGeEYbtaU6hhAbsu1`. The key is in `secrets/weft-launch.json`. It is unfunded; it creates the config and the pool and is the fee claimer.
 - Still open: mainnet script (create config + pool with the launch wallet), the buyback job, and revoking the metadata authority after launch.
 
+### $WEFT rewards (decided 2026-10-17, built, off until launch)
+
+Code: `apps/api/src/lib/rewards.ts` and `apps/api/src/token/treasury.ts`; web: `/rewards` and the landing token section.
+
+- Half of Weft's fees buy $WEFT every day. Of what is bought:
+  - 50% goes to traders, split by fees paid that day × holder boost (1×, 1.5× for holders, 2× for big holders);
+  - 20% goes to creators, split by fees paid by other people's runs of their published strategies (or forks); own runs don't count;
+  - 30% is burned.
+  - A pool nobody qualifies for is burned.
+- Rewards are based on fees, not volume, so wash trading never pays.
+- Every live fill's Weft fee is already recorded per user and creator (`rewards.db`, `fee_ledger`). Engine fills carry `builderFeeUsd`.
+- Each UTC day closes after midnight, from `WEFT_REWARDS_START` (YYYY-MM-DD, set at launch). The treasury then buys and burns, and users claim to their Weft Solana wallet.
+- Holders also get 100 AI drafts a day instead of 30.
+- To switch on at launch, set:
+  - `WEFT_TOKEN_MINT`, `WEFT_HOLDER_MIN`, `WEFT_BIG_HOLDER_MIN` (optional, default 10× min);
+  - `WEFT_REWARDS_START`;
+  - `WEFT_TREASURY_KEY`: the fee wallet's secret key as a JSON array. It buys with the fee wallet's USDC/WSOL and pays claims.
+- Hyperliquid builder fees (USDC on HL) must be moved to the fee wallet to be spent. Until then, a day buys what the wallet holds and logs the shortfall.
+
 ## Hyperliquid live on mainnet (since 2026-10-16)
 
 Verified with real money: a Weft wallet per user (Privy embedded, exportable), gas-free USDC deposits from
