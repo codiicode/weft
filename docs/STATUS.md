@@ -10,7 +10,7 @@ _Last updated by the build session. All numbers below were verified by running t
 | Typecheck + tests | Green: 6 workspaces typecheck, 398 tests pass (2 testnet-only skipped) |
 | Simulated data never trades | Server refuses live trades on simulated signals (only `model`); the drafter no longer reaches for `model` |
 | Off-site backup | Built (hourly on the volume, R2 copy when `R2_*` is set). R2 keys not set yet. |
-| End-to-end with a fresh account and real money | Not done: needs a person to sign in and fund |
+| End-to-end with real money | Done earlier on mainnet (Solana buy/sell/fees/close, Hyperliquid deposit/trade/withdraw). Copy trading has not run with real money yet. |
 | X account | Not created; `brand.socials.x` and the legal pages' contact point to it |
 | Rotate relayer key | Recommended: the key was shown in a session transcript on 2026-10-17 |
 
