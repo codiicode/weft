@@ -279,7 +279,9 @@ const runRewards = async () => {
   if (rewardsRunning) return;
   rewardsRunning = true;
   try {
-    for (const day of rewards.pendingDays()) await rewards.closeDay(day, async (u) => REWARDS.boost[(await holders.status(u)).tier]);
+    // WEFT_REWARDS_HOLD=1: no day is closed or shared out; buys keep filling the pots until it's lifted.
+    if (process.env.WEFT_REWARDS_HOLD !== "1")
+      for (const day of rewards.pendingDays()) await rewards.closeDay(day, async (u) => REWARDS.boost[(await holders.status(u)).tier]);
     if (treasury) {
       const r = await treasury.tick(rewards);
       if (r.claimedSol || r.boughtTokens) console.log(`  treasury: claimed ${r.claimedSol.toFixed(4)} SOL (${r.protocolSol.toFixed(4)} to Weft), bought ${r.boughtTokens.toFixed(0)} WEFT for $${r.spentUsd.toFixed(2)}, burned ${r.burnedTokens.toFixed(0)}`);
