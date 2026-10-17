@@ -11,10 +11,11 @@ const INK = "#121214";
 const PAPER = "#F4F3EF";
 const PUB = new URL("../apps/web/public/", import.meta.url);
 
-/** The mark in a 48×48 box. `tiny` drops the middle thread and thickens the rest for ≤16px. */
-function mark({ tiny = false, w = tiny ? 6 : 3.6, r = tiny ? 6 : 5.2, ink = INK, paper = PAPER } = {}) {
+/** The mark in a 48×48 box. `tiny` keeps all three threads but draws them heavier for browser tabs. */
+function mark({ tiny = false, w = tiny ? 4.4 : 3.6, r = tiny ? 5.6 : 5.2, ink = INK, paper = PAPER } = {}) {
   return `<g fill="none" stroke="${paper}" stroke-width="${w}" stroke-linecap="round">
-    <path d="M8 13C20 13 21 24 30 24"/>${tiny ? "" : `\n    <path d="M8 24H30"/>`}
+    <path d="M8 13C20 13 21 24 30 24"/>
+    <path d="M8 24H30"/>
     <path d="M8 35C20 35 21 24 30 24"/>
     <path d="M30 24H40"/>
   </g>
