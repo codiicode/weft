@@ -34,6 +34,7 @@ export function Token() {
               ["Where fees go", `${Math.round(brand.buybackShare * 100) === 50 ? "Half" : `${Math.round(brand.buybackShare * 100)}%`} buys ${$T} on the open market`],
               [`Hold ${$T}`, `Pay ${brand.holderDiscount === 0.5 ? "half" : `${Math.round((1 - brand.holderDiscount) * 100)}% of`} the fee`],
               ["Launch", `${brand.chain}, through ${brand.launchpad}`],
+              [`Trading ${$T}`, `${brand.tokenFee.totalBps / 100}% fee: ${brand.tokenFee.protocolBps / 100}% to Weft, ${brand.tokenFee.buybackBps / 100}% buys back ${$T}, ${brand.tokenFee.meteoraBps / 100}% to Meteora`],
             ].map(([k, v]) => (
               <div key={k}>
                 <dt className="text-[13px] text-muted">{k}</dt>

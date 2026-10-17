@@ -18,7 +18,7 @@ import {
   getCurrentPoint,
   getQuoteFromInputAmount,
 } from "@meteora-ag/dynamic-bonding-curve-sdk";
-import { WEFT_TOKEN, weftCurve } from "../src/token/curve.ts";
+import { MIGRATION_FEE_OPTION, TOKEN_FEE, WEFT_TOKEN, weftCurve } from "../src/token/curve.ts";
 
 const sol = (lamports: BN | number | bigint) => Number(lamports.toString()) / LAMPORTS_PER_SOL;
 const tokens = (raw: BN | number | bigint) => Number(raw.toString()) / 10 ** WEFT_TOKEN.decimals;
@@ -32,11 +32,12 @@ function plan(threshold = 85) {
   const startPrice = 0.001 / tokens(tiny.outputAmount);
   console.log(`$${WEFT_TOKEN.symbol}: ${fmt(WEFT_TOKEN.supply, 0)} supply, ${WEFT_TOKEN.decimals} decimals, priced in SOL`);
   console.log(`graduates at ${threshold} SOL in the curve; 20% of the supply goes into the DAMM v2 pool, locked`);
+  console.log(`trading fee ${TOKEN_FEE.totalBps / 100}%: Meteora ${TOKEN_FEE.meteoraBps / 100}%, $WEFT buybacks ${TOKEN_FEE.buybackBps / 100}%, Weft ${TOKEN_FEE.protocolBps / 100}%`);
   console.log(`start price ${startPrice.toExponential(3)} SOL → market cap ≈ ${fmt(startPrice * WEFT_TOKEN.supply, 1)} SOL`);
   for (const a of [0.1, 1, 10]) {
     const r = q(a);
     // tradingFee is what's left for Weft after Meteora's protocol share
-    console.log(`buy ${a} SOL → ${fmt(tokens(r.outputAmount), 0)} WEFT (${fmt((tokens(r.outputAmount) / WEFT_TOKEN.supply) * 100, 3)}% of supply), fee ${fmt(sol(r.tradingFee) + sol(r.protocolFee), 5)} SOL: Weft ${fmt(sol(r.tradingFee), 5)}, Meteora ${fmt(sol(r.protocolFee), 5)}`);
+    console.log(`buy ${a} SOL → ${fmt(tokens(r.outputAmount), 0)} WEFT (${fmt((tokens(r.outputAmount) / WEFT_TOKEN.supply) * 100, 3)}% of supply), fee ${fmt(sol(r.tradingFee) + sol(r.protocolFee), 5)} SOL: Weft ${fmt(sol(r.tradingFee), 5)} (buybacks ${fmt(sol(r.tradingFee) / 6, 5)}), Meteora ${fmt(sol(r.protocolFee), 5)}`);
   }
 }
 
@@ -146,7 +147,7 @@ async function devnet() {
 
   console.log("migrate to DAMM v2 (Meteora's keeper does this on mainnet; on devnet we call it)");
   try {
-    const m = await client.migration.migrateToDammV2({ payer: weft.publicKey, pool, dammConfig: DAMM_V2_MIGRATION_FEE_ADDRESS[MigrationFeeOption.FixedBps100]! });
+    const m = await client.migration.migrateToDammV2({ payer: weft.publicKey, pool, dammConfig: DAMM_V2_MIGRATION_FEE_ADDRESS[MIGRATION_FEE_OPTION]! });
     await send(conn, m.transaction, [weft, m.firstPositionNftKeypair, m.secondPositionNftKeypair], "migrateToDammV2");
   } catch (e) {
     console.log(`  migration not done here: ${(e as Error).message.slice(0, 200)}`);

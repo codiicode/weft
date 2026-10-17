@@ -3,6 +3,8 @@ import {
   BaseFeeMode,
   buildCurve,
   CollectFeeMode,
+  DammV2DynamicFeeMode,
+  MigratedCollectFeeMode,
   MigrationFeeOption,
   MigrationOption,
   TokenAuthorityOption,
@@ -16,10 +18,13 @@ import {
  * the curve (no team allocation, no vesting, no first buy by Weft), and once the curve holds
  * `migrationQuoteThreshold` SOL it graduates to a DAMM v2 pool whose liquidity is locked for good.
  *
- * Weft is the "partner": it receives the partner share of the curve's trading fee (after Meteora's
- * 20%) and owns the locked LP of the graduated pool, so its fees too. Half of what comes in buys
- * back $WEFT, like every other fee.
+ * Trading fee (decided 2026-10-17): 3% on every $WEFT trade, on the curve and in the graduated pool.
+ * Meteora keeps 20% of it (0.6%); Weft, the "partner", gets the other 2.4% and owns the locked LP of
+ * the graduated pool. Of Weft's 2.4%, 0.4% buys back $WEFT and 2% is protocol revenue.
  */
+export const TOKEN_FEE = { totalBps: 300, meteoraBps: 60, buybackBps: 40, protocolBps: 200 } as const;
+/** The part of Weft's own share of $WEFT trading fees that goes to buybacks (0.4 of 2.4). */
+export const TOKEN_FEE_BUYBACK_SHARE = TOKEN_FEE.buybackBps / (TOKEN_FEE.buybackBps + TOKEN_FEE.protocolBps);
 export const WEFT_TOKEN = {
   name: "Weft",
   symbol: "WEFT",
@@ -34,11 +39,14 @@ export interface CurveOptions {
   migrationQuoteThreshold: number;
   /** Trading fee on the curve, in bps (Meteora's minimum is 25). */
   curveFeeBps?: number;
-  /** Fee tier of the graduated DAMM v2 pool. */
-  migratedPoolFee?: MigrationFeeOption;
+  /** Trading fee of the graduated DAMM v2 pool, in bps. */
+  migratedPoolFeeBps?: number;
 }
 
-export function weftCurve({ migrationQuoteThreshold, curveFeeBps = 100, migratedPoolFee = MigrationFeeOption.FixedBps100 }: CurveOptions): ConfigParameters {
+/** The DAMM v2 config the graduated pool uses: a custom fee tier, so 3% carries on after graduation. */
+export const MIGRATION_FEE_OPTION = MigrationFeeOption.Customizable;
+
+export function weftCurve({ migrationQuoteThreshold, curveFeeBps = TOKEN_FEE.totalBps, migratedPoolFeeBps = TOKEN_FEE.totalBps }: CurveOptions): ConfigParameters {
   return buildCurve({
     token: {
       tokenType: TokenType.SPLToken,
@@ -63,8 +71,9 @@ export function weftCurve({ migrationQuoteThreshold, curveFeeBps = 100, migrated
     },
     migration: {
       migrationOption: MigrationOption.MET_DAMM_V2,
-      migrationFeeOption: migratedPoolFee,
+      migrationFeeOption: MIGRATION_FEE_OPTION,
       migrationFee: { feePercentage: 0, creatorFeePercentage: 0 },
+      migratedPoolFee: { collectFeeMode: MigratedCollectFeeMode.QuoteToken, dynamicFee: DammV2DynamicFeeMode.Disabled, poolFeeBps: migratedPoolFeeBps },
     },
     liquidityDistribution: {
       // All of the graduated pool's liquidity is locked forever; its trading fees still go to Weft.

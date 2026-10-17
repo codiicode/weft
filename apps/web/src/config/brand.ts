@@ -19,6 +19,8 @@ export const brand = {
   swapFeeBps: 100, // Jupiter platform fee on Solana swaps, 1% (matches @weft/engine DEFAULT_FEES.solana.platformBps)
   /** Share of fees that buys back $WEFT; the rest is Weft's revenue. */
   buybackShare: 0.5,
+  /** Fee on every $WEFT trade (on Meteora's curve and in the graduated pool), and where it goes. Matches apps/api/src/token/curve.ts. */
+  tokenFee: { totalBps: 300, protocolBps: 200, buybackBps: 40, meteoraBps: 60 },
   /** Holding $WEFT cuts trading fees by this much. */
   holderDiscount: 0.5,
   socials: {
