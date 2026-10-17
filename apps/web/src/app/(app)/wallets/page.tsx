@@ -209,7 +209,7 @@ function OwnWallet({ s, refresh }: { s: LiveStatus; refresh: () => Promise<unkno
         <Card className="p-5">
           <div className="flex items-center justify-between">
             <div className="text-[15px] font-semibold tracking-[-0.015em]">{net === "mainnet" ? "Hyperliquid" : "Hyperliquid testnet"}</div>
-            <Pill tone={net === "mainnet" ? "short" : "trigger"}>{net === "mainnet" ? "Real money" : "Test money"}</Pill>
+            {net !== "mainnet" && <Pill tone="trigger">Test money</Pill>}
           </div>
           {net === "testnet" && (
             <p className="mt-2 text-[13px] leading-relaxed text-ink-2">

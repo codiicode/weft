@@ -207,7 +207,7 @@ export function HyperliquidWallet({ status, onChange, autoLink }: { status: Live
         <Card className="p-5">
           <div className="flex items-center justify-between">
             <div className="text-[15px] font-semibold tracking-[-0.015em]">{testnet ? "Hyperliquid testnet" : "Hyperliquid"}</div>
-            <Pill tone={testnet ? "trigger" : "short"}>{testnet ? "Test money" : "Real money"}</Pill>
+            {testnet && <Pill tone="trigger">Test money</Pill>}
           </div>
           <p className="mt-2 text-[13px] leading-relaxed text-ink-2">
             Perps and stocks, up to each market’s own max leverage.{status.config.maxAllocationUsd != null ? ` Up to $${status.config.maxAllocationUsd.toLocaleString()} per strategy.` : ""}
