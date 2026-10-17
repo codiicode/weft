@@ -301,11 +301,11 @@ function Run() {
           />
         )}
         {d.mode === "paper" && !d.alertsOnly && (
-          <div className="rounded-[12px] border border-line bg-card px-4 py-3 text-[14px] text-ink-2">
-            A paper run from before Weft traded with real money. Its history stays here.{" "}
-            <Link href={`/new?from=${encodeURIComponent(`run:${d.id}`)}`} className="text-ink underline decoration-line-2 underline-offset-4 hover:decoration-ink">
-              Start this strategy for real
-            </Link>
+          <div className="flex flex-wrap items-center justify-between gap-3 rounded-[12px] border border-line bg-[var(--trigger-soft)] px-4 py-3">
+            <p className="text-[14px] text-ink-2">
+              <span className="font-semibold text-ink">Practice.</span> Pretend money at real prices: these trades aren’t real, and nothing here is yours to withdraw.
+            </p>
+            <Btn href={`/new?from=${encodeURIComponent(`run:${d.id}`)}&mode=live`}>Start it for real</Btn>
           </div>
         )}
         {controlError && <div className="rounded-[12px] bg-[var(--short-soft)] px-4 py-3 text-[14px] text-short">{controlError}</div>}
@@ -514,7 +514,7 @@ function Run() {
           </section>
         </div>
 
-        <p className="text-[12.5px] text-faint">{d.mode === "live" ? (d.strategy.actions.some((a) => a.type === "open" && a.instrument.kind === "token") ? "Swaps through Jupiter from your own Solana wallet." : "Trades on Hyperliquid through your agent.") : d.alertsOnly ? "Alerts only: nothing is bought or sold." : "A paper run from before Weft traded with real money."} Not financial advice.</p>
+        <p className="text-[12.5px] text-faint">{d.mode === "live" ? (d.strategy.actions.some((a) => a.type === "open" && a.instrument.kind === "token") ? "Swaps through Jupiter from your own Solana wallet." : "Trades on Hyperliquid through your agent.") : d.alertsOnly ? "Alerts only: nothing is bought or sold." : "Practice: pretend money at real prices, fees included."} Not financial advice.</p>
       </div>
     </>
   );

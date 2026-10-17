@@ -164,7 +164,11 @@ const notifier = createNotifier(engine, sinksFromEnv(), {
     ? { ownerOf: (id) => accounts.deploymentOwner(id), send: (userId, a) => telegram.sendToUser(userId, `◆ ${a.strategyName}\n${a.text}`) }
     : undefined,
   includeFills: process.env.WEFT_ALERT_FILLS === "1",
-  strategyName: async (id) => (await engine.getSnapshot(id))?.deployment.strategy.name ?? id,
+  // Practice runs say so in every message, so pretend trades are never mistaken for real ones.
+  strategyName: async (id) => {
+    const d = (await engine.getSnapshot(id))?.deployment;
+    return d ? `${d.mode === "paper" && !d.alertsOnly ? "Practice · " : ""}${d.strategy.name}` : id;
+  },
   log: (m) => console.warn(m),
 });
 const auth = createAuthenticator({ appId: process.env.PRIVY_APP_ID, verificationKey: process.env.PRIVY_VERIFICATION_KEY });
@@ -184,6 +188,8 @@ if (tape) {
 
 // Weft trades with real money only on the hosted service; paper runs stay for local development.
 const allowPaper = process.env.WEFT_ALLOW_PAPER === "1" || !auth.enabled;
+// Practice: pretend money at real prices, on the paper engine (WEFT_PRACTICE_BUDGET per user, 0 turns it off).
+const practiceBudgetUsd = Number(process.env.WEFT_PRACTICE_BUDGET ?? 10_000);
 
 // Watched Solana wallets (wallet signals and copy leaders of running strategies) are pushed to us by
 // Helius the moment they trade; each push checks the strategies that watch that wallet right away.
@@ -301,6 +307,7 @@ const app = createApp({
   heliusWebhook: heliusWebhook ?? undefined,
   topTraders: createTopTraders(),
   allowPaper,
+  practiceBudgetUsd,
   tape: tape ?? undefined,
   catalog: venues.catalog,
   marketData: venues.marketData,
@@ -365,9 +372,9 @@ void fetch("https://polymarket.com/api/geoblock", { signal: AbortSignal.timeout(
   .then((g) => console.log(`  egress: ${g.country ?? "?"}${g.region ? `/${g.region}` : ""} · Polymarket ${g.blocked ? "BLOCKED" : "allowed"}`))
   .catch(() => console.log("  egress: unknown (geoblock check failed)"));
 
-// Paper trading has ended on the hosted service: stop any simulated runs left from before (their
+// Without practice, simulated runs don't belong on the hosted service: stop any left over (their
 // history stays readable). Alerts-only runs never trade and keep running.
-if (!allowPaper) {
+if (!allowPaper && !(practiceBudgetUsd > 0)) {
   void (async () => {
     for (const d of await engine.listDeployments()) {
       if (d.mode !== "paper" || d.alertsOnly || (d.status !== "running" && d.status !== "paused")) continue;

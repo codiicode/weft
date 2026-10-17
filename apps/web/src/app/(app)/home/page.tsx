@@ -95,7 +95,7 @@ export default function Home() {
           <Card className="flex flex-col items-start gap-4 px-5 py-6 sm:flex-row sm:items-center sm:justify-between">
             <div>
               <p className="text-[14.5px] font-medium text-ink">{auth.enabled && !auth.authenticated ? "Sign in to see your runs" : "Nothing running yet"}</p>
-              <p className="mt-0.5 text-[14px] text-muted">Write a trade idea above, or start from one of the strategies below. You can run it as alerts only before any money goes in.</p>
+              <p className="mt-0.5 text-[14px] text-muted">Write a trade idea above, or start from one of the strategies below. Practice it with pretend money before any real money goes in.</p>
             </div>
             {auth.enabled && !auth.authenticated ? (
               <Btn onClick={auth.login} variant="ghost">

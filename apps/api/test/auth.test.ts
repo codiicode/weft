@@ -29,7 +29,7 @@ function fakeEngine(): Engine {
   const recs: DeploymentRecord[] = [];
   return {
     async createDeployment(i) {
-      const d: DeploymentRecord = { id: `d${recs.length + 1}`, strategy: i.strategy, mode: "paper", allocationUsd: i.allocationUsd, caps: {}, status: "running", intervalSec: 30, createdAt: 1, updatedAt: 1 };
+      const d: DeploymentRecord = { id: `d${recs.length + 1}`, strategy: i.strategy, mode: i.mode ?? "paper", allocationUsd: i.allocationUsd, caps: {}, status: "running", intervalSec: 30, createdAt: 1, updatedAt: 1, ...(i.alertsOnly ? { alertsOnly: true } : {}) };
       recs.push(d);
       return d;
     },
@@ -51,7 +51,7 @@ function fakeEngine(): Engine {
   };
 }
 
-function setup(opts: { aiDailyLimit?: number; anonAiDailyLimit?: number } = {}) {
+function setup(opts: { aiDailyLimit?: number; anonAiDailyLimit?: number; practiceBudgetUsd?: number } = {}) {
   const dir = mkdtempSync(join(tmpdir(), "weft-auth-"));
   const accounts = new Accounts(join(dir, "accounts.db"));
   const app = createApp({
@@ -64,6 +64,7 @@ function setup(opts: { aiDailyLimit?: number; anonAiDailyLimit?: number } = {}) 
     accounts,
     aiDailyLimit: opts.aiDailyLimit,
     anonAiDailyLimit: opts.anonAiDailyLimit,
+    practiceBudgetUsd: opts.practiceBudgetUsd,
   });
   const call = async (method: string, path: string, body?: unknown, tok?: string) =>
     app.request(path, {
@@ -174,5 +175,35 @@ describe("Privy auth", () => {
     const me = (await (await call("GET", "/me", undefined, alice)).json()) as { ai: { usedToday: number; dailyLimit: number } };
     expect(me.ai).toEqual({ usedToday: 2, dailyLimit: 2 });
     if (prev) process.env.ANTHROPIC_API_KEY = prev;
+  });
+});
+
+describe("practice", () => {
+  it("runs on pretend money up to each person's budget, privately", async () => {
+    const { call } = setup({ practiceBudgetUsd: 1000 });
+    const alice = await token("did:privy:alice");
+    const bob = await token("did:privy:bob");
+    const start = (usd: number, t = alice) => call("POST", "/deployments", { strategyId: "crowded-fade", allocationUsd: usd, mode: "paper" }, t);
+    const first = await start(600);
+    expect(first.status).toBe(201);
+    const id = ((await first.json()) as { id: string }).id;
+    const money = async (t: string) => (await (await call("GET", "/practice", undefined, t)).json()) as { enabled: boolean; usedUsd: number; leftUsd: number; running: number };
+    expect(await money(alice)).toMatchObject({ enabled: true, usedUsd: 600, leftUsd: 400, running: 1 });
+    const over = await start(500);
+    expect(over.status).toBe(409);
+    expect(((await over.json()) as { error: string }).error).toMatch(/\$400 of practice money left/);
+    expect((await start(400)).status).toBe(201);
+    expect((await start(500, bob)).status).toBe(201); // everyone has their own
+    // a practice run is only for its owner to see
+    expect((await call("GET", `/deployments/${id}`, undefined, bob)).status).toBe(403);
+    expect((await call("GET", `/deployments/${id}`)).status).toBe(403);
+    expect((await call("GET", `/deployments/${id}`, undefined, alice)).status).toBe(200);
+  });
+
+  it("is off without a budget: real money or alerts only", async () => {
+    const { call } = setup();
+    const alice = await token("did:privy:alice");
+    expect((await call("POST", "/deployments", { strategyId: "crowded-fade", allocationUsd: 100, mode: "paper" }, alice)).status).toBe(400);
+    expect(((await (await call("GET", "/practice", undefined, alice)).json()) as { enabled: boolean }).enabled).toBe(false);
   });
 });

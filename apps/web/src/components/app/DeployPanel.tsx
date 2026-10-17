@@ -112,8 +112,10 @@ function orderNow(s: Strategy | undefined): string | null {
   return `${open.side === "short" ? "Short" : "Buy"} ${instrumentLabel(open.instrument)}`;
 }
 
-/** Start a strategy with real money (or as alerts only) and jump to its run page. */
-export function DeployPanel({ strategy, strategyId, compact = false }: { strategy?: Strategy; strategyId?: string; compact?: boolean }) {
+export type RunMode = "live" | "practice" | "alerts";
+
+/** Start a strategy with real money, as practice (pretend money, real prices) or as alerts only, and jump to its run page. */
+export function DeployPanel({ strategy, strategyId, compact = false, initialMode }: { strategy?: Strategy; strategyId?: string; compact?: boolean; initialMode?: RunMode }) {
   const router = useRouter();
   const requireAuth = useRequireAuth();
   const auth = useAuth();
@@ -142,15 +144,24 @@ export function DeployPanel({ strategy, strategyId, compact = false }: { strateg
   const solOpen = Boolean(sol.data?.enabled);
   const blocker = useMemo(() => liveBlocker(strategy, venues && solOpen ? { ...venues, solana: true } : venues), [strategy, venues, solOpen]);
 
-  const [mode, setMode] = useState<"live" | "alerts">(blocker ? "alerts" : "live");
+  const practice = useApi(() => api.practice(), [signedIn]);
+  const practiceOn = Boolean(practice.data?.enabled);
+  // Practice first for anyone who can't trade real money yet (not signed in, no wallet, no money in
+  // it); Trade for everyone who can. What the person picks always wins.
+  const funded = ready && (onSolana ? (walletUsd ?? 0) >= 1 : (available ?? 0) >= 10);
+  const [picked, setPicked] = useState<RunMode | null>(initialMode ?? null);
+  const mode: RunMode = picked ?? (blocker ? (practiceOn ? "practice" : "alerts") : funded || !practiceOn ? "live" : "practice");
+  const setMode = setPicked;
   const [allocation, setAllocation] = useState(100);
   // How often the agent looks at the market is Weft's job, not the user's: fast where prices move fast.
   const interval = useMemo(() => checkInterval(strategy), [strategy]);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const isLive = mode === "live";
-  const alerts = useApi(signedIn && !isLive ? () => api.alertsMe() : null, [signedIn, isLive]);
-  const limit = Math.min(cap ?? Infinity, available ?? Infinity);
+  const isPractice = mode === "practice";
+  const alerts = useApi(signedIn && mode === "alerts" ? () => api.alertsMe() : null, [signedIn, mode]);
+  const practiceLeft = practice.data?.leftUsd ?? null;
+  const limit = isPractice ? (practiceLeft ?? Infinity) : Math.min(cap ?? Infinity, available ?? Infinity);
   const max = Number.isFinite(limit) ? Math.max(10, limit) : Infinity;
   const now = useMemo(() => orderNow(strategy), [strategy]);
 
@@ -163,7 +174,11 @@ export function DeployPanel({ strategy, strategyId, compact = false }: { strateg
         strategy,
         strategyId,
         intervalSec: interval,
-        ...(isLive ? { mode: "live", allocationUsd: autoBudget ?? Math.min(allocation, max), confirm: "GO LIVE" } : { mode: "paper", alertsOnly: true, allocationUsd: 1000 }),
+        ...(isLive
+          ? { mode: "live", allocationUsd: autoBudget ?? Math.min(allocation, max), confirm: "GO LIVE" }
+          : isPractice
+            ? { mode: "paper", allocationUsd: autoBudget ?? Math.min(allocation, max) }
+            : { mode: "paper", alertsOnly: true, allocationUsd: 1000 }),
       });
       router.push(`/run?id=${encodeURIComponent(rec.id)}`);
     } catch (e) {
@@ -173,6 +188,47 @@ export function DeployPanel({ strategy, strategyId, compact = false }: { strateg
   };
 
   const link = "font-medium text-ink underline decoration-line-2 underline-offset-4 hover:decoration-ink";
+  const budgetUi = (
+    <>
+      {autoBudget != null && stated ? (
+        <div className="mt-4 rounded-[10px] bg-paper-2 px-3.5 py-3">
+          <div className="flex items-baseline justify-between gap-3">
+            <span className="text-[13px] text-muted">Uses</span>
+            <span className="tnum text-[15px] font-medium text-ink">
+              {stated.text}
+              {!/^\$/.test(stated.text) && <span className="font-normal text-muted"> ≈ ${stated.usd < 100 ? stated.usd.toFixed(2) : Math.round(stated.usd).toLocaleString("en-US")}</span>}
+            </span>
+          </div>
+          <button type="button" onClick={() => (setCustomBudget(true), setAllocation(Math.max(10, Math.ceil(stated.usd * 2))))} className="mt-1.5 text-[12px] text-faint hover:text-ink">
+            Set a budget instead
+          </button>
+        </div>
+      ) : (
+      <label className="mt-4 block">
+        <span className="text-[13px] text-ink-2">Budget</span>
+        <div className="mt-1.5 flex h-10 items-center rounded-[10px] border border-line-2 bg-card px-3 focus-within:border-ink/40">
+          <span className="text-muted">$</span>
+          <input
+            inputMode="numeric"
+            value={allocation.toLocaleString("en-US")}
+            onChange={(e) => setAllocation(Math.min(max, Math.max(0, Number(e.target.value.replace(/[^\d]/g, "")) || 0)))}
+            onBlur={() => setAllocation((a) => Math.max(10, a))}
+            className="tnum w-full bg-transparent pl-1 text-[15px] text-ink outline-none"
+            aria-label="Amount in USD"
+          />
+          {Number.isFinite(max) && (
+            <button type="button" onClick={() => setAllocation(Math.floor(max))} className="shrink-0 text-[12.5px] text-muted hover:text-ink">
+              Max
+            </button>
+          )}
+        </div>
+        <span className="mt-1 block text-[12px] leading-relaxed text-faint">
+          The most this strategy can put into trades; nothing moves until a rule fires.{cap != null ? ` Up to $${cap.toLocaleString("en-US")} per strategy.` : ""}
+        </span>
+      </label>
+      )}
+    </>
+  );
 
   return (
     <Card className={compact ? "p-4" : "p-5"}>
@@ -183,6 +239,7 @@ export function DeployPanel({ strategy, strategyId, compact = false }: { strateg
           value={mode}
           options={[
             ["live", "Trade", Boolean(blocker)],
+            ...(practiceOn ? ([["practice", "Practice"]] as const) : []),
             ["alerts", "Alerts only"],
           ]}
           onChange={(m) => {
@@ -249,45 +306,22 @@ export function DeployPanel({ strategy, strategyId, compact = false }: { strateg
                 </>
               )}
             </p>
-            {autoBudget != null && stated ? (
-              <div className="mt-4 rounded-[10px] bg-paper-2 px-3.5 py-3">
-                <div className="flex items-baseline justify-between gap-3">
-                  <span className="text-[13px] text-muted">Uses</span>
-                  <span className="tnum text-[15px] font-medium text-ink">
-                    {stated.text}
-                    {!/^\$/.test(stated.text) && <span className="font-normal text-muted"> ≈ ${stated.usd < 100 ? stated.usd.toFixed(2) : Math.round(stated.usd).toLocaleString("en-US")}</span>}
-                  </span>
-                </div>
-                <button type="button" onClick={() => (setCustomBudget(true), setAllocation(Math.max(10, Math.ceil(stated.usd * 2))))} className="mt-1.5 text-[12px] text-faint hover:text-ink">
-                  Set a budget instead
-                </button>
-              </div>
-            ) : (
-            <label className="mt-4 block">
-              <span className="text-[13px] text-ink-2">Budget</span>
-              <div className="mt-1.5 flex h-10 items-center rounded-[10px] border border-line-2 bg-card px-3 focus-within:border-ink/40">
-                <span className="text-muted">$</span>
-                <input
-                  inputMode="numeric"
-                  value={allocation.toLocaleString("en-US")}
-                  onChange={(e) => setAllocation(Math.min(max, Math.max(0, Number(e.target.value.replace(/[^\d]/g, "")) || 0)))}
-                  onBlur={() => setAllocation((a) => Math.max(10, a))}
-                  className="tnum w-full bg-transparent pl-1 text-[15px] text-ink outline-none"
-                  aria-label="Amount in USD"
-                />
-                {Number.isFinite(max) && (
-                  <button type="button" onClick={() => setAllocation(Math.floor(max))} className="shrink-0 text-[12.5px] text-muted hover:text-ink">
-                    Max
-                  </button>
-                )}
-              </div>
-              <span className="mt-1 block text-[12px] leading-relaxed text-faint">
-                The most this strategy can put into trades; nothing moves until a rule fires.{cap != null ? ` Up to $${cap.toLocaleString("en-US")} per strategy.` : ""}
-              </span>
-            </label>
-            )}
+            {budgetUi}
           </>
         )
+      ) : isPractice ? (
+        <>
+          <p className="mt-3 text-[13.5px] leading-relaxed text-muted">
+            Pretend money, real prices. Every trade is simulated at live prices with fees included, and nothing real is bought or sold.
+            {signedIn && practice.data && (
+              <>
+                {" "}
+                <span className="tnum text-ink-2">${Math.floor(practice.data.leftUsd).toLocaleString("en-US")}</span> of your ${practice.data.budgetUsd.toLocaleString("en-US")} practice money left.
+              </>
+            )}
+          </p>
+          {budgetUi}
+        </>
       ) : (
         <p className="mt-3 text-[13.5px] leading-relaxed text-muted">
           Nothing is bought or sold. You get a message the moment a rule would trade.
@@ -303,7 +337,7 @@ export function DeployPanel({ strategy, strategyId, compact = false }: { strateg
         </p>
       )}
 
-      {blocker && <p className="mt-3 rounded-[10px] bg-[var(--trigger-soft)] px-3 py-2.5 text-[13px] leading-relaxed text-ink-2">{blocker} You can run it as alerts in the meantime.</p>}
+      {blocker && isLive && <p className="mt-3 rounded-[10px] bg-[var(--trigger-soft)] px-3 py-2.5 text-[13px] leading-relaxed text-ink-2">{blocker} You can practice it or run it as alerts in the meantime.</p>}
 
       {error && <p className="mt-3 whitespace-pre-wrap rounded-[10px] bg-[var(--short-soft)] px-3 py-2.5 text-[13px] text-short">{error}</p>}
 
@@ -315,6 +349,10 @@ export function DeployPanel({ strategy, strategyId, compact = false }: { strateg
         <Btn onClick={deploy} disabled={busy} className="mt-5 h-11 w-full text-[15px]">
           {busy
             ? "Starting…"
+            : isPractice
+              ? now && stated
+                ? `Practice: ${now} for ${stated.text}`
+                : "Start practicing"
             : !isLive
               ? "Start alerts"
               : now && stated
@@ -335,7 +373,9 @@ export function DeployPanel({ strategy, strategyId, compact = false }: { strateg
         )
           : isLive
             ? "Pause or stop any time. Stopping sells everything the strategy holds."
-            : "Pause or stop any time."}
+            : isPractice
+              ? "Pretend money only. When you like how it trades, start it for real in one click."
+              : "Pause or stop any time."}
       </p>
     </Card>
   );

@@ -86,6 +86,8 @@ export interface AppDeps {
    * simulated trading is limited to backtests and alerts-only runs. Local development keeps it.
    */
   allowPaper?: boolean;
+  /** Practice money per user (pretend dollars on the paper engine, real prices); null or 0: practice is off. */
+  practiceBudgetUsd?: number | null;
   /** Live Solana token trading (the user's own Privy wallet, Weft as a limited signer). */
   solana?: SolanaLive;
   /** Weft's owners (see earnings). */
@@ -142,6 +144,18 @@ export function createApp(deps: AppDeps) {
   /** Holders draft more: the AI is one of the things $WEFT pays for. */
   const aiLimitFor = async (userId: string) => (deps.holders?.enabled && (await deps.holders.status(userId).catch(() => null))?.active ? holderAiDailyLimit : aiDailyLimit);
   const allowPaper = deps.allowPaper ?? !authEnabled;
+  const practiceBudget = deps.practiceBudgetUsd && deps.practiceBudgetUsd > 0 ? deps.practiceBudgetUsd : null;
+  /** At most this many practice runs going at once per person. */
+  const PRACTICE_MAX_RUNS = 5;
+  const isPractice = (d: { mode: string; alertsOnly?: boolean }) => d.mode === "paper" && !d.alertsOnly;
+  /** A user's practice money in use: the budgets of their running or paused practice runs. */
+  const practiceUse = async (userId: string) => {
+    const mine = accounts ? accounts.deploymentsOf(userId) : new Set<string>();
+    let usedUsd = 0, running = 0;
+    for (const d of await engine.listDeployments())
+      if (isPractice(d) && mine.has(d.id) && (d.status === "running" || d.status === "paused")) (usedUsd += d.allocationUsd), running++;
+    return { usedUsd, running };
+  };
   const app = new Hono();
 
   /** The signed-in user, LOCAL_USER in local mode, or null for anonymous requests. */
@@ -238,7 +252,7 @@ export function createApp(deps: AppDeps) {
   /** Live runs are private: only their owner sees positions, fills and events. */
   const canView = async (c: Context, id: string): Promise<boolean> => {
     const snap = await engine.getSnapshot(id);
-    if (!snap || snap.deployment.mode !== "live" || !authEnabled) return true;
+    if (!snap || !authEnabled || (snap.deployment.mode !== "live" && !isPractice(snap.deployment))) return true;
     const user = await optionalUser(c);
     return !!user && accounts?.deploymentOwner(id) === user.id;
   };
@@ -619,6 +633,14 @@ export function createApp(deps: AppDeps) {
     return c.json({ deployments: snaps.filter(Boolean) });
   });
 
+  /** Your practice money: how much there is, how much your practice runs are using. */
+  app.get("/practice", async (c) => {
+    if (!practiceBudget) return c.json({ enabled: false, budgetUsd: 0, usedUsd: 0, leftUsd: 0, running: 0, maxRuns: PRACTICE_MAX_RUNS });
+    const user = await optionalUser(c);
+    const use = user ? await practiceUse(user.id) : { usedUsd: 0, running: 0 };
+    return c.json({ enabled: true, budgetUsd: practiceBudget, ...use, leftUsd: Math.max(0, practiceBudget - use.usedUsd), maxRuns: PRACTICE_MAX_RUNS });
+  });
+
   app.post("/deployments", async (c) => {
     const user = await requireUser(c);
     const body = DeployBody.parse(await c.req.json());
@@ -627,8 +649,14 @@ export function createApp(deps: AppDeps) {
     const v = validateStrategy(raw);
     if (!v.ok) return c.json({ error: "invalid strategy", issues: v.errors }, 422);
     const strategy = v.strategy;
-    if (body.mode === "paper" && !body.alertsOnly && !allowPaper)
-      return c.json({ error: "Weft trades with real money only. Start it live, or as alerts only." }, 400);
+    if (body.mode === "paper" && !body.alertsOnly && !allowPaper) {
+      if (!practiceBudget) return c.json({ error: "Weft trades with real money only. Start it live, or as alerts only." }, 400);
+      const { usedUsd, running } = await practiceUse(user.id);
+      if (running >= PRACTICE_MAX_RUNS) return c.json({ error: `You have ${running} practice runs going. Stop one to start another.` }, 409);
+      const left = practiceBudget - usedUsd;
+      if (body.allocationUsd > left + 1e-9)
+        return c.json({ error: left <= 0 ? `All $${practiceBudget.toLocaleString("en-US")} of your practice money is in use. Stop a practice run to free some up.` : `You have $${Math.floor(left).toLocaleString("en-US")} of practice money left.` }, 409);
+    }
     // Real money never rides on made-up data: signals Weft only simulates (no live feed yet) can run
     // as alerts, not trades.
     if (body.mode === "live" && !body.alertsOnly) {

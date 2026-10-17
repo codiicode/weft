@@ -366,7 +366,7 @@ function Builder() {
             </div>
 
             <div className="space-y-4">
-              <DeployPanel strategy={strategy} />
+              <DeployPanel strategy={strategy} initialMode={params.get("mode") === "live" ? "live" : params.get("mode") === "practice" ? "practice" : undefined} />
               <Card className="p-5">
                 <div className="text-[15px] font-semibold tracking-[-0.015em] text-ink">Share it</div>
                 <p className="mt-1 text-[13.5px] leading-relaxed text-muted">Others can read and copy the rules. Your wallet and amounts stay private.</p>

@@ -426,6 +426,8 @@ export const api = {
   },
 
   deployments: () => req<{ deployments: Snapshot[] }>("/deployments"),
+  /** Your practice money (pretend dollars, real prices). */
+  practice: () => req<{ enabled: boolean; budgetUsd: number; usedUsd: number; leftUsd: number; running: number; maxRuns: number }>("/practice"),
   deploy: (body: { strategy?: Strategy; strategyId?: string; allocationUsd: number; intervalSec?: number; mode?: "paper" | "live"; confirm?: string; alertsOnly?: boolean }) =>
     req<DeploymentRecord>("/deployments", { method: "POST", json: body }),
   deployment: (id: string) => req<Snapshot>(`/deployments/${encodeURIComponent(id)}`),

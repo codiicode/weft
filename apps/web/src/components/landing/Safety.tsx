@@ -7,7 +7,7 @@ const can = ["Place and cancel orders", "Set stops and targets", "Swap tokens in
 const cannot = ["Withdraw your money", "Send it to another address", "Trade a strategy you haven’t started"];
 
 const guards = [
-  ["Watch it first", "Run a strategy as alerts only: you get a message for every trade it would make, and no money moves."],
+  ["Practice first", "Run any strategy with $10,000 of pretend money at real prices, or as alerts only. No money moves until you start it for real."],
   ["Your amount, your stop", "A strategy trades with the amount you give it. Add a stop or a target in plain words and it’s placed with the order."],
   ["Stop it any time", "Hold the stop button and Weft closes everything the strategy holds, right away."],
 ];

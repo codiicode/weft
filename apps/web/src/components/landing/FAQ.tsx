@@ -7,7 +7,7 @@ import { brand, $T } from "@/config/brand";
 const faqs = [
   {
     q: "Do I need to know how to trade?",
-    a: "You need an opinion, not a trading background. Weft turns it into concrete rules and shows you each one in plain English before anything runs. Run it as alerts only first if you like, then start it with whatever amount you like.",
+    a: "You need an opinion, not a trading background. Weft turns it into concrete rules and shows you each one in plain English before anything runs. Practice it with pretend money first if you like, then start it with whatever amount you like.",
   },
   {
     q: "Does Weft hold my money?",
@@ -32,6 +32,10 @@ const faqs = [
   {
     q: "Is it safe to trade new tokens with it?",
     a: "Safer than doing it by hand, but never safe. Weft finds a token by its contract address, not its ticker, and checks every buy for the usual rug signs: whether the dev can still mint or freeze, how much the top wallets hold, how deep the liquidity is and whether the dev has sold. If a check fails, you get a warning. Add “only if it’s safe” and a failed check stops the buy instead. New tokens can still go to zero.",
+  },
+  {
+    q: "Can I try it without real money?",
+    a: "Yes. Every account gets $10,000 of practice money. A practice run trades at real prices with fees included, so you see how it would really do, and nothing real is bought or sold. When you like it, start it for real in one click.",
   },
   {
     q: "Can it just alert me instead?",
