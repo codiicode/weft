@@ -31,22 +31,22 @@ export default function LeaderboardPage() {
         ) : (
           <Card className="overflow-hidden">
             <div className="overflow-x-auto">
-              <table className="w-full min-w-[680px] text-left text-[14px]">
+              <table className="w-full text-left text-[14px] sm:min-w-[680px]">
                 <thead className="text-[12.5px] text-muted">
                   <tr className="border-b border-line">
-                    <th className="w-12 px-5 py-2.5 font-normal">#</th>
-                    <th className="px-3 py-2.5 font-normal">Strategy</th>
+                    <th className="hidden w-12 px-5 py-2.5 font-normal sm:table-cell">#</th>
+                    <th className="py-2.5 pl-4 pr-3 font-normal sm:pl-3">Strategy</th>
                     <th className="px-3 py-2.5 text-right font-normal">Return</th>
-                    <th className="px-3 py-2.5 text-right font-normal">Trend</th>
-                    <th className="px-3 py-2.5 text-right font-normal">Running</th>
-                    <th className="px-5 py-2.5" />
+                    <th className="hidden px-3 py-2.5 text-right font-normal sm:table-cell">Trend</th>
+                    <th className="hidden px-3 py-2.5 text-right font-normal sm:table-cell">Running</th>
+                    <th className="py-2.5 pl-2 pr-4 sm:px-5" />
                   </tr>
                 </thead>
                 <tbody>
                   {rows.map((r, i) => (
                     <tr key={r.deploymentId} className="border-b border-line transition-colors last:border-0 hover:bg-paper-2/40">
-                      <td className="tnum px-5 py-3.5 text-muted">{i + 1}</td>
-                      <td className="px-3 py-3.5">
+                      <td className="tnum hidden px-5 py-3.5 text-muted sm:table-cell">{i + 1}</td>
+                      <td className="py-3.5 pl-4 pr-3 sm:pl-3">
                         <div className="flex items-center gap-3">
                           {r.strategy && <AssetStack items={strategyIcons(r.strategy)} size={26} max={2} />}
                           <div className="min-w-0">
@@ -58,13 +58,13 @@ export default function LeaderboardPage() {
                       <td className={`tnum whitespace-nowrap px-3 py-3.5 text-right font-medium ${r.returnPct > 0 ? "text-long" : r.returnPct < 0 ? "text-short" : "text-muted"}`}>
                         {fmtPct(r.returnPct)}
                       </td>
-                      <td className="px-3 py-3.5">
+                      <td className="hidden px-3 py-3.5 sm:table-cell">
                         <div className="flex justify-end">
                           {r.returnCurve.length > 1 && <Sparkline data={r.returnCurve.map((p) => p[1])} width={96} height={26} strokeWidth={1.4} color={trendColor(r.returnPct)} />}
                         </div>
                       </td>
-                      <td className="whitespace-nowrap px-3 py-3.5 text-right text-[13px] text-muted">{ago(r.since).replace(" ago", "")}</td>
-                      <td className="px-5 py-3.5 text-right">
+                      <td className="hidden whitespace-nowrap px-3 py-3.5 text-right text-[13px] text-muted sm:table-cell">{ago(r.since).replace(" ago", "")}</td>
+                      <td className="py-3.5 pl-2 pr-4 text-right sm:px-5">
                         {r.strategy && (
                           <Link href={`/new?from=${encodeURIComponent(`shared:${r.deploymentId}`)}`} className="whitespace-nowrap text-[13.5px] font-medium text-ink hover:underline">
                             Copy →

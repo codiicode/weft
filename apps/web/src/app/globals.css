@@ -344,7 +344,8 @@ textarea:focus-visible {
     transform 0.8s var(--ease-out) var(--d, 0ms);
 }
 html.js .reveal-mask:not(.is-in) > div {
-  transform: translateY(105%);
+  /* past the block plus room for serif ascenders, so no tops of letters peek out before the rise */
+  transform: translateY(calc(105% + 0.4em));
 }
 html.js .reveal-fade:not(.is-in) {
   opacity: 0;

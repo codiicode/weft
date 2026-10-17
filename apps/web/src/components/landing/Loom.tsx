@@ -115,8 +115,10 @@ export function Loom() {
   const H = narrow ? 400 : 470;
   const g = narrow ? 20 : Math.max(32, (W - 1200) / 2 + 32);
   const inner = W - 2 * g;
-  const straight = g + inner * (narrow ? 0.28 : 0.5);
-  const knot = { x: g + inner * (narrow ? 0.5 : 0.66), y: H / 2 };
+  // On a phone the labels take two short lines on the left and the threads only bend after them,
+  // so no thread ever runs through a label.
+  const straight = g + inner * (narrow ? 0.7 : 0.5);
+  const knot = { x: g + inner * (narrow ? 0.93 : 0.66), y: H / 2 };
   const gap = narrow ? 18 : 22;
   const ys = narrow ? [64, 140, 260, 336] : [78, 172, 298, 392];
   const ambient = narrow ? [24, 102, 200, 298, 376] : [30, 125, 235, 345, 440];
@@ -309,7 +311,7 @@ export function Loom() {
                   key={`${t.label}-icon`}
                   href={t.icon}
                   x={g}
-                  y={ys[i]! - 12 - (narrow ? 13 : 14)}
+                  y={ys[i]! - (narrow ? 30 : 12) - (narrow ? 13 : 14)}
                   width={narrow ? 15 : 17}
                   height={narrow ? 15 : 17}
                   initial={{ opacity: reduce ? 1 : 0 }}
@@ -318,7 +320,25 @@ export function Loom() {
                 />
               ) : null,
             )}
-            {s.threads.map((t, i) => (
+            {s.threads.map((t, i) => narrow ? (
+              <motion.text
+                key={t.label}
+                y={ys[i]! - 30}
+                fontSize={12}
+                initial={{ opacity: reduce ? 1 : 0, y: reduce ? 0 : 4 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.45, delay: 0.1 + i * 0.09 }}
+                style={{ paintOrder: "stroke", stroke: "var(--paper)", strokeWidth: 8, strokeLinejoin: "round" }}
+              >
+                <tspan x={t.icon ? g + 21 : g} style={{ fill: "var(--muted)" }}>{t.label}</tspan>
+                <tspan x={g} dy={17} style={{ fill: "var(--ink)", fontWeight: 500, fontVariantNumeric: "tabular-nums" }}>
+                  {live(t)}
+                </tspan>
+                <tspan dx={8} style={{ fill: t.met === false ? "var(--short)" : "var(--long)", fontVariantNumeric: "tabular-nums" }}>
+                  {t.met === false ? "✗" : "✓"} {t.need}
+                </tspan>
+              </motion.text>
+            ) : (
               <motion.text
                 key={t.label}
                 x={t.icon ? g + (narrow ? 21 : 24) : g}
@@ -359,15 +379,16 @@ export function Loom() {
                   transition={{ duration: 1.2, ease: "easeOut", repeat: reduce ? 0 : 2, repeatDelay: 1.3 }}
                   style={{ fill: "none", stroke: "var(--trigger)", strokeWidth: 1.5, transformOrigin: `${knot.x}px ${knot.y}px` }}
                 />}
-                <motion.text
+                {/* on a phone the rule's verdict goes in the card below instead */}
+                {!narrow && <motion.text
                   y={knot.y - 16}
-                  fontSize={narrow ? 12 : 13.5}
+                  fontSize={13.5}
                   initial={{ opacity: 0, x: knot.x + 10 }}
                   animate={{ opacity: 1, x: knot.x + 18 }}
                   style={{ fill: waits(s) ? "var(--muted)" : "var(--trigger)", fontWeight: 500, paintOrder: "stroke", stroke: "var(--paper)", strokeWidth: 8 }}
                 >
                   {s.rule}
-                </motion.text>
+                </motion.text>}
               </>
             )}
             {stage >= 2 && !waits(s) && (
@@ -404,7 +425,7 @@ export function Loom() {
             {waits(s) ? (
               <div className="flex items-center gap-1.5 text-[12.5px] text-muted">
                 <span className="h-1.5 w-1.5 rounded-full" style={{ background: "var(--muted)" }} />
-                Still watching
+                {narrow ? `${s.rule} · still watching` : "Still watching"}
               </div>
             ) : (
               <div className="flex items-center gap-1.5 text-[12.5px] text-long">
@@ -412,7 +433,7 @@ export function Loom() {
                   <span className="pulse-ring absolute inset-0 rounded-full bg-long" />
                   <span className="relative h-1.5 w-1.5 rounded-full bg-long" />
                 </span>
-                Order filled
+                {narrow ? `${s.rule} · order filled` : "Order filled"}
               </div>
             )}
             <div className="mt-1 whitespace-nowrap text-[16px] font-medium tracking-[-0.01em] text-ink sm:text-[17px]">{s.trade}</div>

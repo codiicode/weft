@@ -287,14 +287,14 @@ export function BacktestPanel({ strategy, strategyId, allocationUsd = 10_000 }: 
                   <div className="px-4 py-6 text-center text-[13.5px] text-muted">No trades in this period.</div>
                 ) : (
                   <div className="max-h-[300px] overflow-auto">
-                    <table className="w-full min-w-[560px] text-left text-[12.5px]">
+                    <table className="w-full text-left text-[12.5px] sm:min-w-[560px]">
                       <thead className="sticky top-0 bg-card text-[12px] text-muted">
                         <tr className="border-b border-line">
                           <th className="px-4 py-2 font-normal">Time</th>
                           <th className="px-2 py-2 font-normal">Side</th>
                           <th className="px-2 py-2 font-normal">Market</th>
                           <th className="px-2 py-2 text-right font-normal">Price</th>
-                          <th className="px-2 py-2 font-normal">Reason</th>
+                          <th className="hidden px-2 py-2 font-normal sm:table-cell">Reason</th>
                           <th className="px-4 py-2 text-right font-normal">Profit</th>
                         </tr>
                       </thead>
@@ -303,9 +303,9 @@ export function BacktestPanel({ strategy, strategyId, allocationUsd = 10_000 }: 
                           <tr key={`${f.ts}-${i}`} className="border-b border-line last:border-0">
                             <td className="whitespace-nowrap px-4 py-2 text-faint">{fmtDayTime(f.ts)}</td>
                             <td className={`px-2 py-2 ${f.side === "buy" ? "text-long" : "text-short"}`}>{f.side === "buy" ? "Buy" : "Sell"}</td>
-                            <td className="max-w-[180px] truncate px-2 py-2 text-ink-2" title={f.instrumentKey}>{f.label}</td>
+                            <td className="max-w-[110px] truncate px-2 py-2 text-ink-2 sm:max-w-[180px]" title={f.instrumentKey}>{f.label}</td>
                             <td className="tnum px-2 py-2 text-right">{fmtPrice(f.price)}</td>
-                            <td className="px-2 py-2 text-[12.5px] text-muted">{f.reason.replace(/_/g, " ")}</td>
+                            <td className="hidden px-2 py-2 text-[12.5px] text-muted sm:table-cell">{f.reason.replace(/_/g, " ")}</td>
                             <td className={`tnum whitespace-nowrap px-4 py-2 text-right ${f.realizedPnlUsd == null ? "text-faint" : f.realizedPnlUsd >= 0 ? "text-long" : "text-short"}`}>
                               {f.realizedPnlUsd == null ? `fee ${fmtUsd(f.feeUsd, 2)}` : fmtUsd(f.realizedPnlUsd, 2)}
                             </td>

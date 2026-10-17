@@ -18,18 +18,22 @@ function copyThesis(t: TopTrader) {
 function Row({ t, i }: { t: TopTrader; i: number }) {
   return (
     <tr className="border-b border-line transition-colors last:border-0 hover:bg-paper-2/40">
-      <td className="tnum px-4 py-3 text-[13px] text-faint">{i + 1}</td>
-      <td className="px-3 py-3">
+      <td className="tnum hidden px-4 py-3 text-[13px] text-faint sm:table-cell">{i + 1}</td>
+      <td className="whitespace-nowrap py-3 pl-4 pr-3 sm:pl-3">
         <a href={`https://hypurrscan.io/address/${t.address}`} target="_blank" rel="noopener noreferrer" className="font-medium text-ink hover:underline">
           {t.name ?? short(t.address)}
         </a>
         {t.name && <div className="text-[12px] text-faint">{short(t.address)}</div>}
       </td>
-      <td className="tnum px-3 py-3 text-right text-long">{signed(t.pnl30dUsd)}</td>
-      <td className="tnum px-3 py-3 text-right text-ink-2">+{t.roi30dPct}%</td>
+      <td className="tnum px-3 py-3 text-right text-long">
+        {signed(t.pnl30dUsd)}
+        {/* on a phone the return sits under the profit */}
+        <div className="text-[12px] text-ink-2 sm:hidden">+{t.roi30dPct}%</div>
+      </td>
+      <td className="tnum hidden px-3 py-3 text-right text-ink-2 sm:table-cell">+{t.roi30dPct}%</td>
       <td className={`tnum hidden px-3 py-3 text-right sm:table-cell ${t.pnl7dUsd >= 0 ? "text-ink-2" : "text-short"}`}>{signed(t.pnl7dUsd)}</td>
       <td className="tnum hidden px-3 py-3 text-right text-ink-2 md:table-cell">{usd(t.accountValueUsd)}</td>
-      <td className="px-4 py-3 text-right">
+      <td className="py-3 pl-2 pr-4 text-right">
         <a
           href={`/new?thesis=${encodeURIComponent(copyThesis(t))}`}
           className="inline-flex h-8 items-center rounded-[8px] border border-line-2 px-3 text-[13px] font-medium text-ink transition-colors hover:border-ink/30"
@@ -64,10 +68,10 @@ export default function TradersPage() {
               <table className="w-full text-[14px]">
                 <thead>
                   <tr className="border-b border-line text-left text-[12px] text-muted">
-                    <th className="px-4 py-2.5 font-normal">#</th>
-                    <th className="px-3 py-2.5 font-normal">Trader</th>
+                    <th className="hidden px-4 py-2.5 font-normal sm:table-cell">#</th>
+                    <th className="py-2.5 pl-4 pr-3 font-normal sm:pl-3">Trader</th>
                     <th className="px-3 py-2.5 text-right font-normal">30-day profit</th>
-                    <th className="px-3 py-2.5 text-right font-normal">30-day return</th>
+                    <th className="hidden px-3 py-2.5 text-right font-normal sm:table-cell">30-day return</th>
                     <th className="hidden px-3 py-2.5 text-right font-normal sm:table-cell">Last 7 days</th>
                     <th className="hidden px-3 py-2.5 text-right font-normal md:table-cell">Account</th>
                     <th className="px-4 py-2.5" />

@@ -119,8 +119,9 @@ function ShareRow({ id, shared, onChange, venue }: { id: string; shared: boolean
         <span className={`relative h-5 w-9 rounded-full transition-colors ${on ? "bg-long" : "bg-line-2"}`}>
           <span className={`absolute top-0.5 h-4 w-4 rounded-full bg-white shadow transition-[left] ${on ? "left-[18px]" : "left-0.5"}`} />
         </span>
-        Show the return on the leaderboard
-        <span className="text-faint">(percent only)</span>
+        <span className="text-left">
+          Show the return on the leaderboard <span className="text-faint">(percent only)</span>
+        </span>
       </button>
     </div>
   );
@@ -250,6 +251,9 @@ function Run() {
   const tone = (v: number) => (v > 0 ? "long" : v < 0 ? "short" : undefined);
   const fillList = [...(fills.data?.fills ?? [])].reverse();
   const quiet = s.positions.length === 0 && fillList.length === 0;
+  // What to chart: the strategy's own markets, plus whatever it holds (a copy strategy has no
+  // markets of its own, only the ones the leader trades).
+  const charted = [...new Map([...strategyInstruments(d.strategy), ...s.positions.map((p) => p.instrument)].map((i) => [JSON.stringify(i), i])).values()];
 
   return (
     <>
@@ -359,12 +363,14 @@ function Run() {
               </section>
             )}
 
-            <section>
-              <h2 className="mb-3 text-[15px] font-semibold text-ink">The market</h2>
-              <Card className="p-5">
-                <TradesChart instruments={strategyInstruments(d.strategy)} fills={fills.data?.fills ?? []} startedAt={d.createdAt} />
-              </Card>
-            </section>
+            {charted.length > 0 && (
+              <section>
+                <h2 className="mb-3 text-[15px] font-semibold text-ink">The market</h2>
+                <Card className="p-5">
+                  <TradesChart instruments={charted} fills={fills.data?.fills ?? []} startedAt={d.createdAt} />
+                </Card>
+              </section>
+            )}
 
             {quiet && !d.alertsOnly ? (
               <section>
@@ -391,41 +397,45 @@ function Run() {
                   <p className="px-5 py-8 text-center text-[14px] text-muted">No open positions. It’s waiting for a rule to fire.</p>
                 ) : (
                   <div className="overflow-x-auto">
-                    <table className="w-full min-w-[680px] text-left text-[13.5px]">
+                    <table className="w-full text-left text-[13.5px] sm:min-w-[680px]">
                       <thead className="text-[12.5px] text-muted">
                         <tr className="border-b border-line">
-                          <th className="px-5 py-2.5 font-normal">Market</th>
+                          <th className="py-2.5 pl-4 pr-3 font-normal sm:pl-5">Market</th>
                           <th className="px-3 py-2.5 font-normal">Side</th>
-                          <th className="px-3 py-2.5 text-right font-normal">Size</th>
-                          <th className="px-3 py-2.5 text-right font-normal">Entry</th>
-                          <th className="px-3 py-2.5 text-right font-normal">Now</th>
-                          <th className="px-3 py-2.5 text-right font-normal">Liquidation</th>
+                          <th className="hidden px-3 py-2.5 text-right font-normal sm:table-cell">Size</th>
+                          <th className="hidden px-3 py-2.5 text-right font-normal sm:table-cell">Entry</th>
+                          <th className="hidden px-3 py-2.5 text-right font-normal sm:table-cell">Now</th>
+                          <th className="hidden px-3 py-2.5 text-right font-normal sm:table-cell">Liquidation</th>
                           <th className="px-3 py-2.5 text-right font-normal">Profit</th>
-                          {canAct && <th className="px-5 py-2.5" />}
+                          {canAct && <th className="py-2.5 pl-2 pr-4 sm:px-5" />}
                         </tr>
                       </thead>
                       <tbody>
                         {s.positions.map((p) => (
                           <tr key={p.id} className="border-b border-line last:border-0">
-                            <td className="px-5 py-3 font-medium text-ink">
-                              <span className="inline-flex items-center gap-2.5">
+                            <td className="py-3 pl-4 pr-3 font-medium text-ink sm:pl-5">
+                              <span className="inline-flex items-center gap-2.5 whitespace-nowrap">
                                 <AssetIcon {...instrumentIcon(p.instrument)} size={20} />
                                 {instrumentLabel(p.instrument)}
                               </span>
+                              {/* on a phone, size and prices go under the market */}
+                              <div className="tnum mt-0.5 whitespace-nowrap text-[12px] font-normal text-muted sm:hidden">
+                                {fmtUsd(p.sizeUsd, 0)} · {fmtPrice(p.entryPrice)} → {fmtPrice(p.markPrice)}
+                              </div>
                             </td>
                             <td className={`px-3 py-3 ${p.side === "long" ? "text-long" : "text-short"}`}>
                               {p.side === "long" ? "Long" : "Short"}
                               {p.leverage > 1 ? <span className="text-muted"> {p.leverage}×</span> : null}
                             </td>
-                            <td className="tnum px-3 py-3 text-right">{fmtUsd(p.sizeUsd, 2)}</td>
-                            <td className="tnum px-3 py-3 text-right text-ink-2">{fmtPrice(p.entryPrice)}</td>
-                            <td className="tnum px-3 py-3 text-right">{fmtPrice(p.markPrice)}</td>
-                            <td className="tnum px-3 py-3 text-right text-ink-2">{p.liquidationPrice ? fmtPrice(p.liquidationPrice) : "—"}</td>
-                            <td className={`tnum px-3 py-3 text-right ${p.unrealizedPnlUsd >= 0 ? "text-long" : "text-short"}`}>
-                              {fmtUsd(p.unrealizedPnlUsd, 2)} <span className="text-[12px] opacity-80">{fmtPct(p.unrealizedPnlPct)}</span>
+                            <td className="tnum hidden px-3 py-3 text-right sm:table-cell">{fmtUsd(p.sizeUsd, 2)}</td>
+                            <td className="tnum hidden px-3 py-3 text-right text-ink-2 sm:table-cell">{fmtPrice(p.entryPrice)}</td>
+                            <td className="tnum hidden px-3 py-3 text-right sm:table-cell">{fmtPrice(p.markPrice)}</td>
+                            <td className="tnum hidden px-3 py-3 text-right text-ink-2 sm:table-cell">{p.liquidationPrice ? fmtPrice(p.liquidationPrice) : "—"}</td>
+                            <td className={`tnum whitespace-nowrap px-3 py-3 text-right ${p.unrealizedPnlUsd >= 0 ? "text-long" : "text-short"}`}>
+                              {fmtUsd(p.unrealizedPnlUsd, 2)} <span className="block text-[12px] opacity-80 sm:inline">{fmtPct(p.unrealizedPnlPct)}</span>
                             </td>
                             {canAct && (
-                              <td className="px-5 py-3 text-right">
+                              <td className="py-3 pl-2 pr-4 text-right sm:px-5">
                                 <SellButton deploymentId={d.id} positionId={p.id} label={instrumentLabel(p.instrument)} onDone={refreshAll} />
                               </td>
                             )}
@@ -447,16 +457,16 @@ function Run() {
                   <p className="px-5 py-8 text-center text-[14px] text-muted">No trades yet.</p>
                 ) : (
                   <div className="max-h-[360px] overflow-auto">
-                    <table className="w-full min-w-[560px] text-left text-[13.5px]">
+                    <table className="w-full text-left text-[13.5px] sm:min-w-[560px]">
                       <tbody>
                         {fillList.map((f) => (
                           <tr key={f.id} className="border-b border-line last:border-0">
-                            <td className="tnum px-5 py-2.5 text-muted">{new Date(f.ts).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}</td>
+                            <td className="tnum py-2.5 pl-4 pr-3 text-muted sm:pl-5">{new Date(f.ts).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}</td>
                             <td className={`px-3 py-2.5 ${f.side === "buy" ? "text-long" : "text-short"}`}>{f.side === "buy" ? "Buy" : "Sell"}</td>
                             <td className="px-3 py-2.5 text-ink">{f.instrumentKey.split(":").slice(-1)[0]?.slice(0, 18)}</td>
                             <td className="tnum px-3 py-2.5 text-right">{fmtPrice(f.price)}</td>
-                            <td className="px-3 py-2.5 text-muted">{REASON[f.reason] ?? f.reason.replaceAll("_", " ")}</td>
-                            <td className={`tnum px-5 py-2.5 text-right ${f.realizedPnlUsd == null ? "text-muted" : f.realizedPnlUsd >= 0 ? "text-long" : "text-short"}`}>
+                            <td className="hidden px-3 py-2.5 text-muted sm:table-cell">{REASON[f.reason] ?? f.reason.replaceAll("_", " ")}</td>
+                            <td className={`tnum whitespace-nowrap py-2.5 pl-3 pr-4 text-right sm:pr-5 ${f.realizedPnlUsd == null ? "text-muted" : f.realizedPnlUsd >= 0 ? "text-long" : "text-short"}`}>
                               {f.realizedPnlUsd == null ? `fee ${fmtUsd(f.feeUsd, 2)}` : fmtUsd(f.realizedPnlUsd, 2)}
                             </td>
                           </tr>

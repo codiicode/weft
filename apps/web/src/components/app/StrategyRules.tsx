@@ -86,7 +86,17 @@ export function StrategyRules({ strategy, met }: { strategy: Strategy; met?: Rec
                   <span>{t.text}</span>
                 </li>
               ))}
-              {r.then.length === 0 && <li className="text-[14px] text-muted">No action attached.</li>}
+              {r.then.length === 0 && (
+                <li className="text-[14px] text-muted">
+                  {(() => {
+                    // A rule with no trade of its own is usually a gate: copying only happens while it holds.
+                    const gated = strategy.actions.filter((x) => x.type === "copy" && x.on.includes(r.id));
+                    if (gated.length) return "Copying only happens while this is true.";
+                    const later = rules.findIndex((x) => x.when.some((w) => w.includes(`rule ${i + 1}`)));
+                    return later >= 0 ? `Used by rule ${later + 1}.` : "No action attached.";
+                  })()}
+                </li>
+              )}
             </ul>
           </div>
         </div>

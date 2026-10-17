@@ -495,7 +495,8 @@ export function AgentDemo() {
             <>
             <div>
               <p className="text-[12px] text-muted">How it trades · {s.venue}</p>
-              <div className="mt-2">
+              {/* Too small to read on a phone, where the rules above already say the same thing. */}
+              <div className="mt-2 hidden sm:block">
                 <Diagram key={k} s={s} on={diagramOn} met={met} />
               </div>
             </div>
@@ -522,12 +523,12 @@ export function AgentDemo() {
                   const v = ticksSeries[i]!;
                   const hit = crossed(v);
                   return (
-                    <li key={i} className="flex gap-3 text-muted">
+                    <li key={i} className="flex gap-3 overflow-hidden whitespace-nowrap text-muted">
                       <span className="text-faint">{clock(i)}</span>
                       <span className={hit ? "text-long" : "text-ink-2"}>
                         {w.name} {w.fmt(v)} {hit ? "✓" : "✗"}
                       </span>
-                      <span className="text-long">{s.also.map((a) => `${a.value} ✓`).join(" ")}</span>
+                      <span className="hidden text-long sm:inline">{s.also.map((a) => `${a.value} ✓`).join(" ")}</span>
                       <span className={hit ? "text-long" : ""}>{hit ? `rule met → ${verb}` : "waiting"}</span>
                     </li>
                   );
