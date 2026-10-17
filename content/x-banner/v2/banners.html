@@ -585,6 +585,46 @@ function banner1(scenes, text, cells = [], layout = LAYOUT, withLogo = true) {
   if (withLogo) logo(1268, 418, 44, "dark");
 }
 const BANNERS = {
+  start() {
+    $b.style.width = "1600px"; $b.style.height = "900px";
+    $b.className = "dark"; dots("#2a2a2e", 24);
+    const o = { contrast: 1.0, cell: 5, solid: 0.42 };
+    headline("Getting started takes two minutes", 80, 60, 70);
+    const X = [60, 445, 830, 1215], Y = 220, W = 330, H = 430;
+    const s2 = el("svg", { width: 1600, height: 900, style: "position:absolute;inset:0" }, $b);
+    const cols = ["#f5a524", "#f472b6", "#38bdf8"];
+    for (let i = 0; i < 3; i++) {
+      const x0 = X[i] + W, x1 = X[i + 1], y = Y + H / 2;
+      el("path", { d: `M ${x0 - 6} ${y} C ${x0 + 30} ${y}, ${x1 - 30} ${y}, ${x1 + 6} ${y}`, stroke: cols[i], "stroke-width": 4, fill: "none", "stroke-linecap": "round" }, s2);
+      el("circle", { cx: (x0 + x1) / 2, cy: y, r: 6, fill: cols[i] }, s2);
+    }
+    const btn = (g, x, y, w, t, dark = true) => { rr(g, x, y, w, 96, 22, dark ? "#111" : null, "#111", 5); txt(g, t, x + w / 2, y + 64, F(42, 700), dark ? "#fff" : "#111", "center"); };
+    tile(X[0], Y, W, H, drawStep("01", "Sign in", (g, w) => {
+      txt(g, "at weft.fi", 40, 290, F(42, 600), "#222");
+      btn(g, 40, 380, w - 80, "Sign in");
+      txt(g, "Email, Google", 40, 590, F(38, 500), "#333"); txt(g, "or a wallet", 40, 642, F(38, 500), "#333");
+      txt(g, "Your Weft wallets", 40, 760, F(36, 700)); txt(g, "are made for you.", 40, 806, F(36, 700));
+    }), "news", o);
+    tile(X[1], Y, W, H, drawStep("02", "Add funds", (g, w) => {
+      [["HYPERLIQUID", "USDC on Arbitrum", "to your Weft address"], ["SOLANA", "SOL", "to your Weft address"]].forEach(([k, v, a], i) => {
+        const y = 262 + i * 270; rr(g, 34, y, w - 68, 236, 20, "#e8e8e8", "#111", 5);
+        txt(g, k, 60, y + 52, F(26), "#2e2e2e"); txt(g, v, 60, y + 120, F(44, 700)); txt(g, a, 60, y + 186, F(34, 500), "#444");
+      });
+    }), "amberBlue", o);
+    tile(X[2], Y, W, H, drawStep("03", "Write a thesis", (g, w) => {
+      ["“Long ETH if it", "breaks $2,600.”"].forEach((l, i) => txt(g, l, 38, 320 + i * 72, F(54, 400, "Newsreader")));
+      txt(g, "or pick one from", 40, 520, F(36, 500), "#333"); txt(g, "Strategies:", 40, 568, F(36, 500), "#333");
+      chip(g, 38, 610, "Fed pivot"); chip(g, 38, 700, "Buy the panic"); 
+    }), "pink", o);
+    tile(X[3], Y, W, H, drawStep("04", "Press start", (g, w) => {
+      ["WHEN ETH > $2,600", "THEN long 20× · $100", "STOP −15%"].forEach((l, i) => txt(g, l, 40, 300 + i * 60, F(34, 600)));
+      btn(g, 40, 520, w - 80, "Start");
+      txt(g, "It trades from", 40, 720, F(36, 600)); txt(g, "your own wallet.", 40, 768, F(36, 600));
+    }), "green", o);
+    div("Not ready? Run it as alerts only first.", "position:absolute;left:80px;top:720px;font-size:40px;color:#f4f3ef").classList.add("serif");
+    div("weft.fi", "position:absolute;left:80px;top:784px;font-size:28px;font-weight:600;color:#a3a29d");
+  },
+
   fees() {
     $b.style.width = "1600px"; $b.style.height = "900px";
     $b.className = "dark"; dots("#2a2a2e", 24);
