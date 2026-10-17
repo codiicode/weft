@@ -482,6 +482,25 @@ const drawStep = (n, title, body) => (w, h) => paper2d(w, h, (g) => {
 const chip = (g, x, y, t) => { g.font = F(30, 600); const tw = g.measureText(t).width; rr(g, x, y, tw + 44, 62, 31, null, "#111", 4); txt(g, t, x + 22, y + 42, F(30, 600)); return tw + 44; };
 function headline(text, x, y, size = 64) { div(text, `position:absolute;left:${x}px;top:${y}px;font-size:${size}px;color:#f4f3ef;line-height:1.1`).classList.add("serif"); }
 
+
+/* ---------- profile pictures (1000 × 1000, X crops to a circle) ---------- */
+function markPath(g, cx, cy, size, color, w = 3.6, r = 5.2, cols = null) {
+  const k = size / 48, X = (x) => cx + (x - 24) * k, Y = (y) => cy + (y - 24) * k;
+  g.lineCap = "round"; g.lineWidth = w * k;
+  const paths = [
+    (c) => { c.moveTo(X(8), Y(13)); c.bezierCurveTo(X(20), Y(13), X(21), Y(24), X(30), Y(24)); },
+    (c) => { c.moveTo(X(8), Y(24)); c.lineTo(X(30), Y(24)); },
+    (c) => { c.moveTo(X(8), Y(35)); c.bezierCurveTo(X(20), Y(35), X(21), Y(24), X(30), Y(24)); },
+    (c) => { c.moveTo(X(30), Y(24)); c.lineTo(X(40), Y(24)); },
+  ];
+  paths.forEach((fn, i) => { g.strokeStyle = cols ? cols[i] : color; g.beginPath(); fn(g); g.stroke(); });
+  g.fillStyle = cols ? "#f4f3ef" : color; g.beginPath(); g.arc(X(30), Y(24), r * k, 0, 7); g.fill();
+}
+function pfpCanvas(draw) {
+  const c = document.createElement("canvas"); c.width = 2000; c.height = 2000; const g = c.getContext("2d"); draw(g, 2000);
+  c.style.cssText = "position:absolute;inset:0;width:1000px;height:1000px"; $b.appendChild(c);
+}
+
 /* ---------- the three banners ---------- */
 const Q = new URLSearchParams(location.search), V = Q.get("v") ?? "1";
 // ?raw=1 shows each scene before printing, ?raw=1&ink=1 after
@@ -506,6 +525,23 @@ function banner1(scenes, text, cells = [], layout = LAYOUT, withLogo = true) {
   if (withLogo) logo(1268, 418, 44, "dark");
 }
 const BANNERS = {
+  pfpA() {
+    $b.style.width = "1000px"; $b.style.height = "1000px"; $b.className = "dark"; dots("#34343a", 40, 3.4);
+    pfpCanvas((g, S) => { g.save(); g.shadowColor = "rgba(244,243,239,0.35)"; g.shadowBlur = 60; markPath(g, S / 2 - 20, S / 2, 1150, "#f4f3ef", 3.4, 5.0); g.restore(); });
+  },
+  pfpB() {
+    $b.style.width = "1000px"; $b.style.height = "1000px"; $b.className = "dark"; dots("#34343a", 40, 3.4);
+    tile(190, 190, 620, 620, (w, h) => paper2d(w, h, (g) => markPath(g, w / 2 - 14, h / 2, w * 0.86, "#111", 3.8, 5.4)), "amberBlue", { contrast: 1.0, cell: 6, solid: 0.42 });
+  },
+  pfpC() {
+    $b.style.width = "1000px"; $b.style.height = "1000px"; $b.className = "dark"; dots("#34343a", 40, 3.4);
+    pfpCanvas((g, S) => {
+      g.save(); g.shadowBlur = 50; g.shadowColor = "rgba(124,140,255,0.35)";
+      markPath(g, S / 2 - 20, S / 2, 1150, "#f4f3ef", 3.4, 5.0, ["#f5a524", "#38bdf8", "#f472b6", "#3ecf8e"]);
+      g.restore();
+    });
+  },
+
   // 1: what Weft is
   w1() {
     $b.style.width = "1600px"; $b.style.height = "900px";
