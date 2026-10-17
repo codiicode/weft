@@ -1,0 +1,19 @@
+<!doctype html><html><head><meta charset="utf-8">
+<style>
+@font-face { font-family: "Inst"; src: url("../../scripts/og/instrument-sans-latin.woff2") format("woff2"); font-weight: 400 700; }
+html,body{margin:0;background:transparent}
+.logo{display:inline-flex;align-items:center;gap:44px;padding:40px;font-family:"Inst",sans-serif;font-weight:600;letter-spacing:-0.035em;font-size:200px;line-height:1}
+.pfp{width:1000px;height:1000px;background:#121214;display:grid;place-items:center}
+</style></head><body>
+<div id="v"></div>
+<script>
+const MARK = (size, bg, fg, w = 3.6, r = 5.2, rect = true) => `<svg width="${size}" height="${size}" viewBox="0 0 48 48" fill="none">${rect ? `<rect width="48" height="48" rx="12" fill="${bg}"/>` : ""}<g stroke="${fg}" stroke-width="${w}" stroke-linecap="round"><path d="M8 13C20 13 21 24 30 24"/><path d="M8 24H30"/><path d="M8 35C20 35 21 24 30 24"/><path d="M30 24H40"/></g><circle cx="30" cy="24" r="${r}" fill="${fg}"/></svg>`;
+const q = new URLSearchParams(location.search).get("v");
+const v = document.getElementById("v");
+if (q === "logo-dark") v.innerHTML = `<div class="logo" style="color:#F4F3EF">${MARK(240, "#121214", "#F4F3EF")}<span>weft</span></div>`;
+if (q === "logo-light") v.innerHTML = `<div class="logo" style="color:#121214">${MARK(240, "#121214", "#F4F3EF")}<span>weft</span></div>`;
+if (q === "mark") v.innerHTML = MARK(1024, "#121214", "#F4F3EF");
+// X crops the profile picture to a circle: full-bleed dark, the threads centred on their own middle
+if (q === "pfp") v.innerHTML = `<div class="pfp"><div style="transform:translateX(-10px)">${MARK(640, "", "#F4F3EF", 3.6, 5.2, false)}</div></div>`;
+window.ready = document.fonts.ready;
+</script></body></html>
