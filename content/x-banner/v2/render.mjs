@@ -5,7 +5,7 @@ import puppeteer from "puppeteer-core";
 
 const here = new URL(".", import.meta.url).pathname;
 mkdirSync(`${here}out`, { recursive: true });
-const which = (process.argv[2] ?? "1,2,3").split(",");
+const which = (process.argv[2] ?? "1a,1b,1c").split(",");
 const browser = await puppeteer.launch({
   executablePath: "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome",
   headless: true,

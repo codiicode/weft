@@ -201,7 +201,7 @@ function sceneKnot(w, h, seed = 2, bg = 0x9a9890) {
 }
 
 /* ---------- print: halftone in one or two inks on a coloured paper ---------- */
-function halftone(src, { paper, ink, cell = 6, angle = 45, contrast = 1.1, lift = 0, ink2 = null, grain = 0.06 }) {
+function halftone(src, { paper, ink, cell = 6, angle = 45, contrast = 1.1, lift = 0, ink2 = null, grain = 0.06, solid = 0 }) {
   const w = src.width, h = src.height, d = src.getContext("2d").getImageData(0, 0, w, h).data;
   const lum = (x, y) => { x = Math.max(0, Math.min(w - 1, x | 0)); y = Math.max(0, Math.min(h - 1, y | 0)); const i = (y * w + x) * 4; return (0.299 * d[i] + 0.587 * d[i + 1] + 0.114 * d[i + 2]) / 255; };
   const area = (x, y, rr) => { let s = 0, n = 0; for (let dy = -rr; dy <= rr; dy += 2) for (let dx = -rr; dx <= rr; dx += 2) { s += lum(x + dx, y + dy); n++; } return s / n; };
@@ -223,7 +223,12 @@ function halftone(src, { paper, ink, cell = 6, angle = 45, contrast = 1.1, lift 
   pass(ink, angle, cell, (L) => cell * Math.min(0.74, 0.5642 * 1.06 * Math.sqrt(dark(L))));
   // paper grain
   const id = g.getImageData(0, 0, w, h), p = id.data, rnd = srnd(w * 7 + h);
-  for (let i = 0; i < p.length; i += 4) { const n = (rnd() - 0.5) * 255 * grain; p[i] += n; p[i + 1] += n; p[i + 2] += n; }
+  // type and rules print solid, like a riso plate: only the tones are screened
+  const ik = [1, 3, 5].map((k) => parseInt(ink.slice(k, k + 2), 16));
+  for (let i = 0; i < p.length; i += 4) {
+    if (solid) { const L = (0.299 * d[i] + 0.587 * d[i + 1] + 0.114 * d[i + 2]) / 255, a = Math.max(0, Math.min(1, (solid - L) / 0.12)); if (a > 0) for (let c = 0; c < 3; c++) p[i + c] = p[i + c] * (1 - a) + ik[c] * a; }
+    const n = (rnd() - 0.5) * 255 * grain; p[i] += n; p[i + 1] += n; p[i + 2] += n;
+  }
   g.putImageData(id, 0, 0);
   return c;
 }
@@ -239,8 +244,8 @@ const INK = {
 };
 const SCENES = { city: sceneCity, coins: sceneCoins, tape: sceneTape, screens: sceneScreens, cards: sceneCards, knot: sceneKnot };
 function tile(x, y, w, h, scene, ink, o = {}) {
-  const src = SCENES[scene](w * R, h * R, o.seed);
-  const c = halftone(src, { ...INK[ink], cell: o.cell ?? 6, contrast: o.contrast ?? 1.1, lift: o.lift ?? 0 });
+  const src = typeof scene === "function" ? scene(w * R, h * R) : SCENES[scene](w * R, h * R, o.seed);
+  const c = halftone(src, { ...INK[ink], cell: o.cell ?? 6, contrast: o.contrast ?? 1.1, lift: o.lift ?? 0, solid: o.solid ?? 0 });
   c.className = "tile"; c.style.cssText = `left:${x}px;top:${y}px;width:${w}px;height:${h}px;${o.css ?? ""}`;
   $b.appendChild(c); return c;
 }
@@ -253,13 +258,124 @@ const MIC = (c) => `<svg width="22" height="22" viewBox="0 0 24 24" fill="none" 
 const SEND = (c) => `<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="${c}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 19V5M5.5 11.5 12 5l6.5 6.5"/></svg>`;
 function prompt(x, y, w, text, theme) {
   const ink = theme === "dark" ? "#f4f3ef" : "#141414", sub = theme === "dark" ? "#a3a29d" : "#5d5a52";
-  return div(`<div class="txt">${text}</div><div class="btn mic">${MIC(sub)}</div><div class="btn send">${SEND(theme === "dark" ? "#141414" : "#f4f3ef")}</div>`, `left:${x}px;top:${y}px;width:${w}px`).classList.add("prompt") || null;
+  return div(`<div class="txt">${text}</div><div class="btn send">${SEND(theme === "dark" ? "#141414" : "#f4f3ef")}</div>`, `left:${x}px;top:${y}px;width:${w}px`).classList.add("prompt") || null;
 }
 function logo(x, y, size, theme) {
   const fg = theme === "dark" ? "#f4f3ef" : "#141414";
   const mark = `<svg width="${size}" height="${size}" viewBox="0 0 48 48"><g fill="none" stroke="${fg}" stroke-width="4.4" stroke-linecap="round"><path d="M8 13C20 13 21 24 30 24"/><path d="M8 24H30"/><path d="M8 35C20 35 21 24 30 24"/><path d="M30 24H40"/></g><circle cx="30" cy="24" r="5.6" fill="${fg}"/></svg>`;
   const e = div(`${mark}<span style="font-size:${size * 0.95}px;line-height:1">weft</span>`, `left:${x}px;top:${y}px;color:${fg}`); e.classList.add("logo"); return e;
 }
+
+
+/* ---------- 2D tiles: the product, drawn in ink so the print keeps it legible ---------- */
+function paper2d(w, h, draw) { const c = document.createElement("canvas"); c.width = w; c.height = h; const g = c.getContext("2d"); g.fillStyle = "#fff"; g.fillRect(0, 0, w, h); g.textBaseline = "alphabetic"; draw(g, w, h); return c; }
+const F = (px, wt = 600, fam = "Inst") => `${wt} ${px}px ${fam}`;
+function rr(g, x, y, w, h, r, fill, stroke, lw = 4) { g.beginPath(); g.roundRect(x, y, w, h, r); if (fill) { g.fillStyle = fill; g.fill(); } if (stroke) { g.strokeStyle = stroke; g.lineWidth = lw; g.stroke(); } }
+function txt(g, t, x, y, font, color = "#111", align = "left") { g.font = font; g.fillStyle = color; g.textAlign = align; g.fillText(t, x, y); g.textAlign = "left"; }
+const IMG = {};
+const loadImg = (k, src) => new Promise((res) => { const i = new Image(); i.onload = () => { IMG[k] = i; res(); }; i.onerror = () => res(); i.src = src; });
+
+// A: how it works
+const drawWatch = (w, h) => paper2d(w, h, (g) => {
+  txt(g, "WATCHES", 40, 104, F(22), "#2e2e2e");
+  [["Fed cut odds", "61%"], ["NVDA earnings", "beat"], ["Posts on X", "×3"], ["ETH funding", "0.0035%"]].forEach(([k, v], i) => {
+    const y = 152 + i * 52;
+    txt(g, k, 40, y, F(30, 500)); txt(g, v, 500, y, F(30), "#111", "right");
+    g.fillStyle = "#cfcfcf"; g.fillRect(40, y + 16, 460, 3);
+  });
+});
+const drawRules = (w, h) => paper2d(w, h, (g) => {
+  const node = (x, y, nw, nh, k, lines) => { rr(g, x, y, nw, nh, 18, "#e8e8e8", "#111"); txt(g, k, x + 22, y + 34, F(22), "#2e2e2e"); lines.forEach((l, i) => txt(g, l, x + 22, y + 72 + i * 36, F(30))); };
+  g.strokeStyle = "#111"; g.lineWidth = 5; g.lineCap = "round";
+  g.beginPath(); g.moveTo(330, 92); g.bezierCurveTo(370, 92, 352, 164, 392, 164); g.stroke();
+  g.beginPath(); g.moveTo(330, 226); g.bezierCurveTo(370, 226, 352, 164, 392, 164); g.stroke();
+  node(24, 44, 306, 96, "WHEN", ["Fed cut odds > 60%"]);
+  node(24, 178, 306, 96, "AND", ["NVDA beats"]);
+  node(392, 98, 190, 132, "THEN", ["Buy NVDA", "$2,500"]);
+  g.fillStyle = "#111"; g.beginPath(); g.arc(386, 164, 10, 0, 7); g.fill();
+});
+const walk = (seed, n, drift) => { const r = srnd(seed); let v = 0; return Array.from({ length: n }, () => (v += (r() - 0.5 + drift) * 1)); };
+function line(g, pts, x0, x1, y0, y1) { const mn = Math.min(...pts), mx = Math.max(...pts); return pts.map((v, i) => [x0 + ((x1 - x0) * i) / (pts.length - 1), y1 - ((v - mn) / (mx - mn || 1)) * (y1 - y0)]); }
+const drawBacktest = (w, h) => paper2d(w, h, (g) => {
+  const P = line(g, walk(4, 70, 0.12), 60, 580, 40, 270);
+  [90, 155, 220].forEach((y) => { g.strokeStyle = "#ddd"; g.lineWidth = 2; g.beginPath(); g.moveTo(60, y); g.lineTo(580, y); g.stroke(); });
+  g.fillStyle = "#d4d4d4"; g.beginPath(); g.moveTo(60, 290); P.forEach(([x, y]) => g.lineTo(x, y)); g.lineTo(580, 290); g.fill();
+  g.strokeStyle = "#111"; g.lineWidth = 5; g.lineJoin = "round"; g.beginPath(); P.forEach(([x, y], i) => (i ? g.lineTo(x, y) : g.moveTo(x, y))); g.stroke();
+  [8, 26, 41, 57].forEach((i) => { const [x, y] = P[i]; g.fillStyle = "#111"; g.beginPath(); g.moveTo(x, y + 12); g.lineTo(x - 11, y + 30); g.lineTo(x + 11, y + 30); g.fill(); });
+  [18, 35, 50].forEach((i) => { const [x, y] = P[i]; g.strokeStyle = "#111"; g.lineWidth = 4; g.beginPath(); g.moveTo(x, y - 12); g.lineTo(x - 11, y - 30); g.lineTo(x + 11, y - 30); g.closePath(); g.stroke(); });
+  txt(g, "Backtest · 90 days", 60, 352, F(26, 500), "#555");
+  txt(g, "+18.4%", 58, 428, F(64));
+});
+const drawLog = (w, h) => paper2d(w, h, (g) => {
+  txt(g, "RUNS 24/7", 40, 58, F(22), "#2e2e2e");
+  g.strokeStyle = "#bbb"; g.lineWidth = 3; g.beginPath(); g.moveTo(150, 100); g.lineTo(150, 330); g.stroke();
+  [["03:12", "Fed cut odds hit 61%"], ["03:12", "Rule met: buy NVDA"], ["03:12", "Bought $2,500 at 182.40"], ["09:30", "Stop set at −8%"]].forEach(([t, l], i) => {
+    const y = 120 + i * 70;
+    txt(g, t, 40, y + 10, F(26), "#555");
+    g.fillStyle = "#111"; g.beginPath(); g.arc(150, y, 9, 0, 7); g.fill();
+    txt(g, l, 180, y + 11, F(30, 500));
+  });
+});
+const drawWallet = (w, h) => paper2d(w, h, (g) => {
+  rr(g, 40, 36, 580, 300, 28, "#ececec", "#111");
+  txt(g, "YOUR WALLET", 80, 96, F(22), "#2e2e2e");
+  txt(g, "7xKp…9fQe", 580, 96, F(24, 500), "#2e2e2e", "right");
+  txt(g, "$12,480.00", 78, 186, F(66));
+  txt(g, "Weft trades from it.", 80, 252, F(30, 500));
+  txt(g, "It never holds your money.", 80, 296, F(30, 500), "#555");
+});
+
+// C: what it means
+const drawMarkets = (w, h) => paper2d(w, h, (g) => {
+  const cx = 262, cy = 214, rx = 210, ry = 118;
+  g.strokeStyle = "#999"; g.lineWidth = 3; g.setLineDash([2, 10]); g.lineCap = "round"; g.beginPath(); g.ellipse(cx, cy, rx, ry, 0, 0, 7); g.stroke(); g.setLineDash([]);
+  ["NVDA", "BTC", "OUTCOME", "ETH", "GOLD", "SOL", "TSLA", "SP500"].forEach((k, i) => {
+    const a = (i / 8) * Math.PI * 2 - 0.4, x = cx + Math.cos(a) * rx, y = cy + Math.sin(a) * ry;
+    g.fillStyle = "#fff"; g.beginPath(); g.arc(x, y, 34, 0, 7); g.fill();
+    if (IMG[k]) g.drawImage(IMG[k], x - 28, y - 28, 56, 56);
+  });
+  g.fillStyle = "#111"; g.beginPath(); g.arc(cx, cy, 18, 0, 7); g.fill();
+  g.strokeStyle = "#111"; g.lineWidth = 3; g.beginPath(); g.arc(cx, cy, 36, 0, 7); g.stroke();
+});
+const drawBig = (lines, sub, size, y0) => (w, h) => paper2d(w, h, (g) => {
+  lines.forEach(([t, c], i) => txt(g, t, 30, y0 + i * size * 0.98, F(size, 400, "Newsreader"), c));
+  if (sub) txt(g, sub, 34, y0 + (lines.length - 1) * size * 0.98 + 62, F(32, 500), "#444");
+});
+const drawNews = (w, h) => paper2d(w, h, (g) => {
+  const clip = (x, y, cw, chh, rot, kick, head) => {
+    g.save(); g.translate(x, y); g.rotate(rot);
+    g.shadowColor = "rgba(0,0,0,0.25)"; g.shadowBlur = 14; g.shadowOffsetY = 6; g.fillStyle = "#f2f0ea"; g.fillRect(0, 0, cw, chh); g.shadowColor = "transparent";
+    g.strokeStyle = "#999"; g.lineWidth = 2; g.strokeRect(0, 0, cw, chh);
+    txt(g, kick, 18, 32, F(16), "#777");
+    head.forEach((l, i) => txt(g, l, 18, 74 + i * 38, F(34, 700, "Newsreader")));
+    g.fillStyle = "#c8c6bf"; for (let k = 0; k < 3; k++) g.fillRect(18, 74 + head.length * 38 + k * 16, cw - 36 - k * 40, 6);
+    g.restore();
+  };
+  clip(60, 30, 300, 160, -0.04, "MARKETS", ["Fed signals a cut", "in December"]);
+  clip(330, 24, 260, 150, 0.05, "EARNINGS", ["NVDA beats,", "guides higher"]);
+  clip(90, 200, 240, 140, 0.03, "NBA", ["Spurs win 11", "of their first 15"]);
+  clip(300, 175, 290, 120, -0.03, "POSTS ON X", ["$TSLA mentions ×3"]);
+});
+const drawClock = (w, h) => paper2d(w, h, (g) => {
+  txt(g, "03:12", 34, 178, F(156, 600));
+  txt(g, "AM", 470, 178, F(40, 600), "#777");
+  rr(g, 40, 220, 580, 128, 24, "#ececec", "#111");
+  txt(g, "WEFT · NOW", 72, 264, F(22), "#2e2e2e");
+  txt(g, "Bought NVDA $2,500", 72, 306, F(32));
+  txt(g, "Fed cut odds hit 61%", 72, 338, F(24, 500), "#555");
+});
+const drawCopy = (w, h) => paper2d(w, h, (g) => {
+  txt(g, "COPY A TRADER", 34, 50, F(22), "#2e2e2e");
+  [["1", "0x8f3a…d21c", "+412%"], ["2", "0x1b7e…90aa", "+287%"], ["3", "0xc04d…5e18", "+194%"]].forEach(([n, a, r], i) => {
+    const y = 104 + i * 70;
+    txt(g, n, 34, y, F(28), "#777"); txt(g, a, 76, y, F(28, 500)); txt(g, r, 400, y, F(28), "#111", "right");
+    rr(g, 434, y - 34, 130, 48, 10, null, "#111", 3); txt(g, "Copy", 499, y - 2, F(24), "#111", "center");
+  });
+});
+
+// B: the real app, cut from screens recorded on the demo build, inverted so the dark UI prints
+const SHOTS = "../../shorts/recordings/";
+const cut = (k, sx, sy, sw, sh) => (w, h) => { const c = document.createElement("canvas"); c.width = w; c.height = h; const g = c.getContext("2d"); g.filter = "invert(1) grayscale(1) contrast(1.15)"; g.drawImage(IMG[k], sx, sy, sw, sh, 0, 0, w, h); return c; };
 
 /* ---------- the three banners ---------- */
 const Q = new URLSearchParams(location.search), V = Q.get("v") ?? "1";
@@ -273,7 +389,23 @@ const BANNERS_RAW = () => {
   });
 };
 
+
+const LAYOUT = [[70, -30, 330, 200], [330, -12, 300, 160], [-20, 150, 300, 240], [150, 300, 330, 230], [500, 318, 330, 210], [850, 352, 300, 170]];
+const INKS1 = ["news", "amberBlue", "skyAmber", "pinkBlue", "orange", "violet"];
+function banner1(scenes, text, cells = []) {
+  $b.className = "dark"; dots("#2a2a2e");
+  scenes.forEach((sc, i) => { const flat = typeof sc === "function"; tile(...LAYOUT[i], sc, INKS1[i], { contrast: flat ? 1.0 : 1.5, cell: cells[i] ?? (flat ? 5 : 6), solid: flat ? 0.42 : 0 }); });
+  prompt(420, 205, 640, text, "dark");
+  logo(1268, 418, 44, "dark");
+}
 const BANNERS = {
+  // 1a: how it works: signals → rules → tested → running → your wallet → Weft
+  "1a"() { banner1([drawWatch, drawRules, drawBacktest, drawLog, drawWallet, "knot"], "AI keeps eating software. What’s the trade?"); },
+  // 1b: the real app
+  "1b"() { banner1([cut("run", 530, 540, 560, 340), cut("bt", 770, 1186, 500, 266), cut("bt", 1180, 2820, 1080, 864), cut("run", 2370, 900, 600, 418), cut("run", 560, 2700, 560, 356), cut("bt", 590, 2350, 640, 362)], "Long SOL 10x every time it drops 5% in a day."); },
+  // 1c: what it means
+  "1c"() { banner1([drawMarkets, drawBig([["24/7", "#111"]], "It watches while you sleep.", 170, 222), drawNews, drawClock, drawBig([["Your wallet.", "#111"], ["Your money.", "#777"]], null, 88, 150), drawCopy], "Buy NVDA if earnings beat. Out if it drops 8%."); },
+
   // 1: Catalyst's composition, on Weft's dark: a stack of printed scenes, the sentence across them.
   "1"() {
     $b.className = "dark"; dots("#2a2a2e");
@@ -331,7 +463,13 @@ const BANNERS = {
     div(`weft.fi`, `position:absolute;left:993px;top:336px;font-size:22px;font-weight:600;letter-spacing:-0.01em;color:#a3a29d`);
   },
 };
-window.ready = document.fonts.ready.then(() => { Q.get("raw") ? BANNERS_RAW() : BANNERS[V](); return true; });
+window.ready = (async () => {
+  await document.fonts.ready;
+  await Promise.all([document.fonts.load(F(40)), document.fonts.load(F(40, 500)), document.fonts.load(F(40, 400, "Newsreader")), document.fonts.load(F(40, 700, "Newsreader"))]);
+  await Promise.all([...["NVDA", "BTC", "OUTCOME", "ETH", "GOLD", "SOL", "TSLA", "SP500"].map((k) => loadImg(k, `../../../apps/web/public/coins/${k}.svg`)), loadImg("run", SHOTS + "copy/runFull.jpg"), loadImg("bt", SHOTS + "tour/backtestFull.jpg")]);
+  Q.get("raw") ? BANNERS_RAW() : BANNERS[V]();
+  return true;
+})();
 </script>
 </body>
 </html>
