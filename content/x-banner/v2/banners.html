@@ -1,0 +1,337 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Weft X banners</title>
+<style>
+  @font-face { font-family: "Newsreader"; src: url("../../../scripts/og/newsreader-latin.woff2") format("woff2"); font-weight: 200 800; }
+  @font-face { font-family: "Inst"; src: url("../../../scripts/og/instrument-sans-latin.woff2") format("woff2"); font-weight: 400 700; }
+  html, body { margin: 0; background: #0c0c0d; }
+  #b { position: relative; width: 1500px; height: 500px; overflow: hidden; font-family: "Inst", sans-serif; -webkit-font-smoothing: antialiased; }
+  #b.dark { background: #0c0c0d; color: #f4f3ef; }
+  #b.paper { background: #efece4; color: #141414; }
+  .tile { position: absolute; display: block; }
+  .prompt { position: absolute; display: flex; align-items: center; gap: 10px; box-sizing: border-box; padding: 10px 10px 10px 26px; border-radius: 14px; }
+  .dark .prompt { background: #1a1a1d; border: 1px solid #2a2a2f; box-shadow: 0 30px 80px rgba(0,0,0,0.55), 0 2px 0 rgba(255,255,255,0.03) inset; }
+  .paper .prompt { background: #fbfaf7; border: 1px solid #dcd7ca; box-shadow: 0 24px 60px rgba(40,30,10,0.16); }
+  .prompt .txt { flex: 1; font-size: 25px; letter-spacing: -0.01em; white-space: nowrap; }
+  .prompt .btn { width: 52px; height: 52px; border-radius: 9px; display: grid; place-items: center; flex: none; }
+  .dark .prompt .mic { background: #26262a; } .paper .prompt .mic { background: #ebe7dd; }
+  .dark .prompt .send { background: #f4f3ef; } .paper .prompt .send { background: #141414; }
+  .logo { position: absolute; display: flex; align-items: center; gap: 12px; font-weight: 600; letter-spacing: -0.03em; }
+  .serif { font-family: "Newsreader", serif; font-weight: 400; letter-spacing: -0.02em; }
+  svg { overflow: visible; }
+</style>
+</head>
+<body>
+<div id="b"></div>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script>
+/* ---------- helpers ---------- */
+const $b = document.getElementById("b");
+const NS = "http://www.w3.org/2000/svg";
+const el = (t, a, p) => { const e = document.createElementNS(NS, t); for (const k in a) e.setAttribute(k, a[k]); p.appendChild(e); return e; };
+const div = (html, css, p = $b) => { const e = document.createElement("div"); e.innerHTML = html; e.style.cssText = css; p.appendChild(e); return e; };
+function srnd(seed) { let s = seed >>> 0 || 1; return () => ((s = (s * 1664525 + 1013904223) >>> 0) / 4294967296); }
+const R = 2; // tiles are drawn at twice their size
+
+/* ---------- 3D scenes, all lit plainly so the halftone carries the look ---------- */
+const renderer = new THREE.WebGLRenderer({ antialias: true, preserveDrawingBuffer: true });
+renderer.setPixelRatio(1);
+function lights(scene, key = [6, 10, 8], k = 0.95, h = 0.62) {
+  scene.add(new THREE.HemisphereLight(0xffffff, 0x3a3a3a, h));
+  const d = new THREE.DirectionalLight(0xffffff, k); d.position.set(...key); scene.add(d);
+}
+function shoot(scene, cam, w, h) {
+  renderer.setSize(w, h, false);
+  cam.aspect = w / h; cam.updateProjectionMatrix();
+  renderer.render(scene, cam);
+  const c = document.createElement("canvas"); c.width = w; c.height = h;
+  c.getContext("2d").drawImage(renderer.domElement, 0, 0);
+  return c;
+}
+function canvasTex(w, h, draw) { const c = document.createElement("canvas"); c.width = w; c.height = h; draw(c.getContext("2d"), w, h); const t = new THREE.CanvasTexture(c); t.anisotropy = 8; return t; }
+const std = (color = 0xdedbd2, o = {}) => new THREE.MeshStandardMaterial({ color, roughness: 0.55, metalness: 0.05, ...o });
+
+// An avenue of towers whose heights are a price chart, seen from the street: candles as a skyline.
+function sceneCity(w, h, seed = 3) {
+  const r = srnd(seed), s = new THREE.Scene();
+  s.background = new THREE.Color(0xffffff); s.fog = new THREE.Fog(0xffffff, 30, 170);
+  const win = (shade) => { const t = canvasTex(128, 256, (g, W, H) => { g.fillStyle = shade; g.fillRect(0, 0, W, H); for (let y = 6; y < H; y += 14) for (let x = 6; x < W; x += 14) { g.fillStyle = Math.random() < 0.2 ? "#d8d6cf" : "#2c2b28"; g.fillRect(x, y, 8, 8); } }); t.wrapS = t.wrapT = THREE.RepeatWrapping; return t; };
+  const up = win("#e6e4de"), down = win("#7d7a72");
+  for (const side of [-1, 1]) for (let col = 0; col < 3; col++) {
+    let v = 10 + r() * 6;
+    for (let row = 0; row < 34; row++) {
+      const o = v; v = Math.max(4, v + (r() - 0.42) * 6);
+      const hh = Math.max(o, v) + 2, isUp = v >= o;
+      const tex = (isUp ? up : down).clone(); tex.needsUpdate = true; tex.repeat.set(1, hh / 8);
+      const m = new THREE.Mesh(new THREE.BoxGeometry(3.4, hh, 3.4), std(0xffffff, { map: tex }));
+      const x = side * (4.6 + col * 4.2), z = -row * 4.6;
+      m.position.set(x, hh / 2, z); s.add(m);
+      const ant = new THREE.Mesh(new THREE.BoxGeometry(0.22, 2 + r() * 5, 0.22), std(0x55534d)); ant.position.set(x, hh + 1.5, z); s.add(ant);
+    }
+  }
+  const ground = new THREE.Mesh(new THREE.PlaneGeometry(400, 400), std(0xd9d7d0)); ground.rotation.x = -Math.PI / 2; s.add(ground);
+  lights(s, [-30, 40, 10], 1.05, 0.5);
+  const cam = new THREE.PerspectiveCamera(60, 1, 0.1, 400); cam.position.set(0.4, 1.4, 6); cam.lookAt(0, 16, -70);
+  return shoot(s, cam, w, h);
+}
+
+// Lydian electrum coins, rough-edged, two square punches each, tumbling.
+function coinGeo(r) {
+  const g = new THREE.CylinderGeometry(1, 1, 0.17, 120, 1);
+  const p = g.attributes.position, ph = r() * 6;
+  for (let i = 0; i < p.count; i++) {
+    const x = p.getX(i), z = p.getZ(i), a = Math.atan2(z, x), d = Math.hypot(x, z);
+    if (d < 0.01) continue;
+    const k = 1 + 0.07 * Math.sin(3 * a + ph) + 0.035 * Math.sin(7 * a + ph * 2) + 0.02 * Math.sin(13 * a);
+    p.setX(i, x * k); p.setZ(i, z * k);
+  }
+  g.computeVertexNormals(); return g;
+}
+function sceneCoins(w, h, seed = 7) {
+  // Stacks of coins on a table, rising like a chart.
+  const r = srnd(seed), s = new THREE.Scene(); s.background = new THREE.Color(0xffffff); s.fog = new THREE.Fog(0xffffff, 14, 34);
+  const metal = std(0xc9bfa6, { roughness: 0.4, metalness: 0.22 });
+  for (let row = 0; row < 3; row++) for (let i = 0; i < 9; i++) {
+    const n = Math.max(3, Math.round(4 + i * 2.9 + (r() - 0.5) * 5 - row * 2));
+    for (let k = 0; k < n; k++) {
+      const m = new THREE.Mesh(coinGeo(r), metal);
+      m.position.set(-8 + i * 2.25 + (r() - 0.5) * 0.12, 0.09 + k * 0.18, -row * 2.6 + (r() - 0.5) * 0.12);
+      m.rotation.set((r() - 0.5) * 0.06, r() * 6, (r() - 0.5) * 0.06); s.add(m);
+    }
+  }
+  const table = new THREE.Mesh(new THREE.PlaneGeometry(200, 200), std(0xeeece6)); table.rotation.x = -Math.PI / 2; s.add(table);
+  lights(s, [-10, 9, 6], 1.15, 0.45);
+  const cam = new THREE.PerspectiveCamera(44, 1, 0.1, 100); cam.position.set(-4.4, 0.7, 4.4); cam.lookAt(1.2, 1.6, -2.2);
+  return shoot(s, cam, w, h);
+}
+
+// Ticker tape coming down between two towers, seen from the street.
+function sceneTape(w, h, seed = 11) {
+  const r = srnd(seed), s = new THREE.Scene(); s.background = new THREE.Color(0xffffff); s.fog = new THREE.Fog(0xffffff, 30, 120);
+  const facade = canvasTex(256, 1024, (g, W, H) => {
+    g.fillStyle = "#bdb9b0"; g.fillRect(0, 0, W, H);
+    for (let y = 8; y < H; y += 26) for (let x = 10; x < W; x += 30) { g.fillStyle = Math.random() < 0.25 ? "#8c887f" : "#3b3934"; g.fillRect(x, y, 18, 16); }
+  });
+  facade.wrapS = facade.wrapT = THREE.RepeatWrapping; facade.repeat.set(3, 3);
+  for (const side of [-1, 1]) {
+    const b = new THREE.Mesh(new THREE.BoxGeometry(10, 110, 80), std(0xffffff, { map: facade }));
+    b.position.set(side * 11, 50, -35); s.add(b);
+  }
+  const mat = new THREE.MeshStandardMaterial({ color: 0xfaf8f2, roughness: 0.6, side: THREE.DoubleSide });
+  for (let n = 0; n < 110; n++) {
+    const x0 = (r() - 0.5) * 12, y0 = 8 + r() * 70, z0 = -r() * 60, L = 6 + r() * 14, f = 3 + r() * 6, a = 0.3 + r() * 0.9, ph = r() * 6, tw = 4 + r() * 10, wd = 0.12 + r() * 0.06;
+    const pos = [], idx = [], N = 60;
+    for (let i = 0; i <= N; i++) {
+      const t = i / N, cx = x0 + Math.sin(t * f + ph) * a, cy = y0 - t * L, cz = z0 + Math.cos(t * f + ph) * a;
+      const wx = Math.cos(t * tw + ph) * wd, wz = Math.sin(t * tw + ph) * wd;
+      pos.push(cx - wx, cy, cz - wz, cx + wx, cy, cz + wz);
+      if (i < N) { const k = i * 2; idx.push(k, k + 1, k + 2, k + 1, k + 3, k + 2); }
+    }
+    const g = new THREE.BufferGeometry(); g.setAttribute("position", new THREE.Float32BufferAttribute(pos, 3)); g.setIndex(idx); g.computeVertexNormals();
+    s.add(new THREE.Mesh(g, mat));
+  }
+  lights(s, [8, 30, 20], 1.0, 0.55);
+  const cam = new THREE.PerspectiveCamera(55, 1, 0.1, 300); cam.position.set(0, 0, 10); cam.lookAt(0, 34, -26);
+  return shoot(s, cam, w, h);
+}
+
+// A wall of trading screens, 1971.
+function sceneScreens(w, h, seed = 5) {
+  const r = srnd(seed), s = new THREE.Scene(); s.background = new THREE.Color(0x3c3b38); s.fog = new THREE.Fog(0x3c3b38, 8, 26);
+  const bezel = std(0xb5b1a8, { roughness: 0.7 });
+  for (let row = 0; row < 4; row++) for (let col = 0; col < 9; col++) {
+    const tex = canvasTex(256, 176, (g, W, H) => {
+      g.fillStyle = "#121212"; g.fillRect(0, 0, W, H);
+      g.strokeStyle = "rgba(255,255,255,0.18)"; g.lineWidth = 1;
+      for (let y = 22; y < H; y += 30) { g.beginPath(); g.moveTo(0, y); g.lineTo(W, y); g.stroke(); }
+      g.strokeStyle = "#fff"; g.lineWidth = 9; g.lineJoin = "round"; g.beginPath();
+      let v = H * (0.3 + r() * 0.4);
+      for (let x = 10; x < W - 10; x += 22) { v = Math.min(H - 20, Math.max(40, v + (r() - 0.5) * 50)); x === 10 ? g.moveTo(x, v) : g.lineTo(x, v); }
+      g.stroke();
+      g.fillStyle = "#fff"; g.font = "bold 28px monospace"; g.fillText(["IBM 72.5", "XON 41.3", "GM 84.1", "KO 66.0", "T 52.8"][Math.floor(r() * 5)], 12, 26);
+    });
+    const g = new THREE.Group();
+    const box = new THREE.Mesh(new THREE.BoxGeometry(2.3, 1.75, 1.6), bezel); g.add(box);
+    const scr = new THREE.Mesh(new THREE.PlaneGeometry(1.95, 1.4), new THREE.MeshBasicMaterial({ map: tex })); scr.position.z = 0.81; g.add(scr);
+    g.position.set(col * 2.45, row * 1.9, 0); s.add(g);
+  }
+  lights(s, [4, 8, 10], 0.7, 0.35);
+  const cam = new THREE.PerspectiveCamera(50, 1, 0.1, 100); cam.position.set(-2.2, 2.6, 5.2); cam.lookAt(6, 2.6, 0);
+  return shoot(s, cam, w, h);
+}
+
+// The signals Weft reads, floating at every depth.
+const SIGNALS = [["FED CUT ODDS", "61%  ▲4"], ["EARNINGS", "NVDA beats"], ["SPURS", "11–4, title odds 25.6%"], ["FUNDING", "ETH 0.0035% / h"], ["WALLET", "7xKp… bought"], ["FEAR & GREED", "62, greed"], ["HEADLINES", "9 an hour"], ["US 2Y", "3.84%  ▼10bp"], ["POSTS ON X", "$TSLA mentions ×3"], ["POLYMARKET", "48¢ YES"], ["GOLD", "2,640  ▲1.2%"], ["TOP TRADER", "long SOL 5x"]];
+function sceneCards(w, h, seed = 9) {
+  const r = srnd(seed), s = new THREE.Scene(); s.background = new THREE.Color(0xf3f2ef); s.fog = new THREE.Fog(0xf3f2ef, 8, 34);
+  SIGNALS.forEach(([k, v], i) => {
+    const tex = canvasTex(640, 240, (g, W, H) => {
+      g.fillStyle = "#fff"; g.beginPath(); g.roundRect(4, 4, W - 8, H - 8, 26); g.fill();
+      g.strokeStyle = "#cfcfcf"; g.lineWidth = 4; g.stroke();
+      g.fillStyle = "#222"; g.fillRect(36, 46, 8, 36);
+      g.fillStyle = "#777"; g.font = "600 30px Inst, sans-serif"; g.fillText(k, 64, 74);
+      g.fillStyle = "#111"; g.font = "600 54px Inst, sans-serif"; g.fillText(v, 36, 170);
+    });
+    const m = new THREE.Mesh(new THREE.PlaneGeometry(3.2, 1.2), new THREE.MeshStandardMaterial({ map: tex, roughness: 0.8, side: THREE.DoubleSide }));
+    m.position.set(((i % 4) - 1.5) * 3.6 + (r() - 0.5) * 1.2, (Math.floor(i / 4) - 1) * 2.2 + (r() - 0.5) * 0.8, -r() * 7 + 1);
+    m.rotation.set((r() - 0.5) * 0.5, (r() - 0.5) * 0.9, (r() - 0.5) * 0.25);
+    s.add(m);
+  });
+  lights(s, [2, 6, 10], 0.75, 0.75);
+  const cam = new THREE.PerspectiveCamera(48, 1, 0.1, 100); cam.position.set(-1.8, 0.3, 6.0); cam.lookAt(0.6, 0, -2);
+  return shoot(s, cam, w, h);
+}
+
+// The logo, in the round: five threads woven into one knot, one leaving.
+function sceneKnot(w, h, seed = 2, bg = 0x9a9890) {
+  const r = srnd(seed), s = new THREE.Scene(); s.background = new THREE.Color(bg);
+  const mat = std(0xe9e6de, { roughness: 0.35 }), K = new THREE.Vector3(2.4, 0, 0);
+  [-3.2, -1.6, 0, 1.6, 3.2].forEach((y0, i) => {
+    const z0 = (i % 2 ? -1 : 1) * 1.2;
+    const c = new THREE.CatmullRomCurve3([new THREE.Vector3(-16, y0 * 1.3, z0), new THREE.Vector3(-9, y0 * 1.1, -z0), new THREE.Vector3(-4, y0 * 0.7, z0), new THREE.Vector3(-0.5, y0 * 0.25, -z0 * 0.5), K]);
+    s.add(new THREE.Mesh(new THREE.TubeGeometry(c, 160, 0.3, 24, false), mat));
+  });
+  s.add(new THREE.Mesh(new THREE.TubeGeometry(new THREE.LineCurve3(K, new THREE.Vector3(18, 0, 0)), 8, 0.36, 24, false), mat));
+  s.add(new THREE.Mesh(new THREE.SphereGeometry(0.85, 48, 32), mat));
+  lights(s, [-4, 9, 9], 1.1, 0.45);
+  const cam = new THREE.PerspectiveCamera(40, 1, 0.1, 100); cam.position.set(-2.5, 2.2, 7.2); cam.lookAt(1.2, 0, 0);
+  return shoot(s, cam, w, h);
+}
+
+/* ---------- print: halftone in one or two inks on a coloured paper ---------- */
+function halftone(src, { paper, ink, cell = 6, angle = 45, contrast = 1.1, lift = 0, ink2 = null, grain = 0.06 }) {
+  const w = src.width, h = src.height, d = src.getContext("2d").getImageData(0, 0, w, h).data;
+  const lum = (x, y) => { x = Math.max(0, Math.min(w - 1, x | 0)); y = Math.max(0, Math.min(h - 1, y | 0)); const i = (y * w + x) * 4; return (0.299 * d[i] + 0.587 * d[i + 1] + 0.114 * d[i + 2]) / 255; };
+  const area = (x, y, rr) => { let s = 0, n = 0; for (let dy = -rr; dy <= rr; dy += 2) for (let dx = -rr; dx <= rr; dx += 2) { s += lum(x + dx, y + dy); n++; } return s / n; };
+  const c = document.createElement("canvas"); c.width = w; c.height = h; const g = c.getContext("2d");
+  g.fillStyle = paper; g.fillRect(0, 0, w, h);
+  const pass = (color, ang, cl, fn) => {
+    const a = (ang * Math.PI) / 180, ca = Math.cos(a), sa = Math.sin(a), D = Math.hypot(w, h);
+    g.fillStyle = color;
+    for (let v = -D; v < D; v += cl) for (let u = -D; u < D; u += cl) {
+      const x = w / 2 + u * ca - v * sa, y = h / 2 + u * sa + v * ca;
+      if (x < -cl || y < -cl || x > w + cl || y > h + cl) continue;
+      const rad = fn(area(x, y, Math.max(1, (cl / 2) | 0)));
+      if (rad > 0.25) { g.beginPath(); g.arc(x, y, rad, 0, 6.2832); g.fill(); }
+    }
+  };
+  const dark = (L) => Math.max(0, Math.min(1, (1 - L - 0.5) * contrast + 0.5 + lift));
+  if (ink2) pass(ink2, angle - 30, cl2(cell), (L) => { const m = 1 - Math.abs(2 * L - 1); return cell * 0.42 * Math.sqrt(Math.max(0, m - 0.15)); });
+  // dot area follows the tone, as in print: area = coverage × cell²
+  pass(ink, angle, cell, (L) => cell * Math.min(0.74, 0.5642 * 1.06 * Math.sqrt(dark(L))));
+  // paper grain
+  const id = g.getImageData(0, 0, w, h), p = id.data, rnd = srnd(w * 7 + h);
+  for (let i = 0; i < p.length; i += 4) { const n = (rnd() - 0.5) * 255 * grain; p[i] += n; p[i + 1] += n; p[i + 2] += n; }
+  g.putImageData(id, 0, 0);
+  return c;
+}
+function cl2(c) { return Math.round(c * 1.15); }
+
+const INK = {
+  amber: { paper: "#f1b94e", ink: "#1b1406" }, amberBlue: { paper: "#f0c35a", ink: "#1d2c6e" },
+  pink: { paper: "#f4a7c9", ink: "#2a0d22" }, sky: { paper: "#93d3f4", ink: "#071f33" },
+  blue: { paper: "#adb7ff", ink: "#0f1440" }, violet: { paper: "#c9b6fb", ink: "#1e1140" },
+  green: { paper: "#93e3bc", ink: "#082818" }, news: { paper: "#e9e5d8", ink: "#141414" },
+  skyAmber: { paper: "#9fd6f2", ink: "#0b1d33", ink2: "#e9a83e" }, pinkBlue: { paper: "#f6b3cf", ink: "#151a52", ink2: "#ffffff" },
+  orange: { paper: "#f39a52", ink: "#2f1205", ink2: "#f7d36b" },
+};
+const SCENES = { city: sceneCity, coins: sceneCoins, tape: sceneTape, screens: sceneScreens, cards: sceneCards, knot: sceneKnot };
+function tile(x, y, w, h, scene, ink, o = {}) {
+  const src = SCENES[scene](w * R, h * R, o.seed);
+  const c = halftone(src, { ...INK[ink], cell: o.cell ?? 6, contrast: o.contrast ?? 1.1, lift: o.lift ?? 0 });
+  c.className = "tile"; c.style.cssText = `left:${x}px;top:${y}px;width:${w}px;height:${h}px;${o.css ?? ""}`;
+  $b.appendChild(c); return c;
+}
+function dots(color, step = 22, r = 1.1) {
+  const s = el("svg", { width: 1500, height: 500, style: "position:absolute;inset:0" }, $b);
+  for (let y = step / 2; y < 500; y += step) for (let x = step / 2; x < 1500; x += step) el("circle", { cx: x, cy: y, r, fill: color }, s);
+  return s;
+}
+const MIC = (c) => `<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="${c}" stroke-width="1.8" stroke-linecap="round"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5.5 11a6.5 6.5 0 0 0 13 0M12 17.5V21"/></svg>`;
+const SEND = (c) => `<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="${c}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 19V5M5.5 11.5 12 5l6.5 6.5"/></svg>`;
+function prompt(x, y, w, text, theme) {
+  const ink = theme === "dark" ? "#f4f3ef" : "#141414", sub = theme === "dark" ? "#a3a29d" : "#5d5a52";
+  return div(`<div class="txt">${text}</div><div class="btn mic">${MIC(sub)}</div><div class="btn send">${SEND(theme === "dark" ? "#141414" : "#f4f3ef")}</div>`, `left:${x}px;top:${y}px;width:${w}px`).classList.add("prompt") || null;
+}
+function logo(x, y, size, theme) {
+  const fg = theme === "dark" ? "#f4f3ef" : "#141414";
+  const mark = `<svg width="${size}" height="${size}" viewBox="0 0 48 48"><g fill="none" stroke="${fg}" stroke-width="4.4" stroke-linecap="round"><path d="M8 13C20 13 21 24 30 24"/><path d="M8 24H30"/><path d="M8 35C20 35 21 24 30 24"/><path d="M30 24H40"/></g><circle cx="30" cy="24" r="5.6" fill="${fg}"/></svg>`;
+  const e = div(`${mark}<span style="font-size:${size * 0.95}px;line-height:1">weft</span>`, `left:${x}px;top:${y}px;color:${fg}`); e.classList.add("logo"); return e;
+}
+
+/* ---------- the three banners ---------- */
+const Q = new URLSearchParams(location.search), V = Q.get("v") ?? "1";
+// ?raw=1 shows each scene before printing, ?raw=1&ink=1 after
+const BANNERS_RAW = () => {
+  $b.style.cssText = "width:1500px;height:500px;background:#333";
+  Object.keys(SCENES).forEach((k, i) => {
+    let c = SCENES[k](480 * R, 240 * R);
+    if (Q.get("ink")) c = halftone(c, { ...INK.news, cell: Number(Q.get("cell") ?? 7) });
+    c.style.cssText = `position:absolute;left:${(i % 3) * 500}px;top:${Math.floor(i / 3) * 250}px;width:480px;height:240px`; $b.appendChild(c);
+  });
+};
+
+const BANNERS = {
+  // 1: Catalyst's composition, on Weft's dark: a stack of printed scenes, the sentence across them.
+  "1"() {
+    $b.className = "dark"; dots("#2a2a2e");
+    tile(70, -30, 330, 200, "city", "news", { contrast: 1.5 });
+    tile(330, -12, 300, 160, "coins", "amberBlue", { contrast: 1.45 });
+    tile(-20, 150, 300, 240, "tape", "skyAmber", { contrast: 1.5 });
+    tile(150, 300, 330, 230, "cards", "pinkBlue", { contrast: 1.5, cell: 4.5 });
+    tile(500, 318, 330, 210, "screens", "orange", { contrast: 1.2 });
+    tile(850, 352, 300, 170, "knot", "violet", { contrast: 1.6 });
+    prompt(420, 205, 640, "AI keeps eating software. What’s the trade?", "dark");
+    logo(1268, 418, 44, "dark");
+  },
+  // 2: printed matter: the same idea on paper, the scenes on the right.
+  "2"() {
+    $b.className = "paper"; dots("#d3cdbf");
+    tile(820, -40, 330, 210, "screens", "amber", { contrast: 1.2 });
+    tile(1130, -20, 330, 190, "coins", "news", { contrast: 1.45 });
+    tile(1060, 160, 320, 230, "cards", "sky", { contrast: 1.5, cell: 4.5 });
+    tile(740, 290, 340, 240, "city", "pinkBlue", { contrast: 1.5 });
+    tile(1100, 380, 260, 150, "tape", "green", { contrast: 1.5 });
+    prompt(250, 160, 700, "Long ETH if the Fed cuts. Out if it drops 8%.", "paper");
+    div(`Trade the thesis.`, `position:absolute;left:276px;top:262px;font-size:34px;color:#5d5a52`).classList.add("serif");
+    logo(1372, 434, 30, "paper");
+  },
+  // 3: the threads: each scene is a thread of the world, they tie into one knot, one trade leaves.
+  "3"() {
+    $b.className = "dark"; dots("#222226");
+    const T = [
+      ["coins", "amber", 40, -20, 250, 150, "#f5a524"],
+      ["screens", "pink", 250, 40, 240, 150, "#f472b6"],
+      ["tape", "sky", 20, 160, 250, 170, "#38bdf8"],
+      ["cards", "blue", 270, 220, 260, 160, "#7c8cff", 4.5],
+      ["city", "violet", 60, 360, 270, 170, "#a78bfa"],
+    ];
+    const s = el("svg", { width: 1500, height: 500, style: "position:absolute;inset:0" }, $b);
+    const defs = el("defs", {}, s);
+    defs.innerHTML = `<filter id="glow" x="-150%" y="-150%" width="400%" height="400%"><feGaussianBlur stdDeviation="4" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter><filter id="bloom" x="-200%" y="-200%" width="500%" height="500%"><feGaussianBlur stdDeviation="12" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter><radialGradient id="halo" cx="0.5" cy="0.5" r="0.5"><stop offset="0" stop-color="#7c8cff" stop-opacity="0.18"/><stop offset="1" stop-color="#7c8cff" stop-opacity="0"/></radialGradient>`;
+    const K = { x: 900, y: 235 };
+    el("ellipse", { cx: K.x, cy: K.y, rx: 420, ry: 260, fill: "url(#halo)" }, s);
+    T.forEach(([sc, ink, x, y, w, h, , cell]) => tile(x, y, w, h, sc, ink, { contrast: 1.5, cell }));
+    const g = el("g", { fill: "none", "stroke-linecap": "round" }, s);
+    T.forEach(([, , x, y, w, h, col], i) => {
+      const sx = x + w, sy = Math.max(30, Math.min(470, y + h / 2));
+      const d = `M ${sx} ${sy} C ${sx + 160} ${sy}, ${640} ${K.y + (sy - K.y) * 0.35 + (i % 2 ? 40 : -40)}, ${760} ${K.y + (sy - K.y) * 0.12} S ${K.x - 60} ${K.y}, ${K.x} ${K.y}`;
+      el("circle", { cx: sx, cy: sy, r: 5, fill: col }, g);
+      el("path", { d, stroke: col, "stroke-width": 3.2 }, g);
+      const p = el("path", { d, stroke: "none" }, g), L = p.getTotalLength(), pt = p.getPointAtLength(L * (0.42 + 0.07 * i));
+      el("circle", { cx: pt.x, cy: pt.y, r: 4.5, fill: col, filter: "url(#glow)" }, g);
+    });
+    el("path", { d: `M ${K.x} ${K.y} L 1520 ${K.y}`, stroke: "#3ecf8e", "stroke-width": 4.5 }, g);
+    el("circle", { cx: 1340, cy: K.y, r: 5, fill: "#3ecf8e", filter: "url(#glow)" }, g);
+    el("circle", { cx: K.x, cy: K.y, r: 44, fill: "none", stroke: "#3ecf8e", "stroke-width": 1.5, opacity: 0.35 }, s);
+    el("circle", { cx: K.x, cy: K.y, r: 15, fill: "#f4f3ef", filter: "url(#bloom)" }, s);
+    div(`Trade the thesis.`, `position:absolute;left:990px;top:268px;font-size:46px;color:#f4f3ef`).classList.add("serif");
+    div(`weft.fi`, `position:absolute;left:993px;top:336px;font-size:22px;font-weight:600;letter-spacing:-0.01em;color:#a3a29d`);
+  },
+};
+window.ready = document.fonts.ready.then(() => { Q.get("raw") ? BANNERS_RAW() : BANNERS[V](); return true; });
+</script>
+</body>
+</html>
