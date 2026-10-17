@@ -10,7 +10,6 @@ import { PageHeader, Card, Btn } from "@/components/app/AppShell";
 import { StrategyRules } from "@/components/app/StrategyRules";
 import { StrategyCanvas } from "@/components/app/StrategyCanvas";
 import { DeployPanel } from "@/components/app/DeployPanel";
-import { BacktestPanel, CopyNoBacktest } from "@/components/app/BacktestPanel";
 import { IconSend, IconCheck } from "@/components/graph/icons";
 
 const SUGGESTIONS = [
@@ -364,7 +363,6 @@ function Builder() {
                 {changeError && <p className="mt-3 text-[13.5px] text-short">{changeError}</p>}
               </form>
 
-              {strategy.actions.some((a) => a.type === "copy") ? <CopyNoBacktest /> : <BacktestPanel strategy={strategy} />}
             </div>
 
             <div className="space-y-4">

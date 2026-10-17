@@ -7,7 +7,7 @@ import { brand, $T } from "@/config/brand";
 const faqs = [
   {
     q: "Do I need to know how to trade?",
-    a: "You need an opinion, not a trading background. Weft turns it into concrete rules and shows you each one in plain English before anything runs. Test it on recent market data first, then start it with whatever amount you like.",
+    a: "You need an opinion, not a trading background. Weft turns it into concrete rules and shows you each one in plain English before anything runs. Run it as alerts only first if you like, then start it with whatever amount you like.",
   },
   {
     q: "Does Weft hold my money?",
@@ -23,7 +23,7 @@ const faqs = [
   },
   {
     q: "What does it cost?",
-    a: `Writing and testing strategies is free. When a strategy trades, you pay ${(brand.builderFeeBps / 100).toFixed(2)}% on Hyperliquid perps, ${+(brand.hlSpotFeeBps / 100).toFixed(2)}% on Hyperliquid spot sales and ${+(brand.swapFeeBps / 100).toFixed(2)}% on Solana swaps. Half of every fee buys back ${$T}. Once ${$T} is live, holding it lowers the fee: ${Math.round(brand.tiers.holder.discount * 100)}% off from ${brand.tiers.holder.min.toLocaleString("en-US")} ${$T}, ${Math.round(brand.tiers.whale.discount * 100)}% off from ${brand.tiers.whale.min.toLocaleString("en-US")}.`,
+    a: `Writing strategies is free. When a strategy trades, you pay ${(brand.builderFeeBps / 100).toFixed(2)}% on Hyperliquid perps, ${+(brand.hlSpotFeeBps / 100).toFixed(2)}% on Hyperliquid spot sales and ${+(brand.swapFeeBps / 100).toFixed(2)}% on Solana swaps. Half of every fee buys back ${$T}. Once ${$T} is live, holding it lowers the fee: ${Math.round(brand.tiers.holder.discount * 100)}% off from ${brand.tiers.holder.min.toLocaleString("en-US")} ${$T}, ${Math.round(brand.tiers.whale.discount * 100)}% off from ${brand.tiers.whale.min.toLocaleString("en-US")}.`,
   },
   {
     q: `What is ${$T} for?`,

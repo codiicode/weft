@@ -10,7 +10,6 @@ import { PageHeader, Card, Btn, Empty } from "@/components/app/AppShell";
 import { StrategyCanvas } from "@/components/app/StrategyCanvas";
 import { StrategyRules } from "@/components/app/StrategyRules";
 import { DeployPanel } from "@/components/app/DeployPanel";
-import { BacktestPanel, CopyNoBacktest } from "@/components/app/BacktestPanel";
 
 function StrategyView() {
   const id = useSearchParams().get("id") ?? "";
@@ -95,7 +94,6 @@ function StrategyView() {
           ) : (
             <pre className="max-h-[640px] overflow-auto rounded-[12px] border border-line bg-card p-4 font-mono text-[12.5px] leading-relaxed text-ink">{JSON.stringify(s, null, 2)}</pre>
           )}
-          {s.actions.some((a) => a.type === "copy") ? <CopyNoBacktest /> : <BacktestPanel strategyId={e.id} />}
         </div>
         <div className="order-first space-y-4 xl:order-none">
           <DeployPanel strategyId={e.id} strategy={e.strategy} />

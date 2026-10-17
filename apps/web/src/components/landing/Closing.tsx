@@ -103,7 +103,7 @@ export function Closing() {
             </button>
           ))}
         </div>
-        <p className="mt-10 text-[14px] text-muted">Free to write and test. A small fee only when it trades.</p>
+        <p className="mt-10 text-[14px] text-muted">Free to write. A small fee only when it trades.</p>
       </div>
     </section>
   );

@@ -94,7 +94,7 @@ function IdeasCard({ row }: { row: MarketListing }) {
           ? "Weft watches these odds live. Use them to trade other markets, like a long on BTC when the odds move. Trading on Polymarket itself comes later."
           : soon
           ? "Trading this market opens soon. You can already build a strategy and get an alert whenever it would trade."
-          : "Pick one to start. You can read and change every rule, and test it on history, before it trades."}
+          : "Pick one to start. You can read and change every rule before it trades."}
       </p>
       <ul className="mt-3 divide-y divide-line">
         {ideas.map((t) => (

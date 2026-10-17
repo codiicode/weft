@@ -65,8 +65,7 @@ export default function Terms() {
           didn’t expect in a fast market.
         </p>
         <p>
-          Backtests replay past prices. They don’t include every real-world cost, and past results don’t predict future ones. See{" "}
-          <Link href="/risk">the risks</Link> for more.
+          Past results don’t predict future ones. See <Link href="/risk">the risks</Link> for more.
         </p>
       </Part>
 

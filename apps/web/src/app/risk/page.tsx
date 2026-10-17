@@ -61,13 +61,6 @@ export default function Risk() {
         </p>
       </Part>
 
-      <Part title="Backtests">
-        <p>
-          A backtest replays past prices through the same rules. It can’t know what other traders would have done, and it can’t include
-          data Weft has no history for, such as the macro and Fear & Greed series. A good backtest is not a promise.
-        </p>
-      </Part>
-
       <Part title="Venues, networks and Weft itself">
         <p>
           Hyperliquid, Solana, Jupiter and Privy can have outages, bugs or hacks, and so can Weft. Smart contracts can fail. Your wallet
