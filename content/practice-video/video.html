@@ -1,0 +1,306 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Weft practice video</title>
+<style>
+  @font-face { font-family: "Newsreader"; src: url("../../scripts/og/newsreader-latin.woff2") format("woff2"); font-weight: 200 800; }
+  @font-face { font-family: "Inst"; src: url("../../scripts/og/instrument-sans-latin.woff2") format("woff2"); font-weight: 400 700; }
+  html, body { margin: 0; background: #0c0c0d; }
+  #stage { position: relative; width: 1920px; height: 1080px; overflow: hidden; background: #0c0c0d; color: #f4f3ef; font-family: "Inst", sans-serif; -webkit-font-smoothing: antialiased; }
+  .scene { position: absolute; inset: 0; opacity: 0; visibility: hidden; }
+  .serif { font-family: "Newsreader", serif; font-weight: 400; letter-spacing: -0.02em; }
+  .center { position: absolute; left: 0; right: 0; text-align: center; }
+  .label { font-size: 20px; letter-spacing: 0.16em; text-transform: uppercase; color: #6f6e6a; }
+  .muted { color: #a3a29d; } .faint { color: #6f6e6a; }
+  .m { display: inline-block; overflow: hidden; vertical-align: top; padding: 0.04em 0.06em 0.18em; margin: -0.04em -0.06em -0.18em; }
+  .m > span { display: inline-block; transform: translateY(140%); }
+  .tnum { font-variant-numeric: tabular-nums; }
+  .card { position: absolute; box-sizing: border-box; border-radius: 26px; background: linear-gradient(180deg,#17171a,#121214); border: 1.5px solid #26262a; box-shadow: inset 0 1px 0 rgba(255,255,255,0.05), 0 40px 120px rgba(0,0,0,0.5); }
+  .seg { display: grid; grid-template-columns: repeat(3, 1fr); background: #1f1f23; border-radius: 16px; padding: 5px; }
+  .seg div { height: 64px; border-radius: 12px; display: grid; place-items: center; font-size: 28px; color: #8f8e88; }
+  .btn { height: 88px; border-radius: 18px; background: #f4f3ef; color: #0c0c0d; display: grid; place-items: center; font-size: 34px; font-weight: 600; }
+  svg { overflow: visible; }
+</style>
+</head>
+<body>
+<div id="stage">
+  <svg width="0" height="0" style="position:absolute"><defs id="defs">
+    <filter id="glow" x="-150%" y="-150%" width="400%" height="400%"><feGaussianBlur stdDeviation="5" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter>
+    <filter id="bloom" x="-100%" y="-100%" width="300%" height="300%"><feGaussianBlur stdDeviation="14" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter>
+  </defs></svg>
+  <svg id="grid" width="1920" height="1080" style="position:absolute;inset:0"></svg>
+  <div id="glowBg" style="position:absolute;inset:0"></div>
+  <div id="caps" class="serif" style="position:absolute;left:0;right:0;top:70px;height:100px;font-size:72px"></div>
+
+  <!-- 1. hook -->
+  <div class="scene" id="s-hook">
+    <div class="center serif" id="hook1" style="top:360px;font-size:120px"></div>
+    <div class="center serif" id="hook2" style="top:530px;font-size:120px"></div>
+  </div>
+
+  <!-- 2. practice money -->
+  <div class="scene" id="s-money">
+    <div class="card" id="moneyCard" style="left:510px;top:290px;width:900px;padding:56px 64px">
+      <div class="label">Practice money</div>
+      <div class="tnum" id="money" style="font-size:180px;font-weight:700;letter-spacing:-0.05em;margin-top:10px;line-height:1">$0</div>
+      <div class="muted" style="font-size:34px;margin-top:26px">Every account gets it. Pretend dollars, real prices.</div>
+    </div>
+  </div>
+
+  <!-- 3. the run panel -->
+  <div class="scene" id="s-panel">
+    <div class="card" id="panel" style="left:560px;top:230px;width:800px;padding:48px 52px">
+      <div style="font-size:36px;font-weight:600;letter-spacing:-0.02em">Run this strategy</div>
+      <div class="seg" style="margin-top:28px"><div id="sgT">Trade</div><div id="sgP">Practice</div><div id="sgA">Alerts only</div></div>
+      <div class="muted" style="font-size:28px;line-height:1.45;margin-top:28px">Pretend money, real prices. Every trade is simulated at live prices with fees included.</div>
+      <div style="display:flex;justify-content:space-between;align-items:baseline;margin-top:30px;padding:22px 26px;border-radius:14px;background:#1c1c20"><span class="muted" style="font-size:28px">Uses</span><span class="tnum" style="font-size:34px;font-weight:600">$1,000 at 20×</span></div>
+      <div class="btn" id="startBtn" style="margin-top:34px">Start practicing</div>
+    </div>
+    <svg id="cursor1" width="48" height="48" viewBox="0 0 24 24" style="position:absolute;left:0;top:0;opacity:0;filter:drop-shadow(0 4px 10px rgba(0,0,0,0.5))"><path d="M4 2l15 9-7 1.5L8.5 20z" fill="#f4f3ef" stroke="#0c0c0d" stroke-width="1.5" stroke-linejoin="round"/></svg>
+  </div>
+
+  <!-- 4. a practice run -->
+  <div class="scene" id="s-run">
+    <div class="card" id="runCard" style="left:240px;top:250px;width:1440px;height:700px;padding:44px 56px">
+      <div style="display:flex;justify-content:space-between;align-items:center">
+        <div><div style="font-size:46px;font-weight:600;letter-spacing:-0.025em">ETH 20× Long</div><div style="font-size:26px;margin-top:8px" class="muted"><span style="color:#3ecf8e">●</span> Running · practice</div></div>
+        <div id="pnl" class="tnum" style="font-size:72px;font-weight:700;letter-spacing:-0.035em">$0.00</div>
+      </div>
+      <div style="margin-top:26px;padding:18px 24px;border-radius:14px;background:rgba(240,168,58,0.12);font-size:26px;color:#cfcec9"><b style="color:#f4f3ef">Practice.</b> Pretend money at real prices: these trades aren’t real.</div>
+      <svg id="chart" width="1328" height="300" style="position:absolute;left:56px;top:300px"></svg>
+      <div id="fill" style="position:absolute;right:56px;bottom:44px;width:560px;padding:26px 30px;border-radius:16px;background:#93e3bc;color:#0b1f15">
+        <div style="font-size:20px;letter-spacing:0.14em;font-weight:600;opacity:0.75">TRADE · PRACTICE</div>
+        <div class="tnum" style="font-size:34px;font-weight:700;margin-top:8px">Bought 8.36 ETH at $2,393.60</div>
+        <div class="tnum" style="font-size:26px;margin-top:6px">$1,000 at 20× · fee $29.00</div>
+      </div>
+      <div class="faint" style="position:absolute;left:56px;bottom:40px;font-size:22px">Example</div>
+    </div>
+  </div>
+
+  <!-- 5. start it for real -->
+  <div class="scene" id="s-real">
+    <div class="card" id="realCard" style="left:510px;top:300px;width:900px;padding:48px 52px">
+      <div class="seg"><div id="rgT">Trade</div><div id="rgP">Practice</div><div id="rgA">Alerts only</div></div>
+      <div class="muted" id="realText" style="font-size:28px;line-height:1.45;margin-top:28px">Real orders on Hyperliquid, from your own account.</div>
+      <div class="btn" id="realBtn" style="margin-top:34px">Start it for real</div>
+    </div>
+    <svg id="cursor2" width="48" height="48" viewBox="0 0 24 24" style="position:absolute;left:0;top:0;opacity:0;filter:drop-shadow(0 4px 10px rgba(0,0,0,0.5))"><path d="M4 2l15 9-7 1.5L8.5 20z" fill="#f4f3ef" stroke="#0c0c0d" stroke-width="1.5" stroke-linejoin="round"/></svg>
+  </div>
+
+  <!-- 6. end -->
+  <div class="scene" id="s-logo">
+    <svg width="1920" height="1080" style="position:absolute;inset:0">
+      <g id="threads" fill="none" stroke-linecap="round"></g>
+      <circle id="knotRing" cx="960" cy="380" r="0" fill="none" stroke="#3ecf8e" stroke-width="2"/>
+      <circle id="knot" cx="960" cy="380" r="0" fill="#f4f3ef" filter="url(#bloom)"/>
+    </svg>
+    <div class="center" id="wordmark" style="top:500px;font-size:150px;font-weight:600;letter-spacing:-0.045em"></div>
+    <div class="center serif muted" id="tagline" style="top:700px;font-size:60px"></div>
+    <div class="center" id="endUrl" style="top:850px;font-size:42px;font-weight:600;letter-spacing:-0.015em"></div>
+  </div>
+
+  <div id="flash" style="position:absolute;inset:0;opacity:0;background:#f4f3ef"></div>
+  <div id="vig" style="position:absolute;inset:0;background:radial-gradient(ellipse 78% 78% at 50% 50%,transparent 58%,rgba(0,0,0,0.42) 100%)"></div>
+  <div id="grain" style="position:absolute;inset:0;background-size:256px 256px"></div>
+</div>
+
+<script>
+/* ================= helpers ================= */
+const $ = (id) => document.getElementById(id);
+const clamp = (x, a = 0, b = 1) => Math.min(b, Math.max(a, x));
+const seg = (t, a, b) => clamp((t - a) / (b - a));
+const eo = (x) => 1 - Math.pow(1 - x, 3);
+const eio = (x) => (x < 0.5 ? 4 * x * x * x : 1 - Math.pow(-2 * x + 2, 3) / 2);
+const eox = (x) => (x >= 1 ? 1 : 1 - Math.pow(2, -10 * x));
+const eix = (x) => (x <= 0 ? 0 : Math.pow(2, 10 * x - 10));
+const back = (x) => 1 + 2.2 * Math.pow(x - 1, 3) + 1.2 * Math.pow(x - 1, 2);
+const lerp = (a, b, x) => a + (b - a) * x;
+const NS = "http://www.w3.org/2000/svg";
+const el = (tag, attrs = {}, parent) => { const e = document.createElementNS(NS, tag); for (const k in attrs) e.setAttribute(k, attrs[k]); if (parent) parent.appendChild(e); return e; };
+const div = (html, style = "", parent) => { const d = document.createElement("div"); d.innerHTML = html; d.style.cssText = style; if (parent) parent.appendChild(d); return d; };
+const C = { ink: "#f4f3ef", muted: "#a3a29d", faint: "#6f6e6a", line: "#26262a", line2: "#34343a", blue: "#7c8cff", violet: "#a78bfa", amber: "#f5a524", pink: "#f472b6", sky: "#38bdf8", green: "#3ecf8e", mint: "#93e3bc", paper: "#e9e5d8" };
+const hash = (a, b) => { let h = (a * 374761393 + b * 668265263) >>> 0; h = Math.imul(h ^ (h >>> 13), 1274126177) >>> 0; return ((h ^ (h >>> 16)) >>> 0) / 4294967296 * 2 - 1; };
+const srnd = (s) => () => ((s = (Math.imul(s, 1103515245) + 12345) >>> 0) / 4294967296);
+const fmt = (n) => Math.round(n).toLocaleString("en-US");
+
+// Cascade Breathe: 130.01 BPM, downbeat 0.044 s. Every cue sits on its bars.
+const BAR = 240 / 130.01, BEAT = BAR / 4, B0 = 0.044;
+const b = (n) => B0 + n * BAR;
+const DURATION = b(14.6);
+
+function put(id, { o = 1, x = 0, y = 0, s = 1, ox = 960, oy = 540, blur = 0 } = {}) {
+  const e = $(id);
+  if (o <= 0.002) { e.style.opacity = 0; e.style.visibility = "hidden"; return false; }
+  e.style.opacity = o; e.style.visibility = "visible";
+  e.style.transformOrigin = `${ox}px ${oy}px`;
+  e.style.transform = `translate(${x.toFixed(2)}px, ${y.toFixed(2)}px) scale(${s.toFixed(5)})`;
+  e.style.filter = blur > 0.4 ? `blur(${blur.toFixed(1)}px)` : "none";
+  return true;
+}
+/** A scene between a and z: in from below with a blur, out upward. */
+function window_(id, t, a, z, { inD = 0.5, outD = 0.4, dy = 60 } = {}) {
+  if (t < a - 0.01 || t > z + outD) return put(id, { o: 0 });
+  const i = eo(seg(t, a, a + inD)), o = eix(seg(t, z, z + outD));
+  return put(id, { o: i * (1 - o), y: (1 - i) * dy - o * dy, blur: (1 - i) * 10 + o * 12 });
+}
+const setXY = (e, x, y, s = 1, o = 1) => { e.style.transform = `translate(${x.toFixed(1)}px, ${y.toFixed(1)}px) scale(${s.toFixed(4)})`; e.style.opacity = o; };
+function maskWords(target, text) { target.innerHTML = text.split(" ").map((w) => `<span class="m"><span>${w}</span></span>`).join(" "); return [...target.querySelectorAll(".m > span")]; }
+function maskChars(target, text) { target.innerHTML = [...text].map((w) => `<span class="m"><span>${w}</span></span>`).join(""); return [...target.querySelectorAll(".m > span")]; }
+function reveal(ws, t, t0, st = 0.05, d = 0.8, out = null) {
+  ws.forEach((w, i) => {
+    let y = (1 - eox(seg(t, t0 + i * st, t0 + i * st + d))) * 140;
+    if (out != null) y -= eix(seg(t, out + i * st * 0.6, out + i * st * 0.6 + 0.45)) * 140;
+    w.style.transform = `translateY(${y.toFixed(2)}%)`;
+  });
+}
+const bez = (p0, p1, p2, p3, u) => { const v = 1 - u; return [0, 1].map((k) => v * v * v * p0[k] + 3 * v * v * u * p1[k] + 3 * v * u * u * p2[k] + u * u * u * p3[k]); };
+
+/* ================= finish: grid, glow, grain ================= */
+for (let x = 24; x < 1920; x += 48) el("line", { x1: x, y1: 0, x2: x, y2: 1080, stroke: "#fff", "stroke-opacity": 0.022 }, $("grid"));
+const GRAIN = Array.from({ length: 8 }, (_, k) => {
+  const c = document.createElement("canvas"); c.width = c.height = 256;
+  const x = c.getContext("2d"), im = x.createImageData(256, 256), r = srnd(101 + k * 7919);
+  for (let i = 0; i < im.data.length; i += 4) { const v = r(); const w = v > 0.5; im.data[i] = im.data[i + 1] = im.data[i + 2] = w ? 255 : 0; im.data[i + 3] = Math.abs(v - 0.5) * 2 * (w ? 11 : 22); }
+  x.putImageData(im, 0, 0); return `url(${c.toDataURL()})`;
+});
+
+
+/** Captions that roll over each other at the top: [[t, text], …]. */
+function captions(target, list, end) {
+  const rows = list.map(([t, text]) => { const d = div("", "position:absolute;left:0;right:0;text-align:center", target); return { t, ws: maskWords(d, text) }; });
+  return (t) => rows.forEach((r, i) => reveal(r.ws, t, r.t, 0.04, 0.8, i < rows.length - 1 ? rows[i + 1].t - 0.35 : end));
+}
+const press = (t, at) => 1 - 0.06 * Math.sin(Math.PI * seg(t, at, at + 0.22));
+const segPick = (ids, on) => ids.forEach((id, k) => { const e = $(id); e.style.background = k === on ? "#2c2c31" : "transparent"; e.style.color = k === on ? C.ink : "#8f8e88"; e.style.fontWeight = k === on ? 600 : 400; });
+
+/* ---------- 1. hook: b0 – b2 ---------- */
+const H1 = maskWords($("hook1"), "Not ready for real money?");
+const H2 = maskWords($("hook2"), "Practice first.");
+H2[0].style.color = C.amber;
+function drawHook(t) {
+  if (!window_("s-hook", t, 0, b(2) - 0.35, { inD: 0.01 })) return;
+  reveal(H1, t, 0.25, 0.07, 0.9);
+  reveal(H2, t, b(1), 0.09, 0.9);
+}
+
+/* ---------- 2. practice money: b2 – b4 ---------- */
+function drawMoney(t) {
+  if (!window_("s-money", t, b(2), b(4) - 0.35)) return;
+  const u = eio(seg(t, b(2) + 0.3, b(3) + 0.3));
+  $("money").textContent = `$${Math.round(10000 * u).toLocaleString("en-US")}`;
+  $("money").style.color = u >= 1 ? C.amber : C.ink;
+}
+
+/* ---------- 3. the panel: b4 – b6 (Practice picked, Start on the drop) ---------- */
+const P = { a: b(4), pick: b(4.75), start: b(6) - 0.12, z: b(6) + 0.1 };
+function drawPanel(t) {
+  if (!window_("s-panel", t, P.a, P.z, { outD: 0.3 })) return;
+  segPick(["sgT", "sgP", "sgA"], t >= P.pick ? 1 : 0);
+  $("sgP").style.transform = `scale(${press(t, P.pick)})`;
+  $("startBtn").style.transform = `scale(${press(t, P.start)})`;
+  // cursor: to Practice, then down to the button
+  const k1 = eio(seg(t, P.a + 0.3, P.pick)), k2 = eio(seg(t, P.pick + 0.3, P.start));
+  const x = lerp(lerp(1400, 975, k1), 960, k2), y = lerp(lerp(860, 380, k1), 720, k2);
+  $("cursor1").style.opacity = t < P.a + 0.25 ? 0 : 1;
+  $("cursor1").style.transform = `translate(${x}px, ${y}px) scale(${press(t, P.pick) * press(t, P.start)})`;
+}
+
+/* ---------- 4. a practice run: b6 (the drop) – b10 ---------- */
+const R = { a: b(6), fill: b(6.5), z: b(10) - 0.3 };
+const chart = $("chart");
+const pts = Array.from({ length: 160 }, (_, i) => { const x = i / 159; return 2393.6 + Math.sin(x * 9) * 1.4 + Math.sin(x * 23 + 1) * 0.7 + x * x * 22 - x * 3; });
+const lo = Math.min(...pts) - 2, hi = Math.max(...pts) + 2;
+const PX = (i) => (i / 159) * 1328, PY = (v) => 280 - ((v - lo) / (hi - lo)) * 260;
+const linePath = el("path", { d: "M" + pts.map((v, i) => `${PX(i).toFixed(1)} ${PY(v).toFixed(1)}`).join(" L "), stroke: C.green, "stroke-width": 4, fill: "none", "stroke-linejoin": "round" }, chart);
+const len = linePath.getTotalLength();
+const entry = el("line", { x1: 0, x2: 1328, y1: PY(2393.6), y2: PY(2393.6), stroke: "#55554f", "stroke-width": 2, "stroke-dasharray": "10 10" }, chart);
+const head = el("circle", { r: 9, fill: C.green, filter: "url(#glow)" }, chart);
+function drawRun(t) {
+  if (!window_("s-run", t, R.a - 0.05, R.z, { inD: 0.35 })) return;
+  const u = seg(t, R.a + 0.2, R.z);
+  linePath.style.strokeDasharray = len; linePath.style.strokeDashoffset = len * (1 - u);
+  const i = Math.round(u * 159), v = pts[i];
+  head.setAttribute("cx", PX(i)); head.setAttribute("cy", PY(v));
+  const pnl = t < R.fill ? 0 : 8.356 * (v - 2393.6) - 29;
+  $("pnl").textContent = pnl === 0 ? "$0.00" : `${pnl < 0 ? "−" : "+"}$${Math.abs(pnl).toFixed(2)}`;
+  $("pnl").style.color = pnl === 0 ? C.ink : pnl > 0 ? C.green : "#ff6b6b";
+  const f = seg(t, R.fill, R.fill + 0.5);
+  $("fill").style.opacity = f > 0 ? Math.min(1, f * 3) : 0;
+  $("fill").style.transform = `translateY(${(1 - eo(f)) * 50}px) scale(${lerp(0.94, 1, back(f))})`;
+}
+
+/* ---------- 5. start it for real: b10 – b12 ---------- */
+const S = { a: b(10), click: b(11), z: b(12) - 0.3 };
+function drawReal(t) {
+  if (!window_("s-real", t, S.a - 0.05, S.z)) return;
+  const live = t >= S.click + 0.1;
+  segPick(["rgT", "rgP", "rgA"], live ? 0 : 1);
+  $("realText").textContent = live ? "Real orders on Hyperliquid, from your own account." : "Pretend money, real prices. Fees included.";
+  $("realBtn").style.transform = `scale(${press(t, S.click)})`;
+  $("realBtn").textContent = live ? "Start trading" : "Start it for real";
+  $("realBtn").style.background = live ? C.green : C.ink;
+  const k = eio(seg(t, S.a + 0.3, S.click));
+  $("cursor2").style.opacity = t < S.a + 0.25 ? 0 : 1;
+  $("cursor2").style.transform = `translate(${lerp(1450, 960, k)}px, ${lerp(880, 610, k)}px) scale(${press(t, S.click)})`;
+}
+
+/* ---------- captions over 4 and 5 ---------- */
+const caps = captions($("caps"), [
+  [b(6) + 0.1, "Real prices. Real fees."],
+  [b(8), "Pretend money."],
+  [b(10) + 0.1, "Like how it trades?"],
+  [b(11) + 0.2, "Start it for real in one click."],
+], b(12) - 0.4);
+
+/* ---------- 6. end: the knot ---------- */
+const END = b(12);
+const KNOT = { x: 960, y: 380 };
+const THREAD_C = [C.amber, C.pink, C.sky, C.blue, C.violet, C.green];
+const threadEls = [
+  `M -40 210 C 400 210 640 380 ${KNOT.x} ${KNOT.y}`, `M -40 295 C 420 295 660 380 ${KNOT.x} ${KNOT.y}`, `M -40 380 L ${KNOT.x} ${KNOT.y}`,
+  `M -40 465 C 420 465 660 380 ${KNOT.x} ${KNOT.y}`, `M -40 550 C 400 550 640 380 ${KNOT.x} ${KNOT.y}`, `M ${KNOT.x} ${KNOT.y} L 1980 ${KNOT.y}`,
+].map((d, i) => el("path", { d, stroke: THREAD_C[i], "stroke-width": i === 5 ? 5 : 3.5, opacity: 0.95 }, $("threads")));
+const threadLen = threadEls.map((p) => p.getTotalLength());
+const heads = THREAD_C.map((c, i) => el("circle", { r: i === 5 ? 6 : 4.5, fill: c, filter: "url(#glow)", opacity: 0 }, $("threads")));
+const wm = maskChars($("wordmark"), "weft");
+const tag = maskWords($("tagline"), "Practice is live.");
+const url = maskWords($("endUrl"), "weft.fi");
+function drawEnd(t) {
+  if (t < END - 0.05) return put("s-logo", { o: 0 });
+  const l = t - END;
+  put("s-logo", { o: Math.min(1, l / 0.2 + 0.25) });
+  threadEls.forEach((p, i) => {
+    const start = i < 5 ? 0.05 + i * 0.07 : 0.95;
+    const pr = eio(seg(l, start, start + 0.9));
+    p.style.strokeDasharray = threadLen[i]; p.style.strokeDashoffset = threadLen[i] * (1 - pr);
+    const h = heads[i];
+    if (pr > 0 && pr < 1) { const pt = p.getPointAtLength(threadLen[i] * pr); h.setAttribute("cx", pt.x); h.setAttribute("cy", pt.y); h.setAttribute("opacity", 1); } else h.setAttribute("opacity", 0);
+  });
+  const k = seg(l, 0.9, 1.3);
+  $("knot").setAttribute("r", Math.max(0, 22 * back(k) * (k > 0 ? 1 : 0)));
+  const ring = seg(l, 0.95, 2.0); $("knotRing").setAttribute("r", 22 + 110 * eox(ring)); $("knotRing").setAttribute("opacity", ring > 0 ? (1 - ring) * 0.8 : 0);
+  reveal(wm, l, 1.2, 0.05, 0.9);
+  reveal(tag, l, 1.6, 0.06, 0.9);
+  reveal(url, l, 2.2, 0.06, 0.9);
+}
+
+function renderAt(t) {
+  drawHook(t); drawMoney(t); drawPanel(t); drawRun(t); drawReal(t); drawEnd(t); caps(t);
+  $("flash").style.opacity = (t >= b(6) ? Math.exp(-(t - b(6)) * 7) * 0.14 : 0).toFixed(3);
+  const gx = 50 + 20 * Math.sin(t * 0.21), gy = 40 + 15 * Math.cos(t * 0.17);
+  $("glowBg").style.background = `radial-gradient(1100px 700px at ${gx}% ${gy}%, rgba(245,165,36,0.06), transparent 70%)`;
+  const fk = Math.floor(t * 24);
+  $("grain").style.backgroundImage = GRAIN[fk % 8];
+  $("grain").style.backgroundPosition = `${(hash(fk, 1) * 128).toFixed(0)}px ${(hash(fk, 2) * 128).toFixed(0)}px`;
+}
+window.DURATION = DURATION;
+window.renderAt = renderAt;
+if (!navigator.webdriver) {
+  const q = new URLSearchParams(location.search);
+  if (q.has("t")) document.fonts.ready.then(() => renderAt(Number(q.get("t"))));
+  else { const t0 = performance.now(); const loop = () => { renderAt(((performance.now() - t0) / 1000) % DURATION); requestAnimationFrame(loop); }; document.fonts.ready.then(loop); }
+}
+</script>
+</body>
+</html>
