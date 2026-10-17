@@ -561,6 +561,82 @@ const drawRuns = (w, h) => paper2d(w, h, (g) => {
   txt(g, "So it keeps watching, 24/7.", 40, 540, F(36, 600), "#222");
 });
 
+
+/* ---------- thesis posts: earnings, news ---------- */
+const drawCalendar = (w, h) => paper2d(w, h, (g) => {
+  txt(g, "EARNINGS CALENDAR", 40, 70, F(28), "#2e2e2e");
+  txt(g, "November", 40, 140, F(56, 700));
+  const days = ["M", "T", "W", "T", "F"], x0 = 40, cw = (w - 80) / 5, y0 = 200;
+  days.forEach((d, i) => txt(g, d, x0 + i * cw + cw / 2, y0, F(28, 600), "#555", "center"));
+  for (let r = 0; r < 3; r++) for (let c = 0; c < 5; c++) {
+    const d = 16 + r * 7 + c, n = d > 30 ? d - 30 : d, x = x0 + c * cw + cw / 2, y = y0 + 70 + r * 100;
+    if (d === 19) { g.strokeStyle = "#111"; g.lineWidth = 6; g.beginPath(); g.arc(x, y - 14, 44, 0, 7); g.stroke(); }
+    txt(g, String(n), x, y, F(40, d === 19 ? 700 : 500), d === 19 ? "#111" : d > 30 ? "#8c8c8c" : "#444", "center");
+  }
+  txt(g, "NVDA reports on the 19th", 40, h - 40, F(36, 700));
+});
+const drawMentions = (w, h) => paper2d(w, h, (g) => {
+  txt(g, "$NVDA MENTIONS ON X", 36, 64, F(26), "#2e2e2e");
+  txt(g, "×2.4", 34, 174, F(110, 700));
+  txt(g, "this week", 300, 174, F(36, 600), "#333");
+  const v = [20, 24, 22, 30, 34, 41, 48], bw = (w - 80) / v.length;
+  v.forEach((x, i) => rr(g, 40 + i * bw + 8, h - 40 - x * 4.6, bw - 16, x * 4.6, 8, i === v.length - 1 ? "#111" : "#9a9a9a", null));
+});
+const drawNvda = (w, h) => paper2d(w, h, (g) => {
+  if (IMG.NVDA) g.drawImage(IMG.NVDA, 22, 22, 130, 130);
+  txt(g, "NVIDIA", 172, 76, F(30), "#2e2e2e");
+  txt(g, "This week", 172, 130, F(40, 700));
+  txt(g, "+4.1%", 40, 330, F(160, 700));
+  const pts = [100, 99.2, 100.8, 101.5, 101, 102.6, 103.4, 102.9, 104.1], x0 = 40, x1 = w - 40, X = (i) => x0 + (i / (pts.length - 1)) * (x1 - x0), Y = (p) => h - 60 - (p - 98.5) * 34;
+  g.strokeStyle = "#111"; g.lineWidth = 9; g.lineJoin = "round"; g.lineCap = "round"; g.beginPath(); pts.forEach((p, i) => (i ? g.lineTo(X(i), Y(p)) : g.moveTo(X(i), Y(p)))); g.stroke();
+});
+const rulesTile = (whens, then, foot) => (w, h) => paper2d(w, h, (g) => {
+  const node = (x, y, nw, nh, k, lines, fs = 38) => { rr(g, x, y, nw, nh, 20, "#e8e8e8", "#111", 5); txt(g, k, x + 26, y + 42, F(26), "#2e2e2e"); lines.forEach((l, i) => txt(g, l, x + 26, y + 92 + i * 46, F(fs))); };
+  const n = whens.length, gap = 18, nh = Math.min(170, (h - 134 - gap * (n - 1)) / n), top = 24 + (h - 134 - (nh + gap) * n + gap) / 2, nx = 640;
+  g.strokeStyle = "#111"; g.lineWidth = 6; g.lineCap = "round";
+  const ty = top + ((nh + gap) * n - gap) / 2;
+  whens.forEach(([k, v], i) => {
+    const y = top + i * (nh + gap);
+    g.beginPath(); g.moveTo(590, y + nh / 2); g.bezierCurveTo(630, y + nh / 2, 610, ty, nx + 30, ty); g.stroke();
+    node(28, y, 562, nh, k, [v], 36);
+  });
+  node(nx + 30, ty - 110, w - nx - 60, 220, "THEN", then, 42);
+  g.fillStyle = "#111"; g.beginPath(); g.arc(nx + 22, ty, 13, 0, 7); g.fill();
+  txt(g, foot, 30, h - 36, F(34, 600), "#222");
+});
+const fillTile = (kick, big, line2, lines) => (w, h) => paper2d(w, h, (g) => {
+  rr(g, 34, 34, w - 68, h - 68, 34, "#ececec", "#111", 5);
+  txt(g, kick, 84, 124, F(30), "#2e2e2e");
+  txt(g, big, 80, 228, F(88, 700));
+  txt(g, line2, 84, 312, F(50, 600));
+  lines.forEach((l, i) => txt(g, l, 84, 396 + i * 54, F(36, 500), "#333"));
+});
+const drawClipping = (w, h) => paper2d(w, h, (g) => {
+  g.fillStyle = "#f2f0ea"; g.fillRect(0, 0, w, h);
+  txt(g, "MARKETS · 2 MIN AGO", 40, 70, F(26), "#555");
+  ["Fed cuts rates", "by a quarter point"].forEach((l, i) => txt(g, l, 36, 170 + i * 92, F(84, 700, "Newsreader")));
+  g.fillStyle = "#b9b6ad"; for (let k = 0; k < 5; k++) g.fillRect(40, 330 + k * 40, w - 80 - (k % 2) * 160, 14);
+  rr(g, 30, 100, w - 60, 210, 18, null, "#111", 6);
+});
+const drawFeed = (w, h) => paper2d(w, h, (g) => {
+  txt(g, "LIVE HEADLINES", 36, 64, F(26), "#2e2e2e");
+  [["now", "Fed cuts rates by a quarter point", true], ["4m", "Treasury yields slide", false], ["9m", "Oil steady ahead of OPEC", false], ["12m", "Tech leads futures higher", false]].forEach(([t, l, me], i) => {
+    const y = 130 + i * 86;
+    if (me) rr(g, 22, y - 52, w - 44, 76, 14, "#d6d6d6", null);
+    txt(g, t, 40, y, F(28, 600), "#555"); txt(g, l, 120, y, F(30, me ? 700 : 500));
+  });
+});
+const drawBtc = (w, h) => paper2d(w, h, (g) => {
+  if (IMG.BTC) g.drawImage(IMG.BTC, 22, 22, 130, 130);
+  txt(g, "BITCOIN", 172, 76, F(30), "#2e2e2e");
+  txt(g, "Right now", 172, 130, F(40, 700));
+  txt(g, "$81,204", 40, 320, F(140, 700));
+  const pts = [100, 100.4, 99.8, 100.9, 101.6, 101.2, 102.4, 103.1, 102.7, 103.8], x0 = 40, x1 = w - 40, X = (i) => x0 + (i / (pts.length - 1)) * (x1 - x0), Y = (p) => 470 - (p - 100) * 26;
+  g.strokeStyle = "#111"; g.lineWidth = 9; g.lineJoin = "round"; g.lineCap = "round"; g.beginPath(); pts.forEach((p, i) => (i ? g.lineTo(X(i), Y(p)) : g.moveTo(X(i), Y(p)))); g.stroke();
+  g.lineWidth = 5; g.setLineDash([18, 14]); g.beginPath(); g.moveTo(x0, 530); g.lineTo(x1, 530); g.stroke(); g.setLineDash([]);
+  txt(g, "Stop set at −10%", 40, h - 40, F(36, 600), "#333");
+});
+
 /* ---------- the three banners ---------- */
 const Q = new URLSearchParams(location.search), V = Q.get("v") ?? "1";
 // ?raw=1 shows each scene before printing, ?raw=1&ink=1 after
@@ -585,6 +661,27 @@ function banner1(scenes, text, cells = [], layout = LAYOUT, withLogo = true) {
   if (withLogo) logo(1268, 418, 44, "dark");
 }
 const BANNERS = {
+  earnings() {
+    $b.style.width = "1600px"; $b.style.height = "900px"; $b.className = "dark"; dots("#2a2a2e", 24);
+    const o = { contrast: 1.0, cell: 5, solid: 0.42 };
+    tile(56, 34, 480, 340, drawCalendar, "news", o);
+    tile(592, 70, 420, 250, drawMentions, "pink", o);
+    tile(1068, 30, 480, 330, drawNvda, "sky", o);
+    tile(80, 560, 600, 320, rulesTile([["WHEN", "Earnings in 2 days"], ["AND", "Up on the week"], ["AND", "Mentions on X climbing"]], ["Buy NVDA", "$1,000"], "Sell before the print"), "amberBlue", o);
+    tile(1000, 570, 520, 300, fillTile("ORDER FILLED", "Bought NVDA", "$1,000 at $182.40", ["Sells before the print", "From your own wallet"]), "green", o);
+    postPrompt(330, 396, 940, "“Buy NVDA two days before earnings if it’s up on the week and mentions on X are climbing. Sell before the print.”");
+  },
+  news() {
+    $b.style.width = "1600px"; $b.style.height = "900px"; $b.className = "dark"; dots("#2a2a2e", 24);
+    const o = { contrast: 1.0, cell: 5, solid: 0.42 };
+    tile(56, 34, 500, 340, drawClipping, "news", o);
+    tile(600, 60, 440, 280, drawFeed, "sky", o);
+    tile(1084, 30, 460, 320, drawBtc, "amber", o);
+    tile(80, 560, 600, 320, rulesTile([["WHEN", "Headlines report a Fed cut"]], ["Buy BTC", "$500"], "Stop at 10%"), "pink", o);
+    tile(1000, 570, 520, 300, fillTile("ORDER FILLED", "Bought BTC", "$500 at $81,204", ["Stop at −10% on Hyperliquid", "From your own wallet"]), "green", o);
+    postPrompt(290, 410, 1020, "“If headlines report a Fed cut, buy $500 of BTC. Stop at 10%.”");
+  },
+
   start() {
     $b.style.width = "1600px"; $b.style.height = "900px";
     $b.className = "dark"; dots("#2a2a2e", 24);
