@@ -250,8 +250,9 @@ function tile(x, y, w, h, scene, ink, o = {}) {
   $b.appendChild(c); return c;
 }
 function dots(color, step = 22, r = 1.1) {
-  const s = el("svg", { width: 1500, height: 500, style: "position:absolute;inset:0" }, $b);
-  for (let y = step / 2; y < 500; y += step) for (let x = step / 2; x < 1500; x += step) el("circle", { cx: x, cy: y, r, fill: color }, s);
+  const W = $b.offsetWidth, H = $b.offsetHeight;
+  const s = el("svg", { width: W, height: H, style: "position:absolute;inset:0" }, $b);
+  for (let y = step / 2; y < H; y += step) for (let x = step / 2; x < W; x += step) el("circle", { cx: x, cy: y, r, fill: color }, s);
   return s;
 }
 const MIC = (c) => `<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="${c}" stroke-width="1.8" stroke-linecap="round"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5.5 11a6.5 6.5 0 0 0 13 0M12 17.5V21"/></svg>`;
@@ -390,6 +391,61 @@ const drawCopy = (w, h) => paper2d(w, h, (g) => {
 const SHOTS = "../../shorts/recordings/";
 const cut = (k, sx, sy, sw, sh) => (w, h) => { const c = document.createElement("canvas"); c.width = w; c.height = h; const g = c.getContext("2d"); g.filter = "invert(1) grayscale(1) contrast(1.15)"; g.drawImage(IMG[k], sx, sy, sw, sh, 0, 0, w, h); return c; };
 
+
+/* ---------- post graphic: the Spurs thesis ---------- */
+const drawStandings = (w, h) => paper2d(w, h, (g) => {
+  if (IMG.spurs) g.drawImage(IMG.spurs, 26, 20, 190, 190);
+  txt(g, "NBA STANDINGS", 236, 92, F(30), "#2e2e2e");
+  txt(g, "West", 236, 160, F(62, 700));
+  [["1", "Spurs", "11–4", true], ["2", "Thunder", "10–5"], ["3", "Nuggets", "9–6"], ["4", "Rockets", "9–6"]].forEach(([n, t, r, me], i) => {
+    const y = 292 + i * 82;
+    if (me) rr(g, 22, y - 60, w - 44, 82, 16, "#d8d8d8", null);
+    txt(g, n, 52, y, F(40, 500), "#555"); txt(g, t, 118, y, F(44, me ? 700 : 500)); txt(g, r, w - 52, y, F(44, me ? 700 : 500), "#111", "right");
+  });
+  txt(g, "✓ 10+ wins in the first 15", 52, h - 36, F(38, 700));
+});
+const drawTitleOdds = (w, h) => paper2d(w, h, (g) => {
+  if (IMG.nba) g.drawImage(IMG.nba, 18, 18, 150, 150);
+  txt(g, "TITLE ODDS", 170, 86, F(30), "#2e2e2e");
+  txt(g, "Spurs win the title", 170, 146, F(44, 700));
+  txt(g, "25.6%", 40, 340, F(170, 700));
+  const pts = [14, 15.5, 15, 17, 18.6, 18, 20.4, 21, 22.8, 22.1, 23.9, 24.6, 25.6];
+  const x0 = 40, x1 = w - 50, X = (i) => x0 + (i / (pts.length - 1)) * (x1 - x0), Y = (v) => h - 70 - (v - 13) * 18;
+  g.strokeStyle = "#555"; g.lineWidth = 4; g.setLineDash([12, 12]); g.beginPath(); g.moveTo(x0, Y(25)); g.lineTo(x1, Y(25)); g.stroke(); g.setLineDash([]);
+  txt(g, "25%", x1, Y(25) - 18, F(30), "#2e2e2e", "right");
+  g.strokeStyle = "#111"; g.lineWidth = 9; g.lineJoin = "round"; g.lineCap = "round"; g.beginPath(); pts.forEach((v, i) => (i ? g.lineTo(X(i), Y(v)) : g.moveTo(X(i), Y(v)))); g.stroke();
+  g.fillStyle = "#111"; g.beginPath(); g.arc(X(pts.length - 1), Y(25.6), 15, 0, 7); g.fill();
+});
+const drawSpursRules = (w, h) => paper2d(w, h, (g) => {
+  const node = (x, y, nw, nh, k, lines) => { rr(g, x, y, nw, nh, 22, "#e8e8e8", "#111", 5); txt(g, k, x + 28, y + 46, F(28), "#2e2e2e"); lines.forEach((l, i) => txt(g, l, x + 28, y + 100 + i * 50, F(42))); };
+  const nx = 600, ny = (h - 520) / 2;
+  g.strokeStyle = "#111"; g.lineWidth = 6; g.lineCap = "round";
+  g.beginPath(); g.moveTo(560, ny + 80); g.bezierCurveTo(610, ny + 80, 590, ny + 200, nx + 40, ny + 200); g.stroke();
+  g.beginPath(); g.moveTo(560, ny + 330); g.bezierCurveTo(610, ny + 330, 590, ny + 200, nx + 40, ny + 200); g.stroke();
+  node(28, ny + 10, 532, 140, "WHEN", ["Spurs win 10+ of 15"]);
+  node(28, ny + 260, 532, 140, "AND", ["Title odds pass 25%"]);
+  node(nx + 40, ny + 100, w - nx - 70, 200, "THEN", ["Buy YES", "$1,000"]);
+  g.fillStyle = "#111"; g.beginPath(); g.arc(nx + 30, ny + 200, 13, 0, 7); g.fill();
+  txt(g, "Sell if the odds drop below 15%", 30, ny + 486, F(36, 600), "#222");
+});
+const draw247 = (w, h) => paper2d(w, h, (g) => {
+  txt(g, "24/7", 30, 290, F(250, 400, "Newsreader"));
+  txt(g, "It watches every game.", 38, 400, F(44, 600), "#222");
+});
+const drawSpursFill = (w, h) => paper2d(w, h, (g) => {
+  rr(g, 34, 34, w - 68, h - 68, 34, "#ececec", "#111", 5);
+  txt(g, "ORDER FILLED", 84, 124, F(30), "#2e2e2e");
+  txt(g, "Bought YES", 80, 228, F(92, 700));
+  txt(g, "$1,000 at 25.6¢", 84, 316, F(54, 600));
+  txt(g, "Spurs win the NBA title", 84, 404, F(38, 500), "#333");
+  txt(g, "From your own wallet", 84, 460, F(38, 500), "#333");
+});
+function postPrompt(x, y, w, text) {
+  const e = div(`<div class="txt" style="white-space:normal;font-size:31px;line-height:1.35">${text}</div><div class="btn send" style="align-self:flex-end">${SEND("#141414")}</div>`, `left:${x}px;top:${y}px;width:${w}px;padding:24px 18px 18px 32px;align-items:flex-start`);
+  e.classList.add("prompt");
+  return e;
+}
+
 /* ---------- the three banners ---------- */
 const Q = new URLSearchParams(location.search), V = Q.get("v") ?? "1";
 // ?raw=1 shows each scene before printing, ?raw=1&ink=1 after
@@ -414,6 +470,18 @@ function banner1(scenes, text, cells = [], layout = LAYOUT, withLogo = true) {
   if (withLogo) logo(1268, 418, 44, "dark");
 }
 const BANNERS = {
+  // a post graphic (1600 × 900) for the Spurs thesis
+  spurs() {
+    $b.style.width = "1600px"; $b.style.height = "900px";
+    $b.className = "dark"; dots("#2a2a2e", 24);
+    const o = { contrast: 1.0, cell: 5, solid: 0.42 };
+    tile(56, 34, 480, 340, drawStandings, "news", o);
+    tile(592, 70, 420, 250, draw247, "violet", o);
+    tile(1068, 30, 480, 330, drawTitleOdds, "sky", o);
+    tile(80, 560, 600, 320, drawSpursRules, "amberBlue", o);
+    tile(1000, 570, 520, 300, drawSpursFill, "green", o);
+    postPrompt(330, 396, 940, "“If the Spurs win 10 of their first 15 games and their title odds pass 25%, put $1,000 on them winning it all.”");
+  },
   // 1a: how it works: signals → rules → tested → running → your wallet → Weft
   "1a"() { banner1([drawWatch, drawRules, drawBacktest, drawLog, drawWallet, drawBig([["24/7", "#111"]], "It watches while you sleep.", 170, 200), drawPM, drawCopy], "Trade the thesis.", [], LAYOUT_1A, false); },
   // 1b: the real app
@@ -481,7 +549,7 @@ const BANNERS = {
 window.ready = (async () => {
   await document.fonts.ready;
   await Promise.all([document.fonts.load(F(40)), document.fonts.load(F(40, 500)), document.fonts.load(F(40, 400, "Newsreader")), document.fonts.load(F(40, 700, "Newsreader"))]);
-  await Promise.all([...["NVDA", "BTC", "OUTCOME", "ETH", "GOLD", "SOL", "TSLA", "SP500"].map((k) => loadImg(k, `../../../apps/web/public/coins/${k}.svg`)), loadImg("run", SHOTS + "copy/runFull.jpg"), loadImg("bt", SHOTS + "tour/backtestFull.jpg")]);
+  await Promise.all([...["NVDA", "BTC", "OUTCOME", "ETH", "GOLD", "SOL", "TSLA", "SP500"].map((k) => loadImg(k, `../../../apps/web/public/coins/${k}.svg`)), loadImg("run", SHOTS + "copy/runFull.jpg"), loadImg("spurs", "assets/spurs.png"), loadImg("nba", "assets/nba.png"), loadImg("bt", SHOTS + "tour/backtestFull.jpg")]);
   Q.get("raw") ? BANNERS_RAW() : BANNERS[V]();
   return true;
 })();

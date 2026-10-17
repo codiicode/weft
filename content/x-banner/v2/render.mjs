@@ -15,10 +15,11 @@ for (const v of which) {
   for (const [scale, suffix] of [[2, "@2x"], [1, ""]]) {
     const page = await browser.newPage();
     page.on("pageerror", (e) => console.error(`v${v}: ${e.message}`));
-    await page.setViewport({ width: 1500, height: 500, deviceScaleFactor: scale });
+    const [W, H] = v === "spurs" ? [1600, 900] : [1500, 500];
+    await page.setViewport({ width: W, height: H, deviceScaleFactor: scale });
     await page.goto(`file://${here}banners.html?v=${v}`, { waitUntil: "networkidle0" });
     await page.evaluate(() => window.ready);
-    await page.screenshot({ path: `${here}out/weft-x-banner-${v}${suffix}.png`, clip: { x: 0, y: 0, width: 1500, height: 500 } });
+    await page.screenshot({ path: `${here}out/weft-x-banner-${v}${suffix}.png`, clip: { x: 0, y: 0, width: W, height: H } });
     await page.close();
   }
   console.log(`banner ${v}`);
