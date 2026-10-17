@@ -7,7 +7,7 @@ The mark: three threads (the signals) meet in a knot (the rule) and leave as one
 | `weft-logo-dark.png` | Mark + wordmark for dark backgrounds (transparent PNG) |
 | `weft-logo-light.png` | Mark + wordmark for light backgrounds (transparent PNG) |
 | `weft-mark.png` / `weft-mark.svg` | The app icon: the mark in its rounded square (1024 px / vector) |
-| `weft-pfp.png` | X profile picture: 1000 × 1000, full-bleed dark, threads centred (X crops it to a circle) |
+| `weft-pfp.png` | **The X profile picture** (chosen 2026-10-17): 2000 × 2000, the mark printed on the banner dot grid with a halftone glow and a grainy edge (X crops it to a circle) |
 
 Colours: ink `#121214`, paper `#F4F3EF`. The wordmark is Instrument Sans SemiBold, tracking −3.5%, lowercase.
 Regenerate: `node content/brand/kit.mjs`.
