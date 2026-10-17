@@ -325,6 +325,19 @@ const drawWallet = (w, h) => paper2d(w, h, (g) => {
   txt(g, "It never holds your money.", 80, 296, F(30, 500), "#555");
 });
 
+const drawPM = (w, h) => paper2d(w, h, (g) => {
+  txt(g, "PREDICTION MARKET", 40, 52, F(22), "#2e2e2e");
+  txt(g, "Spurs win the", 40, 112, F(40, 700, "Newsreader"));
+  txt(g, "NBA title?", 40, 160, F(40, 700, "Newsreader"));
+  // the odds: YES 26%, one bar
+  rr(g, 40, 196, 560, 34, 17, "#d6d6d6", null);
+  rr(g, 40, 196, 560 * 0.26, 34, 17, "#111", null);
+  txt(g, "YES 26%", 40, 268, F(26), "#111");
+  txt(g, "NO 74%", 600, 268, F(26, 500), "#555", "right");
+  g.fillStyle = "#111"; g.beginPath(); g.arc(50, 312, 8, 0, 7); g.fill();
+  txt(g, "Buy YES $1,000 when odds pass 25%", 70, 321, F(25, 500));
+});
+
 // C: what it means
 const drawMarkets = (w, h) => paper2d(w, h, (g) => {
   const cx = 262, cy = 214, rx = 210, ry = 118;
@@ -392,17 +405,17 @@ const BANNERS_RAW = () => {
 
 const LAYOUT = [[70, -30, 330, 200], [330, -12, 300, 160], [-20, 150, 300, 240], [150, 300, 330, 230], [500, 318, 330, 210], [850, 352, 300, 170]];
 // Banner 1a: the bottom-left corner stays clear for the X profile picture.
-const LAYOUT_1A = [[70, -30, 330, 200], [330, -12, 300, 160], [650, -24, 300, 240], [1080, -10, 330, 230], [500, 318, 330, 210], [850, 352, 300, 170]];
-const INKS1 = ["news", "amberBlue", "skyAmber", "pinkBlue", "orange", "violet"];
-function banner1(scenes, text, cells = [], layout = LAYOUT) {
+const LAYOUT_1A = [[70, -30, 330, 200], [330, -12, 300, 160], [650, -24, 300, 240], [1080, -10, 330, 230], [500, 318, 330, 210], [850, 352, 300, 170], [1170, 300, 330, 220], [20, 186, 300, 140]];
+const INKS1 = ["news", "amberBlue", "skyAmber", "pinkBlue", "orange", "violet", "green", "blue"];
+function banner1(scenes, text, cells = [], layout = LAYOUT, withLogo = true) {
   $b.className = "dark"; dots("#2a2a2e");
   scenes.forEach((sc, i) => { const flat = typeof sc === "function"; tile(...layout[i], sc, INKS1[i], { contrast: flat ? 1.0 : 1.5, cell: cells[i] ?? (flat ? 5 : 6), solid: flat ? 0.42 : 0 }); });
   prompt(420, 205, 640, text, "dark");
-  logo(1268, 418, 44, "dark");
+  if (withLogo) logo(1268, 418, 44, "dark");
 }
 const BANNERS = {
   // 1a: how it works: signals → rules → tested → running → your wallet → Weft
-  "1a"() { banner1([drawWatch, drawRules, drawBacktest, drawLog, drawWallet, drawBig([["24/7", "#111"]], "It watches while you sleep.", 170, 200)], "Trade the thesis.", [], LAYOUT_1A); },
+  "1a"() { banner1([drawWatch, drawRules, drawBacktest, drawLog, drawWallet, drawBig([["24/7", "#111"]], "It watches while you sleep.", 170, 200), drawPM, drawCopy], "Trade the thesis.", [], LAYOUT_1A, false); },
   // 1b: the real app
   "1b"() { banner1([cut("run", 530, 540, 560, 340), cut("bt", 770, 1186, 500, 266), cut("bt", 1180, 2820, 1080, 864), cut("run", 2370, 900, 600, 418), cut("run", 560, 2700, 560, 356), cut("bt", 590, 2350, 640, 362)], "Long SOL 10x every time it drops 5% in a day."); },
   // 1c: what it means
