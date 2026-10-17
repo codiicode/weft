@@ -29,12 +29,6 @@ const TIERS = [
   { name: "Whale", min: t.whale.min, discount: t.whale.discount, boost: r.whaleBoost },
 ];
 
-const HOLD = [
-  ["Lower fees", `${pct(t.holder.discount)} off every trade from ${k(t.holder.min)} ${$T}, ${pct(t.whale.discount)} off from ${k(t.whale.min)}.`],
-  ["Bigger rewards", `${r.holderBoost}× your share of the daily rewards as a Holder, ${r.whaleBoost}× as a Whale.`],
-  [`${brand.aiDrafts.holders} AI drafts a day`, `Instead of ${brand.aiDrafts.everyone}. Weft writes, rewrites and tests more strategies for you.`],
-  ["Claim daily", "Each day’s rewards are ready right after midnight UTC. One click sends them to your wallet."],
-];
 
 export function Token() {
   return (
@@ -100,14 +94,7 @@ export function Token() {
                 </div>
               ))}
             </div>
-            <div className="mt-4 grid gap-px overflow-hidden rounded-[14px] border border-line bg-line sm:grid-cols-2 lg:grid-cols-4">
-              {HOLD.map(([k, v]) => (
-                <div key={k} className="bg-paper p-6">
-                  <div className="text-[17px] font-semibold tracking-[-0.02em] text-ink">{k}</div>
-                  <p className="mt-2 text-[14px] leading-relaxed text-muted">{v}</p>
-                </div>
-              ))}
-            </div>
+            <p className="mt-4 text-[14px] text-muted">Each day’s rewards are ready right after midnight UTC. One click sends them to your wallet.</p>
           </div>
         </Reveal>
 
