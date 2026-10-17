@@ -130,7 +130,11 @@ Holders also pay half the fee and get 100 AI drafts a day instead of 30.
 - The launch script created config and pool with the treasury as fee claimer.
 - The dev buy in the same transaction paid the minimum fee (3%), not 30%. All of it was burned.
 - A treasury run claimed 0.00024 SOL and sent exactly 83.3% to the revenue wallet. The rest bought 149,779 WEFT on the curve; 30% was burned and 70% went into the pot.
-- **Not yet verified:** claiming from the locked LP after graduation (needs ~0.1 devnet SOL; the faucet was down).
+- Full run with a fresh token (mint `DBbTcoCX…`):
+  - after graduation the locked LP position is owned by the treasury (fee claimer), not the launch wallet;
+  - the treasury claimed from both the curve and the locked position;
+  - exactly 5/6 of each claim went to the revenue wallet.
+  - The buy after graduation goes through Jupiter, which doesn't trade devnet tokens; on devnet it stayed owed for the next run, as designed.
 
 **Launch:**
 1. `node scripts/launch.ts --network mainnet` shows the plan; add `--send` to launch.

@@ -7,7 +7,7 @@ import { mkdtempSync, existsSync, readFileSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { Connection, Keypair, LAMPORTS_PER_SOL, PublicKey, SystemProgram, Transaction, sendAndConfirmTransaction } from "@solana/web3.js";
-import { NATIVE_MINT, getAssociatedTokenAddressSync } from "@solana/spl-token";
+import { NATIVE_MINT, TOKEN_PROGRAM_ID, getAssociatedTokenAddressSync } from "@solana/spl-token";
 import BN from "bn.js";
 import { DAMM_V2_MIGRATION_FEE_ADDRESS, DynamicBondingCurveClient, SwapMode, deriveDammV2PoolAddress, deriveDbcPoolAddress } from "@meteora-ag/dynamic-bonding-curve-sdk";
 import { CpAmm } from "@meteora-ag/cp-amm-sdk";
@@ -36,6 +36,7 @@ const send = async (tx: Transaction, signers: Keypair[], label: string) => {
 const threshold = Number(process.env.TEST_THRESHOLD ?? 0.06);
 
 console.log(`wallets: launch ${launch.publicKey.toBase58().slice(0, 8)} ${await bal(launch)} · treasury ${treasuryKey.publicKey.toBase58().slice(0, 8)} ${await bal(treasuryKey)} · buyer ${buyer.publicKey.toBase58().slice(0, 8)} ${await bal(buyer)}`);
+if (buyer !== launch && (await bal(launch)) < 0.06) await send(new Transaction().add(SystemProgram.transfer({ fromPubkey: buyer.publicKey, toPubkey: launch.publicKey, lamports: 0.08 * LAMPORTS_PER_SOL })), [buyer], "SOL for the launch wallet");
 if ((await bal(treasuryKey)) < 0.015) await send(new Transaction().add(SystemProgram.transfer({ fromPubkey: buyer.publicKey, toPubkey: treasuryKey.publicKey, lamports: 0.02 * LAMPORTS_PER_SOL })), [buyer], "gas for the treasury");
 
 // A token from scripts/launch.ts (POOL and MINT), or a fresh one.
@@ -51,6 +52,7 @@ if (process.env.POOL && process.env.MINT) {
   await send(await client.creator.createPool({ baseMint: m.publicKey, config: configKp.publicKey, name: "Weft (treasury test)", symbol: "WEFT", uri: WEFT_TOKEN.uri, payer: launch.publicKey, poolCreator: launch.publicKey }), [launch, m], "createPool");
   pool = deriveDbcPoolAddress(NATIVE_MINT, m.publicKey, configKp.publicKey);
   mintKp = m;
+  console.log(`  mint ${m.publicKey.toBase58()} · pool ${pool.toBase58()}`);
 }
 
 const buy = async (amount: number, mode = SwapMode.ExactIn) =>
@@ -81,9 +83,15 @@ for (const [name, k] of [["treasury", treasuryKey], ["launch", launch]] as const
   const ps = await damm.getUserPositionByPool(dammPool, k.publicKey);
   console.log(`  LP positions owned by ${name}: ${ps.length}${ps.length ? ` (liquidity ${ps.map((p) => p.positionState.permanentLockedLiquidity.toString().slice(0, 8)).join(", ")}… permanently locked)` : ""}`);
 }
+// A trade in the graduated pool, so the locked position has fees to claim.
+{
+  const st = await damm.fetchPoolState(dammPool);
+  const tx = await damm.swap({ payer: buyer.publicKey, pool: dammPool, inputTokenMint: NATIVE_MINT, outputTokenMint: mintKp.publicKey, amountIn: new BN(Math.round(0.05 * LAMPORTS_PER_SOL)), minimumAmountOut: new BN(0), tokenAMint: st.tokenAMint, tokenBMint: st.tokenBMint, tokenAVault: st.tokenAVault, tokenBVault: st.tokenBVault, tokenAProgram: TOKEN_PROGRAM_ID, tokenBProgram: TOKEN_PROGRAM_ID, referralTokenAccount: null });
+  await send(tx, [buyer], "buy 0.05 SOL in the graduated pool");
+}
 console.log("treasury run 2 (after graduation)");
 const r2 = await treasury.tick(rewards);
-console.log(`  claimed ${r2.claimedSol.toFixed(6)} SOL, bought ${r2.boughtTokens.toFixed(0)}`);
+console.log(`  claimed ${r2.claimedSol.toFixed(6)} SOL from the locked position → revenue ${r2.protocolSol.toFixed(6)} (${r2.claimedSol ? ((r2.protocolSol / r2.claimedSol) * 100).toFixed(1) : 0}%), bought ${r2.boughtTokens.toFixed(0)} WEFT, burned ${r2.burnedTokens.toFixed(0)}`);
 console.log(`done: https://explorer.solana.com/address/${mintKp.publicKey.toBase58()}?cluster=devnet`);
 
 process.exit(0);

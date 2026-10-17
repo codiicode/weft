@@ -133,7 +133,7 @@ export class Treasury {
             tokenBVault: state.tokenBVault,
             tokenAProgram: TOKEN_PROGRAM_ID,
             tokenBProgram: TOKEN_PROGRAM_ID,
-            receiver: this.me,
+            // no receiver: fees go to the owner (the treasury), SOL unwrapped by the same transaction
             feePayer: this.me,
           });
           const sig = await this.send(tx);
