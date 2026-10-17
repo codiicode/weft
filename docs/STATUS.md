@@ -140,7 +140,7 @@ Holders also pay half the fee and get 100 AI drafts a day instead of 30.
 1. `node scripts/launch.ts --network mainnet` shows the plan; add `--send` to launch.
 2. Set on Railway: `WEFT_TOKEN_MINT`, `WEFT_DBC_POOL`, `WEFT_HOLDER_MIN`, `WEFT_REWARDS_START`, `WEFT_TREASURY_KEY`.
    - `WEFT_REVENUE_WALLET` defaults to `WEFT_SOL_FEE_WALLET`.
-3. Put the contract address on the site, then revoke the metadata authority.
+3. Put the contract address on the site, then revoke the metadata authority. It sits with the launch wallet (`CreatorUpdateAuthority`, verified on devnet). There is no mint or freeze authority.
 
 ## Hyperliquid live on mainnet (since 2026-10-16)
 

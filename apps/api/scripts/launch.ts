@@ -54,7 +54,7 @@ console.log(`  launch wallet  ${launch.publicKey.toBase58()} · ${fmt(balance)} 
 console.log(`  fee claimer    ${treasury.toBase58()} (treasury)`);
 console.log(`  curve          graduates at ${threshold} SOL · fee ${LAUNCH_FEE.startBps / 100}% → ${TOKEN_FEE.totalBps / 100}% over ${LAUNCH_FEE.durationSec} s, then ${TOKEN_FEE.totalBps / 100}%`);
 console.log(`  dev buy        ${devBuy} SOL → about ${fmt(expected, 0)} WEFT (${fmt((expected / WEFT_TOKEN.supply) * 100, 2)}% of supply), all burned`);
-console.log(`  token          ${WEFT_TOKEN.name} (${WEFT_TOKEN.symbol}) · ${WEFT_TOKEN.uri}`);
+console.log(`  token          ${WEFT_TOKEN.name} (${WEFT_TOKEN.symbol}) · ${WEFT_TOKEN.uri} · no mint authority · metadata authority: the launch wallet`);
 const need = devBuy + 0.06;
 if (balance < need) throw new Error(`the launch wallet needs about ${fmt(need, 2)} SOL (has ${fmt(balance)})`);
 if (!sendIt) {

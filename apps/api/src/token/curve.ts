@@ -66,9 +66,10 @@ export function weftCurve({ migrationQuoteThreshold, curveFeeBps = TOKEN_FEE.tot
       tokenType: TokenType.SPLToken,
       tokenBaseDecimal: TokenDecimal.SIX,
       tokenQuoteDecimal: TokenDecimal.NINE, // SOL
-      // Mint authority is gone at creation (no more $WEFT can ever be made). Weft keeps the metadata
-      // update authority until the links are final, then revokes it.
-      tokenAuthorityOption: TokenAuthorityOption.PartnerUpdateAuthority,
+      // Mint authority is gone at creation (no more $WEFT can ever be made). The metadata update
+      // authority goes to the creator (the launch wallet, whose key never sits on a server; the
+      // partner would be the treasury, whose key does) until the links are final, then it's revoked.
+      tokenAuthorityOption: TokenAuthorityOption.CreatorUpdateAuthority,
       totalTokenSupply: WEFT_TOKEN.supply,
       leftover: 0,
     },
