@@ -203,7 +203,7 @@ export default function SettingsPage() {
                       : "Connect your Hyperliquid account to trade with real money."
                   }
                 >
-                  <Btn href="/accounts" variant="ghost">
+                  <Btn href="/wallets" variant="ghost">
                     {live.data?.ready ? "Manage" : "Set up"}
                   </Btn>
                 </Row>

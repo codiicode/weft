@@ -30,12 +30,14 @@ cat > "$TMP/vercel.json" <<'JSON'
     { "source": "/", "has": [{ "type": "host", "value": "app.weft.fi" }], "destination": "/home", "permanent": false },
     { "source": "/app", "destination": "/home", "permanent": false },
     { "source": "/app/library", "destination": "/strategies", "permanent": false },
-    { "source": "/app/live", "destination": "/accounts", "permanent": false },
+    { "source": "/app/live", "destination": "/wallets", "permanent": false },
+    { "source": "/app/accounts", "destination": "/wallets", "permanent": true },
     { "source": "/app/earnings", "destination": "/revenue", "permanent": false },
     { "source": "/app/runs", "destination": "/portfolio", "permanent": false },
     { "source": "/app/:path*", "destination": "/:path*", "permanent": false },
     { "source": "/library", "destination": "/strategies", "permanent": false },
-    { "source": "/live", "destination": "/accounts", "permanent": false },
+    { "source": "/live", "destination": "/wallets", "permanent": false },
+    { "source": "/accounts", "destination": "/wallets", "permanent": true },
     { "source": "/runs", "destination": "/portfolio", "permanent": false }
   ],
   "rewrites": [

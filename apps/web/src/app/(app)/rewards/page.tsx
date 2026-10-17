@@ -59,7 +59,7 @@ export default function RewardsPage() {
             <Stat
               label="Ready to claim"
               value={m ? `${tokens(m.claimableTokens)} ${$T}` : "—"}
-              sub={m?.wallet ? `To ${m.wallet.slice(0, 4)}…${m.wallet.slice(-4)}` : "Set up a Solana wallet under Trading accounts to receive rewards"}
+              sub={m?.wallet ? `To ${m.wallet.slice(0, 4)}…${m.wallet.slice(-4)}` : "Set up a Solana wallet under Wallets to receive rewards"}
               action={
                 <Btn onClick={doClaim} disabled={!m?.claims || !m.claimableTokens || !m.wallet || claim.busy}>
                   {claim.busy ? "Sending…" : "Claim"}

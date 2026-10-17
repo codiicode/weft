@@ -268,7 +268,7 @@ function Live() {
   const tab = useSearchParams().get("venue") === "solana" ? "solana" : "hyperliquid";
   return (
     <>
-      <PageHeader title="Trading accounts" sub="Weft trades from accounts you own. It can place trades for you, but can never withdraw." />
+      <PageHeader title="Wallets" sub="Weft trades from wallets you own. It can place trades for you, but it can never withdraw." />
       <div className="px-5 py-6 lg:px-10">
         {!auth.enabled ? (
           <Empty title="Trading isn’t available here" sub="This server runs without accounts." />
@@ -287,7 +287,7 @@ function Live() {
                   key={id}
                   role="tab"
                   aria-selected={tab === id}
-                  onClick={() => router.replace(`/accounts${id === "solana" ? "?venue=solana" : ""}`)}
+                  onClick={() => router.replace(`/wallets${id === "solana" ? "?venue=solana" : ""}`)}
                   className={`rounded-[8px] px-4 py-2 text-left transition-colors ${tab === id ? "bg-[var(--raised)] shadow-[0_1px_2px_rgba(0,0,0,0.08)]" : "hover:bg-paper-2"}`}
                 >
                   <div className={`text-[14px] ${tab === id ? "font-medium text-ink" : "text-ink-2"}`}>{label}</div>

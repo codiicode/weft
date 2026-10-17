@@ -203,7 +203,7 @@ export function DeployPanel({ strategy, strategyId, compact = false }: { strateg
               {hl.agentOk
                 ? `Weft now takes ${(live.data?.config.builderFeeBps ?? 0) / 100}% per trade on Hyperliquid. Your account approves it once.`
                 : "Your account approves Weft’s trading-only key once."}
-              {hl.silent ? (hl.busy ? " Approving in the background…" : "") : " Sign it on the Trading accounts page."}
+              {hl.silent ? (hl.busy ? " Approving in the background…" : "") : " Sign it on the Wallets page."}
             </p>
             {hl.error && <p className="mt-2 text-[12.5px] text-short">{hl.error}</p>}
             {hl.silent ? (
@@ -213,8 +213,8 @@ export function DeployPanel({ strategy, strategyId, compact = false }: { strateg
                 </Btn>
               )
             ) : (
-              <Link href="/accounts" className="mt-3 inline-flex h-9 items-center rounded-[10px] bg-ink px-3.5 text-[14px] font-medium text-paper hover:bg-ink/85">
-                Approve in Trading accounts
+              <Link href="/wallets" className="mt-3 inline-flex h-9 items-center rounded-[10px] bg-ink px-3.5 text-[14px] font-medium text-paper hover:bg-ink/85">
+                Approve in Wallets
               </Link>
             )}
           </div>
@@ -226,7 +226,7 @@ export function DeployPanel({ strategy, strategyId, compact = false }: { strateg
                 ? "Create your wallet, allow Weft to swap from it, and add some SOL. About a minute."
                 : "Weft makes you a wallet. Send it USDC and you’re ready to trade. About a minute."}
             </p>
-            <Link href={onSolana ? "/accounts?venue=solana" : "/accounts"} className="mt-3 inline-flex h-9 items-center rounded-[10px] bg-ink px-3.5 text-[14px] font-medium text-paper hover:bg-ink/85">
+            <Link href={onSolana ? "/wallets?venue=solana" : "/wallets"} className="mt-3 inline-flex h-9 items-center rounded-[10px] bg-ink px-3.5 text-[14px] font-medium text-paper hover:bg-ink/85">
               Set up trading
             </Link>
           </div>

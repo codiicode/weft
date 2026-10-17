@@ -47,7 +47,7 @@ export function Portfolio({ runs, onChange }: { runs: Snapshot[]; onChange: () =
             <div className="flex justify-between gap-3">
               <dt className="text-muted">Hyperliquid{testnet ? " (testnet)" : ""}</dt>
               <dd className="tnum text-ink-2">
-                {hlFree != null ? fmtUsd(hlFree, 2) : <Link href="/accounts" className="text-ink underline decoration-line-2 underline-offset-4">Connect</Link>}
+                {hlFree != null ? fmtUsd(hlFree, 2) : <Link href="/wallets" className="text-ink underline decoration-line-2 underline-offset-4">Connect</Link>}
               </dd>
             </div>
             <div className="flex justify-between gap-3">
@@ -59,14 +59,14 @@ export function Portfolio({ runs, onChange }: { runs: Snapshot[]; onChange: () =
                     {sol.data?.balances?.sol != null && <span className="text-faint"> · {sol.data.balances.sol.toFixed(3)} SOL</span>}
                   </>
                 ) : (
-                  <Link href="/accounts?venue=solana" className="text-ink underline decoration-line-2 underline-offset-4">Set up</Link>
+                  <Link href="/wallets?venue=solana" className="text-ink underline decoration-line-2 underline-offset-4">Set up</Link>
                 )}
               </dd>
             </div>
           </dl>
           <div className="mt-3 flex gap-4 text-[12.5px]">
-            <Link href="/accounts" className="font-medium text-ink underline decoration-line-2 underline-offset-4 hover:decoration-ink">Add money</Link>
-            <Link href="/accounts" className="font-medium text-ink underline decoration-line-2 underline-offset-4 hover:decoration-ink">Withdraw</Link>
+            <Link href="/wallets" className="font-medium text-ink underline decoration-line-2 underline-offset-4 hover:decoration-ink">Add money</Link>
+            <Link href="/wallets" className="font-medium text-ink underline decoration-line-2 underline-offset-4 hover:decoration-ink">Withdraw</Link>
           </div>
         </div>
         <div className="bg-card p-5">

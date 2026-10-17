@@ -138,7 +138,7 @@ export default function Home() {
         ) : (
           <span className="text-muted">Trades run from your own account on Hyperliquid or Solana.</span>
         )}
-        <Link href="/accounts" className="text-muted hover:text-ink">
+        <Link href="/wallets" className="text-muted hover:text-ink">
           Set up trading →
         </Link>
       </section>

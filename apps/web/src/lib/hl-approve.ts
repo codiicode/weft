@@ -20,7 +20,7 @@ export function hlApprovals(s: LiveStatus | null | undefined) {
  * Signs Weft's approvals with the user's Weft wallet, in the background (no wallet popups). With
  * `auto`, it runs once by itself whenever an approval is missing, e.g. right after Weft's fee is
  * switched on; `approve` is there as a button fallback. Own MetaMask/Rabby accounts can't be
- * signed silently: `silent` is false for them and they approve on the Trading accounts page.
+ * signed silently: `silent` is false for them and they approve on the Wallets page.
  */
 export function useHlApprove(status: LiveStatus | null | undefined, onDone: () => Promise<unknown> | void, auto = true) {
   const { wallets, ready } = useWallets();

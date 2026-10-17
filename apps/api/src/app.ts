@@ -361,7 +361,7 @@ export function createApp(deps: AppDeps) {
     const user = await requireUser(c);
     if (!deps.rewards || !deps.treasury) return c.json({ error: "claims open when $WEFT launches" }, 503);
     const wallet = accounts?.solanaAccount(user.id)?.address;
-    if (!wallet) return c.json({ error: "Set up your Solana wallet under Trading accounts first; rewards are sent there." }, 409);
+    if (!wallet) return c.json({ error: "Set up your Solana wallet under Wallets first; rewards are sent there." }, 409);
     if (claiming.has(user.id)) return c.json({ error: "a claim is already on its way" }, 409);
     claiming.add(user.id);
     try {
