@@ -46,11 +46,35 @@ export default function RevenuePage() {
         ) : (
           <>
             <div className="grid gap-px overflow-hidden rounded-[12px] border border-line bg-line sm:grid-cols-3">
-              <Stat label="Revenue so far" value={fmtUsd(d.totalUsd, 2)} sub="Hyperliquid builder fees + Solana swap fees" />
-              <Stat label="For $WEFT buybacks" value={fmtUsd(d.buybackUsd, 2)} sub="Half of all fees" />
-              <Stat label="Weft’s share" value={fmtUsd(d.weftUsd, 2)} sub="The other half" />
+              <Stat label="Revenue so far" value={fmtUsd(d.totalUsd, 2)} sub={d.token ? `Fees on ${$T} trades + Hyperliquid + Solana swaps` : "Hyperliquid builder fees + Solana swap fees"} />
+              <Stat label={`For ${$T} buybacks`} value={fmtUsd(d.buybackUsd, 2)} sub={d.token ? `0.4% of every ${$T} trade + half of all other fees` : "Half of all fees"} />
+              <Stat label="Weft’s share" value={fmtUsd(d.weftUsd, 2)} sub={d.token ? `2% of every ${$T} trade + the other half` : "The other half"} />
             </div>
-            <div className="grid gap-4 lg:grid-cols-2">
+            <div className={`grid gap-4 ${d.token ? "lg:grid-cols-3" : "lg:grid-cols-2"}`}>
+              {d.token && (
+                <Card className="p-5">
+                  <div className="text-[15px] font-semibold tracking-[-0.015em] text-ink">Fees on {$T} trades</div>
+                  <dl className="mt-3 grid grid-cols-2 gap-y-2 text-[13.5px]">
+                    <dt className="text-muted">Claimed</dt>
+                    <dd className="tnum text-right text-ink">
+                      {d.token.claimedSol.toFixed(2)} SOL<span className="text-muted"> · {fmtUsd(d.token.claimedUsd, 0)}</span>
+                    </dd>
+                    <dt className="text-muted">To Weft (2%)</dt>
+                    <dd className="tnum text-right text-ink">{d.token.protocolSol.toFixed(2)} SOL</dd>
+                    <dt className="text-muted">To buybacks (0.4%)</dt>
+                    <dd className="tnum text-right text-ink">{d.token.buybackSol.toFixed(2)} SOL</dd>
+                    {d.token.treasury && (
+                      <>
+                        <dt className="text-muted">Treasury</dt>
+                        <dd className="tnum text-right text-ink-2"><Addr href={`https://solscan.io/account/${d.token.treasury}`} a={d.token.treasury} /></dd>
+                      </>
+                    )}
+                  </dl>
+                  <p className="mt-3 text-[12.5px] leading-relaxed text-faint">
+                    Every {$T} trade pays 3%: 0.6% to Meteora, the rest claimed about every ten minutes. In dollars at today’s SOL price.
+                  </p>
+                </Card>
+              )}
               <Card className="p-5">
                 <div className="text-[15px] font-semibold tracking-[-0.015em] text-ink">Hyperliquid</div>
                 {d.hyperliquid ? (
@@ -85,7 +109,7 @@ export default function RevenuePage() {
                     <dd className="tnum text-right text-ink-2"><Addr href={`https://solscan.io/account/${d.solana.feeWallet}`} a={d.solana.feeWallet} /></dd>
                     {owner && (
                       <>
-                        <dt className="text-muted">Gas float</dt>
+                        <dt className="text-muted">SOL in the wallet</dt>
                         <dd className="tnum text-right text-ink-2">{d.solana.sol.toFixed(4)} SOL</dd>
                       </>
                     )}

@@ -327,6 +327,8 @@ const app = createApp({
         : null,
       // Buybacks run every ten minutes or so: shown per day.
       buybackLog: () => rewards.stats().days.map((d) => ({ at: Date.parse(`${d.day}T00:00:00Z`), tx: "", spentUsd: d.spent, boughtTokens: d.bought, burnedTokens: d.burned })),
+      tokenFees: holderCfg.mint ? () => rewards.stats().tokenFees : null,
+      treasury: treasury?.address ?? null,
     }),
   onExitsChanged: () => nativeStops?.poke(500),
   telegram: telegram ?? undefined,

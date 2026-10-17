@@ -30,6 +30,29 @@ describe("protocol revenue and buybacks", () => {
     expect(e.buybacks.events.map((x) => x.tx)).toEqual(["c", "a"]); // newest first
   });
 
+  it("adds the fees on $WEFT trades, split 2.0/0.4, at today's SOL price", async () => {
+    const f = (async (url: string, init: { body?: string }) => {
+      if (url.includes("price")) return { text: async () => JSON.stringify({ So11111111111111111111111111111111111111112: { usdPrice: 100 } }) };
+      const t = (JSON.parse(init.body!) as { type: string }).type;
+      return { text: async () => JSON.stringify(t === "referral" ? { builderRewards: "10" } : {}) };
+    }) as never;
+    const e = await earnings({
+      engine,
+      hlBaseUrl: "https://hl",
+      builder: "0xb",
+      solana: null,
+      token: null,
+      buybackLog: () => [],
+      tokenFees: () => ({ claims: 3, claimedSol: 24, protocolSol: 20, buybackSol: 4, lastClaimAt: 1 }),
+      fetch: f,
+    });
+    expect(e.productUsd).toBe(10);
+    expect(e.token).toMatchObject({ claimedUsd: 2400, protocolUsd: 2000, buybackUsd: 400 });
+    expect(e.totalUsd).toBe(2410);
+    expect(e.weftUsd).toBe(2005);
+    expect(e.buybackUsd).toBe(405);
+  });
+
   it("before launch: nothing bought, half of revenue set aside", async () => {
     const e = await earnings({ engine, hlBaseUrl: null, builder: null, solana: null, token: null, buybackLog: () => [] });
     expect(e.buybacks).toMatchObject({ mint: null, boughtTokens: 0, burnedTokens: 0, setAsideUsd: 0, events: [] });

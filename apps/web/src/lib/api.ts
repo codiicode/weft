@@ -267,6 +267,8 @@ export interface MyRewards {
 export interface Earnings {
   hyperliquid: { builder: string; earnedUsd: number; unclaimedUsd: number; claimedUsd: number; accountValueUsd: number } | null;
   solana: { feeWallet: string; wsol: number; usdc: number; sol: number; solUsd: number | null; usd: number } | null;
+  token: { claims: number; claimedSol: number; protocolSol: number; buybackSol: number; lastClaimAt: number | null; treasury: string | null; claimedUsd: number; protocolUsd: number; buybackUsd: number } | null;
+  productUsd: number;
   recordedUsd: number;
   totalUsd: number;
   buybackUsd: number;

@@ -3,9 +3,12 @@ import { associatedTokenAddress, USDC_MINT, WSOL_MINT, type FetchLike } from "@w
 import type { Engine } from "@weft/engine";
 
 /**
- * What Weft has earned, for the owner's earnings page: Hyperliquid builder fees (accrued on the
- * venue as builder rewards, claimable by the builder wallet) and Solana platform fees (sitting in
- * the fee wallet's WSOL/USDC accounts). Split as decided: half buys back $WEFT, half is Weft's.
+ * What Weft has earned, for the public revenue page:
+ *  - product fees: Hyperliquid builder fees (accrued on the venue as builder rewards, claimable by
+ *    the builder wallet) and Solana platform fees (the fee wallet's WSOL/USDC accounts). Half buys
+ *    back $WEFT, half is Weft's.
+ *  - fees on $WEFT trades: 2.4% of each trade claimed by the treasury (Meteora keeps 0.6%), split
+ *    2.0 to Weft and 0.4 to buybacks on every claim. Counted in SOL at today's price.
  */
 
 export const BUYBACK_SHARE = 0.5;
@@ -36,9 +39,22 @@ export interface Buybacks {
   events: BuybackEvent[];
 }
 
+/** Fees on $WEFT trades, as the treasury claimed and split them (Rewards.stats().tokenFees). */
+export interface TokenFees {
+  claims: number;
+  claimedSol: number;
+  protocolSol: number;
+  buybackSol: number;
+  lastClaimAt: number | null;
+}
+
 export interface Earnings {
   hyperliquid: { builder: string; earnedUsd: number; unclaimedUsd: number; claimedUsd: number; accountValueUsd: number } | null;
   solana: { feeWallet: string; wsol: number; usdc: number; sol: number; solUsd: number | null; usd: number } | null;
+  /** Fees on $WEFT trades; null before launch. USD at today's SOL price. */
+  token: (TokenFees & { treasury: string | null; claimedUsd: number; protocolUsd: number; buybackUsd: number }) | null;
+  /** Hyperliquid + Solana product fees, before the split. */
+  productUsd: number;
   /** Fees Weft's own records say live runs paid it (engine bookkeeping, both venues). */
   recordedUsd: number;
   totalUsd: number;
@@ -56,6 +72,9 @@ export async function earnings(o: {
   token?: { mint: PublicKey; initialSupply: number; conn: Connection } | null;
   /** Buybacks recorded by the buyback job. */
   buybackLog?: () => BuybackEvent[];
+  /** Fees on $WEFT trades claimed so far, and the treasury that claims them. */
+  tokenFees?: (() => TokenFees) | null;
+  treasury?: PublicKey | null;
   fetch?: FetchLike;
 }): Promise<Earnings> {
   const f = o.fetch ?? (globalThis.fetch as unknown as FetchLike);
@@ -79,6 +98,13 @@ export async function earnings(o: {
     };
   }
 
+  const tf = o.tokenFees?.() ?? null;
+  const solUsd = o.solana || tf
+    ? await f(`https://lite-api.jup.ag/price/v3?ids=${WSOL_MINT.toBase58()}`, { method: "GET" } as never)
+        .then(async (r) => (JSON.parse(await r.text()) as Record<string, { usdPrice?: number }>)[WSOL_MINT.toBase58()]?.usdPrice ?? null)
+        .catch(() => null)
+    : null;
+
   let solana: Earnings["solana"] = null;
   if (o.solana) {
     const { conn, feeWallet } = o.solana;
@@ -86,15 +112,9 @@ export async function earnings(o: {
       const r = await conn.getTokenAccountBalance(associatedTokenAddress(feeWallet, mint)).catch(() => null);
       return Number(r?.value.uiAmountString ?? 0);
     };
-    const [wsol, usdc, lamports, solUsd] = await Promise.all([
-      bal(WSOL_MINT),
-      bal(USDC_MINT),
-      conn.getBalance(feeWallet).catch(() => 0),
-      f(`https://lite-api.jup.ag/price/v3?ids=${WSOL_MINT.toBase58()}`, { method: "GET" } as never)
-        .then(async (r) => (JSON.parse(await r.text()) as Record<string, { usdPrice?: number }>)[WSOL_MINT.toBase58()]?.usdPrice ?? null)
-        .catch(() => null),
-    ]);
-    // Fees arrive as WSOL and USDC; the wallet's own SOL is just its gas float, not earnings.
+    const [wsol, usdc, lamports] = await Promise.all([bal(WSOL_MINT), bal(USDC_MINT), conn.getBalance(feeWallet).catch(() => 0)]);
+    // Product fees arrive as WSOL and USDC; the wallet's own SOL is its gas float plus Weft's share of
+    // the $WEFT fees, which are counted from the treasury's claims below.
     solana = { feeWallet: feeWallet.toBase58(), wsol, usdc, sol: lamports / 1e9, solUsd, usd: usdc + (solUsd != null ? wsol * solUsd : 0) };
   }
 
@@ -104,8 +124,14 @@ export async function earnings(o: {
     recordedUsd += (await o.engine.getSnapshot(d.id))?.builderFeesUsd ?? 0;
   }
 
-  const totalUsd = (hyperliquid?.earnedUsd ?? 0) + (solana?.usd ?? 0);
-  const buybackUsd = totalUsd * BUYBACK_SHARE;
+  const px = solUsd ?? 0;
+  const token: Earnings["token"] = tf
+    ? { ...tf, treasury: o.treasury?.toBase58() ?? null, claimedUsd: tf.claimedSol * px, protocolUsd: tf.protocolSol * px, buybackUsd: tf.buybackSol * px }
+    : null;
+  const productUsd = (hyperliquid?.earnedUsd ?? 0) + (solana?.usd ?? 0);
+  const totalUsd = productUsd + (token?.claimedUsd ?? 0);
+  const buybackUsd = productUsd * BUYBACK_SHARE + (token?.buybackUsd ?? 0);
+  const weftUsd = productUsd * (1 - BUYBACK_SHARE) + (token?.protocolUsd ?? 0);
 
   const events = o.buybackLog?.() ?? [];
   const spentUsd = events.reduce((n, e) => n + e.spentUsd, 0);
@@ -125,5 +151,5 @@ export async function earnings(o: {
     setAsideUsd: Math.max(0, buybackUsd - spentUsd),
     events: [...events].sort((a, b) => b.at - a.at),
   };
-  return { hyperliquid, solana, recordedUsd, totalUsd, buybackUsd, weftUsd: totalUsd * (1 - BUYBACK_SHARE), buybacks };
+  return { hyperliquid, solana, token, productUsd, recordedUsd, totalUsd, buybackUsd, weftUsd, buybacks };
 }
