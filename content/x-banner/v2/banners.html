@@ -668,6 +668,29 @@ const drawBtcFloor = (w, h) => paper2d(w, h, (g) => {
   txt(g, "Below $80k, copying pauses", 40, h - 40, F(36, 600), "#333");
 });
 
+/* ---------- square posts: what the key can do, where the fees go ---------- */
+const drawList = (kick, items, ok) => (w, h) => paper2d(w, h, (g) => {
+  txt(g, kick, 56, 100, F(34, 600), "#2e2e2e");
+  items.forEach((lines, i) => {
+    const y = 236 + i * 222;
+    g.strokeStyle = "#111"; g.lineWidth = 11; g.lineCap = "round"; g.lineJoin = "round"; g.beginPath();
+    if (ok) { g.moveTo(58, y - 16); g.lineTo(78, y + 4); g.lineTo(114, y - 38); }
+    else { g.moveTo(62, y - 40); g.lineTo(106, y + 4); g.moveTo(106, y - 40); g.lineTo(62, y + 4); }
+    g.stroke();
+    lines.forEach((l, k) => txt(g, l, 148, y + k * 64, F(54, ok ? 600 : 500), ok ? "#111" : "#2a2a2a"));
+  });
+});
+const drawPct = (pct) => (w, h) => paper2d(w, h, (g) => { txt(g, pct, 40, h / 2 + 34, F(96, 700)); });
+function squareTop(label) {
+  logo(80, 74, 42, "dark");
+  div(label, "position:absolute;right:80px;top:84px;font-size:19px;letter-spacing:0.16em;color:#77766f");
+}
+function squareFoot(left) {
+  div("", "position:absolute;left:80px;right:80px;top:960px;height:1px;background:#232327");
+  div(left, "position:absolute;left:80px;top:990px;font-size:24px;color:#8f8e88");
+  div("weft.fi", "position:absolute;right:80px;top:988px;font-size:26px;font-weight:600;color:#f4f3ef");
+}
+
 /* ---------- the three banners ---------- */
 const Q = new URLSearchParams(location.search), V = Q.get("v") ?? "1";
 // ?raw=1 shows each scene before printing, ?raw=1&ink=1 after
@@ -713,6 +736,32 @@ const BANNERS = {
     postPrompt(290, 410, 1020, "“If headlines report a Fed cut, buy $500 of BTC. Stop at 10%.”");
   },
 
+  safe() {
+    $b.style.width = "1080px"; $b.style.height = "1080px"; $b.className = "dark"; dots("#242428", 24);
+    const o = { contrast: 1.0, cell: 5, solid: 0.42 };
+    squareTop("TRADING-ONLY KEY");
+    div(`It can trade.<br><span style="color:#77766f">It can’t withdraw.</span>`, "position:absolute;left:78px;top:176px;font-size:104px;line-height:1.02;letter-spacing:-0.025em;color:#f4f3ef").classList.add("serif");
+    tile(80, 450, 450, 450, drawList("WEFT CAN", [["Place and cancel", "orders"], ["Set stops and", "targets"], ["Swap tokens inside", "your own wallet"]], true), "green", o);
+    tile(550, 450, 450, 450, drawList("WEFT CAN’T", [["Withdraw your", "money"], ["Send it to another", "address"], ["Trade a strategy you", "haven’t started"]], false), "news", o);
+    squareFoot("Your money stays in your own account.");
+  },
+  split() {
+    $b.style.width = "1080px"; $b.style.height = "1080px"; $b.className = "dark"; dots("#242428", 24);
+    const o = { contrast: 1.0, cell: 5, solid: 0.42 };
+    squareTop("THE $WEFT TOKEN");
+    div(`You trade.<br><span style="color:#f5a524">$WEFT</span> gets bought back.`, "position:absolute;left:78px;top:176px;width:1000px;font-size:86px;line-height:1.06;letter-spacing:-0.025em;color:#f4f3ef;white-space:nowrap").classList.add("serif");
+    div("Half of every Weft fee, plus 0.4% of every $WEFT trade, buys $WEFT on the open market about every ten minutes. Then it’s split:", "position:absolute;left:80px;top:400px;width:900px;font-size:28px;line-height:1.45;color:#a3a29d");
+    const X = 80, W = 920, gap = 10, ws = [0.5, 0.2, 0.3].map((f) => (W - 2 * gap) * f);
+    const cols = [["50%", "green", "Back to traders", "Shared out daily, by the fees you paid."], ["20%", "violet", "To creators", "When others run your strategy."], ["30%", "amber", "Burned", "Gone for good. No team tokens."]];
+    let x = X;
+    cols.forEach(([pct, ink, name, sub], i) => {
+      tile(x, 560, ws[i], 150, drawPct(pct), ink, o);
+      const color = { green: "#93e3bc", violet: "#c9b6fb", amber: "#f1b94e" }[ink];
+      div(`<div style="width:44px;height:6px;border-radius:3px;background:${color};margin-bottom:18px"></div><div style="font-size:30px;font-weight:600;color:#f4f3ef">${pct} ${name.toLowerCase().replace(/^./, (c) => c)}</div><div style="font-size:23px;line-height:1.4;color:#8f8e88;margin-top:8px">${sub}</div>`, `position:absolute;left:${80 + i * 315}px;top:752px;width:290px`);
+      x += ws[i] + gap;
+    });
+    squareFoot("Every fee, buyback and burn: weft.fi/revenue");
+  },
   thesis() {
     $b.style.width = "1600px"; $b.style.height = "900px"; $b.className = "dark"; dots("#2a2a2e", 24);
     const o = { contrast: 1.0, cell: 5, solid: 0.42 };
