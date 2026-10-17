@@ -4,6 +4,8 @@
 //   node content/launch-video/render.mjs --stills 2,9.5  → out/still-2.png, out/still-9.5.png
 //   node content/launch-video/render.mjs --from 20 --to 30 --fps 30 → a short clip of one part
 //   --page content/shorts/tour.html --out content/shorts/out/ --name tour → any other film page
+//   --warp 0.044,0.03,0.890486  → output time o shows film time 0.03 + (o − 0.044) × 0.890486 (re-time
+//                                  a film to another tempo; the output runs as long as it takes)
 import { spawn } from "node:child_process";
 import { mkdirSync, writeFileSync } from "node:fs";
 import { createRequire } from "node:module";
@@ -33,10 +35,13 @@ await page.setViewport({ width: 1920, height: 1080, deviceScaleFactor: 1 });
 await page.goto(`file://${pageFile}`, { waitUntil: "load" });
 await page.evaluate(() => window.ready ?? null);
 await page.evaluate(() => document.fonts.ready);
-const duration = await page.evaluate(() => window.DURATION);
+const filmDuration = await page.evaluate(() => window.DURATION);
+const [wo, wv, ws] = (arg("warp", "0,0,1") ?? "0,0,1").split(",").map(Number);
+const filmAt = (o) => Math.max(0, Math.min(filmDuration, wv + (o - wo) * ws));
+const duration = wo + (filmDuration - wv) / ws;
 
 const shoot = async (t, type = "jpeg") => {
-  await page.evaluate((x) => window.renderAt(x), t);
+  await page.evaluate((x) => window.renderAt(x), filmAt(t));
   return page.screenshot({ type, ...(type === "jpeg" ? { quality: 95 } : {}), clip: { x: 0, y: 0, width: 1920, height: 1080 }, optimizeForSpeed: true });
 };
 
