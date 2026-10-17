@@ -2,6 +2,18 @@
 
 _Last updated by the build session. All numbers below were verified by running the code._
 
+## Launch checklist (2026-10-17)
+
+| Step | State |
+|---|---|
+| All work committed | Done (4ea44ed). No git remote yet: nothing is pushed anywhere. |
+| Typecheck + tests | Green: 6 workspaces typecheck, 398 tests pass (2 testnet-only skipped) |
+| Simulated data never trades | Server refuses live trades on simulated signals (only `model`); the drafter no longer reaches for `model` |
+| Off-site backup | Built (hourly on the volume, R2 copy when `R2_*` is set). R2 keys not set yet. |
+| End-to-end with a fresh account and real money | Not done: needs a person to sign in and fund |
+| X account | Not created; `brand.socials.x` and the legal pages' contact point to it |
+| Rotate relayer key | Recommended: the key was shown in a session transcript on 2026-10-17 |
+
 ## What exists
 
 | Part | What it does | Tests |

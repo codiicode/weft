@@ -19,7 +19,7 @@ const PARAM_HINTS: Record<SignalKind, string> = {
   wallet: '{ address: Solana wallet, mint?: token mint }  (follow a wallet the user names: "when this wallet buys $X, buy too" → wallet.buys_1h > 0 with mint set and minutes_since_buy < 5; "sell when the dev sells" → wallet.sells_1h > 0. Only use addresses the user gives you.)',
   news: '{ query: string }  (2–4 key words, e.g. "bitcoin ETF", "SEC Solana"; headlines from CoinDesk, Cointelegraph, Decrypt, The Block, Bitcoin Magazine, CNBC and MarketWatch. sentiment is a rough headline tone, −1…1)',
   forecast: '{ source: "weather", series: "temp:<place>" | "precip:<place>" }  (Open-Meteo: value = average °C, or total mm of rain/snow, over the next 7 days; change_7d = versus the past 7 days. <place> is a city or "lat,lon", e.g. "temp:Chicago" for natural gas, "precip:Iowa City" for corn)',
-  model: "{ question: string, instrument?: outcome }",
+  model: "{ question: string, instrument?: outcome }  (no live data yet: a strategy that uses it can only run as alerts, never trade. Use it only when the user asks for a model estimate by name, and say so in the rationale)",
   calendar: '{ event: "earnings"|"fomc"|"cpi"|"custom", symbol?: string, at?: ISO datetime (required for custom) }',
   macro: `{ series: string }. Series:
     crypto: FEAR_GREED (Crypto Fear & Greed Index, 0 = extreme fear, 100 = extreme greed; daily), BTC_DOMINANCE / ETH_DOMINANCE (% of total crypto market cap), CRYPTO_MCAP (total crypto market cap, $ billions), STABLECOIN_MCAP (stablecoin supply, $ billions), TVL (all DeFi, $ billions), "TVL:<chain>" (e.g. "TVL:Solana"), "FEES:<protocol>" / "REVENUE:<protocol>" (DefiLlama slug, e.g. "FEES:hyperliquid"; $ millions per day)
@@ -89,7 +89,7 @@ Do what the user asked, nothing more:
 
 Rules that make strategies good:
 - Prefer sizes of 2–10% of equity and modest leverage (≤ 3× unless the user insists).
-- Make vague words measurable: "bullish sentiment" → social.sentiment > 0.3 plus a mentions spike; "crowded" → funding and OI z-score thresholds; "mispriced" → model.prob − odds.prob > 0.1.
+- Make vague words measurable: "bullish sentiment" → social.sentiment > 0.3 plus a mentions spike; "crowded" → funding and OI z-score thresholds; "mispriced" → odds moving against a related market or a measurable signal (model has no live data, so it is not a substitute).
 - For Solana token theses (not plain orders), add a token_onchain signal and guard entries with on-chain health (lp_locked, buy_sell_ratio_1h, dev_sold_pct).
 - Use forMinutes to avoid acting on one noisy tick for social or price spikes.
 - Order books differ by product: options and prediction outcomes are wide (set order.maxSlippageBps 500–1000 on those actions); new and small tokens need maxPriceImpactBps 100–300; perps are fine with the default.
