@@ -161,7 +161,7 @@ export function SolanaSetup() {
             <div className="text-[15px] font-semibold tracking-[-0.015em]">Solana</div>
           </div>
           <p className="mt-2 text-[13px] leading-relaxed text-ink-2">
-            Swaps go through Jupiter at the best route.{s.feeBps ? ` Weft’s fee is ${+(s.feeBps / 100).toFixed(2)}% per swap${s.holder?.active ? ", halved because you hold $WEFT" : ""}.` : ""}{s.maxAllocationUsd != null ? ` Up to $${s.maxAllocationUsd.toLocaleString()} per strategy.` : ""}
+            Swaps go through Jupiter at the best route.{s.feeBps ? ` Weft’s fee is ${+(s.feeBps / 100).toFixed(2)}% per swap${s.holder?.active ? `, ${Math.round(s.holder.discount * 100)}% lower because you hold $WEFT` : ""}.` : ""}{s.maxAllocationUsd != null ? ` Up to $${s.maxAllocationUsd.toLocaleString()} per strategy.` : ""}
           </p>
         </Card>
         <Card className="p-5">

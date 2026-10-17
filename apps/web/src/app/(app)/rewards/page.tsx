@@ -43,7 +43,7 @@ export default function RewardsPage() {
   };
 
   const tier = m?.holder?.tier ?? 0;
-  const boost = [1, cfg.holderBoost, cfg.bigHolderBoost][tier]!;
+  const boost = [1, cfg.holderBoost, cfg.whaleBoost][tier]!;
   return (
     <>
       <PageHeader title="Rewards" sub={`Half of every fee Weft earns buys ${$T}. Every day, ${pct(cfg.traderShare)} of it goes back to the people who traded and ${pct(cfg.creatorShare)} to the people whose strategies they ran.`} />
@@ -79,7 +79,7 @@ export default function RewardsPage() {
             <Stat
               label="Your boost"
               value={`${boost}×`}
-              sub={tier === 2 ? "Largest holders" : tier === 1 ? `Holder · ${cfg.bigHolderBoost}× from ${tokens(m!.holder!.bigAmount)} ${$T}` : m?.holder ? `Hold ${tokens(m.holder.minAmount)} ${$T} for ${cfg.holderBoost}×` : `Hold ${$T} for ${cfg.holderBoost}×, or ${cfg.bigHolderBoost}× as a large holder`}
+              sub={tier === 2 ? `Whale · ${pct(brand.tiers.whale.discount)} off fees` : tier === 1 ? `Holder · ${pct(brand.tiers.holder.discount)} off fees · Whale (${cfg.whaleBoost}×) from ${tokens(m!.holder!.bigAmount)} ${$T}` : `Hold ${tokens(brand.tiers.holder.min)} ${$T} for ${cfg.holderBoost}× (Holder), ${tokens(brand.tiers.whale.min)} for ${cfg.whaleBoost}× (Whale)`}
             />
           </div>
         ) : (
@@ -152,7 +152,7 @@ export default function RewardsPage() {
             ))}
           </div>
           <p className="mt-3 text-[12.5px] leading-relaxed text-faint">
-            {$T} is bought in small amounts about every ten minutes, all day: the {(REWARDS_TOKEN_FEE.buybackBps / 100).toFixed(1)}% buyback on every {$T} trade, and half of Weft’s strategy fees from the day before. Each day’s pots are shared out at midnight UTC and can be claimed right after. Holders also pay half the fee and get {p?.aiDailyLimit.holders ?? brand.aiDrafts.holders} AI drafts a day instead of {p?.aiDailyLimit.everyone ?? brand.aiDrafts.everyone}.
+            {$T} is bought in small amounts about every ten minutes, all day: the {(REWARDS_TOKEN_FEE.buybackBps / 100).toFixed(1)}% buyback on every {$T} trade, and half of Weft’s strategy fees from the day before. Each day’s pots are shared out at midnight UTC and can be claimed right after. Holders also pay {pct(brand.tiers.holder.discount)} less in fees (Whales {pct(brand.tiers.whale.discount)}) and get {p?.aiDailyLimit.holders ?? brand.aiDrafts.holders} AI drafts a day instead of {p?.aiDailyLimit.everyone ?? brand.aiDrafts.everyone}.
           </p>
         </section>
 

@@ -403,7 +403,7 @@ const server = serve({ fetch: app.fetch, port: PORT, hostname: HOST }, (info) =>
   console.log(
     `  solana: ${solana ? `${solCfg.enabled ? "ON" : "off (WEFT_SOL_LIVE=1 to enable)"} · signer ${solCfg.authorizationKey ? "set" : "needs PRIVY_AUTHORIZATION_KEY"} · fee ${solCfg.feeWallet ? `${solCfg.platformFeeBps} bps` : "none (WEFT_SOL_FEE_WALLET)"} · rpc ${new URL(solCfg.rpcUrl).host} · cap ${solCfg.maxAllocationUsd != null ? `$${solCfg.maxAllocationUsd}` : "none"} · jupiter ${solCfg.jupiterApiKey ? "api key" : "free tier (JUPITER_API_KEY)"}` : "unavailable (needs Privy)"}`
   );
-  console.log(`  fees: Hyperliquid ${(liveCfg.builder?.feeTenthsBps ?? 100) / 10} bps · Solana ${solCfg.platformFeeBps} bps · $WEFT holder discount ${holders.enabled ? `${holderCfg.discount * 100}% at ${holderCfg.minAmount} tokens` : "off (WEFT_TOKEN_MINT, WEFT_HOLDER_MIN)"}`);
+  console.log(`  fees: Hyperliquid ${(liveCfg.builder?.feeTenthsBps ?? 100) / 10} bps · Solana ${solCfg.platformFeeBps} bps · $WEFT tiers ${holders.enabled ? `Holder ${holderCfg.discount * 100}% off from ${holderCfg.minAmount}, Whale ${holderCfg.bigDiscount * 100}% off from ${holderCfg.bigAmount}` : "off (WEFT_TOKEN_MINT)"}`);
   console.log(`  AI generation: ${process.env.ANTHROPIC_API_KEY ? "Claude (claude-opus-5-5)" : "template fallback (set ANTHROPIC_API_KEY for Claude)"}`);
 });
 

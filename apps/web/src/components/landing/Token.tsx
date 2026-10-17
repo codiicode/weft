@@ -21,9 +21,17 @@ const SPLIT = [
   { share: r.burnShare, color: "var(--trigger)", title: "Burned", body: `Burned the moment it’s bought. There is no team allocation and nothing new is ever minted, so the supply only shrinks.` },
 ];
 
+const t = brand.tiers;
+const k = (n: number) => (n >= 1e6 ? `${n / 1e6}M` : `${n / 1e3}K`);
+/** The two tiers, side by side. */
+const TIERS = [
+  { name: "Holder", min: t.holder.min, discount: t.holder.discount, boost: r.holderBoost },
+  { name: "Whale", min: t.whale.min, discount: t.whale.discount, boost: r.whaleBoost },
+];
+
 const HOLD = [
-  ["Half the fee", `Hold ${$T} and every trade costs ${brand.holderDiscount === 0.5 ? "half" : `${pct(1 - brand.holderDiscount)} of`} the fee.`],
-  [`${r.holderBoost}× rewards`, `Holders get a bigger share of the daily rewards; ${r.bigHolderBoost}× for the largest holders.`],
+  ["Lower fees", `${pct(t.holder.discount)} off every trade from ${k(t.holder.min)} ${$T}, ${pct(t.whale.discount)} off from ${k(t.whale.min)}.`],
+  ["Bigger rewards", `${r.holderBoost}× your share of the daily rewards as a Holder, ${r.whaleBoost}× as a Whale.`],
   [`${brand.aiDrafts.holders} AI drafts a day`, `Instead of ${brand.aiDrafts.everyone}. Weft writes, rewrites and tests more strategies for you.`],
   ["Claim daily", "Each day’s rewards are ready right after midnight UTC. One click sends them to your wallet."],
 ];
@@ -80,7 +88,19 @@ export function Token() {
         <Reveal delay={260}>
           <div className="mt-20">
             <h3 className="text-[20px] font-semibold tracking-[-0.02em] text-ink">Why hold {$T}</h3>
-            <div className="mt-6 grid gap-px overflow-hidden rounded-[14px] border border-line bg-line sm:grid-cols-2 lg:grid-cols-4">
+            <div className="mt-6 grid gap-px overflow-hidden rounded-[14px] border border-line bg-line sm:grid-cols-2">
+              {TIERS.map((x) => (
+                <div key={x.name} className="bg-paper p-6">
+                  <div className="flex items-baseline justify-between gap-4">
+                    <div className="text-[17px] font-semibold tracking-[-0.02em] text-ink">{x.name}</div>
+                    <div className="tnum text-[13px] text-muted">from {x.min.toLocaleString("en-US")} {$T}</div>
+                  </div>
+                  <div className="tnum mt-4 text-[clamp(2rem,3.4vw,2.6rem)] font-semibold leading-none tracking-[-0.04em] text-ink">{pct(x.discount)} off</div>
+                  <p className="mt-2 text-[14px] text-muted">every trade, plus {x.boost}× rewards and {brand.aiDrafts.holders} AI drafts a day</p>
+                </div>
+              ))}
+            </div>
+            <div className="mt-4 grid gap-px overflow-hidden rounded-[14px] border border-line bg-line sm:grid-cols-2 lg:grid-cols-4">
               {HOLD.map(([k, v]) => (
                 <div key={k} className="bg-paper p-6">
                   <div className="text-[17px] font-semibold tracking-[-0.02em] text-ink">{k}</div>

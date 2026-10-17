@@ -22,13 +22,13 @@ export const brand = {
   buybackShare: 0.5,
   /** Fee on every $WEFT trade (on Meteora's curve and in the graduated pool), and where it goes. Matches apps/api/src/token/curve.ts. */
   tokenFee: { totalBps: 300, protocolBps: 200, buybackBps: 40, meteoraBps: 60 },
-  /** Holding $WEFT cuts trading fees by this much. */
-  holderDiscount: 0.5,
+  /** $WEFT tiers (apps/api/src/live/holders.ts): fee discount from a number of tokens held. */
+  tiers: { holder: { min: 100_000, discount: 0.25 }, whale: { min: 1_000_000, discount: 0.5 } },
   /**
    * Daily $WEFT rewards, split of each day's buyback (matches apps/api/src/lib/rewards.ts): traders by
    * fees paid, creators by the fees their strategies' runs paid, the rest burned. Holders get a boost.
    */
-  rewards: { traderShare: 0.5, creatorShare: 0.2, burnShare: 0.3, holderBoost: 1.5, bigHolderBoost: 2 },
+  rewards: { traderShare: 0.5, creatorShare: 0.2, burnShare: 0.3, holderBoost: 1.5, whaleBoost: 2 },
   /** AI drafts per day (apps/api aiDailyLimit / holderAiDailyLimit). */
   aiDrafts: { everyone: 30, holders: 100 },
   socials: {

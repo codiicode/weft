@@ -23,11 +23,11 @@ const faqs = [
   },
   {
     q: "What does it cost?",
-    a: `Writing and testing strategies is free. When a strategy trades, you pay ${(brand.builderFeeBps / 100).toFixed(2)}% on Hyperliquid perps, ${+(brand.hlSpotFeeBps / 100).toFixed(2)}% on Hyperliquid spot sales and ${+(brand.swapFeeBps / 100).toFixed(2)}% on Solana swaps. Half of every fee buys back ${$T}. Once ${$T} is live, holders pay half.`,
+    a: `Writing and testing strategies is free. When a strategy trades, you pay ${(brand.builderFeeBps / 100).toFixed(2)}% on Hyperliquid perps, ${+(brand.hlSpotFeeBps / 100).toFixed(2)}% on Hyperliquid spot sales and ${+(brand.swapFeeBps / 100).toFixed(2)}% on Solana swaps. Half of every fee buys back ${$T}. Once ${$T} is live, holding it lowers the fee: ${Math.round(brand.tiers.holder.discount * 100)}% off from ${brand.tiers.holder.min.toLocaleString("en-US")} ${$T}, ${Math.round(brand.tiers.whale.discount * 100)}% off from ${brand.tiers.whale.min.toLocaleString("en-US")}.`,
   },
   {
     q: `What is ${$T} for?`,
-    a: `It’s how Weft shares what it earns. Half of every fee, and ${brand.tokenFee.buybackBps / 100}% of every ${$T} trade, buys ${$T} in small amounts about every ten minutes. Of what it buys, ${Math.round(brand.rewards.traderShare * 100)}% goes back to the people who traded that day (by the fees they paid), ${Math.round(brand.rewards.creatorShare * 100)}% to the people whose strategies others ran, and ${Math.round(brand.rewards.burnShare * 100)}% is burned on the spot. Holders pay half the fee, get ${brand.rewards.holderBoost}× rewards (${brand.rewards.bigHolderBoost}× for the largest holders) and ${brand.aiDrafts.holders} AI drafts a day instead of ${brand.aiDrafts.everyone}. Rewards start the day ${$T} launches.`,
+    a: `It’s how Weft shares what it earns. Half of every fee, and ${brand.tokenFee.buybackBps / 100}% of every ${$T} trade, buys ${$T} in small amounts about every ten minutes. Of what it buys, ${Math.round(brand.rewards.traderShare * 100)}% goes back to the people who traded that day (by the fees they paid), ${Math.round(brand.rewards.creatorShare * 100)}% to the people whose strategies others ran, and ${Math.round(brand.rewards.burnShare * 100)}% is burned on the spot. Holders (from ${brand.tiers.holder.min.toLocaleString("en-US")} ${$T}) pay ${Math.round(brand.tiers.holder.discount * 100)}% less and get ${brand.rewards.holderBoost}× rewards; Whales (from ${brand.tiers.whale.min.toLocaleString("en-US")}) pay ${Math.round(brand.tiers.whale.discount * 100)}% less and get ${brand.rewards.whaleBoost}×; both get ${brand.aiDrafts.holders} AI drafts a day instead of ${brand.aiDrafts.everyone}. Rewards start the day ${$T} launches.`,
   },
   {
     q: "Is it safe to trade new tokens with it?",

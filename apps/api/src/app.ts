@@ -335,7 +335,7 @@ export function createApp(deps: AppDeps) {
       startDay: deps.rewards?.startDay ?? null,
       claims: Boolean(deps.treasury),
       config: REWARDS,
-      holders: deps.holders?.enabled ? { minAmount: Number(process.env.WEFT_HOLDER_MIN ?? 0), bigAmount: Number(process.env.WEFT_BIG_HOLDER_MIN ?? Number(process.env.WEFT_HOLDER_MIN ?? 0) * 10) } : null,
+      holders: deps.holders?.enabled ? { minAmount: Number(process.env.WEFT_HOLDER_MIN ?? 100_000), bigAmount: Number(process.env.WEFT_BIG_HOLDER_MIN ?? 1_000_000) } : null,
       aiDailyLimit: { everyone: aiDailyLimit, holders: holderAiDailyLimit },
       stats: deps.rewards?.stats() ?? null,
     })
