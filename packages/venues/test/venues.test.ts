@@ -177,11 +177,12 @@ describe("Signal providers", () => {
     }
   });
 
-  it("modes: market data live, social/news/post_match/model simulated, position not handled", async () => {
+  it("modes: market data and news live, social/post_match/model simulated, position not handled", async () => {
     const { v } = venues();
     expect(v.signals.modeOf("price")).toBe("live");
     expect(v.signals.modeOf("calendar")).toBe("live");
-    for (const k of ["social", "news", "post_match", "model"] as const) expect(v.signals.modeOf(k)).toBe("simulated");
+    expect(v.signals.modeOf("news")).toBe("live");
+    for (const k of ["social", "post_match", "model"] as const) expect(v.signals.modeOf(k)).toBe("simulated");
     expect(v.signals.providerFor("position")).toBeUndefined();
     expect(await v.signals.fetch(sig("position", {}), NOW)).toBeNull();
   });
@@ -209,6 +210,16 @@ describe("Signal providers", () => {
     expect(fx.change_5d).toBeCloseTo(5.005 - 5.2214, 9);
     const us2y = (await v.signals.fetch(sig("macro", { series: "US2Y" }), NOW))!.fields;
     expect(us2y.value).toBe(4.75);
+    const macro = async (series: string) => (await v.signals.fetch(sig("macro", { series }), NOW))?.fields ?? null;
+    expect(await macro("FEAR_GREED")).toEqual({ value: 55, change_1d: -8, change_5d: 25 });
+    expect(await macro("BTC_DOMINANCE")).toEqual({ value: 59.3, change_1d: null, change_5d: null });
+    expect((await macro("CRYPTO_MCAP"))!.value).toBe(2759.34);
+    expect((await macro("CRYPTO_MCAP"))!.change_1d).toBeCloseTo(-97.62, 1);
+    expect(await macro("STABLECOIN_MCAP")).toEqual({ value: 306, change_1d: 1, change_5d: 5 });
+    expect((await macro("TVL:Solana"))!.value).toBe(6.5);
+    expect(await macro("FEES:Hyperliquid")).toEqual({ value: 3.1, change_1d: -1.3, change_5d: 0.1 });
+    expect((await macro("REVENUE:hyperliquid"))!.value).toBe(2.48);
+    expect(await macro("NOT_A_SERIES")).toBeNull();
     const jo = (await v.signals.fetch(sig("odds", { instrument: lol }), NOW))!.fields;
     expect(jo.prob).toBe(0.825);
   });

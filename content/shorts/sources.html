@@ -1,0 +1,273 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Weft sources</title>
+<style>
+  @font-face { font-family: "Newsreader"; src: url("../../scripts/og/newsreader-latin.woff2") format("woff2"); font-weight: 200 800; }
+  @font-face { font-family: "Inst"; src: url("../../scripts/og/instrument-sans-latin.woff2") format("woff2"); font-weight: 400 700; }
+  html, body { margin: 0; background: #0c0c0d; }
+  #stage { position: relative; width: 1920px; height: 1080px; overflow: hidden; background: #0c0c0d; color: #f4f3ef; font-family: "Inst", sans-serif; -webkit-font-smoothing: antialiased; }
+  .serif { font-family: "Newsreader", serif; font-weight: 400; letter-spacing: -0.02em; }
+  .muted { color: #a3a29d; } .faint { color: #6f6e6a; }
+  .label { font-size: 21px; letter-spacing: 0.16em; text-transform: uppercase; color: #6f6e6a; }
+  .m { display: inline-block; overflow: hidden; vertical-align: top; padding: 0.04em 0.06em 0.18em; margin: -0.04em -0.06em -0.18em; }
+  .m > span { display: inline-block; transform: translateY(140%); }
+  .beat { position: absolute; inset: 0; opacity: 0; visibility: hidden; }
+  .tnum { font-variant-numeric: tabular-nums; }
+  svg { overflow: visible; }
+  svg text { font-family: "Inst", sans-serif; }
+</style>
+</head>
+<body>
+<div id="stage">
+  <div id="finish"></div>
+  <div id="intro" class="serif" style="position:absolute;left:0;right:0;top:420px;text-align:center;font-size:100px"></div>
+  <div id="counter" class="label tnum" style="position:absolute;left:140px;top:120px;opacity:0"></div>
+  <div id="beats"></div>
+  <div id="fin" style="position:absolute;inset:0;opacity:0;visibility:hidden">
+    <div id="finTitle" class="serif" style="position:absolute;left:140px;top:90px;font-size:80px"></div>
+    <div id="finRows" style="position:absolute;left:140px;top:250px"></div>
+    <svg id="finSvg" width="1920" height="1080" style="position:absolute;inset:0"></svg>
+    <div id="finCard" style="position:absolute;left:140px;right:140px;top:830px;padding:30px 40px;border-radius:22px;background:#141416;border:1.5px solid #26262a;font-size:38px;line-height:1.4;opacity:0"></div>
+  </div>
+  <div id="end" style="position:absolute;inset:0"></div>
+  <div id="top"></div>
+</div>
+<script src="film.js"></script>
+<script>
+$("finish").innerHTML = STAGE_FINISH; $("top").innerHTML = STAGE_TOP; setupFinish();
+const DURATION = 25.5;
+const VX = 1010, VY = 330, VW = 770, VH = 440; // the picture on the right of every beat
+
+/* Eight sources. Each has a sentence (what you'd write) and a small live picture of the data. */
+const SOURCES = [
+  { name: "Posts on X", c: C.amber, text: "When @elonmusk posts about Tesla", pic: postPic },
+  { name: "Buzz on X", c: C.pink, text: "When $SOL mentions double in an hour", pic: buzzPic },
+  { name: "Headlines", c: C.sky, text: "When three Solana headlines land in an hour", pic: newsPic },
+  { name: "Polymarket", c: C.blue, text: "When Fed cut odds pass 60%", pic: oddsPic },
+  { name: "Wallets", c: C.long, text: "When a wallet you follow buys", pic: walletPic },
+  { name: "Fear & Greed", c: C.amber, text: "When the index falls to 20", pic: gaugePic },
+  { name: "Rates", c: C.sky, text: "When the 2-year yield falls 10 bp", pic: ratesPic },
+  { name: "Weather", c: C.sky, text: "When Chicago turns 5°C colder", pic: weatherPic },
+];
+const T0 = 2.3, EACH = 1.55, FIN = T0 + SOURCES.length * EACH; // 14.7
+
+/* ---------- pictures: each returns draw(p) for p in 0..1 across its beat ---------- */
+function frame(svg, title) {
+  el("rect", { x: VX, y: VY, width: VW, height: VH, rx: 22, fill: C.card, stroke: C.line2, "stroke-width": 1.5 }, svg);
+  svgText(svg, VX + 36, VY + 52, title.toUpperCase(), { "font-size": 18, "letter-spacing": 3, fill: C.faint });
+}
+const capsTag = (svg, x, y, txt, color) => svgText(svg, x, y, txt, { "font-size": 18, "letter-spacing": 3, fill: color, opacity: 0 });
+function postPic(svg, c) {
+  frame(svg, "x.com · live");
+  const g = el("g", {}, svg);
+  el("circle", { cx: VX + 80, cy: VY + 140, r: 30, fill: "#2a2a2e" }, g);
+  svgText(g, VX + 130, VY + 132, "@elonmusk", { "font-size": 28, fill: C.ink, "font-weight": 500 });
+  svgText(g, VX + 130, VY + 164, "just now", { "font-size": 20, fill: C.faint });
+  // the post itself stays abstract: Weft matched its topic, the words are not ours to show
+  const lines = [560, 600, 420].map((w, i) => el("rect", { x: VX + 56, y: VY + 210 + i * 40, width: w, height: 16, rx: 8, fill: "#26262a" }, g));
+  const card = el("rect", { x: VX + 30, y: VY + 90, width: VW - 60, height: 300, rx: 16, fill: "none", stroke: c, "stroke-width": 2.5 }, svg);
+  const per = 2 * (VW - 60 + 300); card.setAttribute("stroke-dasharray", per);
+  const tag = capsTag(svg, VX + VW - 230, VY + 52, "TOPIC MATCHED", C.long);
+  return (p) => {
+    g.style.opacity = eo(seg(p, 0.05, 0.3)); g.style.transform = `translateY(${(1 - eo(seg(p, 0.05, 0.3))) * 20}px)`;
+    lines.forEach((l, i) => l.setAttribute("width", [560, 600, 420][i] * eo(seg(p, 0.15 + i * 0.06, 0.45 + i * 0.06))));
+    const m = eio(seg(p, 0.5, 0.8)); card.setAttribute("stroke-dashoffset", per * (1 - m)); card.setAttribute("stroke", m > 0.99 ? C.long : c);
+    tag.setAttribute("opacity", eo(seg(p, 0.75, 0.9)));
+  };
+}
+function buzzPic(svg, c) {
+  frame(svg, "$SOL mentions per hour");
+  const N = 18, bw = 30, base = VY + VH - 50;
+  const vals = Array.from({ length: N }, (_, i) => (i < 14 ? 60 + 25 * Math.sin(i * 1.7) + 12 * Math.cos(i * 3.1) : [150, 190, 230, 270][i - 14]));
+  const bars = vals.map((v, i) => el("rect", { x: VX + 50 + i * (bw + 8), y: base, width: bw, height: 0, rx: 4, fill: i < 14 ? "#3a3a40" : c }, svg));
+  const tag = svgText(svg, VX + VW - 50, VY + 52, "", { "font-size": 30, fill: c, "text-anchor": "end", "font-variant-numeric": "tabular-nums" });
+  return (p) => {
+    bars.forEach((b, i) => { const h = vals[i] * eo(seg(p, 0.05 + i * 0.025, 0.35 + i * 0.025)); b.setAttribute("y", base - h); b.setAttribute("height", h); });
+    tag.textContent = p > 0.6 ? `×${(1 + 1.3 * eo(seg(p, 0.6, 0.85))).toFixed(1)}` : "";
+  };
+}
+function newsPic(svg, c) {
+  frame(svg, "Headlines · last hour");
+  const rows = [0, 1, 2].map((i) => {
+    const g = el("g", { opacity: 0 }, svg);
+    el("rect", { x: VX + 36, y: VY + 90 + i * 100, width: VW - 72, height: 80, rx: 12, fill: "#18181b", stroke: C.line, "stroke-width": 1.5 }, g);
+    el("rect", { x: VX + 60, y: VY + 115 + i * 100, width: 70, height: 14, rx: 7, fill: c, opacity: 0.8 }, g);
+    el("rect", { x: VX + 60, y: VY + 142 + i * 100, width: [520, 460, 560][i], height: 14, rx: 7, fill: "#2c2c31" }, g);
+    svgText(g, VX + VW - 60, VY + 140 + i * 100, ["2 min", "19 min", "41 min"][i], { "font-size": 20, fill: C.faint, "text-anchor": "end" });
+    return g;
+  });
+  const n = svgText(svg, VX + VW - 50, VY + 52, "", { "font-size": 30, fill: c, "text-anchor": "end", "font-variant-numeric": "tabular-nums" });
+  return (p) => {
+    let k = 0;
+    rows.forEach((g, i) => { const q = eox(seg(p, 0.1 + i * 0.18, 0.4 + i * 0.18)); if (q > 0.5) k++; g.setAttribute("opacity", q); g.style.transform = `translateY(${(1 - q) * -30}px)`; });
+    n.textContent = `${k} / 3`;
+  };
+}
+function oddsPic(svg, c) {
+  frame(svg, "Polymarket · Fed cut in December");
+  const x0 = VX + 50, x1 = VX + VW - 50, yOf = (v) => VY + VH - 50 - (v - 30) * 9;
+  el("line", { x1: x0, x2: x1, y1: yOf(60), y2: yOf(60), stroke: C.faint, "stroke-dasharray": "6 8", "stroke-width": 1.5 }, svg);
+  svgText(svg, x0, yOf(60) - 12, "60%", { "font-size": 20, fill: C.faint });
+  const f = (u) => 44 + 10 * u + 9 * Math.pow(u, 3) + 1.5 * Math.sin(u * 19);
+  const path = el("path", { fill: "none", stroke: c, "stroke-width": 3.5, "stroke-linejoin": "round" }, svg);
+  const dot = el("circle", { r: 7, fill: c, filter: "url(#glow)" }, svg);
+  const val = svgText(svg, VX + VW - 50, VY + 52, "", { "font-size": 30, fill: c, "text-anchor": "end", "font-variant-numeric": "tabular-nums" });
+  return (p) => {
+    const u1 = eio(seg(p, 0.05, 0.85)), pts = [];
+    for (let i = 0; i <= 60; i++) { const u = (i / 60) * u1; pts.push(`${lerp(x0, x1, u).toFixed(1)} ${yOf(f(u)).toFixed(1)}`); }
+    path.setAttribute("d", "M " + pts.join(" L ")); const v = f(u1);
+    dot.setAttribute("cx", lerp(x0, x1, u1)); dot.setAttribute("cy", yOf(v));
+    val.textContent = `${Math.round(v)}%`; const over = v >= 60; val.setAttribute("fill", over ? C.long : c); dot.setAttribute("fill", over ? C.long : c);
+  };
+}
+function walletPic(svg, c) {
+  frame(svg, "Wallet 7xKp…9fQe · Solana");
+  const rows = [["Sold", "JTO"], ["Bought", "JUP"], ["Bought", "PUMP"]].map(([a, b], i) => {
+    const g = el("g", { opacity: 0 }, svg);
+    el("rect", { x: VX + 36, y: VY + 90 + i * 100, width: VW - 72, height: 80, rx: 12, fill: "#18181b", stroke: C.line, "stroke-width": 1.5 }, g);
+    svgText(g, VX + 64, VY + 140 + i * 100, a, { "font-size": 26, fill: a === "Bought" ? C.long : C.short });
+    svgText(g, VX + 180, VY + 140 + i * 100, `$${b}`, { "font-size": 26, fill: C.ink });
+    svgText(g, VX + VW - 64, VY + 140 + i * 100, ["2 d ago", "5 h ago", "just now"][i], { "font-size": 20, fill: C.faint, "text-anchor": "end" });
+    return g;
+  });
+  const hl = el("rect", { x: VX + 36, y: VY + 290, width: VW - 72, height: 80, rx: 12, fill: "none", stroke: C.long, "stroke-width": 2.5, opacity: 0 }, svg);
+  return (p) => {
+    rows.forEach((g, i) => { const q = eox(seg(p, 0.1 + i * 0.16, 0.4 + i * 0.16)); g.setAttribute("opacity", q); g.style.transform = `translateY(${(1 - q) * -30}px)`; });
+    hl.setAttribute("opacity", eo(seg(p, 0.65, 0.8)));
+  };
+}
+function gaugePic(svg, c) {
+  frame(svg, "Crypto Fear & Greed");
+  const cx = VX + VW / 2, cy = VY + VH - 70, R = 230;
+  const arc = (a0, a1, col) => el("path", { d: `M ${cx + R * Math.cos(a0)} ${cy + R * Math.sin(a0)} A ${R} ${R} 0 0 1 ${cx + R * Math.cos(a1)} ${cy + R * Math.sin(a1)}`, stroke: col, "stroke-width": 16, fill: "none", "stroke-linecap": "round" }, svg);
+  arc(Math.PI, Math.PI * 1.25, C.short); arc(Math.PI * 1.27, Math.PI * 1.48, C.amber); arc(Math.PI * 1.52, Math.PI * 1.73, "#9a9a92"); arc(Math.PI * 1.75, Math.PI * 2, C.long);
+  const needle = el("line", { x1: cx, y1: cy, x2: cx, y2: cy - R + 30, stroke: C.ink, "stroke-width": 4, "stroke-linecap": "round" }, svg);
+  el("circle", { cx, cy, r: 10, fill: C.ink }, svg);
+  const val = svgText(svg, cx, cy + 56, "", { "font-size": 48, fill: C.ink, "text-anchor": "middle", "font-variant-numeric": "tabular-nums" });
+  return (p) => {
+    const v = lerp(52, 20, eio(seg(p, 0.1, 0.8)));
+    const a = Math.PI + (v / 100) * Math.PI;
+    needle.setAttribute("x2", cx + (R - 30) * Math.cos(a)); needle.setAttribute("y2", cy + (R - 30) * Math.sin(a));
+    val.textContent = Math.round(v); val.setAttribute("fill", v <= 20.5 ? C.short : C.ink);
+  };
+}
+function ratesPic(svg, c) {
+  frame(svg, "US 2-year yield");
+  const x0 = VX + 50, x1 = VX + VW - 50, yOf = (v) => VY + 100 + (3.95 - v) * 1400;
+  const f = (u) => 3.94 - 0.04 * u - 0.08 * Math.pow(u, 2.2) + 0.006 * Math.sin(u * 23);
+  const path = el("path", { fill: "none", stroke: c, "stroke-width": 3.5, "stroke-linejoin": "round" }, svg);
+  const dot = el("circle", { r: 7, fill: c, filter: "url(#glow)" }, svg);
+  const val = svgText(svg, VX + VW - 50, VY + 52, "", { "font-size": 30, fill: c, "text-anchor": "end", "font-variant-numeric": "tabular-nums" });
+  return (p) => {
+    const u1 = eio(seg(p, 0.05, 0.85)), pts = [];
+    for (let i = 0; i <= 60; i++) { const u = (i / 60) * u1; pts.push(`${lerp(x0, x1, u).toFixed(1)} ${yOf(f(u)).toFixed(1)}`); }
+    path.setAttribute("d", "M " + pts.join(" L ")); const v = f(u1);
+    dot.setAttribute("cx", lerp(x0, x1, u1)); dot.setAttribute("cy", yOf(v));
+    const bp = Math.round((v - 3.94) * 100);
+    val.textContent = `${v.toFixed(2)}%  ${bp <= 0 ? "−" : "+"}${Math.abs(bp)} bp`;
+  };
+}
+function weatherPic(svg, c) {
+  frame(svg, "Chicago · forecast, next 7 days");
+  const days = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"], now = [9, 8, 9, 10, 9, 8, 9], fc = [9, 7, 4, 2, 3, 4, 3];
+  const x = (i) => VX + 90 + i * ((VW - 180) / 6), y = (v) => VY + 330 - v * 22;
+  days.forEach((d, i) => svgText(svg, x(i), VY + VH - 30, d, { "font-size": 20, fill: C.faint, "text-anchor": "middle" }));
+  el("path", { d: "M " + now.map((v, i) => `${x(i)} ${y(v)}`).join(" L "), fill: "none", stroke: "#3a3a40", "stroke-width": 3, "stroke-dasharray": "6 8" }, svg);
+  const path = el("path", { fill: "none", stroke: c, "stroke-width": 3.5 }, svg);
+  const val = svgText(svg, VX + VW - 50, VY + 52, "", { "font-size": 30, fill: c, "text-anchor": "end", "font-variant-numeric": "tabular-nums" });
+  return (p) => {
+    const q = eio(seg(p, 0.1, 0.8));
+    path.setAttribute("d", "M " + fc.map((v, i) => `${x(i)} ${y(lerp(now[i], v, q))}`).join(" L "));
+    val.textContent = `${(-5 * q).toFixed(1).replace("-", "−")}°C`;
+  };
+}
+
+/* ---------- the beats ---------- */
+const beats = SOURCES.map((s, i) => {
+  const b = div(`<div style="position:absolute;left:140px;top:452px;width:3px;height:26px;background:${s.c};border-radius:2px"></div>
+    <div class="label" style="position:absolute;left:162px;top:450px;color:${C.muted}">${s.name}</div>
+    <div class="serif sent" style="position:absolute;left:140px;top:500px;width:800px;font-size:76px;line-height:1.08"></div>
+    <svg width="1920" height="1080" style="position:absolute;inset:0"></svg>`, "", $("beats"));
+  b.className = "beat"; b.id = `beat${i}`;
+  return { el: b, ws: maskWords(b.querySelector(".sent"), s.text), pic: s.pic(b.querySelector("svg"), s.c) };
+});
+function drawBeats(t) {
+  $("counter").style.opacity = t > T0 && t < FIN ? Math.min(seg(t, T0, T0 + 0.3), 1 - seg(t, FIN - 0.3, FIN)) : 0;
+  const k = clamp(Math.floor((t - T0) / EACH), 0, SOURCES.length - 1);
+  $("counter").textContent = `${String(k + 1).padStart(2, "0")} / ${String(SOURCES.length).padStart(2, "0")}`;
+  beats.forEach((b, i) => {
+    const a = T0 + i * EACH, z = a + EACH;
+    const inP = eox(seg(t, a - 0.05, a + 0.5)), outP = eix(seg(t, z - 0.3, z + 0.05));
+    if (t < a - 0.05 || t > z + 0.05) return put(b.el.id, { o: 0 });
+    const vy = Math.abs(vel((tt) => -160 * eix(seg(tt, z - 0.3, z + 0.05)) + 160 * (1 - eox(seg(tt, a - 0.05, a + 0.5))), t));
+    put(b.el.id, { o: Math.min(seg(t, a - 0.05, a + 0.1), 1 - outP), y: 160 * (1 - inP) - 160 * outP, by: Math.min(30, vy / 120) });
+    reveal(b.ws, t, a, 0.035, 0.7);
+    b.pic(seg(t, a, z - 0.2));
+  });
+}
+
+/* ---------- finale: the eight threads tie into one knot, and one sentence uses two of them ---------- */
+const finTitle = maskWords($("finTitle"), "Mix any of them in one sentence.");
+const FK = { x: 1460, y: 500 }, ROW = 62;
+const finRows = SOURCES.map((s, i) => {
+  const r = div(`<span class="m" style="display:block"><span style="display:flex;align-items:center"><span style="width:3px;height:22px;background:${s.c};border-radius:2px;margin-right:20px"></span><span class="label" style="white-space:nowrap">${s.name}</span></span></span>`, `position:absolute;left:0;top:${i * ROW}px;height:${ROW}px;width:380px;display:flex;align-items:center`, $("finRows"));
+  return { inner: r.querySelector(".m > span"), label: r.querySelector(".label") };
+});
+const FS = $("finSvg");
+const finThreads = SOURCES.map((s, i) => { const y = 250 + i * ROW + ROW / 2; const p = el("path", { d: `M 520 ${y} C 1000 ${y}, 1150 ${FK.y}, ${FK.x - 30} ${FK.y}`, stroke: s.c, "stroke-width": 2.5, fill: "none", "stroke-linecap": "round" }, FS); p.dataset.len = p.getTotalLength(); p.style.strokeDasharray = p.dataset.len; p.style.strokeDashoffset = p.dataset.len; return p; });
+const finOut = el("path", { d: `M ${FK.x + 30} ${FK.y} L 1990 ${FK.y}`, stroke: C.long, "stroke-width": 4.5, fill: "none" }, FS); finOut.dataset.len = 530; finOut.style.strokeDasharray = 530;
+const finRing = el("circle", { cx: FK.x, cy: FK.y, r: 0, fill: "none", stroke: C.long, "stroke-width": 2 }, FS);
+const finKnot = el("circle", { cx: FK.x, cy: FK.y, r: 0, fill: C.ink, filter: "url(#bloom)" }, FS);
+const USED = [3, 5]; // Polymarket and Fear & Greed
+const SENT = [["If ", null], ["Fed cut odds pass 60%", 3], [" while ", null], ["Fear & Greed is under 30", 5], [", long BTC 2x with $100.", null]];
+$("finCard").innerHTML = SENT.map(([txt, k]) => `<span data-k="${k ?? ""}">${txt}</span>`).join("");
+const sentSpans = [...$("finCard").children];
+const sentLen = SENT.reduce((n, [x]) => n + x.length, 0);
+function drawFinale(t) {
+  const a = FIN - 0.1;
+  if (t < a || t > 21.6) return put("fin", { o: 0 });
+  put("fin", { o: Math.min(seg(t, a, a + 0.2), 1 - seg(t, 21.2, 21.6)), s: 1 - 0.04 * eix(seg(t, 21.0, 21.6)) });
+  reveal(finTitle, t, a + 0.1, 0.05, 0.8);
+  finRows.forEach((r, i) => { const p = eox(seg(t, a + 0.2 + i * 0.06, a + 0.9 + i * 0.06)); r.inner.style.transform = `translateY(${((1 - p) * 140).toFixed(1)}%)`; });
+  finThreads.forEach((p, i) => drawWire(p, eio(seg(t, a + 0.5 + i * 0.07, a + 1.6 + i * 0.07))));
+  const k = seg(t, a + 1.75, a + 2.15); finKnot.setAttribute("r", Math.max(0, 22 * back(k) * (k > 0 ? 1 : 0)));
+  const rr = seg(t, a + 1.8, a + 2.9); finRing.setAttribute("r", 22 + 120 * eox(rr)); finRing.setAttribute("opacity", rr > 0 ? (1 - rr) * 0.8 : 0);
+  finOut.style.strokeDashoffset = 530 * (1 - eio(seg(t, a + 1.9, a + 2.5)));
+  // the sentence: typed, then the two sources it uses light up and the rest step back
+  const s0 = a + 2.7;
+  $("finCard").style.opacity = eo(seg(t, s0 - 0.2, s0 + 0.2)); $("finCard").style.transform = `translateY(${(1 - eo(seg(t, s0 - 0.2, s0 + 0.3))) * 30}px)`;
+  let left = Math.floor(sentLen * seg(t, s0, s0 + 1.6));
+  const hl = eo(seg(t, s0 + 1.8, s0 + 2.3));
+  SENT.forEach(([txt, kk], i) => {
+    const n = Math.max(0, Math.min(txt.length, left)); left -= txt.length;
+    sentSpans[i].textContent = txt.slice(0, n);
+    if (kk != null) { const col = SOURCES[kk].c; sentSpans[i].style.backgroundImage = `linear-gradient(${col}, ${col}), linear-gradient(${col}30, ${col}30)`; sentSpans[i].style.backgroundSize = `${hl * 100}% 3px, ${hl * 100}% 100%`; sentSpans[i].style.backgroundPosition = "0 100%, 0 0"; sentSpans[i].style.backgroundRepeat = "no-repeat"; }
+  });
+  finThreads.forEach((p, i) => { const used = USED.includes(i); p.setAttribute("stroke-opacity", used ? 1 : 1 - 0.75 * hl); p.setAttribute("stroke-width", used ? 2.5 + 1.5 * hl : 2.5); });
+  finRows.forEach((r, i) => (r.label.style.color = USED.includes(i) ? mix(C.faint, C.ink, hl) : ""));
+}
+function drawWire(w, p) {
+  w.style.strokeDashoffset = w.dataset.len * (1 - p);
+  if (!w._h) w._h = el("circle", { r: 4.5, filter: "url(#glow)", opacity: 0 }, w.parentNode);
+  if (p > 0 && p < 1) { const pt = w.getPointAtLength(w.dataset.len * p); w._h.setAttribute("cx", pt.x); w._h.setAttribute("cy", pt.y); w._h.setAttribute("fill", w.getAttribute("stroke")); w._h.setAttribute("opacity", 1); }
+  else w._h.setAttribute("opacity", 0);
+}
+
+const introW = maskWords($("intro"), "Weft watches more than prices.");
+const drawEnd = endCard($("end"), { line2: "Write a thesis with any of them." });
+function renderAt(t) {
+  reveal(introW, t, 0.25, 0.06, 0.9, 1.8);
+  drawBeats(t);
+  drawFinale(t);
+  drawEnd(t - 21.6);
+  finishFrame(t);
+}
+window.DURATION = DURATION;
+window.renderAt = renderAt;
+window.ready = document.fonts.ready.then(() => true);
+if (!navigator.webdriver) { const t0 = performance.now(); const loop = () => { renderAt(((performance.now() - t0) / 1000) % DURATION); requestAnimationFrame(loop); }; window.ready.then(loop); }
+</script>
+</body>
+</html>

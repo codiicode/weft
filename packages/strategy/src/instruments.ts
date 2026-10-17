@@ -33,7 +33,7 @@ export const SpotInstrument = z.object({
   assetClass: AssetClass.default("crypto"),
 });
 
-/** Any SPL token on Solana: majors, memecoins on pump.fun/Meteora/Raydium, tokenized stocks. */
+/** Any SPL token on Solana: majors, new tokens on pump.fun/Meteora/Raydium, tokenized stocks. */
 export const TokenInstrument = z.object({
   kind: z.literal("token"),
   chain: z.literal("solana"),
@@ -50,7 +50,7 @@ export const TokenInstrument = z.object({
 /** A single outcome of a prediction market (HIP-4 on Hyperliquid, or Jupiter Prediction). Prices are probabilities 0–1. */
 export const OutcomeInstrument = z.object({
   kind: z.literal("outcome"),
-  venue: z.enum(["hyperliquid", "jupiter"]),
+  venue: z.enum(["hyperliquid", "jupiter", "polymarket"]).describe("polymarket: watch-only odds (signals), not tradable yet"),
   market: z.string().min(1).describe("Venue market id"),
   outcome: z.string().min(1).describe("Outcome to hold, e.g. YES or NO"),
   question: z.string().optional().describe("Display only"),
@@ -100,7 +100,7 @@ export function instrumentKey(i: Instrument): string {
     case "token":
       return `sol:token:${i.mint}`;
     case "outcome":
-      return `${i.venue === "hyperliquid" ? "hl" : "jup"}:outcome:${i.market}:${i.outcome}`;
+      return `${i.venue === "hyperliquid" ? "hl" : i.venue === "polymarket" ? "pm" : "jup"}:outcome:${i.market}:${i.outcome}`;
     case "option":
       return `${i.venue}:option:${i.underlying}-${i.expiry}-${i.strike}-${i.right === "call" ? "C" : "P"}`;
   }

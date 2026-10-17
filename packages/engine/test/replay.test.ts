@@ -1,53 +1,11 @@
 import { describe, expect, it } from "vitest";
-import { crowdedFade, elNino, ethCallSpread } from "@weft/strategy/examples";
+import { crowdedFade, ethCallSpread } from "@weft/strategy/examples";
 import { replay, type ReplayFrame } from "../src/index.ts";
 import { HOUR, MIN, T0, ZERO_SLIPPAGE } from "./fakes.ts";
 
 const snap = (now: number, fields: Record<string, number | boolean | null>) => ({ asOf: now, fields });
 
 describe("replay", () => {
-  it("El Niño: buys the mispriced outcome, adds copper after forMinutes, exits on TP prob and close-all", async () => {
-    const YES = "hl:outcome:elnino-djf-2026:YES";
-    const COPPER = "hl:perp:xyz:COPPER";
-    const NATGAS = "hl:perp:xyz:NATGAS";
-    const frame = (h: number, o: { nino?: number; odds?: number; copper?: number }): ReplayFrame => {
-      const now = T0 + h * HOUR;
-      return {
-        now,
-        signals: {
-          nino: snap(now, { value: o.nino ?? 1.8, change_7d: 0.2 }),
-          nino_odds: snap(now, { prob: o.odds ?? 0.55, change_24h_pp: 0, volume_24h_usd: 1e6 }),
-          nino_model: snap(now, { prob: 0.8, confidence: 0.7 }),
-          copper: snap(now, { price: o.copper ?? 5, change_24h_pct: 1.5, change_5m_pct: 0, change_1h_pct: 0, volume_24h_usd: 1e6 }),
-          natgas: snap(now, { price: 3, change_24h_pct: 0.5, change_5m_pct: 0, change_1h_pct: 0, volume_24h_usd: 1e6 }),
-          desks: snap(now, { sentiment: 0.5, mentions_1h: 40, mentions_change_1h_pct: 10, unique_authors_1h: 20 }),
-        },
-        quotes: { [YES]: o.odds ?? 0.55, [COPPER]: o.copper ?? 5, [NATGAS]: 3 },
-      };
-    };
-    const timeline = [
-      frame(0, {}),
-      frame(1, {}), // supply_shock has held 60 min
-      frame(2, { odds: 0.7, copper: 5.2 }),
-      frame(3, { odds: 0.93, copper: 5.3 }), // YES take-profit at prob 0.92
-      frame(4, { nino: 0.4, odds: 0.93, copper: 5.35 }), // ENSO fades: close all
-      frame(5, { nino: 0.4, odds: 0.93, copper: 5.35 }),
-    ];
-    const r = await replay(elNino, timeline, { allocationUsd: 10_000 });
-
-    const byReason = (reason: string) => r.fills.filter((f) => f.reason === reason).map((f) => f.instrumentKey);
-    expect(byReason("entry")).toEqual(expect.arrayContaining([YES, COPPER]));
-    expect(byReason("entry")).not.toContain(NATGAS); // natgas rose, so no mild-winter short
-    expect(byReason("take_profit")).toEqual([YES]);
-    expect(byReason("close_action")).toEqual(expect.arrayContaining([COPPER]));
-    expect(r.snapshot.positions).toHaveLength(0);
-    expect(r.snapshot.realizedPnlUsd).toBeGreaterThan(0);
-    expect(r.snapshot.signalValues["nino.value"]).toBe(0.4);
-    expect(r.snapshot.lastTickAt).toBe(T0 + 5 * HOUR);
-    expect(r.snapshot.equityCurve.length).toBeGreaterThanOrEqual(timeline.length);
-    expect(r.events.some((e) => e.type === "trigger_fired" && e.data?.triggerId === "enso_fades")).toBe(true);
-  });
-
   it("crowded fade: shorts after the condition holds 60 min, takes profit, re-enters after close", async () => {
     const SOL = "hl:perp:SOL";
     const frames: ReplayFrame[] = [];
@@ -81,15 +39,15 @@ describe("replay", () => {
   });
 
   it("options: a call spread opens as grouped legs and exits on premium", async () => {
-    const LONG = "derive:option:ETH-2026-12-25-4800-C";
-    const SHORT = "derive:option:ETH-2026-12-25-5400-C";
+    const LONG = "derive:option:ETH-2026-12-25-2800-C";
+    const SHORT = "derive:option:ETH-2026-12-25-3200-C";
     const f = (h: number, buy: number, sell: number): ReplayFrame => {
       const now = T0 + h * HOUR;
       return {
         now,
         signals: {
-          upgrade: snap(now, { hours_until: 48 - h, hours_since: null }),
-          eth: snap(now, { price: 4000, change_24h_pct: 2, change_5m_pct: 0, change_1h_pct: 0, volume_24h_usd: 1e9 }),
+          event: snap(now, { hours_until: 48 - h, hours_since: null }),
+          eth: snap(now, { price: 2500, change_24h_pct: 2, change_5m_pct: 0, change_1h_pct: 0, volume_24h_usd: 1e9 }),
         },
         quotes: { [LONG]: buy, [SHORT]: sell },
       };
@@ -102,7 +60,7 @@ describe("replay", () => {
       [SHORT, "sell"],
     ]);
     expect(entries[0]!.qty).toBeCloseTo(units, 8);
-    expect(entries[0]!.feeUsd).toBeCloseTo(units * 4800 * 3e-4, 8); // 3 bps of strike notional
+    expect(entries[0]!.feeUsd).toBeCloseTo(units * 2800 * 3e-4, 8); // 3 bps of strike notional
     const exits = r.fills.filter((x) => x.reason === "take_profit");
     expect(exits).toHaveLength(2); // +125% on a 120 debit at frame 2 (frame 1 was +58%)
     const gross = exits.reduce((s, x) => s + x.realizedPnlUsd! + x.feeUsd, 0);

@@ -10,7 +10,7 @@ import { useApi } from "@/lib/use-api";
 import { describeStrategy, thesisRepeatsName } from "@/lib/strategy-view";
 
 /** Tags as people write them. */
-const TAG_LABEL: Record<string, string> = { defi: "DeFi", "spot-buy": "Spot", memecoin: "Memecoins", stocks: "Stocks", earnings: "Earnings", options: "Options", events: "Events", solana: "Solana", macro: "Macro", perps: "Perps", predictions: "Predictions" };
+const TAG_LABEL: Record<string, string> = { x: "Posts on X", defi: "DeFi", "spot-buy": "Spot", memecoin: "Tokens", tokens: "Tokens", stocks: "Stocks", earnings: "Earnings", options: "Options", events: "Events", solana: "Solana", macro: "Macro", perps: "Perps", predictions: "Predictions" };
 const tagLabel = (t: string) => TAG_LABEL[t.toLowerCase()] ?? t.replace(/-/g, " ").replace(/^./, (c) => c.toUpperCase());
 import { PageHeader, Btn, Empty } from "@/components/app/AppShell";
 import type { LibraryEntry } from "@/lib/api";

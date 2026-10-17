@@ -17,6 +17,12 @@ export type { VenueQuote } from "./market-data.ts";
 export type { VenueTokenFacts } from "./tokens.ts";
 export { Http, HttpError, type FetchFn, type HttpOptions, type RequestOptions } from "./http.ts";
 export { VenueMarketData } from "./market-data.ts";
+export type { PostMatcher, Tweet } from "./signals/x.ts";
+export type { LeaderTrade, HeliusTx } from "./signals/wallet.ts";
+export { HeliusWallets } from "./signals/wallet.ts";
+export type { TraderState, TraderPosition } from "./traders.ts";
+import type { LeaderTrade } from "./signals/wallet.ts";
+import { traderState, type TraderState } from "./traders.ts";
 export { OiHistory, type OiHistoryOptions, type OiSample } from "./oi-history.ts";
 export { VenueCatalog } from "./catalog.ts";
 export { VenueTokenFactsProvider } from "./tokens.ts";
@@ -59,6 +65,13 @@ export interface Venues {
   history: VenueHistory;
   /** Shared clients + HTTP cache (stats, clearCache). */
   ctx: VenueContext;
+  /** Leaders' trades for copy trading: a Solana wallet's token buys and sells (needs Helius), a Hyperliquid account's positions. */
+  copyFeeds: CopyFeeds;
+}
+
+export interface CopyFeeds {
+  solanaWallet?: (address: string) => Promise<LeaderTrade[]>;
+  hyperliquidTrader: (address: string) => Promise<TraderState>;
 }
 
 export function createVenues(opts: VenueOptions = {}): Venues {
@@ -77,5 +90,9 @@ export function createVenues(opts: VenueOptions = {}): Venues {
     tokenFacts: new VenueTokenFactsProvider(marketData),
     history: new VenueHistory(ctx.http, marketData, { hyperliquidUrl: opts.hyperliquidUrl, dexscreenerUrl: opts.dexscreenerUrl, now: ctx.now }),
     ctx,
+    copyFeeds: {
+      ...(ctx.helius ? { solanaWallet: (a: string) => ctx.helius!.trades(a) } : {}),
+      hyperliquidTrader: (a: string) => traderState(ctx.hl, a),
+    },
   };
 }

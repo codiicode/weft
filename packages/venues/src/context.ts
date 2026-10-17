@@ -4,6 +4,9 @@ import { JupiterClient } from "./jupiter/client.ts";
 import { DeribitClient, DeriveClient } from "./options.ts";
 import { DexScreenerClient, SolanaRpcClient } from "./solana.ts";
 import { OiHistory, type OiHistoryOptions } from "./oi-history.ts";
+import { PolymarketClient } from "./polymarket.ts";
+import type { PostMatcher } from "./signals/x.ts";
+import { HeliusWallets } from "./signals/wallet.ts";
 
 export interface VenueOptions extends HttpOptions {
   /** Share an existing Http instance (cache + coalescing) instead of creating one. */
@@ -21,6 +24,14 @@ export interface VenueOptions extends HttpOptions {
   noaaUrl?: string;
   fredUrl?: string;
   frankfurterUrl?: string;
+  /** twitterapi.io key: makes the social and post_match signals live (otherwise simulated). */
+  twitterApiKey?: string;
+  /** Semantic matcher for post_match (e.g. a small model); keyword overlap when absent. */
+  postMatcher?: PostMatcher;
+  /** Helius key: makes the wallet signal live and powers on-chain lookups. */
+  heliusApiKey?: string;
+  /** Polymarket Gamma API (read-only odds). */
+  polymarketUrl?: string;
   /**
    * dev_sold_pct cannot be derived from free public APIs (needs the dev's initial
    * allocation from an indexer). TokenFacts must carry a number, so this value is
@@ -44,6 +55,9 @@ export interface VenueContext {
   rpc: SolanaRpcClient;
   deribit: DeribitClient;
   derive: DeriveClient;
+  pm: PolymarketClient;
+  /** Helius wallet histories (when a Helius key is set). */
+  helius: HeliusWallets | null;
   /** Open-interest sampler fed by every metaAndAssetCtxs read. */
   oi: OiHistory;
   now: () => number;
@@ -61,6 +75,8 @@ export function createContext(opts: VenueOptions = {}): VenueContext {
     rpc: new SolanaRpcClient(http, opts.solanaRpcUrl),
     deribit: new DeribitClient(http, opts.deribitUrl),
     derive: new DeriveClient(http, opts.deriveUrl),
+    pm: new PolymarketClient(http, opts.polymarketUrl),
+    helius: opts.heliusApiKey ? new HeliusWallets(http, opts.heliusApiKey) : null,
     oi: new OiHistory({ ...opts.oiHistory, path: opts.oiHistoryPath, now }),
     now,
     opts,

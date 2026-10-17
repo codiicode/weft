@@ -1,0 +1,163 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Weft tour</title>
+<style>
+  @font-face { font-family: "Newsreader"; src: url("../../scripts/og/newsreader-latin.woff2") format("woff2"); font-weight: 200 800; }
+  @font-face { font-family: "Inst"; src: url("../../scripts/og/instrument-sans-latin.woff2") format("woff2"); font-weight: 400 700; }
+  html, body { margin: 0; background: #0c0c0d; }
+  #stage { position: relative; width: 1920px; height: 1080px; overflow: hidden; background: #0c0c0d; color: #f4f3ef; font-family: "Inst", sans-serif; -webkit-font-smoothing: antialiased; }
+  .serif { font-family: "Newsreader", serif; font-weight: 400; letter-spacing: -0.02em; }
+  .muted { color: #a3a29d; } .faint { color: #6f6e6a; }
+  .m { display: inline-block; overflow: hidden; vertical-align: top; padding: 0.04em 0.06em 0.18em; margin: -0.04em -0.06em -0.18em; }
+  .m > span { display: inline-block; transform: translateY(140%); }
+  .lay { position: absolute; left: 0; top: 0; width: 1600px; transform-origin: 0 0; }
+  .lay img { display: block; width: 1600px; }
+  svg { overflow: visible; }
+</style>
+</head>
+<body>
+<div id="stage">
+  <div id="finish"></div>
+  <div id="intro" class="serif" style="position:absolute;left:0;right:0;top:420px;text-align:center;font-size:96px"></div>
+  <div id="caps" class="serif" style="position:absolute;left:0;right:0;top:46px;height:80px;font-size:56px"></div>
+
+  <div id="win" style="position:absolute;left:272px;top:156px;width:1376px;height:896px;border-radius:16px;overflow:hidden;background:#0d0d0e;border:1px solid #2a2a2e;box-shadow:0 60px 160px rgba(0,0,0,0.65),inset 0 1px 0 rgba(255,255,255,0.04);opacity:0">
+    <div style="position:relative;height:36px;display:flex;align-items:center;justify-content:center;gap:9px;font-size:15px;color:#6f6e6a;border-bottom:1px solid #1d1d21;background:#111113">
+      <svg width="11" height="13" viewBox="0 0 11 13"><rect x="0.75" y="5.5" width="9.5" height="6.75" rx="1.5" fill="none" stroke="#6f6e6a" stroke-width="1.3"/><path d="M3 5.5V3.8a2.5 2.5 0 0 1 5 0v1.7" fill="none" stroke="#6f6e6a" stroke-width="1.3"/></svg>
+      <span>app.weft.fi/<span id="path" style="color:#a3a29d"></span></span>
+      <span style="position:absolute;right:20px;font-size:12px;letter-spacing:0.16em;color:#55554f">DEMO ACCOUNT</span>
+    </div>
+    <div id="vp" style="position:absolute;left:0;top:36px;width:1600px;height:1000px;transform:scale(0.86);transform-origin:0 0;overflow:hidden;background:#0c0c0d">
+      <div class="lay" id="layB"><img id="imgB"></div>
+      <div class="lay" id="layA"><img id="imgA"></div>
+      <div id="ripple" style="position:absolute;left:0;top:0;width:60px;height:60px;margin:-30px 0 0 -30px;border-radius:50%;border:2px solid #f4f3ef;opacity:0"></div>
+      <svg id="cursor" width="34" height="34" viewBox="0 0 24 24" style="position:absolute;left:0;top:0;opacity:0;filter:drop-shadow(0 4px 10px rgba(0,0,0,0.5))"><path d="M4 2l15 9-7 1.5L8.5 20z" fill="#f4f3ef" stroke="#0c0c0d" stroke-width="1.5" stroke-linejoin="round"/></svg>
+    </div>
+  </div>
+  <div id="end" style="position:absolute;inset:0"></div>
+  <div id="top"></div>
+</div>
+<script src="film.js"></script>
+<script src="recordings/tour/manifest.js"></script>
+<script>
+$("finish").innerHTML = STAGE_FINISH; $("top").innerHTML = STAGE_TOP; setupFinish();
+const DURATION = 42;
+const MAN = window.TOUR, DIR = "recordings/tour/";
+const shot = (name) => DIR + MAN.shots[name].file;
+const H = (name) => MAN.shots[name].h;
+/** The frame of a recorded sequence `ms` milliseconds in. */
+const seqAt = (name, ms) => { let f = MAN.seqs[name][0][1]; for (const [at, file] of MAN.seqs[name]) if (at <= ms) f = file; return DIR + f; };
+const B = MAN.boxes, mid = (b, dy = 0) => [b[0] + b[2] / 2, b[1] + b[3] / 2 - dy];
+
+/*
+ * Clips: what the app window shows, when. `cam` keys are [t, focusX, focusY, zoom] in the image's
+ * own pixels (1600 wide), `cur` keys are [t, x, y, click?] for the cursor.
+ */
+const S0 = MAN.scrollBeforeTest;
+const typingEnd = 7.15;
+const CLIPS = [
+  { a: 1.8, b: 7.75, path: "home", h: 1000,
+    src: (t) => (t < 3.45 ? shot("home") : DIR + MAN.seqs.typing[Math.min(MAN.seqs.typing.length - 1, Math.floor(seg(t, 3.45, typingEnd) * MAN.seqs.typing.length))][1]),
+    cam: [[2.9, 800, 500, 1], [3.6, 665, 250, 2.0], [7.0, 665, 250, 2.0], [7.45, 900, 250, 2.0]],
+    cur: [[2.85, 1150, 520], [3.35, ...mid(B.homeInput), true], [3.75, ...mid(B.homeInput)], [7.0, 1150, 260], [7.5, 1212, 165, true]] },
+  { a: 7.75, b: 11.3, path: "new?go=1", h: 1000,
+    src: (t) => { const u = t - 7.75; return seqAt("draft", u < 1.7 ? u * 1000 : u < 2.2 ? lerp(1700, 6300, (u - 1.7) / 0.5) : 6300 + (u - 2.2) * 1000); },
+    cam: [[7.75, 900, 250, 2.0], [8.3, 560, 350, 1.9], [10.3, 560, 350, 1.9], [10.9, 800, 500, 1.2]] },
+  { a: 11.3, b: 16.3, path: "new?go=1", h: H("draftFull"), src: () => shot("draftFull"),
+    cam: [[11.3, 800, 500, 1.2], [11.9, 660, 370, 1.85], [13.2, 660, 395, 1.85], [13.9, 730, 600, 1.7], [16.3, 730, 615, 1.7]] },
+  { a: 16.3, b: 17.9, path: "new?go=1", h: 1000, src: (t) => (t < 17.35 ? shot("beforeTest") : seqAt("backtest", (t - 17.35) * 1000)),
+    cam: [[16.3, 900, 690, 1.6], [17.9, 900, 700, 1.6]],
+    cur: [[16.45, 700, 820], [17.25, B.testIt[0] + 62, B.testIt[1] + 18 - S0, true], [17.8, B.testIt[0] + 62, B.testIt[1] + 18 - S0]] },
+  { a: 17.9, b: 22.3, path: "new?go=1", h: H("backtestFull"), src: () => shot("backtestFull"),
+    cam: [[17.9, 900, 700 + S0, 1.6], [18.7, 730, 1275, 1.75], [20.3, 730, 1285, 1.75], [21.0, 730, 1530, 1.75], [22.3, 730, 1545, 1.75]] },
+  { a: 22.3, b: 24.2, path: "new?go=1", h: 1000, src: () => shot("beforeStart"),
+    cam: [[22.3, 1390, 440, 2.0], [24.2, 1390, 455, 2.0]],
+    cur: [[22.5, 1100, 760], [23.4, ...mid(B.start), true], [24.1, ...mid(B.start)]] },
+  { a: 24.2, b: 26.4, path: "run?id=…", h: 1000, src: (t) => seqAt("start", 800 + (t - 24.2) * 1000),
+    cam: [[24.2, 650, 300, 1.75], [26.4, 650, 330, 1.75]] },
+  { a: 26.4, b: 31.0, path: "portfolio", h: H("portfolioFull"), src: () => shot("portfolioFull"),
+    cam: [[26.4, 800, 500, 1.1], [27.0, 560, 235, 1.9], [27.7, 560, 245, 1.9], [28.2, 1250, 245, 1.9], [28.8, 1250, 250, 1.9], [29.4, 915, 495, 1.3], [30.2, 915, 520, 1.3], [30.8, 915, 860, 1.35], [31.0, 915, 870, 1.35]] },
+  { a: 31.0, b: 34.6, path: "markets", h: 1000,
+    src: (t) => shot(t < 31.95 ? "markets" : t < 32.85 ? "markets-stocks" : t < 33.75 ? "markets-predictions" : "markets-solana"),
+    cam: [[31.0, 700, 380, 1.5], [34.6, 720, 420, 1.5]],
+    cur: [[31.2, 700, 520], [31.9, ...mid(B["tab-stocks"]), true], [32.8, ...mid(B["tab-predictions"]), true], [33.7, ...mid(B["tab-solana"]), true], [34.4, 760, 300]] },
+  { a: 34.6, b: 37.9, path: "traders", h: 1000, src: () => shot("traders"),
+    cam: [[34.6, 900, 400, 1.4], [37.9, 920, 480, 1.4]],
+    cur: [[35.6, 1200, 640], [36.6, ...mid(B.copyBtn)], [37.6, ...mid(B.copyBtn)]] },
+];
+const camAt = (clip, t) => {
+  const k = clip.cam; let c = k[0];
+  if (t >= k[k.length - 1][0]) c = k[k.length - 1];
+  else for (let i = 0; i < k.length - 1; i++) if (t >= k[i][0] && t < k[i + 1][0]) { const e = eio(seg(t, k[i][0], k[i + 1][0])); c = [t, lerp(k[i][1], k[i + 1][1], e), lerp(k[i][2], k[i + 1][2], e), lerp(k[i][3], k[i + 1][3], e)]; }
+  let [, fx, fy, z] = c;
+  fx = clamp(fx, 800 / z, 1600 - 800 / z); fy = clamp(fy, 500 / z, clip.h - 500 / z);
+  return { fx, fy, z };
+};
+const place = (layer, img, clip, t) => {
+  const { fx, fy, z } = camAt(clip, t);
+  layer.style.transform = `translate(${(800 - fx * z).toFixed(2)}px, ${(500 - fy * z).toFixed(2)}px) scale(${z.toFixed(4)})`;
+  const src = clip.src(t);
+  if (img.getAttribute("src") !== src) img.setAttribute("src", src);
+  return { fx, fy, z };
+};
+const XF = 0.22;
+async function drawWindow(t) {
+  // in: rises out of the dark with a little perspective; out: drops away
+  const e = eox(seg(t, 1.8, 3.0)), x = eix(seg(t, 37.4, 38.1));
+  if (!put("win", { o: Math.min(seg(t, 1.8, 2.15), 1 - seg(t, 37.75, 38.1)), y: 240 * (1 - e) + 90 * x, s: (0.92 + 0.08 * e) * (1 - 0.12 * x), ox: 688, oy: 448, blur: 10 * x, extra: `perspective(2200px) rotateX(${(16 * (1 - e)).toFixed(2)}deg)` })) return;
+  const i = Math.max(0, CLIPS.findIndex((c) => t >= c.a && t < c.b)), clip = CLIPS[t >= CLIPS[CLIPS.length - 1].b ? CLIPS.length - 1 : i];
+  $("path").textContent = clip.path;
+  const cam = place($("layA"), $("imgA"), clip, t);
+  const prev = CLIPS[CLIPS.indexOf(clip) - 1];
+  const xf = prev && t - clip.a < XF ? eo((t - clip.a) / XF) : 1;
+  $("layA").style.opacity = xf;
+  $("layB").style.opacity = xf < 1 ? 1 : 0;
+  if (xf < 1) place($("layB"), $("imgB"), prev, t);
+  // the cursor
+  const cur = clip.cur;
+  if (!cur || t < cur[0][0] - 0.3 || t > cur[cur.length - 1][0] + 0.4) { $("cursor").style.opacity = 0; $("ripple").style.opacity = 0; }
+  else {
+    let p = cur[0];
+    if (t >= cur[cur.length - 1][0]) p = cur[cur.length - 1];
+    else for (let j = 0; j < cur.length - 1; j++) if (t >= cur[j][0] && t < cur[j + 1][0]) { const e2 = eiox(seg(t, cur[j][0] + 0.05, cur[j + 1][0] - 0.08)); p = [t, lerp(cur[j][1], cur[j + 1][1], e2), lerp(cur[j][2], cur[j + 1][2], e2)]; }
+    const vx = 800 + (p[1] - cam.fx) * cam.z, vy = 500 + (p[2] - cam.fy) * cam.z;
+    const click = cur.filter((k) => k[3]).map((k) => t - k[0]).find((d) => d >= -0.12 && d < 0.6);
+    const press = click == null ? 0 : click < 0 ? 1 - Math.abs(click) / 0.12 : Math.max(0, 1 - click / 0.12);
+    $("cursor").style.opacity = Math.min(seg(t, cur[0][0] - 0.3, cur[0][0]), 1 - seg(t, cur[cur.length - 1][0], cur[cur.length - 1][0] + 0.4));
+    $("cursor").style.transform = `translate(${(vx - 7).toFixed(1)}px, ${(vy - 5).toFixed(1)}px) scale(${1 - 0.18 * press})`;
+    if (click != null && click >= 0) { const r = seg(click, 0, 0.6); $("ripple").style.opacity = (1 - r) * 0.8; $("ripple").style.transform = `translate(${vx.toFixed(1)}px, ${vy.toFixed(1)}px) scale(${0.3 + 1.2 * eox(r)})`; }
+    else $("ripple").style.opacity = 0;
+  }
+  // wait for the frame's pictures before the screenshot
+  await Promise.all([$("imgA").decode().catch(() => {}), xf < 1 ? $("imgB").decode().catch(() => {}) : null]);
+}
+
+const introW = maskWords($("intro"), "From a sentence to a live trade.");
+const caps = captions($("caps"), [
+  [2.6, "Write the trade you want."],
+  [7.9, "Weft drafts the rules."],
+  [11.5, "Every rule, in plain English."],
+  [16.4, "Tested on 90 days of real prices."],
+  [22.4, "Start it from your own account."],
+  [26.5, "Every position and strategy, in one place."],
+  [31.1, "Perps, stocks, prediction markets, Solana tokens."],
+  [34.7, "Or copy the best traders."],
+], 37.3);
+const drawEnd = endCard($("end"));
+
+async function renderAt(t) {
+  reveal(introW, t, 0.25, 0.06, 0.9, 1.55);
+  caps(t);
+  drawEnd(t - 37.95);
+  finishFrame(t);
+  await drawWindow(t);
+}
+window.DURATION = DURATION;
+window.renderAt = renderAt;
+window.ready = document.fonts.ready.then(() => true);
+if (!navigator.webdriver) { const t0 = performance.now(); const loop = async () => { await renderAt(((performance.now() - t0) / 1000) % DURATION); requestAnimationFrame(loop); }; window.ready.then(loop); }
+</script>
+</body>
+</html>

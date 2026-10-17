@@ -223,7 +223,7 @@ function OwnWallet({ s, refresh }: { s: LiveStatus; refresh: () => Promise<unkno
           <ul className="mt-3 space-y-2 text-[13.5px]">
             {[
               [true, "Place, cancel and close orders"],
-              [true, "Set leverage within your limits"],
+              [true, "Set leverage"],
               [false, "Withdraw or transfer funds"],
               [false, "Sign anything that isn’t a trade"],
             ].map(([ok, t]) => (
@@ -246,7 +246,7 @@ function OwnWallet({ s, refresh }: { s: LiveStatus; refresh: () => Promise<unkno
             <dt className="text-muted">Leverage</dt>
             <dd className="text-right">each market’s max</dd>
             <dt className="text-muted">Markets</dt>
-            <dd className="text-right">Perps and spot</dd>
+            <dd className="text-right">Perps, stocks, spot and predictions</dd>
           </dl>
         </Card>
         <Card className="p-5 text-[13px] leading-relaxed text-ink-2">
@@ -273,7 +273,7 @@ function Live() {
         {!auth.enabled ? (
           <Empty title="Trading isn’t available here" sub="This server runs without accounts." />
         ) : !auth.authenticated ? (
-          <Empty title="Sign in to set up trading" sub="Hyperliquid for perps and stocks, Solana for tokens." action={<Btn onClick={auth.login}>Sign in</Btn>} />
+          <Empty title="Sign in to set up trading" sub="Hyperliquid for perps, stocks and prediction markets. Solana for tokens." action={<Btn onClick={auth.login}>Sign in</Btn>} />
         ) : (
           <>
             <div className="mb-6 inline-flex rounded-[10px] bg-paper-2 p-0.5" role="tablist">

@@ -47,7 +47,7 @@ describe("template generator", () => {
     expect(buy?.type === "open" && buy.instrument.kind === "token" && buy.instrument.mint).toBe(MINT);
     expect(buy?.type === "open" && buy.size).toEqual({ unit: "native", value: 0.25 });
     expect(JSON.stringify(r.strategy.triggers)).toContain("0.000018");
-    expect(r.strategy.signals.map((s) => s.kind).sort()).toEqual(["price", "social", "token_onchain"]);
+    expect(r.strategy.signals.map((s) => s.kind).sort()).toEqual(["price", "token_onchain"]);
   });
 
   it("understands percentage dips and ignores SOL sizes as price levels", async () => {
@@ -237,5 +237,27 @@ describe("rate limits", async () => {
     expect(blocked.status).toBe(429);
     expect(blocked.headers.get("retry-after")).toBeTruthy();
     expect((await hit("2.2.2.2")).status).toBe(200);
+  });
+});
+
+describe("seeded examples", () => {
+  it("pick up rule changes from the code, but keep resolved instruments when only wording changed", async () => {
+    const { DatabaseSync } = await import("node:sqlite");
+    const { pumpMomentum, PUMP_MINT } = await import("@weft/strategy/examples");
+    const file = join(mkdtempSync(join(tmpdir(), "weft-seed-")), "lib.db");
+    new StrategyLibrary(file).close();
+    const db = new DatabaseSync(file);
+    // An old copy of the example: resolved mint, older wording, and an extra rule since removed.
+    const old = JSON.parse(JSON.stringify(pumpMomentum).replaceAll(PUMP_MINT, "RealMint1111111111111111111111111111111111"));
+    db.prepare("UPDATE strategies SET doc = ? WHERE id = ?").run(JSON.stringify({ ...old, name: "old name" }), pumpMomentum.id);
+    new StrategyLibrary(file).close();
+    let doc = JSON.parse((db.prepare("SELECT doc FROM strategies WHERE id = ?").get(pumpMomentum.id) as { doc: string }).doc);
+    expect(doc.name).toBe(pumpMomentum.name);
+    expect(JSON.stringify(doc)).toContain("RealMint"); // wording only: resolved mint kept
+    db.prepare("UPDATE strategies SET doc = ? WHERE id = ?").run(JSON.stringify({ ...old, signals: [...old.signals, { id: "pump_social", kind: "social", params: { cashtags: ["PUMP"] } }] }), pumpMomentum.id);
+    new StrategyLibrary(file).close();
+    doc = JSON.parse((db.prepare("SELECT doc FROM strategies WHERE id = ?").get(pumpMomentum.id) as { doc: string }).doc);
+    expect(doc.signals.map((s: { kind: string }) => s.kind)).not.toContain("social"); // rules changed: replaced
+    db.close();
   });
 });

@@ -30,9 +30,9 @@ export function Token() {
           <dl className="mt-14 grid gap-x-10 gap-y-6 border-t border-line pt-8 text-[15px] sm:grid-cols-2 lg:grid-cols-5">
             {[
               ["Fee on Hyperliquid", `${(brand.builderFeeBps / 100).toFixed(2)}% per trade`],
-              ["Fee on Solana swaps", `${(brand.swapFeeBps / 100).toFixed(1)}% per swap`],
+              ["Fee on Solana swaps", `${+(brand.swapFeeBps / 100).toFixed(2)}% per swap`],
               ["Where fees go", `${Math.round(brand.buybackShare * 100) === 50 ? "Half" : `${Math.round(brand.buybackShare * 100)}%`} buys ${$T} on the open market`],
-              [`Hold ${$T}`, `${brand.holderDiscount === 0.5 ? "Half" : `${Math.round(brand.holderDiscount * 100)}% off`} the trading fees`],
+              [`Hold ${$T}`, `Pay ${brand.holderDiscount === 0.5 ? "half" : `${Math.round((1 - brand.holderDiscount) * 100)}% of`} the fee`],
               ["Launch", `${brand.chain}, through ${brand.launchpad}`],
             ].map(([k, v]) => (
               <div key={k}>
@@ -42,7 +42,11 @@ export function Token() {
             ))}
           </dl>
           <p className="mt-8 text-[13.5px] text-muted">
-            No subscriptions. The contract address will be published here at launch; anything else claiming to be {$T} is not.
+            No subscription. Every fee and every buyback is on the{" "}
+            <a href="/revenue" className="text-ink underline decoration-line-2 underline-offset-4 hover:decoration-ink">
+              Revenue page
+            </a>
+            . We’ll post the contract address here at launch. Any token calling itself {$T} before then is fake.
           </p>
         </Reveal>
       </div>

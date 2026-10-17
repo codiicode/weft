@@ -101,6 +101,18 @@ export interface GenerateProgress {
 
 export type Snapshot = DeploymentSnapshot & { graph?: GraphView; builderFeesUsd?: number; shared?: boolean };
 
+/** A Hyperliquid account worth copying (public leaderboard, last 30 days). */
+export interface TopTrader {
+  address: string;
+  name: string | null;
+  accountValueUsd: number;
+  pnl30dUsd: number;
+  roi30dPct: number;
+  pnl7dUsd: number;
+  pnlAllTimeUsd: number;
+  volume30dUsd: number;
+}
+
 export interface LeaderRow {
   strategy?: Strategy;
   deploymentId: string;
@@ -325,7 +337,7 @@ export const api = {
   submitDeposit: (signature: string) => req<{ tx: string; usdc: number }>("/live/deposit/submit", { method: "POST", json: { signature } }),
 
   me: () => req<Me>("/me"),
-  revenue: () => req<Earnings>("/admin/revenue"),
+  revenue: () => req<Earnings>("/revenue"),
   reportProfile: (body: { wallets?: string[]; displayName?: string | null }) => req<Me["user"]>("/me", { method: "POST", json: body }),
 
   health: () =>
@@ -391,6 +403,7 @@ export const api = {
     req<{ sinks: string[]; configured: boolean; recent: { strategyName: string; text: string; ts: number; kind: string }[]; help: string }>("/alerts"),
   testAlert: () => req<{ ok: true }>("/alerts/test", { method: "POST" }),
   leaderboard: () => req<{ rows: LeaderRow[] }>("/leaderboard"),
+  traders: () => req<{ traders: TopTrader[] }>("/traders"),
   shareRun: (id: string, shared: boolean) => req<{ shared: boolean }>(`/deployments/${encodeURIComponent(id)}/share`, { method: "POST", json: { shared } }),
   stats: () => req<Stats>("/stats"),
 

@@ -120,6 +120,11 @@ const DEFAULT_TTLS: HyperliquidTtls = {
   candles: 30_000,
 };
 
+export interface RawClearinghouseState {
+  marginSummary?: { accountValue?: string };
+  assetPositions?: { position: { coin: string; szi: string; entryPx?: string | null; positionValue?: string; returnOnEquity?: string; leverage?: { value?: number } } }[];
+}
+
 export class HyperliquidClient {
   readonly url: string;
   private readonly ttl: HyperliquidTtls;
@@ -152,6 +157,16 @@ export class HyperliquidClient {
 
   spotMetaAndAssetCtxs(): Promise<RawSpotMetaAndAssetCtxs> {
     return this.info({ type: "spotMetaAndAssetCtxs" }, this.ttl.meta);
+  }
+
+  /** Any account's perp positions and margin (public on Hyperliquid). */
+  clearinghouseState(user: string): Promise<RawClearinghouseState> {
+    return this.info({ type: "clearinghouseState", user }, 10_000);
+  }
+
+  /** Next funding rates per coin on Hyperliquid, Binance and Bybit: [coin, [[venue, { fundingRate, fundingIntervalHours }]]]. */
+  predictedFundings(): Promise<[string, [string, { fundingRate: string; fundingIntervalHours?: number } | null][]][]> {
+    return this.info({ type: "predictedFundings" }, 60_000);
   }
 
   /** HIP-4 outcome markets (binary / multi-outcome questions). */

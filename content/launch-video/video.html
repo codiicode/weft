@@ -1,0 +1,947 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Weft launch video</title>
+<style>
+  @font-face { font-family: "Newsreader"; src: url("../../scripts/og/newsreader-latin.woff2") format("woff2"); font-weight: 200 800; }
+  @font-face { font-family: "Inst"; src: url("../../scripts/og/instrument-sans-latin.woff2") format("woff2"); font-weight: 400 700; }
+  html, body { margin: 0; background: #0c0c0d; }
+  #stage { position: relative; width: 1920px; height: 1080px; overflow: hidden; background: #0c0c0d; color: #f4f3ef; font-family: "Inst", sans-serif; -webkit-font-smoothing: antialiased; }
+  .scene { position: absolute; inset: 0; opacity: 0; visibility: hidden; }
+  .serif { font-family: "Newsreader", serif; font-weight: 400; letter-spacing: -0.02em; }
+  .center { position: absolute; left: 0; right: 0; text-align: center; }
+  .label { font-size: 21px; letter-spacing: 0.16em; text-transform: uppercase; color: #6f6e6a; }
+  .muted { color: #a3a29d; } .faint { color: #6f6e6a; }
+  /* a word behind a mask: it slides up into view */
+  .m { display: inline-block; overflow: hidden; vertical-align: top; padding: 0.04em 0.06em 0.18em; margin: -0.04em -0.06em -0.18em; }
+  .m > span { display: inline-block; transform: translateY(140%); }
+  .hl { border-radius: 4px; background-repeat: no-repeat; padding: 0 4px; margin: 0 -4px; white-space: nowrap; }
+  .tnum { font-variant-numeric: tabular-nums; }
+  svg { overflow: visible; }
+  svg text { font-family: "Inst", sans-serif; }
+</style>
+</head>
+<body>
+<div id="stage">
+  <svg width="0" height="0" style="position:absolute"><defs id="defs">
+    <filter id="glow" x="-150%" y="-150%" width="400%" height="400%"><feGaussianBlur stdDeviation="5" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter>
+    <filter id="bloom" x="-100%" y="-100%" width="300%" height="300%"><feGaussianBlur stdDeviation="14" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter>
+  </defs></svg>
+  <svg id="warp" width="1920" height="1080" style="position:absolute;inset:0"></svg>
+  <div id="glowBg" style="position:absolute;inset:0"></div>
+
+  <!-- logo (open and end) -->
+  <div class="scene" id="s-logo">
+    <svg width="1920" height="1080" style="position:absolute;inset:0">
+      <g id="rings" fill="none"></g>
+      <g id="threads" fill="none" stroke-linecap="round"></g>
+      <circle id="knotRing" cx="960" cy="420" r="0" fill="none" stroke="#3ecf8e" stroke-width="2"/>
+      <circle id="knot" cx="960" cy="420" r="0" fill="#f4f3ef" filter="url(#bloom)"/>
+    </svg>
+    <div class="center" id="wordmark" style="top:560px;font-size:150px;font-weight:600;letter-spacing:-0.045em"></div>
+    <div class="center serif muted" id="tagline" style="top:760px;font-size:56px"></div>
+    <div class="center" id="endExtras" style="top:880px"></div>
+  </div>
+
+  <!-- hook -->
+  <div class="scene" id="s-hook">
+    <div id="frags" style="position:absolute;inset:0"></div>
+    <div class="center serif" id="hook1" style="top:380px;font-size:108px"></div>
+    <div class="center serif muted" id="hook2" style="top:540px;font-size:84px"></div>
+  </div>
+
+  <!-- the sentence -->
+  <div class="scene" id="s-prompt">
+    <div class="center serif" id="promptLabel" style="top:150px;font-size:64px"></div>
+    <div id="promptCard" style="position:absolute;left:230px;top:290px;width:1460px;padding:48px 64px 104px;box-sizing:border-box;border-radius:24px;background:linear-gradient(180deg,#17171a,#121214);border:1.5px solid #26262a;box-shadow:inset 0 1px 0 rgba(255,255,255,0.05),0 40px 120px rgba(0,0,0,0.5)">
+      <div class="label" style="font-size:19px;margin-bottom:22px">New strategy</div>
+      <div id="promptText" style="font-size:46px;line-height:1.5"></div>
+      <div id="sendBtn" style="position:absolute;right:36px;bottom:30px;width:62px;height:62px;border-radius:16px;background:#f4f3ef;display:grid;place-items:center">
+        <svg width="26" height="26" viewBox="0 0 20 20"><path d="M10 15V5M5 10l5-5 5 5" stroke="#0c0c0d" stroke-width="2.4" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      </div>
+    </div>
+  </div>
+
+  <!-- the big diagram: built, then live -->
+  <div class="scene" id="s-graph">
+    <div class="center serif" id="gTitle1" style="top:70px;font-size:80px"></div>
+    <div class="center serif" id="gTitle2" style="top:70px;font-size:80px"></div>
+    <svg id="big" width="1920" height="1080" style="position:absolute;inset:0"></svg>
+    <div id="gCaption" class="center muted" style="top:900px;font-size:32px"></div>
+    <div id="clockRow" style="position:absolute;left:120px;right:120px;top:930px"></div>
+  </div>
+
+  <!-- montage of other strategies -->
+  <div class="scene" id="s-montage">
+    <div class="center serif" id="mTitle" style="top:70px;font-size:80px"></div>
+    <div id="mSentenceBox" style="position:absolute;left:260px;right:260px;top:196px;height:110px;overflow:hidden"><div id="mSentence" style="text-align:center;font-size:36px;line-height:1.4"></div></div>
+    <svg id="mSvg" width="1920" height="1080" style="position:absolute;inset:0"></svg>
+  </div>
+
+  <!-- every source is a thread -->
+  <div class="scene" id="s-wall">
+    <div class="serif" id="wallTitle" style="position:absolute;left:140px;top:84px;font-size:80px"></div>
+    <div class="muted" id="wallSub" style="position:absolute;left:1180px;top:820px;width:640px;text-align:center;font-size:32px"></div>
+    <div id="wallRows" style="position:absolute;left:140px;top:262px;width:880px"></div>
+    <svg id="wallSvg" width="1920" height="1080" style="position:absolute;inset:0"></svg>
+  </div>
+
+  <!-- copy traders -->
+  <div class="scene" id="s-copy">
+    <div class="serif" id="copyTitle" style="position:absolute;left:140px;top:96px;font-size:80px"></div>
+    <div class="muted" id="copyLead" style="position:absolute;left:144px;top:212px;font-size:32px"></div>
+    <div id="table" style="position:absolute;left:140px;top:330px;width:820px"></div>
+    <svg id="copySvg" width="1920" height="1080" style="position:absolute;inset:0"></svg>
+    <div class="center muted" id="copySub" style="top:900px;font-size:34px"></div>
+    <svg id="cursor" width="40" height="40" viewBox="0 0 24 24" style="position:absolute;left:0;top:0;opacity:0"><path d="M4 2l15 9-7 1.5L8.5 20z" fill="#f4f3ef" stroke="#0c0c0d" stroke-width="1.5" stroke-linejoin="round"/></svg>
+  </div>
+
+  <!-- simple -->
+  <div class="scene" id="s-simple">
+    <div class="center serif" id="simpleTitle" style="top:150px;font-size:84px"></div>
+    <div id="simpleText" style="position:absolute;left:0;top:330px;width:1920px;text-align:center;font-size:80px;letter-spacing:-0.025em;white-space:nowrap"></div>
+    <svg id="simpleSvg" width="1920" height="1080" style="position:absolute;inset:0"></svg>
+    <div id="ticket" style="position:absolute;left:260px;top:590px;width:1400px;height:240px"></div>
+  </div>
+
+  <!-- safety -->
+  <div class="scene" id="s-safe">
+    <div class="center serif" id="safeTitle" style="top:150px;font-size:88px"></div>
+    <svg id="safeSvg" width="1920" height="1080" style="position:absolute;inset:0"></svg>
+    <div class="center muted" id="safeSub" style="top:850px;font-size:40px"></div>
+  </div>
+
+  <div id="fly" style="position:absolute;inset:0"></div>
+  <div id="wipe" style="position:absolute;top:0;bottom:0;left:0;width:2px;background:#f4f3ef;box-shadow:0 0 24px 4px rgba(244,243,239,0.45),0 0 90px 20px rgba(124,140,255,0.18);opacity:0"></div>
+  <div id="flash" style="position:absolute;inset:0;opacity:0"></div>
+  <div id="vig" style="position:absolute;inset:0;background:radial-gradient(ellipse 78% 78% at 50% 50%,transparent 58%,rgba(0,0,0,0.42) 100%)"></div>
+  <div id="grain" style="position:absolute;inset:0;background-size:256px 256px"></div>
+</div>
+
+<script>
+/* ================= helpers ================= */
+const $ = (id) => document.getElementById(id);
+const clamp = (x, a = 0, b = 1) => Math.min(b, Math.max(a, x));
+const seg = (t, a, b) => clamp((t - a) / (b - a));
+const eo = (x) => 1 - Math.pow(1 - x, 3);
+const eo5 = (x) => 1 - Math.pow(1 - x, 5);
+const eio = (x) => (x < 0.5 ? 4 * x * x * x : 1 - Math.pow(-2 * x + 2, 3) / 2);
+const eox = (x) => (x >= 1 ? 1 : 1 - Math.pow(2, -10 * x));
+const eix = (x) => (x <= 0 ? 0 : Math.pow(2, 10 * x - 10));
+const eiox = (x) => (x <= 0 ? 0 : x >= 1 ? 1 : x < 0.5 ? Math.pow(2, 20 * x - 10) / 2 : (2 - Math.pow(2, -20 * x + 10)) / 2);
+const back = (x) => 1 + 2.2 * Math.pow(x - 1, 3) + 1.2 * Math.pow(x - 1, 2);
+const lerp = (a, b, x) => a + (b - a) * x;
+/** Speed of f at t, per second. */
+const vel = (f, t, h = 1 / 240) => (f(t + h) - f(t - h)) / (2 * h);
+const NS = "http://www.w3.org/2000/svg";
+const el = (tag, attrs = {}, parent) => { const e = document.createElementNS(NS, tag); for (const k in attrs) e.setAttribute(k, attrs[k]); if (parent) parent.appendChild(e); return e; };
+const div = (html, style = "", parent) => { const d = document.createElement("div"); d.innerHTML = html; d.style.cssText = style; if (parent) parent.appendChild(d); return d; };
+const svgText = (parent, x, y, str, attrs = {}) => { const e = el("text", { x, y, ...attrs }, parent); e.textContent = str; return e; };
+const CAPS = { "font-size": 19, "letter-spacing": 3, fill: "#6f6e6a" };
+const C = { ink: "#f4f3ef", ink2: "#cfcec9", muted: "#a3a29d", faint: "#6f6e6a", line: "#26262a", line2: "#34343a", card: "#141416", paper: "#0c0c0d",
+  blue: "#7c8cff", violet: "#a78bfa", amber: "#f5a524", pink: "#f472b6", sky: "#38bdf8", long: "#3ecf8e", short: "#ff6b6b" };
+const rgb = (h) => [1, 3, 5].map((i) => parseInt(h.slice(i, i + 2), 16));
+const mix = (a, b, x) => { const A = rgb(a), B = rgb(b); return `rgb(${A.map((v, i) => Math.round(lerp(v, B[i], x))).join(",")})`; };
+const DURATION = 73;
+
+/** Per-scene directional motion blur (an SVG filter whose deviation is set every frame). */
+const MB = {};
+function mbFilter(id) {
+  if (!MB[id]) { const f = el("filter", { id: `mb-${id}`, x: "-5%", y: "-5%", width: "110%", height: "110%" }, $("defs")); MB[id] = el("feGaussianBlur", { stdDeviation: "0 0" }, f); }
+  return MB[id];
+}
+const filterOf = (id, bx, by, blur) => {
+  const f = [];
+  if (bx > 0.4 || by > 0.4) { mbFilter(id).setAttribute("stdDeviation", `${bx.toFixed(1)} ${by.toFixed(1)}`); f.push(`url(#mb-${id})`); }
+  if (blur > 0.4) f.push(`blur(${blur.toFixed(1)}px)`);
+  return f.length ? f.join(" ") : "none";
+};
+/** Place a scene: the camera. Returns false when it is off. */
+function put(id, { o = 1, x = 0, y = 0, s = 1, ox = 960, oy = 540, blur = 0, bx = 0, by = 0, clip = "" } = {}) {
+  const e = $(id);
+  if (o <= 0.002) { e.style.opacity = 0; e.style.visibility = "hidden"; return false; }
+  e.style.opacity = o; e.style.visibility = "visible";
+  e.style.transformOrigin = `${ox}px ${oy}px`;
+  e.style.transform = `translate(${x.toFixed(2)}px, ${y.toFixed(2)}px) scale(${s.toFixed(5)})`;
+  e.style.filter = filterOf(id, bx, by, blur);
+  e.style.clipPath = clip || "none";
+  return true;
+}
+/** Words behind masks. */
+function maskWords(target, text) { target.innerHTML = text.split(" ").map((w) => `<span class="m"><span>${w}</span></span>`).join(" "); return [...target.querySelectorAll(".m > span")]; }
+function maskChars(target, text) { target.innerHTML = [...text].map((w) => `<span class="m"><span>${w}</span></span>`).join(""); return [...target.querySelectorAll(".m > span")]; }
+/** Slide words up into view from t0, and up out of view from `out`. */
+function reveal(ws, t, t0, st = 0.05, d = 0.8, out = null) {
+  ws.forEach((w, i) => {
+    let y = (1 - eox(seg(t, t0 + i * st, t0 + i * st + d))) * 140;
+    if (out != null) y -= eix(seg(t, out + i * st * 0.6, out + i * st * 0.6 + 0.45)) * 140;
+    w.style.transform = `translateY(${y.toFixed(2)}%)`;
+  });
+}
+const hash = (a, b) => { let h = (a * 374761393 + b * 668265263) >>> 0; h = Math.imul(h ^ (h >>> 13), 1274126177) >>> 0; return ((h ^ (h >>> 16)) >>> 0) / 4294967296 * 2 - 1; };
+const srnd = (s) => () => ((s = (Math.imul(s, 1103515245) + 12345) >>> 0) / 4294967296);
+
+/* ================= finish: grid, glow, grain ================= */
+for (let x = 24; x < 1920; x += 48) el("line", { x1: x, y1: 0, x2: x, y2: 1080, stroke: "#fff", "stroke-opacity": 0.022 }, $("warp"));
+const GRAIN = Array.from({ length: 8 }, (_, k) => {
+  const c = document.createElement("canvas"); c.width = c.height = 256;
+  const x = c.getContext("2d"), im = x.createImageData(256, 256), r = srnd(101 + k * 7919);
+  for (let i = 0; i < im.data.length; i += 4) { const v = r(); const w = v > 0.5; im.data[i] = im.data[i + 1] = im.data[i + 2] = w ? 255 : 0; im.data[i + 3] = Math.abs(v - 0.5) * 2 * (w ? 11 : 22); }
+  x.putImageData(im, 0, 0); return `url(${c.toDataURL()})`;
+});
+
+/* ================= logo ================= */
+const KNOT = { x: 960, y: 420 };
+const THREAD_C = [C.amber, C.pink, C.sky, C.blue, C.violet, C.long];
+const threadEls = [
+  `M -40 250 C 400 250 640 420 ${KNOT.x} ${KNOT.y}`,
+  `M -40 335 C 420 335 660 420 ${KNOT.x} ${KNOT.y}`,
+  `M -40 420 L ${KNOT.x} ${KNOT.y}`,
+  `M -40 505 C 420 505 660 420 ${KNOT.x} ${KNOT.y}`,
+  `M -40 590 C 400 590 640 420 ${KNOT.x} ${KNOT.y}`,
+  `M ${KNOT.x} ${KNOT.y} L 1980 ${KNOT.y}`,
+].map((d, i) => el("path", { d, stroke: THREAD_C[i], "stroke-width": i === 5 ? 5 : 3.5, opacity: 0.95 }, $("threads")));
+const threadLen = threadEls.map((p) => p.getTotalLength());
+const threadHeads = THREAD_C.map((c, i) => el("circle", { r: i === 5 ? 6 : 4.5, fill: c, filter: "url(#glow)", opacity: 0 }, $("threads")));
+const tighten = [0, 1, 2].map(() => el("circle", { cx: KNOT.x, cy: KNOT.y, r: 0, stroke: C.ink, "stroke-width": 1.5, opacity: 0 }, $("rings")));
+const wmChars = maskChars($("wordmark"), "weft");
+const tagW = maskWords($("tagline"), "Trade the thesis.");
+$("endExtras").innerHTML = `
+  <span class="m" style="display:inline-block"><span style="display:flex;justify-content:center;gap:30px;align-items:center">
+    <span style="font-size:42px;font-weight:600;letter-spacing:-0.015em">weft.fi</span>
+    <span style="width:1.5px;height:34px;background:${C.line2}"></span>
+    <span class="muted" style="font-size:34px">Live now</span>
+  </span></span><br>
+  <span class="m" style="display:inline-block;margin-top:30px"><span class="label" style="font-size:22px">Perps · Stocks · Prediction markets · Solana tokens</span></span>`;
+const endW = [...$("endExtras").querySelectorAll(".m > span")];
+const END = 67.6;
+function drawLogo(t) {
+  const end = t >= END - 0.05;
+  if (!end && t > 3.6) return put("s-logo", { o: 0 });
+  const l = t - (end ? END : 0);
+  if (end) put("s-logo", { o: 1 });
+  else { const z = eix(seg(t, 2.95, 3.55)); put("s-logo", { o: 1 - seg(t, 3.3, 3.55), s: 1 + 9 * z, ox: KNOT.x, oy: KNOT.y, blur: 16 * z }); }
+  threadEls.forEach((p, i) => {
+    const start = i < 5 ? 0.05 + i * 0.09 : 1.12;
+    const pr = eio(seg(l, start, start + (i < 5 ? 1.05 : 1.0)));
+    p.style.strokeDasharray = threadLen[i]; p.style.strokeDashoffset = threadLen[i] * (1 - pr);
+    const h = threadHeads[i];
+    if (pr > 0 && pr < 1) { const pt = p.getPointAtLength(threadLen[i] * pr); h.setAttribute("cx", pt.x); h.setAttribute("cy", pt.y); h.setAttribute("opacity", Math.pow(Math.sin(Math.PI * pr), 0.3)); } else h.setAttribute("opacity", 0);
+  });
+  // rings close in as the threads arrive, then the knot snaps tight
+  tighten.forEach((c, i) => { const p = seg(l, 0.7 + i * 0.07, 1.12); c.setAttribute("r", lerp(150 - i * 30, 24, eio(p))); c.setAttribute("opacity", p > 0 && p < 1 ? Math.sin(Math.PI * p) * 0.45 : 0); });
+  const k = seg(l, 1.05, 1.5);
+  $("knot").setAttribute("r", Math.max(0, 22 * back(k) * (k > 0 ? 1 : 0)));
+  const ring = seg(l, 1.15, 2.3); $("knotRing").setAttribute("r", 22 + 110 * eox(ring)); $("knotRing").setAttribute("opacity", ring > 0 ? (1 - ring) * 0.8 : 0);
+  reveal(wmChars, l, 1.45, 0.05, 0.9);
+  reveal(tagW, l, 1.95, 0.06, 0.9);
+  reveal(endW, end ? l : -9, 2.6, 0.18, 0.9);
+}
+
+/* ================= hook ================= */
+const hookW1 = maskWords($("hook1"), "You know what should happen.");
+const hookW2 = maskWords($("hook2"), "You just can’t watch everything at once.");
+// Everything you can't watch: live readings flicker on all around the line.
+const FEED = [
+  ["ETH", C.blue, (n) => (2431.4 + n * 1.8).toFixed(1)], ["Fear & Greed", C.amber, (n) => String(Math.round(34 + n * 2))],
+  ["@elonmusk", C.amber, () => "new post"], ["BTC", C.blue, (n) => Math.round(81204 + n * 40).toLocaleString("en-US")],
+  ["Fed cut odds", C.blue, (n) => `${Math.round(61 + n)}%`], ["$TSLA mentions", C.pink, (n) => `×${(2.3 + n * 0.2).toFixed(1)}`],
+  ["Funding", C.violet, (n) => `${(0.0034 + n * 0.0004).toFixed(4)}%`], ["US 2Y", C.sky, (n) => `${(3.84 + n * 0.01).toFixed(2)}%`],
+  ["TSLA", C.blue, (n) => `+${(2.1 + n * 0.1).toFixed(2)}%`], ["Headlines", C.sky, (n) => `Tesla ×${Math.round(7 + n)}`],
+  ["0x7aa1…e8c2", C.long, () => "opened BTC 10×"], ["SOL", C.blue, (n) => (182.61 + n * 0.3).toFixed(2)],
+  ["Gold", C.blue, (n) => (2640 + n * 3).toFixed(1)], ["Chicago", C.sky, (n) => `${(-5 + n * 0.4).toFixed(1)}°C`],
+  ["7xKp…9fQe", C.long, () => "bought $PUMP"], ["HL fees", C.violet, (n) => `$${(5.2 + n * 0.05).toFixed(2)}M`],
+  ["$SOL mentions", C.pink, (n) => `×${(1.9 + n * 0.2).toFixed(1)}`], ["Liquidity", C.sky, (n) => `$${(2.1 + n * 0.02).toFixed(2)}M`],
+];
+const fr = srnd(7);
+const frags = [];
+for (let r = 0; r < 9; r++) for (let c = 0; c < 7; c++) {
+  const x = 60 + c * 250 + fr() * 60, y = 64 + r * 112 + fr() * 36;
+  if (x + 230 > 300 && x < 1620 && y > 330 && y < 670) continue;
+  const e = div("", `position:absolute;left:${x.toFixed(0)}px;top:${y.toFixed(0)}px;font-size:22px;white-space:nowrap;opacity:0`, $("frags"));
+  frags.push({ e, f: FEED[frags.length % FEED.length], x, y, base: 0.3 + fr() * 0.35 });
+}
+frags.forEach((g, i) => (g.ta = 4.55 + (i / frags.length) * 1.3 + fr() * 0.25));
+function drawHook(t) {
+  if (t < 3.15 || t > 6.8) return put("s-hook", { o: 0 });
+  const z = eox(seg(t, 3.15, 3.95));
+  put("s-hook", { o: seg(t, 3.15, 3.35), s: 0.84 + 0.16 * z, blur: (1 - z) * 12 });
+  reveal(hookW1, t, 3.42, 0.06, 0.8, 5.85);
+  reveal(hookW2, t, 4.45, 0.05, 0.8, 5.92);
+  const k = Math.floor(t * 9);
+  frags.forEach((g, i) => {
+    const l = t - g.ta;
+    if (l < 0) { g.e.style.opacity = 0; return; }
+    const flick = l < 0.22 ? (Math.floor(l * 45) % 2 ? 0.2 : 1) : 1;
+    const [name, color, fmt] = g.f;
+    g.e.innerHTML = `<span style="color:${color}">${name}</span>&nbsp; <span class="tnum" style="color:${C.ink2}">${fmt(hash(i, k))}</span>`;
+    // they all rush into the middle, where the sentence will be
+    const q = eix(seg(t, 5.9 + (i % 7) * 0.025, 6.55));
+    g.e.style.transform = `translate(${((960 - g.x - 110) * q).toFixed(1)}px, ${((560 - g.y) * q).toFixed(1)}px) scale(${1 - 0.75 * q})`;
+    g.e.style.filter = q > 0.05 ? `blur(${(q * 6).toFixed(1)}px)` : "none";
+    g.e.style.opacity = g.base * flick * Math.min(1, l / 0.05) * (1 - seg(q, 0.6, 1));
+  });
+}
+
+/* ================= the sentence ================= */
+const PROMPT = "If @elonmusk posts about flying cars at today’s Tesla event while $TSLA mentions on X triple, Tesla headlines keep coming, TSLA is up 2% and funding stays low, long TSLA 10x with $200. Take profit at 40%, stop at 15%, and sell if the buzz halves.";
+const PHRASES = [
+  { p: "@elonmusk posts about flying cars at today’s Tesla event", c: C.amber },
+  { p: "$TSLA mentions on X triple", c: C.pink },
+  { p: "Tesla headlines keep coming", c: C.sky },
+  { p: "TSLA is up 2%", c: C.blue },
+  { p: "funding stays low", c: C.violet },
+  { p: "long TSLA 10x with $200", c: C.long },
+  { p: "Take profit at 40%", c: C.long },
+  { p: "stop at 15%", c: C.short },
+  { p: "sell if the buzz halves", c: C.short },
+];
+const promptW = maskWords($("promptLabel"), "Say it the way you’d say it.");
+const segs = []; { let pos = 0; for (const ph of PHRASES) { const at = PROMPT.indexOf(ph.p, pos); if (at > pos) segs.push({ text: PROMPT.slice(pos, at) }); segs.push({ text: ph.p, c: ph.c, k: PHRASES.indexOf(ph) }); pos = at + ph.p.length; } if (pos < PROMPT.length) segs.push({ text: PROMPT.slice(pos) }); }
+const segEls = segs.map((s) => { const sp = document.createElement("span"); if (s.c) sp.className = "hl"; $("promptText").appendChild(sp); return sp; });
+const caret = document.createElement("span"); caret.style.cssText = `display:inline-block;width:4px;height:52px;background:${C.ink};vertical-align:-10px;margin-left:3px`; $("promptText").appendChild(caret);
+const P = { A: 6.5, B: 15.3, typeA: 7.1, typeB: 11.9, hlA: 12.05, hlStep: 0.27, send: 14.55, fly: 14.65, flyStep: 0.05, flyDur: 0.85 };
+const departs = (k) => P.fly + k * P.flyStep;
+function drawPrompt(t) {
+  if (!put("s-prompt", { o: t < 6.45 || t > 15.4 ? 0 : 1 })) return;
+  reveal(promptW, t, 6.75, 0.05, 0.8, 14.45);
+  const cin = eox(seg(t, 6.45, 7.25)), cout = eio(seg(t, 14.75, 15.2));
+  const card = $("promptCard");
+  card.style.opacity = Math.min(1, seg(t, 6.45, 6.75)) * (1 - cout);
+  card.style.transform = `translateY(${((1 - cin) * 40).toFixed(1)}px) scale(${(0.9 + 0.1 * cin).toFixed(4)})`;
+  card.style.filter = cin < 0.99 ? `blur(${((1 - cin) * 10).toFixed(1)}px)` : "none";
+  let left = Math.floor(PROMPT.length * seg(t, P.typeA, P.typeB)), k = 0;
+  const dim = 1 - eo(seg(t, 14.6, 14.95));
+  segs.forEach((s, i) => {
+    const n = Math.max(0, Math.min(s.text.length, left)); left -= s.text.length;
+    segEls[i].textContent = s.text.slice(0, n);
+    if (s.c) {
+      const p = eo(seg(t, P.hlA + k * P.hlStep, P.hlA + k * P.hlStep + 0.45));
+      segEls[i].style.backgroundImage = `linear-gradient(${s.c}, ${s.c}), linear-gradient(${s.c}30, ${s.c}30)`;
+      segEls[i].style.backgroundSize = `${p * 100}% 3px, ${p * 100}% 100%`;
+      segEls[i].style.backgroundPosition = "0 100%, 0 0";
+      segEls[i].style.opacity = t >= departs(s.k) ? 0 : 1;
+      k++;
+    } else segEls[i].style.opacity = dim;
+  });
+  caret.style.opacity = t < P.typeB + 0.1 ? 1 : (Math.floor(t * 2.4) % 2 ? 0 : 1) * (1 - seg(t, P.send, P.send + 0.2));
+  const press = seg(t, P.send, P.send + 0.15) - seg(t, P.send + 0.15, P.send + 0.35);
+  $("sendBtn").style.transform = `scale(${1 - press * 0.12})`; $("sendBtn").style.boxShadow = `0 0 ${40 * press}px ${C.ink}`;
+}
+
+/* ================= diagram builder ================= */
+/**
+ * Signals on the left weave into one knot, the knot opens the trade(s), the trade branches into its
+ * exits. Nodes are quiet: a hairline box, a colour rule, a title and a sub line. When a condition
+ * turns true a green line runs round its box; the knot is a ring with one segment per condition.
+ */
+const arcPath = (cx, cy, r, a0, a1) => { const p = (a) => [cx + r * Math.cos(a), cy + r * Math.sin(a)]; const [x0, y0] = p(a0), [x1, y1] = p(a1); return `M ${x0.toFixed(1)} ${y0.toFixed(1)} A ${r} ${r} 0 ${a1 - a0 > Math.PI ? 1 : 0} 1 ${x1.toFixed(1)} ${y1.toFixed(1)}`; };
+function graph(svg, spec) {
+  const g = el("g", {}, svg);
+  const wires = el("g", {}, g), nodes = el("g", {}, g);
+  const node = (x, y, w, h, n) => {
+    const grp = el("g", {}, nodes);
+    const rect = el("rect", { x, y: y - h / 2, width: w, height: h, rx: 14, fill: C.card, stroke: C.line2, "stroke-width": 1.5 }, grp);
+    el("rect", { x: x + 18, y: y - h / 2 + 20, width: 3, height: h - 40, rx: 1.5, fill: n.color }, grp);
+    const fs = n.fs ?? 26;
+    const title = svgText(grp, x + 38, y - 6, n.title, { "font-size": fs, fill: C.ink, "font-weight": 500 });
+    const sub = svgText(grp, x + 38, y + 25, n.sub ?? "", { "font-size": fs - 5, fill: C.muted });
+    const value = el("text", { x: x + w - 26, y: y - 4, "font-size": 25, fill: C.ink, "text-anchor": "end", "font-variant-numeric": "tabular-nums" }, grp);
+    const spark = el("path", { fill: "none", stroke: n.color, "stroke-width": 2, opacity: 0.85 }, grp);
+    const per = 2 * (w + h);
+    const trace = el("rect", { x, y: y - h / 2, width: w, height: h, rx: 14, fill: "none", stroke: C.long, "stroke-width": 2.2, "stroke-dasharray": per, "stroke-dashoffset": per, opacity: 0 }, grp);
+    return { grp, rect, title, sub, value, spark, trace, per, x, y, w, h, color: n.color };
+  };
+  const L = spec.layout;
+  const sigs = spec.signals.map((n, i) => node(L.sx, L.sy0 + i * L.sgap, L.sw, L.sh, n));
+  const knot = { x: L.kx, y: L.ky }, R = 36;
+  const wire = (d, color) => { const p = el("path", { d, fill: "none", stroke: color ?? C.line2, "stroke-width": 3, "stroke-linecap": "round" }, wires); p.dataset.len = p.getTotalLength(); p.style.strokeDasharray = p.dataset.len; p.style.strokeDashoffset = p.dataset.len; return p; };
+  const inW = sigs.map((s) => wire(`M ${s.x + s.w} ${s.y} C ${s.x + s.w + (knot.x - s.x - s.w) * 0.55} ${s.y} ${knot.x - (knot.x - s.x - s.w) * 0.45} ${knot.y} ${knot.x - R - 8} ${knot.y}`, s.color));
+  const acts = spec.actions.map((n, i) => node(L.ax, L.ay0 + i * L.agap, L.aw, L.ah, n));
+  const outW = acts.map((a) => wire(`M ${knot.x + R + 8} ${knot.y} C ${knot.x + 80} ${knot.y} ${a.x - 50} ${a.y} ${a.x} ${a.y}`, C.long));
+  const exits = (spec.exits ?? []).map((n, i) => node(L.ex, L.ey0 + i * L.egap, L.ew, L.eh, n));
+  const exW = exits.map((e) => wire(`M ${acts[0].x + acts[0].w} ${acts[0].y} C ${acts[0].x + acts[0].w + 60} ${acts[0].y} ${e.x - 60} ${e.y} ${e.x} ${e.y}`, e.color));
+  const ring = el("circle", { cx: knot.x, cy: knot.y, r: R, fill: "none", stroke: C.long, "stroke-width": 2, opacity: 0 }, g);
+  const n = sigs.length, gap = n > 1 ? 0.2 : 0;
+  const arcs = sigs.map((_, j) => {
+    const a0 = -Math.PI / 2 + (j * 2 * Math.PI) / n + gap / 2, a1 = a0 + (2 * Math.PI) / n - gap;
+    const d = arcPath(knot.x, knot.y, R, a0, a1);
+    const bg = el("path", { d, stroke: C.line2, "stroke-width": 3, fill: "none", "stroke-linecap": "round", opacity: 0 }, g);
+    const fg = el("path", { d, stroke: C.long, "stroke-width": 4, fill: "none", "stroke-linecap": "round" }, g);
+    const len = fg.getTotalLength(); fg.style.strokeDasharray = len; fg.style.strokeDashoffset = len;
+    return { bg, fg, len };
+  });
+  const kc = el("circle", { cx: knot.x, cy: knot.y, r: 0, fill: C.paper, stroke: C.amber, "stroke-width": 2.5 }, g);
+  const kl = el("text", { x: knot.x, y: knot.y - 66, "font-size": 23, fill: C.amber, "text-anchor": "middle", "font-variant-numeric": "tabular-nums", stroke: C.paper, "stroke-width": 10, "paint-order": "stroke", "stroke-linejoin": "round" }, g);
+  const pulses = inW.map((w, i) => el("circle", { r: 4.5, fill: sigs[i].color, opacity: 0, filter: "url(#glow)" }, g));
+  return { g, sigs, acts, exits, inW, outW, exW, kc, kl, ring, arcs, knot, pulses };
+}
+const showNode = (n, p, dx = -24) => { n.grp.style.opacity = p; n.grp.style.transform = dx ? `translateX(${((1 - p) * dx).toFixed(1)}px)` : "none"; };
+function drawWire(w, p) {
+  w.style.strokeDashoffset = w.dataset.len * (1 - p);
+  if (!w._h) w._h = el("circle", { r: 4.5, filter: "url(#glow)", opacity: 0 }, w.parentNode);
+  if (p > 0 && p < 1) { const pt = w.getPointAtLength(w.dataset.len * p); w._h.setAttribute("cx", pt.x); w._h.setAttribute("cy", pt.y); w._h.setAttribute("fill", w.getAttribute("stroke")); w._h.setAttribute("opacity", Math.pow(Math.sin(Math.PI * p), 0.4)); }
+  else w._h.setAttribute("opacity", 0);
+}
+/** The green line that runs round a node when it turns true. */
+function setTrace(n, p, color = C.long) { n.trace.setAttribute("opacity", p > 0 ? 1 : 0); n.trace.setAttribute("stroke-dashoffset", n.per * (1 - p)); n.trace.setAttribute("stroke", color); }
+function setVal(n, str, fill = C.ink, caps = false) {
+  n.value.textContent = str; n.value.setAttribute("fill", fill);
+  n.value.setAttribute("font-size", caps ? 18 : 25); n.value.setAttribute("letter-spacing", caps ? 3 : 0);
+}
+/** A sparkline in a node, from a function of time, drawn up to `now`. */
+function spark(n, f, t0, now, lo, hi) {
+  const x0 = n.x + n.w - 200, x1 = n.x + n.w - 26, y0 = n.y + 10, y1 = n.y + 32;
+  const pts = []; const N = 40;
+  for (let i = 0; i <= N; i++) { const tt = now - (N - i) * 0.12; if (tt < t0) continue; const v = clamp((f(tt) - lo) / (hi - lo)); pts.push(`${(x0 + (x1 - x0) * i / N).toFixed(1)} ${(y1 - (y1 - y0) * v).toFixed(1)}`); }
+  n.spark.setAttribute("d", pts.length > 1 ? "M " + pts.join(" L ") : "");
+}
+/** Ring segments light in the order the conditions came true. */
+function setArcs(gr, times, t, show) {
+  gr.arcs.forEach((a, j) => { a.bg.setAttribute("opacity", show); const p = eo(seg(t, times[j], times[j] + 0.35)); a.fg.style.strokeDashoffset = a.len * (1 - p); });
+}
+
+/* ================= the big one ================= */
+const BIG = graph($("big"), {
+  layout: { sx: 100, sw: 540, sh: 92, sy0: 300, sgap: 122, kx: 850, ky: 544, ax: 950, aw: 420, ah: 100, ay0: 544, agap: 0, ex: 1460, ew: 370, eh: 88, ey0: 420, egap: 124 },
+  signals: [
+    { title: "@elonmusk on X", sub: "posts about flying cars", color: C.amber },
+    { title: "$TSLA mentions on X", sub: "triple in an hour", color: C.pink },
+    { title: "Tesla headlines", sub: "3 or more an hour", color: C.sky },
+    { title: "TSLA today", sub: "up 2% or more", color: C.blue },
+    { title: "TSLA funding", sub: "under 0.01% an hour", color: C.violet },
+  ],
+  actions: [{ title: "Long TSLA 10×", sub: "$200 on Hyperliquid", color: C.long, fs: 30 }],
+  exits: [
+    { title: "Take profit", sub: "+40% on the position", color: C.long },
+    { title: "Stop", sub: "−15% on the position", color: C.short },
+    { title: "Sell", sub: "if the buzz halves", color: C.short },
+  ],
+});
+const gTitle1 = maskWords($("gTitle1"), "Every phrase becomes a rule.");
+const gTitle2 = maskWords($("gTitle2"), "Then it watches. Every 15 seconds.");
+$("gCaption").innerHTML = `<span class="m"><span><span style="color:${C.ink}">5 conditions</span> from 5 sources · <span style="color:${C.ink}">1 trade</span> · <span style="color:${C.ink}">3 ways out</span></span></span>`;
+const gCap = [...$("gCaption").querySelectorAll(".m > span")];
+// Live values, and when each condition becomes true.
+const LIVE = [
+  { met: 33.0, val: (t) => (t < 33.0 ? "no post yet" : "matched · just now"), f: null },
+  { met: 31.4, val: (t) => `+${Math.round(liveBuzz(t))}%`, f: (t) => liveBuzz(t), lo: 0, hi: 320 },
+  { met: 29.6, val: (t) => `${Math.min(7, Math.floor(seg(t, 26.2, 32.5) * 7.99))} / hour`, f: (t) => Math.min(7, seg(t, 26.2, 32.5) * 8), lo: 0, hi: 8 },
+  { met: 27.4, val: (t) => `+${liveTsla(t).toFixed(1)}%`, f: (t) => liveTsla(t), lo: 0, hi: 4 },
+  { met: 25.3, val: (t) => `${(0.0034 + 0.0009 * Math.sin(t * 5.1)).toFixed(4)}%`, f: (t) => 0.0034 + 0.0009 * Math.sin(t * 5.1), lo: 0, hi: 0.012 },
+];
+const LIVE_ORDER = LIVE.map((l) => l.met).sort((a, b) => a - b);
+function liveBuzz(t) { return 30 + 230 * eio(seg(t, 26, 31.6)) + 18 * Math.sin(t * 6.3) + (t > 31.6 ? 40 * eo(seg(t, 31.6, 33)) : 0); }
+function liveTsla(t) { return 0.7 + 1.8 * eio(seg(t, 25.2, 27.6)) + 0.12 * Math.sin(t * 4.7); }
+const G = { A: 15.0, B: 35.4, build: 15.4, live: 24.6, fire: 33.15 };
+$("clockRow").innerHTML = `<div style="display:flex;justify-content:space-between;align-items:baseline" class="tnum"><span id="clockDay" style="font-size:28px"></span><span class="label" id="checks" style="font-size:19px"></span></div><div style="margin-top:16px;height:2px;background:#1d1d21;position:relative"><div id="clockBar" style="position:absolute;left:0;top:0;bottom:0;background:#7c8cff;box-shadow:0 0 12px #7c8cff"></div></div>`;
+
+/* The nine phrases lift off the sentence and become the nine boxes. */
+const BIG_NODES = [...BIG.sigs, ...BIG.acts, ...BIG.exits];
+const BIG_SPECS = [
+  ...["@elonmusk on X|posts about flying cars", "$TSLA mentions on X|triple in an hour", "Tesla headlines|3 or more an hour", "TSLA today|up 2% or more", "TSLA funding|under 0.01% an hour"],
+  "Long TSLA 10×|$200 on Hyperliquid", "Take profit|+40% on the position", "Stop|−15% on the position", "Sell|if the buzz halves",
+].map((s) => s.split("|"));
+const chips = PHRASES.map((ph, k) => {
+  const n = BIG_NODES[k], fs = k === 5 ? 30 : 26;
+  const c = div(`<div class="cA" style="position:absolute;left:0;top:0;bottom:0;padding:0 4px;white-space:nowrap;font-size:46px;display:flex;align-items:center"></div>
+    <div class="cB" style="position:absolute;left:0;top:0;width:${n.w}px;height:${n.h}px;opacity:0">
+      <div style="position:absolute;left:18px;top:20px;bottom:20px;width:3px;border-radius:2px;background:${ph.c}"></div>
+      <div style="position:absolute;left:38px;top:${n.h / 2 - fs * 1.02}px;font-size:${fs}px;font-weight:500;white-space:nowrap">${BIG_SPECS[k][0]}</div>
+      <div style="position:absolute;left:38px;top:${n.h / 2 + 6}px;font-size:${fs - 5}px;color:${C.muted};white-space:nowrap">${BIG_SPECS[k][1]}</div>
+    </div>`, "position:absolute;left:0;top:0;opacity:0;box-sizing:border-box;overflow:hidden;border:1.5px solid transparent", $("fly"));
+  c.querySelector(".cA").textContent = ph.p;
+  return { el: c, a: c.querySelector(".cA"), b: c.querySelector(".cB"), color: ph.c, node: n };
+});
+let SRC = null;
+function measurePrompt() {
+  // the phrases' boxes in the finished, untransformed sentence
+  const st = $("stage").getBoundingClientRect();
+  $("s-prompt").style.transform = "none"; $("promptCard").style.transform = "none";
+  segs.forEach((s, i) => (segEls[i].textContent = s.text));
+  SRC = segs.filter((s) => s.c).map((s) => { const r = segEls[segs.indexOf(s)].getBoundingClientRect(); return { x: r.left - st.left, y: r.top - st.top, w: r.width, h: r.height }; });
+}
+const flyP = (t, k) => seg(t, departs(k), departs(k) + P.flyDur);
+function drawFlight(t) {
+  chips.forEach((c, k) => {
+    const p = flyP(t, k);
+    if (p <= 0 || p >= 1) { c.el.style.opacity = 0; return; }
+    const e = eio(p), S = SRC[k], n = c.node, D = { x: n.x, y: n.y - n.h / 2, w: n.w, h: n.h };
+    const x = lerp(S.x, D.x, e), y = lerp(S.y, D.y, e) - Math.sin(Math.PI * e) * 40;
+    const sp = Math.hypot(D.x - S.x, D.y - S.y) * Math.abs(vel((tt) => eio(flyP(tt, k)), t));
+    Object.assign(c.el.style, {
+      left: `${x.toFixed(1)}px`, top: `${y.toFixed(1)}px`, width: `${lerp(S.w, D.w, e).toFixed(1)}px`, height: `${lerp(S.h, D.h, e).toFixed(1)}px`,
+      borderRadius: `${lerp(4, 14, e).toFixed(1)}px`,
+      background: `linear-gradient(${c.color}, ${c.color}) 0 100% / 100% ${(3 * (1 - e)).toFixed(2)}px no-repeat, ${mix(C.card, c.color, 0.19 * (1 - e))}`,
+      borderColor: `rgba(52,52,58,${e.toFixed(3)})`,
+      opacity: 1 - seg(p, 0.95, 1),
+      filter: sp > 300 ? `blur(${Math.min(7, sp / 700).toFixed(1)}px)` : "none",
+    });
+    c.a.style.opacity = 1 - seg(p, 0.08, 0.42);
+    c.b.style.opacity = seg(p, 0.55, 0.85);
+  });
+}
+function drawGraph(t) {
+  if (t < 14.6 || t > 35.42) return put("s-graph", { o: 0 });
+  // camera: a slow push while it watches, a punch when it fires, then straight through the knot
+  let s1 = 1 + 0.03 * eio(seg(t, G.live, G.fire));
+  s1 += 0.02 * Math.min(eo(seg(t, G.fire, G.fire + 0.1)), Math.exp(-Math.max(0, t - G.fire - 0.1) * 4));
+  const z = eix(seg(t, 34.75, 35.4)), s2 = 1 + 10 * z;
+  // s1 about the frame centre, then s2 about where the knot has moved to
+  const kx = 960 + s1 * (BIG.knot.x - 960), ky = 540 + s1 * (BIG.knot.y - 540);
+  put("s-graph", { o: 1 - seg(t, 35.15, 35.4), s: s1 * s2, ox: 0, oy: 0, x: kx * (1 - s2) + s2 * 960 * (1 - s1), y: ky * (1 - s2) + s2 * 540 * (1 - s1), blur: 18 * z });
+  reveal(gTitle1, t, 15.15, 0.05, 0.8, 24.0);
+  reveal(gTitle2, t, 24.42, 0.05, 0.8);
+  // build: the boxes arrive with the phrases, then the threads weave between them
+  BIG_NODES.forEach((n, k) => showNode(n, seg(flyP(t, k), 0.9, 1), 0));
+  const b = G.build;
+  BIG.inW.forEach((w, i) => drawWire(w, eio(seg(t, b + 1.0 + i * 0.12, b + 1.9 + i * 0.12))));
+  const k = seg(t, b + 1.9, b + 2.35); BIG.kc.setAttribute("r", Math.max(0, 20 * back(k) * (k > 0 ? 1 : 0))); BIG.kl.style.opacity = eo(k);
+  BIG.outW.forEach((w) => drawWire(w, eio(seg(t, b + 2.2, b + 2.7))));
+  BIG.exW.forEach((w, i) => drawWire(w, eio(seg(t, b + 3.0 + i * 0.15, b + 3.6 + i * 0.15))));
+  reveal(gCap, t, b + 4.3, 0, 0.8, G.live - 0.7);
+  // live
+  const live = t >= G.live;
+  let met = 0;
+  BIG.sigs.forEach((n, i) => {
+    const L = LIVE[i];
+    if (!live) { n.value.textContent = ""; n.spark.setAttribute("d", ""); setTrace(n, 0); return; }
+    const isMet = t >= L.met; if (isMet) met++;
+    setVal(n, L.val(t), isMet ? C.long : C.ink);
+    if (L.f) spark(n, L.f, G.live, t, L.lo, L.hi);
+    setTrace(n, eo(seg(t, L.met, L.met + 0.45)));
+    const fl = Math.max(0, 1 - Math.abs(t - L.met - 0.15) / 0.3);
+    n.rect.setAttribute("fill", fl > 0 ? mix(C.card, C.long, fl * 0.14) : C.card);
+    const pu = BIG.pulses[i]; const w = BIG.inW[i];
+    if (isMet && t < G.fire + 0.3) { const ph = ((t - L.met) * 0.9) % 1; const pt = w.getPointAtLength(w.dataset.len * ph); pu.setAttribute("cx", pt.x); pu.setAttribute("cy", pt.y); pu.setAttribute("opacity", Math.sin(Math.PI * ph)); } else pu.setAttribute("opacity", 0);
+    w.setAttribute("stroke", isMet ? C.long : n.color); w.setAttribute("stroke-opacity", isMet ? 1 : live ? 0.5 : 1);
+  });
+  setArcs(BIG, LIVE_ORDER, t, eo(k));
+  const fired = t >= G.fire;
+  BIG.kl.textContent = !live ? "All must be true" : fired ? "All 5 true · trading" : `${met} of 5 true`;
+  BIG.kl.setAttribute("fill", fired ? C.long : C.amber);
+  BIG.kc.setAttribute("stroke", fired ? C.long : C.amber); BIG.kc.setAttribute("fill", fired ? C.long : C.paper);
+  BIG.kc.setAttribute("filter", fired ? "url(#bloom)" : "");
+  if (fired) { const r = seg(t, G.fire, G.fire + 1.1); BIG.kc.setAttribute("r", 20 + 12 * Math.sin(Math.PI * Math.min(1, r * 2))); BIG.ring.setAttribute("r", 36 + 140 * eox(r)); BIG.ring.setAttribute("opacity", (1 - r) * 0.9); } else BIG.ring.setAttribute("opacity", 0);
+  // the trade fills, the exits arm
+  const filled = t >= G.fire + 0.6;
+  const a = BIG.acts[0];
+  if (!live) setVal(a, ""); else setVal(a, filled ? "FILLED" : "WAITING", filled ? C.long : C.faint, true);
+  a.sub.textContent = filled ? "$200 · filled at $352.90" : "$200 on Hyperliquid";
+  setTrace(a, eo(seg(t, G.fire + 0.6, G.fire + 1.1)));
+  a.rect.setAttribute("fill", filled ? mix(C.card, C.long, 0.06 + 0.1 * Math.max(0, 1 - (t - G.fire - 0.6) / 0.8)) : C.card);
+  const EXIT_SUB = [["+40% on the position", "+40% · placed on Hyperliquid"], ["−15% on the position", "−15% · placed on Hyperliquid"], ["if the buzz halves", "if the buzz halves · watching"]];
+  BIG.exits.forEach((n, i) => { const at = G.fire + 1.0 + i * 0.25, armed = t >= at; n.sub.textContent = EXIT_SUB[i][armed ? 1 : 0]; n.sub.setAttribute("fill", armed ? C.ink2 : C.muted); setVal(n, armed ? "ARMED" : "", C.ink2, true); setTrace(n, eo(seg(t, at, at + 0.45)), n.color); });
+  // the clock
+  const cr = live ? eo(seg(t, G.live, G.live + 0.5)) : 0; $("clockRow").style.opacity = cr; $("clockRow").style.transform = `translateY(${(1 - cr) * 10}px)`;
+  const run = seg(t, G.live, G.fire);
+  const mins = eio(run) * (9 * 60 + 41);
+  const hh = 8 + Math.floor(mins / 60), mm = Math.floor(mins % 60);
+  $("clockDay").textContent = `Today ${String(hh).padStart(2, "0")}:${String(mm).padStart(2, "0")}${fired ? " · trade placed" : ""}`;
+  $("clockDay").style.color = fired ? C.long : C.ink;
+  $("checks").textContent = `${Math.floor(eio(run) * 2_324).toLocaleString("en-US")} checks`;
+  $("clockBar").style.width = `${run * 100}%`; $("clockBar").style.background = fired ? C.long : C.blue; $("clockBar").style.boxShadow = `0 0 12px ${fired ? C.long : C.blue}`;
+  // a bloom of light from the knot when it fires
+  const fl = t >= G.fire ? Math.exp(-(t - G.fire) * 3.2) * eo(seg(t, G.fire, G.fire + 0.06)) : 0;
+  $("flash").style.background = `radial-gradient(700px 700px at ${BIG.knot.x}px ${BIG.knot.y}px, rgba(62,207,142,0.32), transparent 70%)`;
+  $("flash").style.opacity = fl;
+}
+
+/* ================= montage ================= */
+const MONT = [
+  {
+    sentence: "Copy trader 0x7aa1…e8c2 with $100 a trade, but only while Fear & Greed is above 50 and BTC holds $80k.",
+    spec: {
+      layout: { sx: 300, sw: 520, sh: 92, sy0: 470, sgap: 122, kx: 960, ky: 592, ax: 1060, aw: 520, ah: 100, ay0: 592, agap: 0 },
+      signals: [
+        { title: "Trader 0x7aa1…e8c2", sub: "opens a position", color: C.long },
+        { title: "Crypto Fear & Greed", sub: "above 50", color: C.amber },
+        { title: "BTC", sub: "above $80,000", color: C.blue },
+      ],
+      actions: [{ title: "Copy the trade", sub: "$100 each · close with them", color: C.long, fs: 28 }],
+    },
+  },
+  {
+    sentence: "Buy $PUMP with 0.5 SOL when three smart wallets buy it within an hour, holders grow 5% and liquidity tops $2M.",
+    spec: {
+      layout: { sx: 300, sw: 520, sh: 86, sy0: 400, sgap: 104, kx: 960, ky: 608, ax: 1060, aw: 520, ah: 100, ay0: 608, agap: 0 },
+      signals: [
+        { title: "Wallet 7xKp…9fQe", sub: "buys $PUMP", color: C.long },
+        { title: "Wallet 9Qr2…mT4a", sub: "buys $PUMP", color: C.long },
+        { title: "Wallet Fh4T…2wLc", sub: "buys $PUMP", color: C.long },
+        { title: "$PUMP holders", sub: "up 5% in an hour", color: C.violet },
+        { title: "$PUMP liquidity", sub: "above $2M", color: C.sky },
+      ],
+      actions: [{ title: "Buy $PUMP", sub: "0.5 SOL · stop −20%", color: C.long, fs: 28 }],
+    },
+  },
+  {
+    sentence: "When Polymarket’s Fed cut odds pass 60%, the 2-year yield falls 10 bp and Fear & Greed is under 30, go long BTC and gold.",
+    spec: {
+      layout: { sx: 300, sw: 520, sh: 92, sy0: 470, sgap: 122, kx: 960, ky: 592, ax: 1060, aw: 520, ah: 100, ay0: 520, agap: 150 },
+      signals: [
+        { title: "Polymarket", sub: "Fed cut odds above 60%", color: C.blue },
+        { title: "US 2-year yield", sub: "down 10 bp in 5 days", color: C.sky },
+        { title: "Crypto Fear & Greed", sub: "under 30", color: C.amber },
+      ],
+      actions: [
+        { title: "Long BTC 2×", sub: "$100 · stop −10%", color: C.long, fs: 28 },
+        { title: "Long gold 3×", sub: "$100 · stop −10%", color: C.long, fs: 28 },
+      ],
+    },
+  },
+];
+const M = { A: 35.2, B: 46.4, start: 35.9, each: 3.5, builds: [35.3, 39.4, 42.9] };
+const mTitle = maskWords($("mTitle"), "Any signal. Any market. One sentence.");
+const mGraphs = MONT.map((m) => { const grp = el("g", {}, $("mSvg")); return { grp, gr: graph(grp, m.spec) }; });
+/** The strip of diagrams pans one screen left at each change. */
+const panAt = (t) => 1920 * [1, 2].reduce((a, i) => a + eiox(seg(t, M.start + i * M.each - 0.35, M.start + i * M.each + 0.35)), 0);
+const toWall = (t) => eiox(seg(t, 46.0, 46.7));
+function drawMontage(t) {
+  if (t < 35.1 || t > 46.72) return put("s-montage", { o: 0 });
+  const zin = eox(seg(t, 35.1, 35.9));
+  const vx = Math.abs(vel((tt) => 1920 * toWall(tt), t));
+  put("s-montage", { o: seg(t, 35.1, 35.35), s: 0.5 + 0.5 * zin, ox: 960, oy: 592, blur: (1 - zin) * 14, x: -1920 * toWall(t), bx: Math.min(40, vx / 200) });
+  reveal(mTitle, t, 35.35, 0.05, 0.8);
+  const pan = panAt(t), pv = Math.abs(vel(panAt, t));
+  $("mSvg").style.filter = filterOf("strip", Math.min(40, pv / 200), 0, 0);
+  // the sentence rolls over with each diagram
+  const idx = clamp(Math.floor((t - M.start + 0.35) / M.each), 0, MONT.length - 1);
+  const b0 = M.start + idx * M.each;
+  $("mSentence").textContent = MONT[idx].sentence;
+  const yin = (1 - eox(seg(t, idx ? b0 - 0.1 : 35.45, idx ? b0 + 0.6 : 36.15))) * 100, yout = idx < MONT.length - 1 ? eix(seg(t, b0 + M.each - 0.45, b0 + M.each - 0.05)) * 100 : 0;
+  $("mSentence").style.transform = `translateY(${(t < 35.4 ? 100 : yin - yout).toFixed(2)}%)`;
+  mGraphs.forEach(({ grp, gr }, i) => {
+    const off = i * 1920 - pan;
+    grp.setAttribute("transform", `translate(${off.toFixed(1)} 0)`);
+    grp.style.display = Math.abs(off) >= 1920 ? "none" : "";
+    if (Math.abs(off) >= 1920) return;
+    const b = M.builds[i];
+    gr.sigs.forEach((n, j) => showNode(n, eo(seg(t, b + 0.15 + j * 0.1, b + 0.55 + j * 0.1))));
+    gr.inW.forEach((w, j) => drawWire(w, eio(seg(t, b + 0.6 + j * 0.06, b + 1.2 + j * 0.06))));
+    const kk = seg(t, b + 1.1, b + 1.45); gr.kc.setAttribute("r", Math.max(0, 20 * back(kk) * (kk > 0 ? 1 : 0))); gr.kl.style.opacity = eo(kk);
+    gr.outW.forEach((w) => drawWire(w, eio(seg(t, b + 1.35, b + 1.8))));
+    gr.acts.forEach((n, j) => showNode(n, eo(seg(t, b + 1.6 + j * 0.12, b + 2.0 + j * 0.12))));
+    const times = gr.sigs.map((_, j) => b + 1.9 + j * 0.14);
+    let met = 0;
+    gr.sigs.forEach((n, j) => { const m = t >= times[j]; if (m) met++; setTrace(n, eo(seg(t, times[j], times[j] + 0.4))); gr.inW[j].setAttribute("stroke", m ? C.long : n.color); gr.inW[j].setAttribute("stroke-opacity", m ? 1 : 0.6); });
+    setArcs(gr, times, t, eo(kk));
+    const fstart = times[times.length - 1], fired = t >= fstart;
+    gr.kl.textContent = fired ? `All ${gr.sigs.length} true` : `${met} of ${gr.sigs.length} true`;
+    gr.kl.setAttribute("fill", fired ? C.long : C.amber); gr.kc.setAttribute("stroke", fired ? C.long : C.amber); gr.kc.setAttribute("fill", fired ? C.long : C.paper);
+    gr.kc.setAttribute("filter", fired ? "url(#bloom)" : "");
+    if (fired) { const r = seg(t, fstart, fstart + 0.9); gr.ring.setAttribute("r", 36 + 110 * eox(r)); gr.ring.setAttribute("opacity", (1 - r) * 0.9); }
+    else gr.ring.setAttribute("opacity", 0);
+    gr.acts.forEach((n, j) => { const at = fstart + 0.15 + j * 0.1; setTrace(n, eo(seg(t, at, at + 0.45))); setVal(n, t >= at ? "FILLED" : "", C.long, true); });
+  });
+}
+
+/* ================= every source is a thread ================= */
+const SOURCES = [
+  ["Prices", "ETH breaks $2,600", C.blue], ["Funding", "Longs pay over 0.02% an hour", C.violet], ["Posts on X", "@elonmusk posts about Tesla", C.amber], ["Buzz on X", "$SOL mentions double", C.pink],
+  ["Wallets", "A wallet you follow buys", C.long], ["Traders", "A trader you copy goes long", C.long], ["Polymarket", "Fed cut odds pass 60%", C.blue], ["News", "Three Solana headlines in an hour", C.sky],
+  ["Fear & Greed", "The index falls to 20", C.amber], ["Rates", "2-year yield −10 bp in 5 days", C.sky], ["Weather", "Chicago 5°C colder next week", C.sky], ["Protocol fees", "Hyperliquid fees pass $5M a day", C.violet],
+];
+const wallTitle = maskWords($("wallTitle"), "Not just prices.");
+const wallSub = maskWords($("wallSub"), "Mix any of them in one sentence.");
+const ROW_H = 56, ROW_Y = 262;
+const wallRows = SOURCES.map(([n, ex, c], i) => {
+  const r = div(`<span class="m" style="display:block"><span style="display:flex;align-items:center"><span style="width:3px;height:22px;background:${c};border-radius:2px;margin-right:20px"></span><span class="label wl" style="width:250px">${n}</span><span class="wx" style="font-size:29px">${ex}</span></span></span>`, `position:absolute;left:0;top:${i * ROW_H}px;height:${ROW_H}px;display:flex;align-items:center`, $("wallRows"));
+  return { inner: r.querySelector(".m > span"), label: r.querySelector(".wl") };
+});
+const WK = { x: 1500, y: 598 };
+const WS = $("wallSvg");
+const wThreads = SOURCES.map(([, , c], i) => { const y = ROW_Y + i * ROW_H + ROW_H / 2; const p = el("path", { d: `M 1000 ${y} C 1270 ${y}, 1290 ${WK.y}, ${WK.x - 30} ${WK.y}`, stroke: c, "stroke-width": 2.5, fill: "none", "stroke-opacity": 0.8, "stroke-linecap": "round" }, WS); p.dataset.len = p.getTotalLength(); p.style.strokeDasharray = p.dataset.len; p.style.strokeDashoffset = p.dataset.len; return p; });
+const wOut = el("path", { d: `M ${WK.x + 30} ${WK.y} L 1990 ${WK.y}`, stroke: C.long, "stroke-width": 4.5, fill: "none", "stroke-linecap": "round" }, WS); wOut.dataset.len = wOut.getTotalLength(); wOut.style.strokeDasharray = wOut.dataset.len;
+const wRing = el("circle", { cx: WK.x, cy: WK.y, r: 0, fill: "none", stroke: C.long, "stroke-width": 2 }, WS);
+const wKnot = el("circle", { cx: WK.x, cy: WK.y, r: 0, fill: C.ink, filter: "url(#bloom)" }, WS);
+const wLabel = svgText(WS, WK.x, WK.y + 72, "ONE SENTENCE", { ...CAPS, "text-anchor": "middle" });
+const wPulses = SOURCES.map(([, , c]) => el("circle", { r: 4.5, fill: c, filter: "url(#glow)", opacity: 0 }, WS));
+const wOutPulses = [0, 1, 2].map(() => el("circle", { r: 5, fill: C.long, filter: "url(#glow)", opacity: 0, cy: WK.y }, WS));
+const W = { A: 46.2, B: 52.6 };
+const wipeAt = (t, t0) => eiox(seg(t, t0, t0 + 0.65));
+const WIPES = [52.15, 58.15];
+function drawWall(t) {
+  if (t < 46.0 || t > 52.82) return put("s-wall", { o: 0 });
+  const vx = Math.abs(vel((tt) => 1920 * toWall(tt) + 220 * wipeAt(tt, WIPES[0]), t));
+  const w = wipeAt(t, WIPES[0]);
+  put("s-wall", { x: 1920 * (1 - toWall(t)) - 220 * w, o: 1 - 0.8 * w, bx: Math.min(40, vx / 200) });
+  reveal(wallTitle, t, 46.55, 0.06, 0.8);
+  wallRows.forEach((r, i) => { const p = eox(seg(t, 46.8 + i * 0.07, 47.6 + i * 0.07)); r.inner.style.transform = `translateY(${((1 - p) * 140).toFixed(1)}%)`; });
+  wThreads.forEach((p, i) => drawWire(p, eio(seg(t, 47.2 + i * 0.08, 48.3 + i * 0.08))));
+  const k = seg(t, 48.45, 48.85); wKnot.setAttribute("r", Math.max(0, 20 * back(k) * (k > 0 ? 1 : 0)));
+  const rr = seg(t, 48.5, 49.6); wRing.setAttribute("r", 20 + 120 * eox(rr)); wRing.setAttribute("opacity", rr > 0 ? (1 - rr) * 0.8 : 0);
+  wOut.style.strokeDashoffset = wOut.dataset.len * (1 - eio(seg(t, 48.6, 49.3)));
+  wLabel.style.opacity = eo(seg(t, 48.8, 49.3));
+  // signals keep running down every thread into the knot
+  wThreads.forEach((p, i) => {
+    const ph = (t - 49.2) / 1.7 - i * 0.083, f = ph - Math.floor(ph), q = f / 0.55, pu = wPulses[i];
+    const on = t > 49.2 + i * 0.13 && q < 1;
+    if (on) { const pt = p.getPointAtLength(p.dataset.len * eio(q)); pu.setAttribute("cx", pt.x); pu.setAttribute("cy", pt.y); pu.setAttribute("opacity", Math.sin(Math.PI * q)); } else pu.setAttribute("opacity", 0);
+    wallRows[i].label.style.color = on && q < 0.35 ? mix(C.muted, C.ink, 1 - q / 0.35) : "";
+  });
+  wOutPulses.forEach((pu, j) => { const ph = ((t - 49.4) / 0.9 + j / 3) % 1; pu.setAttribute("cx", WK.x + 30 + ph * 460); pu.setAttribute("opacity", t > 49.4 ? Math.sin(Math.PI * ph) : 0); });
+  reveal(wallSub, t, 49.6, 0.04, 0.8);
+}
+
+/* ================= copy ================= */
+const copyTitle = maskWords($("copyTitle"), "Or copy the best traders.");
+const copyLead = maskWords($("copyLead"), "Hyperliquid’s most profitable accounts, one click away.");
+const copySub = maskWords($("copySub"), "Every new trade, with your own amount. They close, you close.");
+const TRADERS = [["0x7aa1…e8c2", "+$4.81M", "+62%"], ["0x3f9c…11ab", "+$3.92M", "+41%"], ["0x8d2e…a07f", "+$2.77M", "+88%"], ["0xc41b…5e9d", "+$2.10M", "+23%"]];
+const COLS = "grid-template-columns:60px 1fr 190px 120px 170px";
+const head = div(`<div class="label" style="display:grid;${COLS};padding:0 24px 16px;font-size:18px"><span>#</span><span>Trader</span><span style="text-align:right">30-day profit</span><span style="text-align:right">Return</span><span></span></div>`, "", $("table"));
+const rowEls = TRADERS.map(([a, p, r], i) => div(`<div class="rowIn" style="display:grid;${COLS};align-items:center;padding:22px 24px;font-size:30px;border-top:1.5px solid ${C.line};border-radius:2px"><span class="faint tnum">${i + 1}</span><span>${a}</span><span style="text-align:right;color:${C.long}" class="tnum">${p}</span><span style="text-align:right;color:${C.ink2}" class="tnum">${r}</span><span style="text-align:right"><span class="copyBtn" style="display:inline-block;border:1.5px solid ${C.line2};border-radius:10px;padding:8px 18px;font-size:22px;font-weight:600">Copy</span></span></div>`, "", $("table")));
+const CS = $("copySvg");
+const LX0 = 1040, LX1 = 1780, LY1 = 450, LY2 = 650;
+const laneG = el("g", {}, CS);
+const lab1 = svgText(laneG, LX0, LY1 - 64, "TRADER 0x7AA1…E8C2", CAPS);
+const lab2 = svgText(laneG, LX0, LY2 + 72, "YOUR COPY · $100 A TRADE", CAPS);
+const lane1 = el("line", { x1: LX0, x2: LX1, y1: LY1, y2: LY1, stroke: C.line2, "stroke-width": 1.5 }, laneG);
+const lane2 = el("line", { x1: LX0, x2: LX1, y1: LY2, y2: LY2, stroke: C.line2, "stroke-width": 1.5 }, laneG);
+const playhead = el("line", { y1: LY1 - 40, y2: LY2 + 40, stroke: C.ink, "stroke-opacity": 0.35, "stroke-width": 1.5 }, CS);
+const posBar = (color) => el("rect", { y: 0, height: 44, rx: 6, fill: mix(C.card, color, 0.2), stroke: color, "stroke-width": 1.5, opacity: 0 }, CS);
+const bar1 = posBar(C.blue), bar2 = posBar(C.long);
+const bar1t = svgText(CS, 0, LY1 + 8, "Long BTC 10×", { "font-size": 22, fill: C.ink, opacity: 0 });
+const bar2t = svgText(CS, 0, LY2 + 8, "Long BTC 10× · $100", { "font-size": 22, fill: C.ink, opacity: 0 });
+const thrOpen = el("path", { fill: "none", stroke: C.long, "stroke-width": 2, opacity: 0 }, CS);
+const thrClose = el("path", { fill: "none", stroke: C.long, "stroke-width": 2, opacity: 0 }, CS);
+const tag1 = svgText(CS, 0, LY1 - 34, "", { "font-size": 26, fill: C.long, "text-anchor": "end", "font-variant-numeric": "tabular-nums" });
+const tag2 = svgText(CS, 0, LY2 + 64, "", { "font-size": 26, fill: C.long, "text-anchor": "end", "font-variant-numeric": "tabular-nums" });
+const K = { A: 52.4, B: 58.6 };
+function drawCopy(t) {
+  if (t < WIPES[0] || t > WIPES[1] + 0.68) return put("s-copy", { o: 0 });
+  const w = wipeAt(t, WIPES[0]), w2 = wipeAt(t, WIPES[1]);
+  put("s-copy", { x: 220 * (1 - w) - 220 * w2, o: 1 - 0.8 * w2, clip: w < 1 ? `inset(0 0 0 ${(1920 * (1 - w)).toFixed(1)}px)` : "" });
+  const A = K.A;
+  reveal(copyTitle, t, A + 0.2, 0.05, 0.8);
+  reveal(copyLead, t, A + 0.4, 0.025, 0.8);
+  head.style.opacity = eo(seg(t, A + 0.35, A + 0.8));
+  rowEls.forEach((r, i) => { const p = eox(seg(t, A + 0.4 + i * 0.08, A + 1.1 + i * 0.08)); r.style.opacity = p; r.style.transform = `translateY(${((1 - p) * 30).toFixed(1)}px)`; });
+  // the cursor, the click
+  const btnEl = rowEls[0].querySelector(".copyBtn");
+  const btn = btnEl.getBoundingClientRect(), sc = $("s-copy").getBoundingClientRect();
+  const tx = btn.left - sc.left + btn.width / 2, ty = btn.top - sc.top + btn.height / 2;
+  const mv = eiox(seg(t, A + 0.95, A + 1.85));
+  const click = seg(t, A + 1.9, A + 2.05) - seg(t, A + 2.05, A + 2.2);
+  $("cursor").style.opacity = eo(seg(t, A + 0.9, A + 1.2)) * (1 - seg(t, A + 2.7, A + 3.1));
+  $("cursor").style.transform = `translate(${(lerp(tx + 300, tx, mv) - 6).toFixed(1)}px, ${(lerp(ty + 220, ty, mv) - 4).toFixed(1)}px) scale(${1 - click * 0.15})`;
+  rowEls[0].querySelector(".rowIn").style.background = `rgba(244,243,239,${(0.04 * seg(mv, 0.7, 1)).toFixed(3)})`;
+  const on = t > A + 2.05;
+  btnEl.style.background = on ? C.ink : "transparent"; btnEl.style.color = on ? C.paper : C.ink; btnEl.style.borderColor = on ? C.ink : C.line2; btnEl.textContent = on ? "Copying" : "Copy";
+  // two timelines: theirs and yours
+  const lg = eo(seg(t, A + 2.1, A + 2.6));
+  laneG.style.opacity = lg;
+  [lane1, lane2].forEach((ln, i) => ln.setAttribute("x2", lerp(LX0, LX1, eiox(seg(t, A + 2.1 + i * 0.1, A + 2.8 + i * 0.1)))));
+  const px = (tt) => lerp(LX0, LX1 - 20, seg(tt, A + 2.2, A + 5.7));
+  const tOpen = A + 2.6, tCopy = A + 2.95, tClose = A + 4.6, tCopyClose = A + 4.85;
+  const ph = px(t);
+  playhead.setAttribute("x1", ph); playhead.setAttribute("x2", ph); playhead.setAttribute("opacity", lg * (1 - seg(t, A + 5.6, A + 5.9)));
+  const bar = (r, txt, t0, t1, y) => {
+    if (t < t0) { r.setAttribute("opacity", 0); txt.setAttribute("opacity", 0); return; }
+    const x0 = px(t0), x1 = px(Math.min(t, t1));
+    r.setAttribute("x", x0); r.setAttribute("y", y - 22); r.setAttribute("width", Math.max(2, x1 - x0)); r.setAttribute("opacity", eo(seg(t, t0, t0 + 0.2)));
+    txt.setAttribute("x", x0 + 16); txt.setAttribute("opacity", eo(seg(t, t0 + 0.15, t0 + 0.45)));
+  };
+  bar(bar1, bar1t, tOpen, tClose, LY1); bar(bar2, bar2t, tCopy, tCopyClose, LY2);
+  const thr = (path, t0, t1) => {
+    const x0 = px(t0), x1 = px(t1);
+    path.setAttribute("d", `M ${x0} ${LY1 + 22} C ${x0} ${LY1 + 110}, ${x1} ${LY2 - 110}, ${x1} ${LY2 - 22}`);
+    const len = path.getTotalLength(), p = eio(seg(t, t0, t1));
+    path.style.strokeDasharray = len; path.style.strokeDashoffset = len * (1 - p); path.setAttribute("opacity", t >= t0 ? 0.85 : 0);
+  };
+  thr(thrOpen, tOpen + 0.05, tCopy); thr(thrClose, tClose + 0.05, tCopyClose);
+  const n1 = 8.2 * eo5(seg(t, tClose, tClose + 0.6)), n2 = 8.1 * eo5(seg(t, tCopyClose, tCopyClose + 0.6));
+  tag1.setAttribute("x", px(tClose)); tag1.textContent = t >= tClose ? `+${n1.toFixed(1)}%` : ""; tag1.setAttribute("opacity", eo(seg(t, tClose, tClose + 0.25)));
+  tag2.setAttribute("x", px(tCopyClose)); tag2.textContent = t >= tCopyClose ? `+${n2.toFixed(1)}%` : ""; tag2.setAttribute("opacity", eo(seg(t, tCopyClose, tCopyClose + 0.25)));
+  reveal(copySub, t, A + 3.9, 0.035, 0.8);
+}
+
+/* ================= simple ================= */
+// The sentence is typed, its four meaningful words are picked out, and each drops into its column
+// of the order ticket. Size and entry are worked out and roll in, then the order fills.
+const SIMPLE = "Long ETH 20x with $100 now.";
+const S = { A: 58.4, B: 63.4 };
+const simpleTitle = maskWords($("simpleTitle"), "Or keep it simple.");
+const SIMPLE_TOKENS = [["Long", C.long], ["ETH", C.blue], ["20x", C.violet], ["$100", C.amber]];
+$("simpleText").innerHTML = [...SIMPLE].map((ch) => `<span>${ch === " " ? "&nbsp;" : ch}</span>`).join("");
+const sChars = [...$("simpleText").children];
+const sCaret = div("", `position:absolute;top:14px;width:5px;height:80px;background:${C.ink}`, $("simpleText"));
+const TICKET = [["Side", "Long", C.long], ["Market", "ETH"], ["Leverage", "20×"], ["Margin", "$100"], ["Size", "$2,000"], ["Entry", "$2,431.40"]];
+const TW = [210, 210, 220, 220, 250, 290], TCX = TW.map((_, i) => TW.slice(0, i).reduce((a, b) => a + b, 0)), TLEN = 1400, TX = 260, TY = 590, TB = 760;
+const tCols = TICKET.map(([label, value, color], i) => {
+  const c = div(`<div class="label">${label}</div><div class="v tnum" style="margin-top:22px;font-size:56px;line-height:1.15;letter-spacing:-0.02em;color:${color ?? C.ink};white-space:nowrap"></div>`, `position:absolute;left:${TCX[i]}px;top:36px`, $("ticket"));
+  return { c, v: c.querySelector(".v"), value, rolls: i >= 4 };
+});
+/** An odometer: every digit spins down into place, the right-hand ones a few more turns. */
+function odometer(target, str) {
+  const digits = [...str].filter((ch) => /\d/.test(ch)).length;
+  let j = 0;
+  target.innerHTML = [...str].map((ch) => {
+    if (!/\d/.test(ch)) return `<span style="display:inline-block">${ch}</span>`;
+    const turns = 1 + (digits - 1 - j++);
+    const stack = Array.from({ length: 10 * turns + Number(ch) + 1 }, (_, k) => `<span style="display:block;height:1.15em">${k % 10}</span>`).join("");
+    return `<span class="od" data-k="${10 * turns + Number(ch)}" style="display:inline-block;height:1.15em;overflow:hidden;vertical-align:top"><span style="display:block">${stack}</span></span>`;
+  }).join("");
+  return [...target.querySelectorAll(".od")].map((o) => ({ inner: o.firstChild, k: Number(o.dataset.k) }));
+}
+tCols.forEach((c) => { if (c.rolls) c.odo = odometer(c.v, c.value); else c.v.textContent = c.value; });
+const tFoot = div(`<span class="faint" style="font-size:26px">Market order on Hyperliquid</span><span id="tStatus" style="font-size:26px"></span>`, `position:absolute;left:0;right:0;top:${TB - TY + 30}px;display:flex;justify-content:space-between`, $("ticket"));
+const SV = $("simpleSvg");
+const hair = (y, color = C.line2, w = 1.5) => { const p = el("path", { d: `M ${TX} ${y} L ${TX + TLEN} ${y}`, stroke: color, "stroke-width": w, fill: "none" }, SV); p.dataset.len = TLEN; p.style.strokeDasharray = TLEN; return p; };
+const hTop = hair(TY), hBot = hair(TB), hFill = hair(TY, C.long, 2.5);
+let sTok = null;
+function simpleLayout() {
+  // measured once, after the fonts are in (offsets ignore the scene's transform)
+  const box = $("simpleText");
+  return SIMPLE_TOKENS.map(([w, color], i) => {
+    const at = SIMPLE.indexOf(w), a = sChars[at], b = sChars[at + w.length - 1];
+    const x0 = box.offsetLeft + a.offsetLeft, x1 = box.offsetLeft + b.offsetLeft + b.offsetWidth;
+    const y = box.offsetTop + a.offsetTop + a.offsetHeight + 4;
+    const under = el("path", { d: `M ${x0} ${y} L ${x1} ${y}`, stroke: color, "stroke-width": 4, "stroke-linecap": "round", fill: "none" }, SV);
+    under.dataset.len = x1 - x0; under.style.strokeDasharray = x1 - x0;
+    const cx = (x0 + x1) / 2, tx = TX + TCX[i] + 2;
+    const drop = el("path", { d: `M ${cx} ${y + 10} C ${cx} ${y + 90}, ${tx} ${TY - 90}, ${tx} ${TY}`, stroke: color, "stroke-width": 2, "stroke-opacity": 0.7, fill: "none" }, SV);
+    drop.dataset.len = drop.getTotalLength(); drop.style.strokeDasharray = drop.dataset.len;
+    const land = el("circle", { cx: tx, cy: TY, r: 5, fill: color, opacity: 0, filter: "url(#glow)" }, SV);
+    return { under, drop, land };
+  });
+}
+const toSafe = (t) => eiox(seg(t, 63.0, 63.6));
+function drawSimple(t) {
+  if (t < WIPES[1] || t > 63.62) return put("s-simple", { o: 0 });
+  const w = wipeAt(t, WIPES[1]), vy = Math.abs(vel((tt) => 1080 * toSafe(tt), t));
+  put("s-simple", { x: 220 * (1 - w), y: -1080 * toSafe(t), by: Math.min(40, vy / 200), clip: w < 1 ? `inset(0 0 0 ${(1920 * (1 - w)).toFixed(1)}px)` : "" });
+  const A = S.A;
+  if (!sTok) sTok = simpleLayout();
+  reveal(simpleTitle, t, A + 0.15, 0.05, 0.8);
+  // typing
+  const n = Math.floor(SIMPLE.length * seg(t, A + 0.5, A + 1.5));
+  sChars.forEach((c, i) => (c.style.opacity = i < n ? 1 : 0));
+  const last = sChars[Math.max(0, n - 1)];
+  sCaret.style.left = `${n ? last.offsetLeft + last.offsetWidth + 4 : sChars[0].offsetLeft}px`;
+  sCaret.style.opacity = t < A + 1.6 ? 1 : 0;
+  // the four words are picked out and drop into the ticket
+  const fade = 1 - seg(t, A + 3.4, A + 3.9);
+  sTok.forEach((k, i) => {
+    const u = eio(seg(t, A + 1.6 + i * 0.12, A + 1.95 + i * 0.12));
+    k.under.style.strokeDashoffset = k.under.dataset.len * (1 - u);
+    const d = eio(seg(t, A + 1.8 + i * 0.12, A + 2.35 + i * 0.12));
+    k.drop.style.strokeDashoffset = k.drop.dataset.len * (1 - d);
+    k.drop.style.opacity = fade;
+    k.land.setAttribute("opacity", d >= 1 ? fade : 0);
+  });
+  const dim = eo(seg(t, A + 1.6, A + 2.1));
+  sChars.forEach((c, i) => { if (!SIMPLE_TOKENS.some(([w]) => i >= SIMPLE.indexOf(w) && i < SIMPLE.indexOf(w) + w.length)) c.style.color = dim > 0 ? `rgba(244,243,239,${1 - 0.6 * dim})` : ""; });
+  // the ticket
+  const ht = eio(seg(t, A + 1.85, A + 2.6)), hb = eio(seg(t, A + 2.0, A + 2.75));
+  hTop.style.strokeDashoffset = TLEN * (1 - ht); hBot.style.strokeDashoffset = TLEN * (1 - hb);
+  tCols.forEach((c, i) => {
+    const at = i < 4 ? A + 2.25 + i * 0.12 : A + 2.7 + (i - 4) * 0.15;
+    const p = eox(seg(t, at, at + 0.6));
+    c.c.style.opacity = p; c.c.style.transform = `translateY(${(1 - p) * 26}px)`;
+    if (c.rolls) { const r = eo5(seg(t, at, at + 0.9)); c.odo.forEach((o) => (o.inner.style.transform = `translateY(${-o.k * r * 1.15}em)`)); }
+  });
+  // it fills
+  const fillAt = A + 3.6, f = eio(seg(t, fillAt, fillAt + 0.5));
+  hFill.style.strokeDashoffset = TLEN * (1 - f);
+  hFill.setAttribute("filter", f > 0 ? "url(#glow)" : "");
+  tFoot.style.opacity = eo(seg(t, A + 2.6, A + 3.0));
+  $("tStatus").innerHTML = t >= fillAt ? `<span class="label" style="color:${C.long}">Filled</span><span class="tnum" style="margin-left:18px;color:${C.ink2}">0.8225 ETH</span>` : `<span class="faint">Sending…</span>`;
+  $("tStatus").style.opacity = t >= fillAt ? eo(seg(t, fillAt, fillAt + 0.3)) : 1;
+}
+
+/* ================= safety ================= */
+const safeTitle = maskWords($("safeTitle"), "Your money never leaves your wallet.");
+const safeSub = maskWords($("safeSub"), "Weft can trade for you. It can’t withdraw.");
+const SS = $("safeSvg");
+const gWeft = el("g", {}, SS), gAcct = el("g", {}, SS);
+el("rect", { x: 300, y: 400, width: 440, height: 250, rx: 18, fill: C.card, stroke: C.line2, "stroke-width": 1.5 }, gWeft);
+svgText(gWeft, 344, 462, "WEFT", CAPS);
+svgText(gWeft, 344, 528, "Trading-only key", { "font-size": 40, fill: C.ink, "font-weight": 500 });
+svgText(gWeft, 344, 584, "Signs orders. Nothing else.", { "font-size": 25, fill: C.muted });
+el("rect", { x: 1180, y: 370, width: 440, height: 310, rx: 18, fill: C.card, stroke: C.line2, "stroke-width": 1.5 }, gAcct);
+svgText(gAcct, 1224, 432, "YOUR ACCOUNT · HYPERLIQUID", CAPS);
+svgText(gAcct, 1224, 498, "$2,400.00", { "font-size": 54, fill: C.ink, "font-variant-numeric": "tabular-nums", "letter-spacing": -1 });
+el("line", { x1: 1224, x2: 1576, y1: 528, y2: 528, stroke: C.line2, "stroke-width": 1.5 }, gAcct);
+const POS = [["Long ETH 20×", "+$34.20", C.long], ["Long TSLA 10×", "+$12.80", C.long], ["Short SOL 5×", "−$3.10", C.short]];
+const posRows = POS.map(([a, b, c], i) => { const g = el("g", { opacity: 0 }, gAcct); svgText(g, 1224, 572 + i * 40, a, { "font-size": 25, fill: C.ink2 }); svgText(g, 1576, 572 + i * 40, b, { "font-size": 25, fill: c, "text-anchor": "end", "font-variant-numeric": "tabular-nums" }); return g; });
+const ordLine = el("path", { d: "M 740 470 L 1180 470", stroke: C.long, "stroke-width": 2, fill: "none" }, SS); ordLine.style.strokeDasharray = 440;
+const ordLabel = svgText(SS, 960, 446, "ORDERS", { ...CAPS, fill: C.long, "text-anchor": "middle" });
+const ordPulses = [0, 1, 2].map(() => el("circle", { r: 5.5, cy: 470, fill: C.long, filter: "url(#glow)", opacity: 0 }, SS));
+const wdLine = el("path", { d: "M 1180 590 L 740 590", stroke: C.short, "stroke-width": 2, fill: "none", "stroke-dasharray": "10 10" }, SS);
+const wdLabel = svgText(SS, 960, 650, "WITHDRAW", { ...CAPS, fill: C.short, "text-anchor": "middle" });
+const gate = el("g", {}, SS);
+const gateC = el("circle", { cx: 960, cy: 590, r: 26, fill: C.paper, stroke: C.short, "stroke-width": 2 }, gate);
+el("rect", { x: 950, y: 588, width: 20, height: 15, rx: 3, fill: C.short }, gate);
+el("path", { d: "M 954 588 v -5 a 6 6 0 0 1 12 0 v 5", stroke: C.short, "stroke-width": 2.5, fill: "none" }, gate);
+const wdDot = el("circle", { r: 6, cy: 590, fill: C.short, filter: "url(#glow)", opacity: 0 }, SS);
+const F = { A: 63.2, B: 67.8 };
+function drawSafe(t) {
+  if (t < 63.0 || t > 67.75) return put("s-safe", { o: 0 });
+  const vy = Math.abs(vel((tt) => 1080 * toSafe(tt), t)), c = eix(seg(t, 67.25, 67.7));
+  put("s-safe", { y: 1080 * (1 - toSafe(t)), by: Math.min(40, vy / 200), s: 1 - 0.97 * c, ox: 960, oy: 420, blur: 12 * c, o: 1 - seg(t, 67.5, 67.72) });
+  const A = F.A;
+  reveal(safeTitle, t, A + 0.45, 0.04, 0.8);
+  [gWeft, gAcct].forEach((g, i) => { const p = eox(seg(t, A + 0.6 + i * 0.15, A + 1.3 + i * 0.15)); g.style.opacity = p; g.style.transform = `translateY(${((1 - p) * 30).toFixed(1)}px)`; });
+  ordLine.style.strokeDashoffset = 440 * (1 - eio(seg(t, A + 1.0, A + 1.5))); ordLabel.style.opacity = eo(seg(t, A + 1.2, A + 1.6));
+  // three orders go through, and each one shows up in the account
+  ordPulses.forEach((d, i) => { const t0 = A + 1.3 + i * 0.7, p = seg(t, t0, t0 + 0.5); d.setAttribute("cx", lerp(740, 1180, eio(p))); d.setAttribute("opacity", p > 0 && p < 1 ? Math.pow(Math.sin(Math.PI * p), 0.5) : 0); const r = eox(seg(t, t0 + 0.45, t0 + 0.9)); posRows[i].setAttribute("opacity", r); posRows[i].style.transform = `translateY(${((1 - r) * 12).toFixed(1)}px)`; });
+  const wl = eo(seg(t, A + 1.8, A + 2.3)); [wdLine, wdLabel, gate].forEach((e) => (e.style.opacity = wl));
+  // a withdrawal tries to leave and stops dead at the lock, twice
+  let hit = 0, dot = 0;
+  [A + 2.2, A + 3.3].forEach((t0) => {
+    const l = t - t0; if (l < 0 || l > 1.1) return;
+    const x = l < 0.45 ? lerp(1180, 992, eix(seg(l, 0, 0.45)) * 0.6 + seg(l, 0, 0.45) * 0.4) : lerp(992, 1070, eox(seg(l, 0.45, 1.1)));
+    wdDot.setAttribute("cx", x); dot = l < 0.45 ? 1 : 1 - seg(l, 0.45, 1.1);
+    hit = Math.max(hit, l >= 0.45 ? Math.exp(-(l - 0.45) * 5) : 0);
+  });
+  wdDot.setAttribute("opacity", dot * wl);
+  gateC.setAttribute("fill", mix(C.paper, C.short, hit * 0.35));
+  gate.style.transform = `translateX(${(Math.sin(hit * 30) * hit * 4).toFixed(2)}px)`;
+  wdLabel.textContent = t >= A + 2.65 ? "WITHDRAW · NOT PERMITTED" : "WITHDRAW";
+  reveal(safeSub, t, A + 2.8, 0.04, 0.8);
+}
+
+/* ================= transitions that belong to no scene ================= */
+function drawWipeLine(t) {
+  const w = WIPES.map((t0) => wipeAt(t, t0)).find((x) => x > 0 && x < 1);
+  if (w == null) { $("wipe").style.opacity = 0; return; }
+  $("wipe").style.opacity = Math.sin(Math.PI * w) * 0.9 + 0.1;
+  $("wipe").style.transform = `translateX(${(2140 * (1 - w) - 1).toFixed(1)}px)`;
+}
+
+/* ================= timeline ================= */
+let laid = false;
+function renderAt(t) {
+  if (!laid) { measurePrompt(); laid = true; }
+  drawLogo(t);
+  drawHook(t);
+  drawPrompt(t);
+  drawGraph(t);
+  drawFlight(t);
+  drawMontage(t);
+  drawWall(t);
+  drawCopy(t);
+  drawSimple(t);
+  drawSafe(t);
+  drawWipeLine(t);
+  if (t < 33 || t > 36) $("flash").style.opacity = 0;
+  const gx = 50 + 20 * Math.sin(t * 0.21), gy = 40 + 15 * Math.cos(t * 0.17);
+  $("glowBg").style.background = `radial-gradient(1100px 700px at ${gx}% ${gy}%, rgba(124,140,255,0.07), transparent 70%)`;
+  const fk = Math.floor(t * 24);
+  $("grain").style.backgroundImage = GRAIN[fk % 8];
+  $("grain").style.backgroundPosition = `${(hash(fk, 1) * 128).toFixed(0)}px ${(hash(fk, 2) * 128).toFixed(0)}px`;
+}
+window.DURATION = DURATION;
+window.renderAt = renderAt;
+window.CUES = { P, G, M, W, K, S, F, END, LIVE: LIVE.map((l) => l.met), promptLength: PROMPT.length };
+if (!navigator.webdriver) {
+  const q = new URLSearchParams(location.search);
+  if (q.has("t")) document.fonts.ready.then(() => renderAt(Number(q.get("t"))));
+  else { const t0 = performance.now(); const loop = () => { renderAt(((performance.now() - t0) / 1000) % DURATION); requestAnimationFrame(loop); }; document.fonts.ready.then(loop); }
+}
+</script>
+</body>
+</html>

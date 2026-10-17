@@ -227,6 +227,8 @@ function buildIntents(s: Strategy, input: EvalInput, state: EvalState, fired: st
   const intents: Intent[] = [];
 
   for (const a of s.actions) {
+    // Copy actions run on the leader's trades, not on trigger fires (the runtime handles them).
+    if (a.type === "copy") continue;
     const triggerId = a.on.find((id) => firedSet.has(id));
     if (!triggerId) continue;
     const as = state.actions[a.id]!;
@@ -261,6 +263,8 @@ function toIntent(a: Action, base: IntentBase, equityUsd: number, defaultSlippag
       return { ...base, type: "close", target: a.target === "all" ? "all" : instrumentKey(a.target.instrument), fraction: a.fraction };
     case "notify":
       return { ...base, type: "notify", channel: a.channel, message: a.message };
+    case "copy":
+      throw new Error("copy actions don't become intents from triggers");
   }
 }
 

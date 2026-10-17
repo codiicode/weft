@@ -51,7 +51,7 @@ export default function LeaderboardPage() {
                           {r.strategy && <AssetStack items={strategyIcons(r.strategy)} size={26} max={2} />}
                           <div className="min-w-0">
                             <div className="font-medium text-ink">{r.name}</div>
-                            {r.status !== "running" && <div className="mt-0.5 text-[12.5px] capitalize text-muted">{r.status}</div>}
+                            {r.status !== "running" && <div className="mt-0.5 text-[12.5px] text-muted">{r.status === "paused" ? "Paused" : "Ended"}</div>}
                           </div>
                         </div>
                       </td>

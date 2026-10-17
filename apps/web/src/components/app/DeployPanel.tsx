@@ -15,8 +15,9 @@ export function checkInterval(s: Strategy | undefined): number {
   if (!s) return 30;
   const fast = s.actions.some(
     (a) =>
-      a.type === "open" &&
-      (a.instrument.kind === "token" || a.instrument.kind === "outcome" || Boolean(a.exits.stopLoss || a.exits.takeProfit || a.exits.trailingStopPct))
+      a.type === "copy" ||
+      (a.type === "open" &&
+        (a.instrument.kind === "token" || a.instrument.kind === "outcome" || Boolean(a.exits.stopLoss || a.exits.takeProfit || a.exits.trailingStopPct)))
   );
   return fast ? 15 : 30;
 }
@@ -50,6 +51,14 @@ export function statedSpend(s: Strategy | undefined, solUsd: number | null): { u
   const parts: string[] = [];
   for (const a of s.actions) {
     if (a.type === "options") return null;
+    // Copy trading: room for every copy it may hold at once.
+    if (a.type === "copy") {
+      const per = a.size.unit === "usd" ? a.size.value : a.size.unit === "native" && solUsd ? a.size.value * solUsd : null;
+      if (per == null) return null;
+      usd += per * a.maxOpen;
+      parts.push(`${a.size.unit === "usd" ? `$${a.size.value.toLocaleString("en-US")}` : `${a.size.value} SOL`} a copy, up to ${a.maxOpen} at once`);
+      continue;
+    }
     if (a.type !== "open") continue;
     const size = a.size;
     if (size.unit === "usd") {
@@ -73,12 +82,17 @@ export function liveBlocker(s: Strategy | undefined, venues: Venues | null = nul
   if (!s) return null;
   const fake = [...new Set(s.signals.filter((x) => venues?.simulated?.includes(x.kind)).map((x) => SIGNAL_NAMES[x.kind] ?? x.kind))];
   if (fake.length) return `This strategy uses ${fake.join(" and ")}, which Weft doesn’t have live data for yet, so it can’t trade real money.`;
+  // Seeded examples point at sample markets until a real one is found (Hyperliquid's own ids are numbers).
+  const doc = JSON.stringify(s);
+  if (doc.includes("ExampLeMint") || /"venue":"hyperliquid","market":"[^"]*[a-z][^"]*"/.test(doc))
+    return "This example still points at a sample market. Make a copy and pick a real market first.";
   for (const a of s.actions) {
     if (a.type === "options") return "Options can’t be traded live yet.";
     if (a.type !== "open") continue;
     if (a.order.type === "limit") return "Limit orders can’t be traded live yet. Use a market order with a slippage limit.";
     const k = a.instrument.kind;
     if (k === "token" && venues && !venues.solana) return "Trading Solana tokens opens soon.";
+    if (k === "outcome" && a.instrument.venue === "polymarket") return "Polymarket markets are watch-only for now. Use their odds to trade a Hyperliquid market instead.";
     if (k === "outcome" && a.instrument.venue !== "hyperliquid") return "Only Hyperliquid’s prediction markets can be traded.";
   }
   return null;
@@ -310,10 +324,16 @@ export function DeployPanel({ strategy, strategyId, compact = false }: { strateg
         </Btn>
       )}
       <p className="mt-2.5 text-center text-[12.5px] leading-relaxed text-faint">
-        {isLive && ready
-          ? `${now ? "Buys right away with" : "Trades"} real money from your ${onSolana ? "wallet" : "account"}, and you can lose it. Stop any time.`
+        {isLive && ready ? (
+          <>
+            {`${now ? "Buys right away with" : "Trades"} real money from your ${onSolana ? "wallet" : "account"}, and you can lose it. Stop any time. `}
+            <a href="/risk" target="_blank" className="underline decoration-line-2 underline-offset-2 hover:text-ink">
+              The risks
+            </a>
+          </>
+        )
           : isLive
-            ? "Pause or stop any time. Stopping closes every position."
+            ? "Pause or stop any time. Stopping sells everything the strategy holds."
             : "Pause or stop any time."}
       </p>
     </Card>

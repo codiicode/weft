@@ -23,7 +23,7 @@ export function SafetyDiagram() {
           <span className="h-5 w-px bg-long" /> Place a trade ↓
         </div>
         <div className="rounded-[12px] border border-line-2 bg-card px-4 py-3">
-          <p className="text-[12px] text-muted">Your Hyperliquid</p>
+          <p className="text-[12px] text-muted">Your account</p>
           <p className="text-[16px] font-semibold text-ink">Your money stays here</p>
         </div>
         <div className="flex items-center gap-2 pl-4 text-[14px] font-medium text-short">
@@ -41,13 +41,13 @@ export function SafetyDiagram() {
             Weft agent
           </text>
           <text x="20" y="156" fontSize="12" style={{ fill: "var(--muted)" }}>
-            revocable any time
+            can’t move money out
           </text>
         </g>
         <g>
           <rect x="369" y="70" width="150" height="110" rx="12" style={{ fill: "var(--card)", stroke: "var(--line-2)" }} />
           <text x="388" y="102" fontSize="12" style={{ fill: "var(--muted)" }}>
-            Your Hyperliquid
+            Your account
           </text>
           <text x="388" y="126" fontSize="17" fontWeight="600" style={{ fill: "var(--ink)" }}>
             Your money

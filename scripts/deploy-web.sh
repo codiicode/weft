@@ -25,6 +25,7 @@ cat > "$TMP/vercel.json" <<'JSON'
   "outputDirectory": ".",
   "cleanUrls": true,
   "redirects": [
+    { "source": "/", "has": [{ "type": "host", "value": "www.weft.fi" }], "destination": "https://weft.fi/", "permanent": true },
     { "source": "/:path*", "has": [{ "type": "host", "value": "www.weft.fi" }], "destination": "https://weft.fi/:path*", "permanent": true },
     { "source": "/", "has": [{ "type": "host", "value": "app.weft.fi" }], "destination": "/home", "permanent": false },
     { "source": "/app", "destination": "/home", "permanent": false },
@@ -36,6 +37,10 @@ cat > "$TMP/vercel.json" <<'JSON'
     { "source": "/library", "destination": "/strategies", "permanent": false },
     { "source": "/live", "destination": "/accounts", "permanent": false },
     { "source": "/runs", "destination": "/portfolio", "permanent": false }
+  ],
+  "rewrites": [
+    { "source": "/s/:id", "destination": "https://weft-api-production.up.railway.app/share/:id" },
+    { "source": "/og/strategy/:file", "destination": "https://weft-api-production.up.railway.app/og/strategy/:file" }
   ],
   "trailingSlash": false,
   "headers": [

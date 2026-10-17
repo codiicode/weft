@@ -3,13 +3,13 @@ import { IconCheck } from "../graph/icons";
 import { Reveal } from "../ui/Reveal";
 import { SafetyDiagram } from "./SafetyDiagram";
 
-const can = ["Place and cancel orders", "Set stops and targets", "Set leverage within your limits"];
-const cannot = ["Withdraw your funds", "Send money to another address", "Trade above the limits you set"];
+const can = ["Place and cancel orders", "Set stops and targets", "Swap tokens inside your own wallet"];
+const cannot = ["Withdraw your money", "Send it to another address", "Trade a strategy you haven’t started"];
 
 const guards = [
-  ["Tested first", "See how a strategy would have done on real history before a dollar goes in. Starting it is a deliberate step."],
-  ["Hard limits", "You set the most it can spend per trade and in total. Stops and targets are yours to add, in plain words."],
-  ["One-click stop", "The stop button closes every position and cancels every order, immediately."],
+  ["Test it first", "See how a strategy would have done on recent market data before you put money in."],
+  ["Your amount, your stop", "A strategy trades with the amount you give it. Add a stop or a target in plain words and it’s placed with the order."],
+  ["Stop it any time", "Hold the stop button and Weft closes everything the strategy holds, right away."],
 ];
 
 export function Safety() {
@@ -19,7 +19,7 @@ export function Safety() {
       label="Safety"
       className="night"
       title="It can trade. It can’t withdraw."
-      lead="Your money stays in your own Hyperliquid account. Weft gets a trading-only key that you can revoke at any time. Solana live trading follows next."
+      lead="Your money stays in your own account, on Hyperliquid and on Solana. Weft gets a key that can trade for you, and nothing else."
     >
       <div className="grid gap-6 lg:grid-cols-[minmax(0,1.1fr)_minmax(0,0.9fr)] lg:items-stretch">
       <SafetyDiagram />

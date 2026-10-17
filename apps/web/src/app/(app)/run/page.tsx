@@ -1,5 +1,6 @@
 "use client";
 import { Suspense, useEffect, useMemo, useRef, useState } from "react";
+import { useTitle } from "@/lib/use-title";
 import { useSearchParams } from "next/navigation";
 import { AnimatePresence, motion } from "motion/react";
 import Link from "next/link";
@@ -154,8 +155,8 @@ function HoldToKill({ onKill }: { onKill: () => void }) {
       onKeyDown={(e) => (e.key === " " || e.key === "Enter") && !e.repeat && start()}
       onKeyUp={cancel}
       className="relative inline-flex h-9 select-none items-center gap-2 overflow-hidden rounded-[10px] border border-[color-mix(in_oklab,var(--short)_35%,transparent)] px-3.5 text-[14px] font-medium text-short"
-      aria-label="Hold to stop: closes every position and cancels every order"
-      title="Hold for a second: closes every position and cancels every order"
+      aria-label="Hold to stop: sells everything this strategy holds"
+      title="Hold for a second to sell everything this strategy holds"
     >
       <span className="absolute inset-y-0 left-0 bg-[var(--short-soft)]" style={{ width: `${p * 100}%` }} />
       <span className="relative">{p > 0 ? "Keep holding…" : "Hold to stop"}</span>
@@ -166,6 +167,7 @@ function HoldToKill({ onKill }: { onKill: () => void }) {
 function Run() {
   const id = useSearchParams().get("id") ?? "";
   const snap = useApi(id ? () => api.deployment(id) : null, [id], { pollMs: 4_000 });
+  useTitle(snap.data?.deployment.strategy.name);
   const fills = useApi(id ? () => api.fills(id) : null, [id], { pollMs: 8_000 });
   const [events, setEvents] = useState<EngineEvent[]>([]);
   const [showTicks, setShowTicks] = useState(false);

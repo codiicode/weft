@@ -1,5 +1,6 @@
 "use client";
 import { Suspense, useState } from "react";
+import { useTitle } from "@/lib/use-title";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { api } from "@/lib/api";
@@ -9,7 +10,7 @@ import { PageHeader, Card, Btn, Empty } from "@/components/app/AppShell";
 import { StrategyCanvas } from "@/components/app/StrategyCanvas";
 import { StrategyRules } from "@/components/app/StrategyRules";
 import { DeployPanel } from "@/components/app/DeployPanel";
-import { BacktestPanel } from "@/components/app/BacktestPanel";
+import { BacktestPanel, CopyNoBacktest } from "@/components/app/BacktestPanel";
 
 function StrategyView() {
   const id = useSearchParams().get("id") ?? "";
@@ -18,6 +19,7 @@ function StrategyView() {
   const [view, setView] = useState<"rules" | "graph" | "json">("rules");
   const requireAuth = useRequireAuth();
   const [copied, setCopied] = useState(false);
+  useTitle(e?.strategy.name);
   if (!id) return <div className="p-10"><Empty title="No strategy selected" action={<Btn href="/strategies">Browse strategies</Btn>} /></div>;
   if (!e)
     return (
@@ -34,17 +36,24 @@ function StrategyView() {
         sub={s.thesis}
         actions={
           <>
+            {/* The share link (/s/<id>) shows this strategy's own title and card when posted. */}
             <Btn
               variant="quiet"
               onClick={async () => {
                 try {
-                  await navigator.clipboard.writeText(window.location.href);
+                  await navigator.clipboard.writeText(`${window.location.origin}/s/${encodeURIComponent(e.id)}`);
                 } catch {}
                 setCopied(true);
                 setTimeout(() => setCopied(false), 1500);
               }}
             >
-              {copied ? "Link copied" : "Share"}
+              {copied ? "Link copied" : "Copy link"}
+            </Btn>
+            <Btn
+              variant="quiet"
+              href={`https://x.com/intent/post?text=${encodeURIComponent(`${s.name}, a strategy on Weft`)}&url=${encodeURIComponent(`https://weft.fi/s/${e.id}`)}`}
+            >
+              Post on X
             </Btn>
 
             <Btn variant="ghost" href={`/new?from=${encodeURIComponent(e.id)}`}>
@@ -86,7 +95,7 @@ function StrategyView() {
           ) : (
             <pre className="max-h-[640px] overflow-auto rounded-[12px] border border-line bg-card p-4 font-mono text-[12.5px] leading-relaxed text-ink">{JSON.stringify(s, null, 2)}</pre>
           )}
-          <BacktestPanel strategyId={e.id} />
+          {s.actions.some((a) => a.type === "copy") ? <CopyNoBacktest /> : <BacktestPanel strategyId={e.id} />}
         </div>
         <div className="order-first space-y-4 xl:order-none">
           <DeployPanel strategyId={e.id} strategy={e.strategy} />

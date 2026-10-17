@@ -68,6 +68,11 @@ export function toGraph(s: Strategy): GraphView {
       case "notify":
         nodes.push({ id: a.id, kind: "action", side: "notify", title: a.label ?? "Notify", subtitle: a.channel });
         break;
+      case "copy": {
+        const who = a.leader.venue === "solana" ? a.leader.wallet : a.leader.trader;
+        nodes.push({ id: a.id, kind: "action", side: "long", title: a.label ?? `Copy ${who.slice(0, 4)}…${who.slice(-4)}`, subtitle: a.leader.venue === "solana" ? "every token it buys" : "every position it opens" });
+        break;
+      }
     }
     a.on.forEach((tid) => edges.push([tid, a.id]));
   }

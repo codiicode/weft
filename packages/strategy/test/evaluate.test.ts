@@ -92,13 +92,17 @@ describe("evaluate", () => {
   });
 
   it("crosses_above needs a prior observation below the line", () => {
-    const tick = runner(fedPivot);
-    const sig = (t: number, prob: number) => ({ cut_odds: snap(t, { prob }), us2y: snap(t, { change_5d: -0.14 }) });
-    expect(tick({ now: T0, signals: sig(T0, 0.7) }).triggers[0]!.fired).toBe(false); // first look: no cross
-    tick({ now: T0 + MIN, signals: sig(T0 + MIN, 0.6) });
-    const r = tick({ now: T0 + 2 * MIN, signals: sig(T0 + 2 * MIN, 0.68) });
-    expect(r.triggers[0]!.fired).toBe(true);
-    expect(r.intents.map((i) => i.actionId)).toEqual(["buy_cut", "long_btc", "long_gold"]);
+    const s = defineStrategy({
+      schemaVersion: 1, id: "cross", name: "cross", thesis: "t",
+      signals: [{ id: "px", kind: "price", params: { instrument: { kind: "perp", venue: "hyperliquid", symbol: "BTC" } } }],
+      triggers: [{ id: "up", when: { op: "crosses_above", left: { ref: "px.price" }, right: { value: 100 } } }],
+      actions: [{ id: "buy", type: "open", on: ["up"], instrument: { kind: "perp", venue: "hyperliquid", symbol: "BTC" }, side: "long", size: { unit: "usd", value: 100 } }],
+    });
+    const tick = runner(s);
+    const px = (t: number, price: number) => ({ px: snap(t, { price }) });
+    expect(tick({ now: T0, signals: px(T0, 105) }).triggers[0]!.fired).toBe(false); // first look: no cross
+    tick({ now: T0 + MIN, signals: px(T0 + MIN, 95) });
+    expect(tick({ now: T0 + 2 * MIN, signals: px(T0 + 2 * MIN, 102) }).triggers[0]!.fired).toBe(true);
   });
 
   it("reentry: never fires once; after_close waits for the position to close", () => {
@@ -129,11 +133,10 @@ describe("evaluate", () => {
     expect(r.intents.map((i) => i.type)).toEqual(["close", "open"]);
   });
 
-  it("memecoin entry: price level + bullish social + on-chain flow + LP locked, held 5 min", () => {
+  it("memecoin entry: price level + buyers in control + LP locked, held 5 min", () => {
     const tick = runner(pumpMomentum);
     const signals = (t: number, lpLocked: boolean) => ({
       pump_px: snap(t, { price: 0.0038 }),
-      pump_social: snap(t, { sentiment: 0.55, mentions_change_1h_pct: 240 }),
       pump_chain: snap(t, { buy_sell_ratio_1h: 1.6, lp_locked: lpLocked, dev_sold_pct: 0 }),
     });
     expect(tick({ now: T0, signals: signals(T0, false) }).triggers[0]!.value).toBe(false);

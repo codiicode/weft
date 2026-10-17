@@ -4,6 +4,7 @@ import { Workflows } from "@/components/landing/Workflows";
 import { AgentDemo } from "@/components/landing/AgentDemo";
 import { Statement } from "@/components/landing/Statement";
 import { Markets } from "@/components/landing/Markets";
+import { Watches } from "@/components/landing/Watches";
 import { Safety } from "@/components/landing/Safety";
 import { Strategies } from "@/components/landing/Strategies";
 import { Token } from "@/components/landing/Token";
@@ -23,6 +24,7 @@ export default function Page() {
         <Statement />
         <Workflows />
         <Markets />
+        <Watches />
         <Safety />
         <Strategies />
         <Token />

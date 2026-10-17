@@ -1,4 +1,8 @@
 import { Hono } from "hono";
+import { sharePage, strategyCard } from "./lib/share.ts";
+import { createHash, randomBytes } from "node:crypto";
+import type { TopTrader } from "./lib/traders.ts";
+import type { HeliusWebhook } from "./live/helius-webhook.ts";
 import { cors } from "hono/cors";
 import { bodyLimit } from "hono/body-limit";
 import { secureHeaders } from "hono/secure-headers";
@@ -40,6 +44,12 @@ const CHART_SPEC: Record<(typeof CHART_RANGES)[number], { interval: CandleInterv
 export const CHART_INTERVALS = ["5s", "15s", "30s", "1m", "5m", "15m", "30m", "1h", "4h", "1d", "1w"] as const;
 
 export interface AppDeps {
+  /** The public website, for share links and previews. Default https://weft.fi */
+  siteUrl?: string;
+  /** Profitable Hyperliquid traders to copy (public leaderboard, cached). */
+  topTraders?: () => Promise<TopTrader[]>;
+  /** Helius pushes watched wallets' transactions here (wallet signals and copy trading react at once). */
+  heliusWebhook?: HeliusWebhook;
   catalog: Catalog;
   marketData: MarketData;
   engine: Engine;
@@ -54,6 +64,9 @@ export interface AppDeps {
   accounts?: Accounts;
   /** AI generations per user per UTC day when auth is enabled (cost control). */
   aiDailyLimit?: number;
+  /** Drafts per day for visitors without an account (per hashed IP), and for all of them together. */
+  anonAiDailyLimit?: number;
+  anonAiDailyTotal?: number;
   /** Live trading on Hyperliquid. Absent: paper only. */
   live?: LiveService;
   /**
@@ -65,7 +78,7 @@ export interface AppDeps {
   solana?: SolanaLive;
   /** Weft's owners (see earnings). */
   isAdmin?: (userId: string) => boolean;
-  /** What Weft has earned in fees (owners only). */
+  /** What Weft has earned in fees (public on /revenue). */
   earnings?: () => Promise<unknown>;
   /** Withdrawals from users' Weft Solana wallets (signed by the user's own wallet). */
   solanaWithdrawals?: SolanaWithdrawals;
@@ -149,6 +162,42 @@ export function createApp(deps: AppDeps) {
     accounts.recordAiUse(user.id);
   };
 
+  // Visitors may draft and test before they sign up. They are counted per hashed IP (the address
+  // itself is never stored), with a ceiling for all of them together so AI spend stays bounded.
+  const anonSalt = (() => {
+    const k = "anon-salt";
+    const v = accounts?.kvGet(k);
+    if (v) return v;
+    const s = randomBytes(16).toString("hex");
+    accounts?.kvSet(k, s);
+    return s;
+  })();
+  const visitorKey = (c: Context) => {
+    const ip = (c.req.header("x-forwarded-for") ?? "").split(",")[0]!.trim() || c.req.header("x-real-ip") || "unknown";
+    return createHash("sha256").update(`${anonSalt}:${ip}`).digest("hex").slice(0, 24);
+  };
+  /** Signed-in users use their own quota; visitors a smaller one. `kind` keeps AI and backtests apart. */
+  const allowVisitor = async (c: Context, kind: "ai" | "backtest") => {
+    const user = await optionalUser(c);
+    if (user) {
+      if (kind === "ai") checkAiQuota(user);
+      return user;
+    }
+    if (!authEnabled || !accounts) return null;
+    const perVisitor = kind === "ai" ? (deps.anonAiDailyLimit ?? 5) : 20;
+    const total = kind === "ai" ? (deps.anonAiDailyTotal ?? 400) : 3_000;
+    const me = `anon:${kind}:${visitorKey(c)}`;
+    const all = `anon:${kind}:*`;
+    if (accounts.aiUsedToday(me) >= perVisitor)
+      throw new HTTPException(429, {
+        message: kind === "ai" ? `You’ve drafted ${perVisitor} strategies today without an account. Sign in, it’s free, to keep going.` : "Sign in to run more tests today.",
+      });
+    if (accounts.aiUsedToday(all) >= total) throw new HTTPException(429, { message: "Lots of people are drafting right now. Sign in to keep going." });
+    accounts.recordAiUse(me);
+    accounts.recordAiUse(all);
+    return null;
+  };
+
   const origins = deps.webOrigins;
   app.use(
     "*",
@@ -200,6 +249,44 @@ export function createApp(deps: AppDeps) {
     return c.json({ error: "Something went wrong on our side. Please try again." }, 500);
   });
 
+  /* ---------------- Share links (link previews) ---------------- */
+
+  // weft.fi/s/<id> and weft.fi/og/strategy/<id>.png are rewritten here by the website.
+  const site = (deps.siteUrl ?? "https://weft.fi").replace(/\/$/, "");
+  const cards = new Map<string, { at: number; png: Buffer }>();
+  app.get("/share/:id", (c) => {
+    const e = library.get(c.req.param("id"));
+    if (!e) return c.redirect(`${site}/strategies`, 302);
+    c.header("cache-control", "public, max-age=300");
+    return c.html(sharePage(e.strategy, e.id, site));
+  });
+  app.get("/og/strategy/:file", async (c) => {
+    const id = c.req.param("file").replace(/\.png$/, "");
+    const e = library.get(id);
+    if (!e) return c.redirect(`${site}/og.png`, 302);
+    let hit = cards.get(id);
+    if (!hit || hit.at !== e.updatedAt) {
+      hit = { at: e.updatedAt, png: await strategyCard(e.strategy) };
+      cards.set(id, hit);
+      if (cards.size > 500) cards.delete(cards.keys().next().value!);
+    }
+    return c.body(new Uint8Array(hit.png), 200, { "content-type": "image/png", "cache-control": "public, max-age=3600" });
+  });
+
+  /** Hyperliquid traders worth copying, with their current positions on request. */
+  app.get("/traders", async (c) => {
+    if (!deps.topTraders) return c.json({ traders: [] });
+    return c.json({ traders: await deps.topTraders() });
+  });
+
+  app.post("/webhooks/helius", async (c) => {
+    const hook = deps.heliusWebhook;
+    if (!hook) return c.json({ error: "not found" }, 404);
+    if (!hook.authorized(c.req.header("authorization"))) return c.json({ error: "unauthorized" }, 401);
+    const body = await c.req.json().catch(() => []);
+    return c.json({ ok: true, wallets: hook.handle(body).length });
+  });
+
   app.get("/health", (c) =>
     c.json({
       ok: true,
@@ -223,11 +310,21 @@ export function createApp(deps: AppDeps) {
     });
   });
 
-  /** Protocol revenue: Weft's fee earnings (owners only). */
-  app.get("/admin/revenue", async (c) => {
-    const user = await requireUser(c);
-    if (!deps.isAdmin?.(user.id) || !deps.earnings) return c.json({ error: "not found" }, 404);
-    return c.json(await deps.earnings());
+  /**
+   * Protocol revenue: Weft's fee earnings and $WEFT buybacks. Public, since every figure is on-chain
+   * anyway. Cached for a minute so page views don't hit Hyperliquid and the Solana RPC each time.
+   */
+  let revenueCache: { at: number; data: Promise<unknown> } | null = null;
+  app.get("/revenue", async (c) => {
+    if (!deps.earnings) return c.json({ error: "not found" }, 404);
+    if (!revenueCache || Date.now() - revenueCache.at > 60_000) {
+      const data = deps.earnings();
+      revenueCache = { at: Date.now(), data };
+      data.catch(() => {
+        if (revenueCache?.data === data) revenueCache = null;
+      });
+    }
+    return c.json(await revenueCache.data);
   });
 
   /** Client reports linked wallets / display name (display only; never used for authorization). */
@@ -375,9 +472,8 @@ export function createApp(deps: AppDeps) {
   /* ---------------- AI: thesis → strategy ---------------- */
 
   app.post("/ai/generate", async (c) => {
-    const user = await requireUser(c);
     const { thesis } = z.object({ thesis: z.string().min(3).max(2_000) }).parse(await c.req.json());
-    checkAiQuota(user);
+    await allowVisitor(c, "ai");
     try {
       const r = await generateStrategy(thesis, { catalog });
       return c.json({ ...r, graph: toGraph(r.strategy) });
@@ -389,9 +485,8 @@ export function createApp(deps: AppDeps) {
 
   /** Same as /ai/generate but streams progress as SSE (consume with fetch + ReadableStream). */
   app.post("/ai/generate/stream", async (c) => {
-    const user = await requireUser(c);
     const { thesis } = z.object({ thesis: z.string().min(3).max(2_000) }).parse(await c.req.json());
-    checkAiQuota(user);
+    await allowVisitor(c, "ai");
     return streamSSE(c, async (stream) => {
       try {
         const r = await generateStrategy(thesis, {
@@ -407,11 +502,10 @@ export function createApp(deps: AppDeps) {
 
   /** Change an existing strategy with a plain-language instruction; streams progress like /ai/generate/stream. */
   app.post("/ai/refine/stream", async (c) => {
-    const user = await requireUser(c);
     const body = z.object({ strategy: z.unknown(), instruction: z.string().min(2).max(1_000) }).parse(await c.req.json());
     const base = validateStrategy(body.strategy);
     if (!base.ok) return c.json({ error: "invalid strategy", issues: base.errors }, 400);
-    checkAiQuota(user);
+    await allowVisitor(c, "ai");
     return streamSSE(c, async (stream) => {
       try {
         const r = await generateStrategy(base.strategy.thesis, {
@@ -430,7 +524,7 @@ export function createApp(deps: AppDeps) {
   /** Replays the strategy through the real engine over the last N days of history. */
   app.post("/backtest", async (c) => {
     if (!deps.backtest) return c.json({ error: "backtesting is not configured" }, 501);
-    await requireUser(c);
+    await allowVisitor(c, "backtest");
     const body = BacktestBody.parse(await c.req.json());
     let raw = body.strategy;
     if (!raw && body.strategyId) {

@@ -17,14 +17,16 @@ const NAV = [
   { href: "/portfolio", label: "Portfolio", icon: "M10 3.5a6.5 6.5 0 1 0 6.5 6.5H10zM12.5 2.8v4.7h4.7a6.5 6.5 0 0 0-4.7-4.7z", also: ["/run"] },
   { href: "/strategies", label: "Strategies", icon: "M4 4.5h12M4 10h12M4 15.5h7" },
   { href: "/markets", label: "Markets", icon: "M3.5 14.5 8 9.5l3 3 5.5-6.5" },
+  { href: "/traders", label: "Traders", icon: "M7 9a2.5 2.5 0 1 0 0-5 2.5 2.5 0 0 0 0 5zM2.5 16c0-2.5 2-4.5 4.5-4.5s4.5 2 4.5 4.5M13 9.5a2 2 0 1 0 0-4M14.5 16c0-1.9-.9-3.4-2.3-4.1" },
   { href: "/leaderboard", label: "Leaderboard", icon: "M5 16V10M10 16V4.5M15 16v-4" },
+  { href: "/revenue", label: "Revenue", icon: "M10 3v14M13.5 6H8.25a2.25 2.25 0 0 0 0 4.5h3.5a2.25 2.25 0 0 1 0 4.5H6" },
 ];
 const ACCOUNT_NAV = [
   { href: "/accounts", label: "Trading accounts", icon: "M10.5 3 5 11h4.5l-1 6 5.5-8H9.5z" },
   { href: "/settings", label: "Settings", icon: "M10 12.5a2.5 2.5 0 1 0 0-5 2.5 2.5 0 0 0 0 5zM16 10l1.5-1-1.5-2.6-1.7.4a6 6 0 0 0-1.3-.8L12.5 4h-3l-.5 2a6 6 0 0 0-1.3.8L6 6.4 4.5 9 6 10l-1.5 1L6 13.6l1.7-.4c.4.3.8.6 1.3.8l.5 2h3l.5-2c.5-.2.9-.5 1.3-.8l1.7.4L17.5 11z" },
 ];
 const MOBILE_NAV = [NAV[0]!, NAV[1]!, { href: "/new", label: "New", icon: "M10 4.5v11M4.5 10h11" }, NAV[2]!];
-const MORE_NAV = [NAV[3]!, NAV[4]!, ...ACCOUNT_NAV];
+const MORE_NAV = [...NAV.slice(3), ...ACCOUNT_NAV];
 
 function NavIcon({ d }: { d: string }) {
   return (
@@ -100,13 +102,10 @@ function OpeningSoon() {
         <p className="text-[13px] text-muted">Private beta</p>
         <h1 className="display mt-3 text-[clamp(2.4rem,5vw,4rem)] leading-[1.02] text-ink">The app opens in a few days.</h1>
         <p className="mt-5 text-[17px] leading-[1.6] text-ink-2">
-          Trading opens on Hyperliquid first, then Solana. Follow along and you’ll hear the moment it’s ready.
+          Follow along on X and you’ll hear the moment it opens.
         </p>
         <div className="mt-8 flex flex-wrap gap-2">
           <Btn href={brand.socials.x}>Follow on X</Btn>
-          <Btn href={brand.socials.telegram} variant="ghost">
-            Join the Telegram
-          </Btn>
           <Btn href="/#work" variant="quiet">
             See how it works
           </Btn>
@@ -114,15 +113,6 @@ function OpeningSoon() {
       </div>
     </div>
   );
-}
-
-/** Owners only: the protocol revenue page. */
-function AdminNav({ active }: { active: (href: string) => boolean }) {
-  const auth = useAuth();
-  const me = useApi(auth.enabled && auth.authenticated ? () => api.me() : null, [auth.authenticated]);
-  if (!me.data?.isAdmin) return null;
-  const n = { href: "/revenue", label: "Revenue", icon: "M10 3v14M13.5 6H8.25a2.25 2.25 0 0 0 0 4.5h3.5a2.25 2.25 0 0 1 0 4.5H6" };
-  return <NavLink n={n} active={active(n.href)} />;
 }
 
 export function AppShell({ children }: { children: ReactNode }) {
@@ -162,7 +152,6 @@ export function AppShell({ children }: { children: ReactNode }) {
           {ACCOUNT_NAV.map((n) => (
             <NavLink key={n.href} n={n} active={active(n.href)} />
           ))}
-          <AdminNav active={active} />
         </nav>
         <div className="mt-auto space-y-4 px-1">
           {appOpen !== false && <AccountButton />}
@@ -323,6 +312,12 @@ export function Btn({
       danger: "bg-short text-white hover:bg-short/90",
     }[variant]
   } ${className}`;
+  if (href && /^https?:\/\//.test(href))
+    return (
+      <a href={href} target="_blank" rel="noopener noreferrer" className={cls}>
+        {children}
+      </a>
+    );
   if (href) return <Link href={href} className={cls}>{children}</Link>;
   return (
     <button type={type} onClick={onClick} disabled={disabled} className={cls}>

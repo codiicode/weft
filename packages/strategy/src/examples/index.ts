@@ -52,36 +52,33 @@ export const ethBreakout = defineStrategy({
   ],
 });
 
-/** Memecoin on Solana: price level + bullish sentiment + healthy on-chain flow. */
+/** Solana token: price level + buyers in control + locked liquidity. */
 export const pumpMomentum = defineStrategy({
   schemaVersion: 1,
   id: "pump-momentum",
-  name: "PUMP dip + hype",
-  thesis: "Buy $PUMP when it drops to 0.004 and sentiment turns bullish.",
-  tags: ["solana", "memecoin"],
+  name: "PUMP dip, buyers in control",
+  thesis: "Buy $PUMP when it drops to 0.004 while buyers still outnumber sellers and the liquidity is locked.",
+  tags: ["solana", "tokens"],
   signals: [
     { id: "pump_px", kind: "price", params: { instrument: { kind: "token", chain: "solana", mint: PUMP_MINT, symbol: "PUMP" } } },
     { id: "pump_chain", kind: "token_onchain", params: { mint: PUMP_MINT } },
-    { id: "pump_social", kind: "social", params: { cashtags: ["PUMP"] } },
   ],
   triggers: [
     {
       id: "entry",
-      label: "Price level + bullish",
+      label: "Dip with buyers in control",
       when: {
         op: "and",
         args: [
           { op: "lte", left: { ref: "pump_px.price" }, right: { value: 0.004 } },
-          { op: "gt", left: { ref: "pump_social.sentiment" }, right: { value: 0.3 } },
-          { op: "gt", left: { ref: "pump_social.mentions_change_1h_pct" }, right: { value: 150 } },
-          { op: "gt", left: { ref: "pump_chain.buy_sell_ratio_1h" }, right: { value: 1.3 } },
+          { op: "gt", left: { ref: "pump_chain.buy_sell_ratio_1h" }, right: { value: 1.5 } },
           { op: "is", ref: "pump_chain.lp_locked", value: true },
         ],
       },
       forMinutes: 5,
     },
     { id: "dev_dump", when: { op: "gt", left: { ref: "pump_chain.dev_sold_pct" }, right: { value: 20 } } },
-    { id: "hype_gone", when: { op: "lt", left: { ref: "pump_social.sentiment" }, right: { value: -0.2 } }, forMinutes: 30 },
+    { id: "sellers_take_over", when: { op: "lt", left: { ref: "pump_chain.buy_sell_ratio_1h" }, right: { value: 0.7 } }, forMinutes: 30 },
   ],
   actions: [
     {
@@ -95,20 +92,20 @@ export const pumpMomentum = defineStrategy({
       exits: { takeProfit: { pct: 40 }, stopLoss: { pct: 20 }, timeExitHours: 48 },
     },
     { id: "alert_entry", type: "notify", on: ["entry"], channel: "telegram", message: "PUMP entry conditions met: buying 0.5 SOL." },
-    { id: "exit_pump", type: "close", on: ["dev_dump", "hype_gone"], target: { instrument: { kind: "token", chain: "solana", mint: PUMP_MINT, symbol: "PUMP" } } },
+    { id: "exit_pump", type: "close", on: ["dev_dump", "sellers_take_over"], target: { instrument: { kind: "token", chain: "solana", mint: PUMP_MINT, symbol: "PUMP" } } },
   ],
 });
 
-/** Macro: HIP-4 FOMC odds crossing up while the 2Y falls → long BTC + gold, buy YES. */
+/** Macro: Fed cut odds crossing up while the 2Y falls → buy YES, long BTC and gold. */
 export const fedPivot = defineStrategy({
   schemaVersion: 1,
   id: "fed-pivot",
-  name: "Fed Pivot Spread",
-  thesis: "The market is underpricing a December cut. If odds firm up while the 2Y rolls over, get long risk and gold.",
+  name: "Fed cut odds",
+  thesis: "Bonds are pricing a rate cut before the odds are. When cut odds pass 65% while the 2-year yield falls, buy YES and get long BTC and gold.",
   tags: ["macro", "predictions"],
   signals: [
-    { id: "cut_odds", kind: "odds", params: { instrument: { kind: "outcome", venue: "hyperliquid", market: "fomc-dec-2026-cut", outcome: "YES" } } },
-    { id: "us2y", kind: "macro", params: { series: "US2Y" } },
+    { id: "cut_odds", kind: "odds", label: "Fed cut odds", params: { instrument: { kind: "outcome", venue: "hyperliquid", market: "fomc-dec-2026-cut", outcome: "YES", question: "Fed cuts rates in December 2026?" } } },
+    { id: "us2y", kind: "macro", label: "US 2-year yield", params: { series: "US2Y" } },
     { id: "btc", kind: "price", params: { instrument: { kind: "perp", venue: "hyperliquid", symbol: "BTC" } } },
   ],
   triggers: [
@@ -129,7 +126,7 @@ export const fedPivot = defineStrategy({
       id: "buy_cut",
       type: "open",
       on: ["pivot"],
-      instrument: { kind: "outcome", venue: "hyperliquid", market: "fomc-dec-2026-cut", outcome: "YES" },
+      instrument: { kind: "outcome", venue: "hyperliquid", market: "fomc-dec-2026-cut", outcome: "YES", question: "Fed cuts rates in December 2026?" },
       side: "long",
       size: { unit: "pct_equity", value: 5 },
       exits: { takeProfit: { prob: 0.9 } },
@@ -142,7 +139,7 @@ export const fedPivot = defineStrategy({
       side: "long",
       size: { unit: "pct_equity", value: 8 },
       leverage: 2,
-      exits: { takeProfit: { pct: 14 }, stopLoss: { pct: 5 } },
+      exits: { takeProfit: { positionPct: 28 }, stopLoss: { positionPct: 10 } },
     },
     {
       id: "long_gold",
@@ -152,7 +149,7 @@ export const fedPivot = defineStrategy({
       side: "long",
       size: { unit: "pct_equity", value: 8 },
       leverage: 3,
-      exits: { takeProfit: { pct: 6 }, stopLoss: { pct: 2 } },
+      exits: { takeProfit: { positionPct: 18 }, stopLoss: { positionPct: 6 } },
     },
     { id: "exit_all", type: "close", on: ["pivot_off"], target: "all" },
   ],
@@ -163,7 +160,7 @@ export const crowdedFade = defineStrategy({
   schemaVersion: 1,
   id: "crowded-fade",
   name: "Crowded Fade",
-  thesis: "When SOL perps get too crowded, funding pinned high and OI at a 30-day peak, fade the crowd with a tight stop.",
+  thesis: "When SOL longs get crowded, with funding high and open interest far above normal, short it with a tight stop.",
   tags: ["funding", "perps"],
   signals: [{ id: "sol_funding", kind: "funding", params: { instrument: { kind: "perp", venue: "hyperliquid", symbol: "SOL" } } }],
   triggers: [
@@ -191,21 +188,21 @@ export const crowdedFade = defineStrategy({
       size: { unit: "pct_equity", value: 8 },
       leverage: 2,
       reentry: "after_close",
-      exits: { takeProfit: { pct: 9 }, stopLoss: { pct: 4 } },
+      exits: { takeProfit: { positionPct: 18 }, stopLoss: { positionPct: 8 } },
     },
     { id: "exit_sol", type: "close", on: ["normalised"], target: { instrument: { kind: "perp", venue: "hyperliquid", symbol: "SOL" } } },
   ],
 });
 
-/** Options: defined-risk ETH call spread ahead of a scheduled catalyst. */
+/** Options: defined-risk ETH call spread ahead of a scheduled date. */
 export const ethCallSpread = defineStrategy({
   schemaVersion: 1,
   id: "eth-catalyst-spread",
-  name: "ETH Catalyst Spread",
-  thesis: "ETH runs into the upgrade. Cap the downside with a call spread instead of a naked long.",
+  name: "ETH Call Spread",
+  thesis: "Bullish on ETH into a big date, but want a capped loss? Buy a call spread instead of a leveraged long.",
   tags: ["options", "events"],
   signals: [
-    { id: "upgrade", kind: "calendar", params: { event: "custom", symbol: "ETH", at: "2026-11-20T14:00:00Z" } },
+    { id: "event", kind: "calendar", params: { event: "custom", symbol: "ETH", at: "2026-11-20T14:00:00Z" } },
     { id: "eth", kind: "price", params: { instrument: { kind: "perp", venue: "hyperliquid", symbol: "ETH" } } },
   ],
   triggers: [
@@ -214,7 +211,7 @@ export const ethCallSpread = defineStrategy({
       when: {
         op: "and",
         args: [
-          { op: "between", value: { ref: "upgrade.hours_until" }, min: { value: 24 }, max: { value: 72 } },
+          { op: "between", value: { ref: "event.hours_until" }, min: { value: 24 }, max: { value: 72 } },
           { op: "gt", left: { ref: "eth.change_24h_pct" }, right: { value: 0 } },
         ],
       },
@@ -226,8 +223,8 @@ export const ethCallSpread = defineStrategy({
       type: "options",
       on: ["window"],
       legs: [
-        { instrument: { kind: "option", venue: "derive", underlying: "ETH", expiry: "2026-12-25", strike: 4800, right: "call" }, side: "buy" },
-        { instrument: { kind: "option", venue: "derive", underlying: "ETH", expiry: "2026-12-25", strike: 5400, right: "call" }, side: "sell" },
+        { instrument: { kind: "option", venue: "derive", underlying: "ETH", expiry: "2026-12-25", strike: 2800, right: "call" }, side: "buy" },
+        { instrument: { kind: "option", venue: "derive", underlying: "ETH", expiry: "2026-12-25", strike: 3200, right: "call" }, side: "sell" },
       ],
       size: { unit: "usd", value: 500 },
       exits: { takeProfit: { pct: 120 }, timeExitHours: 96 },
@@ -265,4 +262,81 @@ export const nvdaxEarnings = defineStrategy({
   ],
 });
 
-export const examples: Strategy[] = [ethBreakout, pumpMomentum, fedPivot, crowdedFade, ethCallSpread, nvdaxEarnings];
+/** Sentiment: the whole market at extreme fear → small, leveraged longs on the majors. */
+export const buyThePanic = defineStrategy({
+  schemaVersion: 1,
+  id: "buy-the-panic",
+  name: "Buy the panic",
+  thesis: "When the Fear & Greed Index hits 20, the market is scared. Open 20× longs on ETH and BTC with $100 each.",
+  tags: ["sentiment", "perps"],
+  risk: { maxLeverage: 20 },
+  signals: [{ id: "fear_greed", kind: "macro", label: "Crypto Fear & Greed", params: { series: "FEAR_GREED" } }],
+  triggers: [{ id: "extreme_fear", when: { op: "lte", left: { ref: "fear_greed.value" }, right: { value: 20 } }, maxFires: 1 }],
+  actions: [
+    { id: "long_eth", type: "open", on: ["extreme_fear"], instrument: { kind: "perp", venue: "hyperliquid", symbol: "ETH" }, side: "long", size: { unit: "usd", value: 100 }, leverage: 20, exits: {} },
+    { id: "long_btc", type: "open", on: ["extreme_fear"], instrument: { kind: "perp", venue: "hyperliquid", symbol: "BTC" }, side: "long", size: { unit: "usd", value: 100 }, leverage: 20, exits: {} },
+  ],
+});
+
+/** Posts on X: a Strategy (MSTR) bitcoin purchase announced by @saylor, with funding still low. */
+export const saylorBuys = defineStrategy({
+  schemaVersion: 1,
+  id: "saylor-buys",
+  name: "Saylor buys, you buy",
+  thesis: "When @saylor posts that Strategy bought more bitcoin and funding is still low, go long BTC 3×.",
+  tags: ["x", "perps"],
+  signals: [
+    { id: "saylor", kind: "post_match", params: { accounts: ["saylor"], claim: "announces that Strategy (MicroStrategy) bought more bitcoin" } },
+    { id: "btc_funding", kind: "funding", params: { instrument: { kind: "perp", venue: "hyperliquid", symbol: "BTC" } } },
+  ],
+  triggers: [
+    {
+      id: "fresh_buy",
+      when: {
+        op: "and",
+        args: [
+          { op: "is", ref: "saylor.matched", value: true },
+          { op: "lt", left: { ref: "saylor.minutes_since_match" }, right: { value: 30 } },
+          { op: "lt", left: { ref: "btc_funding.rate_1h_pct" }, right: { value: 0.01 } },
+        ],
+      },
+    },
+  ],
+  actions: [
+    {
+      id: "long_btc",
+      type: "open",
+      on: ["fresh_buy"],
+      instrument: { kind: "perp", venue: "hyperliquid", symbol: "BTC" },
+      side: "long",
+      size: { unit: "usd", value: 100 },
+      leverage: 3,
+      exits: { stopLoss: { positionPct: 15 }, takeProfit: { positionPct: 30 } },
+    },
+  ],
+});
+
+/** Weather: a Chicago cold snap (more heating demand) → long natural gas. */
+export const coldSnap = defineStrategy({
+  schemaVersion: 1,
+  id: "cold-snap",
+  name: "Cold snap in Chicago",
+  thesis: "A colder week in the Midwest means more heating and more demand for gas. Long natural gas when Chicago's forecast drops 5°C.",
+  tags: ["weather", "commodities"],
+  signals: [{ id: "chicago", kind: "forecast", params: { source: "weather", series: "temp:Chicago" } }],
+  triggers: [{ id: "cold", when: { op: "lte", left: { ref: "chicago.change_7d" }, right: { value: -5 } } }],
+  actions: [
+    {
+      id: "long_gas",
+      type: "open",
+      on: ["cold"],
+      instrument: { kind: "perp", venue: "hyperliquid", dex: "xyz", symbol: "NATGAS", assetClass: "commodity" },
+      side: "long",
+      size: { unit: "usd", value: 100 },
+      leverage: 2,
+      exits: { stopLoss: { positionPct: 10 }, takeProfit: { positionPct: 20 } },
+    },
+  ],
+});
+
+export const examples: Strategy[] = [ethBreakout, buyThePanic, saylorBuys, coldSnap, pumpMomentum, fedPivot, crowdedFade, ethCallSpread, nvdaxEarnings];

@@ -35,6 +35,13 @@ const LOCAL: AuthState = {
   logout: async () => {},
 };
 
+/**
+ * Demo builds for product videos: a signed-in user against a mock API (content/shorts/mock-api.mjs).
+ * Set NEXT_PUBLIC_DEMO_USER to the label to show. Never set in a public build.
+ */
+const DEMO_USER = process.env.NEXT_PUBLIC_DEMO_USER?.trim() || "";
+const DEMO: AuthState = { ...LOCAL, enabled: true, label: DEMO_USER };
+
 const AuthContext = createContext<AuthState>(LOCAL);
 
 export const useAuth = () => useContext(AuthContext);
@@ -107,6 +114,7 @@ function PrivyBridge({ children }: { children: ReactNode }) {
 export function AuthProvider({ children }: { children: ReactNode }) {
   // A closed public build (no API yet) never loads the wallet SDK.
   if (!APP_ID || process.env.NEXT_PUBLIC_APP_CLOSED) return <AuthContext.Provider value={LOCAL}>{children}</AuthContext.Provider>;
+  if (DEMO_USER) return <AuthContext.Provider value={DEMO}>{children}</AuthContext.Provider>;
   const dark = typeof document !== "undefined" && document.documentElement.dataset.theme === "dark";
   return (
     <PrivyProvider

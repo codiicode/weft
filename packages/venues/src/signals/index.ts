@@ -6,6 +6,10 @@ import { calendarProvider } from "./calendar.ts";
 import { defineProvider } from "./common.ts";
 import { externalProviders, type ExternalUrls } from "./external.ts";
 import { marketProviders } from "./market.ts";
+import { newsProvider } from "./news.ts";
+import { xProviders } from "./x.ts";
+import { walletProvider } from "./wallet.ts";
+import { traderProvider } from "./trader.ts";
 import { simulatedProviders } from "./simulated.ts";
 
 export function createSignalProviders(md: VenueMarketData, urls: ExternalUrls = {}, onError?: (kind: string, err: unknown) => void): SignalProvider[] {
@@ -13,6 +17,11 @@ export function createSignalProviders(md: VenueMarketData, urls: ExternalUrls = 
     ...marketProviders(md, onError),
     defineProvider(["token_onchain"], "live", (s, now) => fetchTokenOnchain(md, s.params.mint, now), onError),
     ...externalProviders(md.ctx.http, urls, onError),
+    // Ahead of the simulated providers, so these kinds are live.
+    newsProvider(md.ctx.http, undefined, onError),
+    ...(md.ctx.opts.twitterApiKey ? xProviders(md.ctx.http, md.ctx.opts.twitterApiKey, { matcher: md.ctx.opts.postMatcher, onError }) : []),
+    ...(md.ctx.helius ? [walletProvider(md.ctx.helius, onError)] : []),
+    traderProvider(md.ctx.hl, onError),
     calendarProvider(),
     ...simulatedProviders({
       marketProb: async (i) => {

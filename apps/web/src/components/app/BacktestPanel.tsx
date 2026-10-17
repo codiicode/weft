@@ -2,7 +2,6 @@
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import { AnimatePresence, motion } from "motion/react";
 import type { Strategy } from "@weft/strategy";
-import { useRequireAuth } from "@/lib/auth";
 import { api, ApiError, type BacktestInterval, type BacktestResult, type CoverageStatus } from "@/lib/api";
 import { fmtPct, fmtPrice, fmtUsd } from "@/lib/use-api";
 import { Btn, Card, Pill } from "./AppShell";
@@ -72,6 +71,18 @@ function Icon({ quality }: { quality: BacktestResult["coverage"]["quality"] }) {
  * replay(), historical candles + funding) and shows stats, the equity curve,
  * fills and, prominently, which data was historical vs unknown.
  */
+/** Copy trading follows someone else's future trades, so there is no history to replay. */
+export function CopyNoBacktest() {
+  return (
+    <Card className="p-5">
+      <div className="text-[15px] font-semibold tracking-[-0.015em] text-ink">How would it have done?</div>
+      <p className="mt-1.5 text-[13.5px] leading-relaxed text-muted">
+        Copy trading follows the trades someone makes from now on, so it can’t be replayed on history. Start with a small amount per copy, or run it as alerts only first to see what it would copy.
+      </p>
+    </Card>
+  );
+}
+
 export function BacktestPanel({ strategy, strategyId, allocationUsd = 10_000 }: { strategy?: Strategy; strategyId?: string; allocationUsd?: number }) {
   const [days, setDays] = useState<number>(30);
   const [interval, setInterval] = useState<BacktestInterval>("1h");
@@ -91,9 +102,7 @@ export function BacktestPanel({ strategy, strategyId, allocationUsd = 10_000 }: 
   }, [identity]);
   useEffect(() => () => abort.current?.abort(), []);
 
-  const requireAuth = useRequireAuth();
   const run = async () => {
-    if (!requireAuth()) return;
     abort.current?.abort();
     const ctrl = new AbortController();
     abort.current = ctrl;

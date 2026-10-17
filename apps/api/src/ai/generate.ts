@@ -29,7 +29,7 @@ const tools: Anthropic.Beta.BetaTool[] = [
     input_schema: {
       type: "object",
       properties: {
-        product: { type: "string", enum: PRODUCTS, description: "perps | stocks (HIP-3 perps + tokenized stocks) | predictions | tokens (Solana) | options" },
+        product: { type: "string", enum: PRODUCTS, description: "perps | stocks (HIP-3 perps + tokenized stocks) | predictions (Hyperliquid, tradable; Polymarket, watch-only odds) | tokens (Solana) | options" },
         query: { type: "string", description: "Symbol, name or keywords, e.g. PUMP, NVDA, wheat, fed cut, ETH" },
         limit: { type: "integer", description: "Max results (default 8)" },
       },

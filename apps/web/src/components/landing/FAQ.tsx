@@ -7,27 +7,39 @@ import { brand, $T } from "@/config/brand";
 const faqs = [
   {
     q: "Do I need to know how to trade?",
-    a: "You need an opinion, not a trading background. Weft turns it into concrete rules and shows you each one in plain English before anything runs. Test it on real history first, then start it with an amount you choose.",
+    a: "You need an opinion, not a trading background. Weft turns it into concrete rules and shows you each one in plain English before anything runs. Test it on recent market data first, then start it with whatever amount you like.",
   },
   {
     q: "Does Weft hold my money?",
-    a: "No. Funds stay in your own Hyperliquid account. Weft gets a key that can trade but can’t withdraw or transfer, and you can revoke it from Hyperliquid at any time. Live trading on Solana works the same way and comes next.",
+    a: "No. Your money stays in your own Hyperliquid account and your own Solana wallet. Weft gets a key that can place trades, but it can’t withdraw or send money anywhere. You can move your money out whenever you want.",
+  },
+  {
+    q: "What can it watch?",
+    a: "Prices, funding and open interest (on Hyperliquid, Binance and Bybit), order books, prediction-market odds from Hyperliquid and Polymarket, and on-chain data for Solana tokens: holders, buys and sells, liquidity and dev wallets. It can copy every trade a Solana wallet or a Hyperliquid trader makes, track how much a coin is talked about on X, and act when an account you pick posts something specific. Also crypto and market headlines, interest rates, stock indices, oil, the dollar, inflation and jobs data, earnings and Fed dates, weather forecasts, and crypto-wide numbers like the Fear & Greed Index, Bitcoin dominance, stablecoin supply, DeFi TVL and protocol fees.",
+  },
+  {
+    q: "Can I copy other traders?",
+    a: "Yes. Give Weft a Solana wallet or a Hyperliquid account and it copies every new trade they make with your own amount, then closes when they close. You can limit it to certain coins, cap how many copies are open, or only copy while a condition holds, like “only while Fear & Greed is above 50”. Whatever they held before you started is left alone.",
   },
   {
     q: "What does it cost?",
-    a: `Writing and testing strategies is free. Trades pay a fee (${(brand.builderFeeBps / 100).toFixed(2)}% on Hyperliquid, ${(brand.swapFeeBps / 100).toFixed(1)}% on Solana swaps). Half of it buys back ${$T} on the open market, and holding ${$T} halves what you pay.`,
+    a: `Writing and testing strategies is free. When a strategy trades, you pay ${(brand.builderFeeBps / 100).toFixed(2)}% on Hyperliquid and ${+(brand.swapFeeBps / 100).toFixed(2)}% on Solana swaps. Half of every fee buys back ${$T}. Once ${$T} is live, holders pay half.`,
   },
   {
-    q: "Is it safe to trade memecoins with it?",
-    a: "Safer than by hand, never safe. Tokens are matched by contract address, not ticker, and every buy is checked for the usual rug signs: mint authority, holder concentration, liquidity, dev selling. You see a heads-up when one fails; say “only if it’s safe” and the checks block the buy instead. Memecoins can still go to zero.",
+    q: "Is it safe to trade new tokens with it?",
+    a: "Safer than doing it by hand, but never safe. Weft finds a token by its contract address, not its ticker, and checks every buy for the usual rug signs: whether the dev can still mint or freeze, how much the top wallets hold, how deep the liquidity is and whether the dev has sold. If a check fails, you get a warning. Add “only if it’s safe” and a failed check stops the buy instead. New tokens can still go to zero.",
   },
   {
     q: "Can it just alert me instead?",
-    a: "Yes. Any strategy can run as alerts only and message you on Telegram when it would have traded.",
+    a: "Yes. Any strategy can run as alerts only. Weft messages you on Telegram when it would have traded, and no money moves.",
+  },
+  {
+    q: "What if Weft goes down?",
+    a: "Stops on Hyperliquid stay in place, because they sit on Hyperliquid itself. New trades wait until Weft is back. Stops on Solana tokens are watched by Weft, so those wait too.",
   },
   {
     q: "Is this financial advice?",
-    a: "No. Weft runs the strategy you approve. Trading is risky and leverage magnifies losses.",
+    a: "No. Weft runs the rules you write and approve. Trading is risky, and leverage makes losses bigger.",
   },
 ];
 
@@ -39,10 +51,6 @@ export function FAQ() {
           Anything else? Ask us on{" "}
           <a href={brand.socials.x} className="text-ink underline decoration-line-2 underline-offset-4 hover:decoration-ink">
             X
-          </a>{" "}
-          or{" "}
-          <a href={brand.socials.telegram} className="text-ink underline decoration-line-2 underline-offset-4 hover:decoration-ink">
-            Telegram
           </a>
           .
         </>

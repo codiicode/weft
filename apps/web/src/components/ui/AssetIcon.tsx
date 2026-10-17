@@ -10,7 +10,7 @@ import { useState } from "react";
 const HL = "https://app.hyperliquid.xyz/coins";
 /** Logos we ship with the site (public/coins), keyed by symbol. */
 const LOCAL = new Set([
-  "BTC", "ETH", "SOL", "HYPE", "WIF", "BONK", "PUMP", "JUP", "USDC", "FARTCOIN",
+  "BTC", "ETH", "SOL", "HYPE", "WIF", "BONK", "PUMP", "JUP", "USDC", "FARTCOIN", "DOGE",
   "NVDA", "TSLA", "GOLD", "AAPL", "COIN", "SILVER", "MSFT", "GOOGL", "AMZN", "META", "SP500", "XYZ100",
   "WHEAT", "NATGAS", "COPPER", "OUTCOME",
 ]);
@@ -90,8 +90,10 @@ export function AssetIcon({
       loading="lazy"
       decoding="async"
       onError={() => setI(i + 1)}
-      className={`inline-block shrink-0 rounded-full bg-paper-2 object-cover ${className}`}
-      style={{ width: size, height: size }}
+      className={`inline-block shrink-0 rounded-full object-cover ${className}`}
+      // Venue logos are often a dark mark on a transparent background: a light disc keeps them
+      // visible in dark mode. Our own logos are full discs already.
+      style={{ width: size, height: size, background: sources[i]!.startsWith("/coins/") ? "var(--paper-2)" : "#ecebe6" }}
     />
   );
 }

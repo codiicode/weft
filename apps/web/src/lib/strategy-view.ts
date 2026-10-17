@@ -39,6 +39,8 @@ const SIGNAL_TYPE: Record<Signal["kind"], SignalType> = {
   model: "model",
   calendar: "calendar",
   macro: "rates",
+  wallet: "onchain",
+  trader: "position",
   position: "position",
 };
 
@@ -55,6 +57,8 @@ const SOURCE: Record<Signal["kind"], string> = {
   model: "Weft model",
   calendar: "Calendar",
   macro: "Macro",
+  wallet: "Wallet",
+  trader: "Trader",
   position: "Position",
 };
 
@@ -69,15 +73,74 @@ function fmtNum(v: number): string {
   return v.toPrecision(3);
 }
 
+/** Readable names for macro series ("FEES:hyperliquid" → "Hyperliquid daily fees"). */
+const SERIES_LABEL: Record<string, string> = {
+  FEAR_GREED: "Crypto Fear & Greed",
+  FEAR_AND_GREED: "Crypto Fear & Greed",
+  FNG: "Crypto Fear & Greed",
+  BTC_DOMINANCE: "Bitcoin dominance (%)",
+  ETH_DOMINANCE: "Ether dominance (%)",
+  CRYPTO_MCAP: "Total crypto market cap ($B)",
+  STABLECOIN_MCAP: "Stablecoin supply ($B)",
+  TVL: "DeFi TVL ($B)",
+  US3M: "US 3-month yield",
+  US1Y: "US 1-year yield",
+  US2Y: "US 2-year yield",
+  US5Y: "US 5-year yield",
+  US10Y: "US 10-year yield",
+  US30Y: "US 30-year yield",
+  REAL10Y: "US 10-year real yield",
+  US10Y_REAL: "US 10-year real yield",
+  FEDFUNDS: "Fed funds rate",
+  EFFR: "Fed funds rate",
+  T10Y2Y: "2s10s yield curve",
+  BREAKEVEN10Y: "10-year inflation expectations",
+  MORTGAGE30: "30-year mortgage rate",
+  HY_SPREAD: "High-yield credit spread",
+  SP500: "S&P 500",
+  NASDAQ: "Nasdaq",
+  VIX: "VIX",
+  WTI: "WTI oil",
+  BRENT: "Brent oil",
+  DXY: "Dollar index",
+  USD_BROAD: "Dollar index",
+  CPI: "CPI",
+  CORE_CPI: "Core CPI",
+  UNEMPLOYMENT: "Unemployment rate",
+  PAYROLLS: "Nonfarm payrolls",
+  JOBLESS_CLAIMS: "Jobless claims",
+  M2: "M2 money supply",
+  FED_BALANCE_SHEET: "Fed balance sheet",
+};
+
+export function macroLabel(series: string): string {
+  const up = series.trim().toUpperCase();
+  if (SERIES_LABEL[up]) return SERIES_LABEL[up]!;
+  const [kind, rest] = [up.split(":")[0]!, series.slice(series.indexOf(":") + 1).trim()];
+  const name = rest.replace(/[-_]/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
+  if (kind === "TVL" && up.includes(":")) return `${name} TVL ($B)`;
+  if (kind === "FEES") return `${name} daily fees ($M)`;
+  if (kind === "REVENUE") return `${name} daily revenue ($M)`;
+  if (kind === "FRED") return `FRED ${rest}`;
+  if (/^[A-Z]{6}$/.test(up.replace("/", ""))) return `${up.replace("/", "").slice(0, 3)}/${up.replace("/", "").slice(3)}`;
+  return series;
+}
+
 function signalTitle(s: Signal): string {
   if (s.label) return s.label;
   const p = s.params as Record<string, unknown>;
   if (p.instrument) return instrumentLabel(p.instrument as never);
   if (s.kind === "token_onchain") return `${s.params.mint.slice(0, 4)}…${s.params.mint.slice(-4)}`;
   if (s.kind === "social") return [...s.params.cashtags.map((c) => `$${c}`), ...s.params.keywords, ...s.params.accounts].slice(0, 2).join(" ") || "Social";
-  if (s.kind === "post_match") return s.params.accounts.join(", ");
-  if (s.kind === "forecast") return s.params.series.replaceAll("_", " ");
-  if (s.kind === "macro") return s.params.series;
+  if (s.kind === "post_match") return s.params.accounts.map((a) => `@${a.replace(/^@/, "")}`).join(", ");
+  if (s.kind === "wallet") return `Wallet ${s.params.address.slice(0, 4)}…${s.params.address.slice(-4)}`;
+  if (s.kind === "trader") return `Trader ${s.params.address.slice(0, 6)}…${s.params.address.slice(-4)} · ${s.params.coin}`;
+  if (s.kind === "forecast") {
+    const w = /^(temp|temperature|precip|precipitation|rain)\s*:\s*(.+)$/i.exec(s.params.series);
+    if (w) return /^temp/i.test(w[1]!) ? `${w[2]} temperature, next 7 days (°C)` : `${w[2]} rain and snow, next 7 days (mm)`;
+    return s.params.series.replaceAll("_", " ");
+  }
+  if (s.kind === "macro") return macroLabel(s.params.series);
   if (s.kind === "news") return s.params.query;
   if (s.kind === "model") return s.params.question;
   if (s.kind === "calendar") return `${s.params.symbol ?? ""} ${s.params.event === "custom" ? "event" : s.params.event === "fomc" ? "Fed meeting" : s.params.event === "cpi" ? "inflation report" : s.params.event}`.trim();
@@ -106,7 +169,7 @@ function venueOf(a: Action): string {
   if (a.type === "open") {
     const i = a.instrument;
     if (i.kind === "token") return i.route === "auto" ? "Jupiter" : i.route[0]!.toUpperCase() + i.route.slice(1);
-    if (i.kind === "outcome") return i.venue === "hyperliquid" ? "HIP-4" : "Jupiter";
+    if (i.kind === "outcome") return i.venue === "hyperliquid" ? "HIP-4" : i.venue === "polymarket" ? "Polymarket" : "Jupiter";
     if (i.kind === "perp") return i.dex ? `HIP-3 · ${i.dex}` : "Hyperliquid";
     return "Hyperliquid";
   }
@@ -194,6 +257,8 @@ export function strategyToSpec(s: Strategy, live: LiveOverlay = {}): { spec: Gra
         title: a.label ?? (a.target === "all" ? "Close all positions" : `Close ${instrumentLabel(a.target.instrument)}`),
         detail: a.fraction < 1 ? `${Math.round(a.fraction * 100)}% of position` : "entire position",
       });
+    } else if (a.type === "copy") {
+      nodes.push({ id: a.id, kind: "action", side: "buy", asset: a.label ?? copyWho(a), venue: a.leader.venue === "solana" ? "Solana" : "Hyperliquid", alloc: sizeLabel(a.size) });
     } else {
       nodes.push({ id: a.id, kind: "exit", title: a.label ?? `Alert · ${a.channel}`, detail: a.message });
     }
@@ -242,6 +307,20 @@ const FIELD: Record<string, [name: string, unit?: "%" | "$" | "pp" | "bps" | "h"
   rate_8h_pct: ["8h funding", "%"],
   apr_pct: ["funding APR", "%"],
   oi_zscore_30d: ["open interest vs 30-day normal"],
+  binance_rate_1h_pct: ["Binance hourly funding", "%"],
+  bybit_rate_1h_pct: ["Bybit hourly funding", "%"],
+  funding_gap_1h_pct: ["funding gap to Binance/Bybit", "%"],
+  buys_1h: ["buys in the last hour"],
+  sells_1h: ["sells in the last hour"],
+  sol_spent_1h: ["SOL spent in the last hour"],
+  sol_received_1h: ["SOL received in the last hour"],
+  minutes_since_buy: ["minutes since its last buy"],
+  minutes_since_sell: ["minutes since its last sell"],
+  token_balance: ["tokens held"],
+  entry_price: ["entry price"],
+  unrealized_pnl_pct: ["profit on the position", "%"],
+  minutes_since_change: ["minutes since it last opened, closed or flipped"],
+  account_value_usd: ["account value", "$"],
   open_interest_usd: ["open interest", "$"],
   volume_24h_usd: ["24h volume", "$"],
   liquidity_usd: ["liquidity", "$"],
@@ -260,7 +339,7 @@ const FIELD: Record<string, [name: string, unit?: "%" | "$" | "pp" | "bps" | "h"
   holders_change_1h_pct: ["1h holder growth", "%"],
   top10_holders_pct: ["top-10 holders’ share", "%"],
   dev_sold_pct: ["dev wallet sold", "%"],
-  buy_sell_ratio_1h: ["buy/sell ratio"],
+  buy_sell_ratio_1h: ["buys per sell (1h)"],
   smart_wallet_buys_1h: ["smart-wallet buys per hour"],
   bonding_curve_pct: ["bonding curve progress", "%"],
   age_minutes: ["age", "min"],
@@ -297,15 +376,38 @@ function withUnit(n: string, unit?: string): string {
 }
 
 /** Rewrites "px.change_24h_pct ≤ -5" into "BTC 24h change ≤ −5%" using signal titles and field names. */
-function humanize(line: string, titles: Map<string, string>): string {
+function humanize(line: string, titles: Map<string, string>, sigs: Map<string, Signal> = new Map()): string {
   const name = (sid: string, f: string) => {
     const t = titles.get(sid);
+    // A series' own value reads as its name: "Crypto Fear & Greed ≤ 20", not "… value ≤ 20".
+    if (t && f === "value") return t;
     const field = FIELD[f]?.[0] ?? f.replaceAll("_", " ");
     // "RAY price" + "price" reads as "RAY price", not "RAY price price".
     return t ? (t.toLowerCase().endsWith(field.toLowerCase()) ? t : `${t} ${field}`) : field;
   };
   const title = (sid: string) => titles.get(sid) ?? sid;
+  const claim = (sid: string) => {
+    const sg = sigs.get(sid);
+    return sg?.kind === "post_match" ? sg.params.claim.replace(/^(announces|says|posts|tweets)( that)? /i, "").replace(/\.$/, "") : "the claim";
+  };
+  const contra = (sid: string) => {
+    const sg = sigs.get(sid);
+    return sg?.kind === "post_match" && sg.params.contradiction ? sg.params.contradiction.replace(/\.$/, "") : "the opposite";
+  };
   return line
+    // Posts on X read as sentences: "@saylor posts that Strategy bought more bitcoin".
+    .replace(/\bNOT ([a-z][a-z0-9_]*)\.contradicted\b/g, (_m, sid: string) => `no post from ${title(sid)} ${contra(sid).toLowerCase().startsWith("denies") ? contra(sid) : `says ${contra(sid)}`}`)
+    .replace(/\bNOT ([a-z][a-z0-9_]*)\.matched\b/g, (_m, sid: string) => `${title(sid)} hasn’t posted that ${claim(sid)} yet`)
+    .replace(/\b([a-z][a-z0-9_]*)\.matched\b(?!\s*[<>=≤≥≠])/g, (_m, sid: string) => `${title(sid)} posts that ${claim(sid)}`)
+    .replace(/\b([a-z][a-z0-9_]*)\.minutes_since_match (<|≤) ([\d.]+)/g, (_m, _sid: string, _op: string, n: string) => `the post is under ${n} min old`)
+    // Followed wallets and traders: "Wallet 7xKp…9fQe bought in the last hour".
+    .replace(/\b([a-z][a-z0-9_]*)\.buys_1h (>|≥) 0\b/g, (_m, sid: string) => `${title(sid)} bought in the last hour`)
+    .replace(/\b([a-z][a-z0-9_]*)\.sells_1h (>|≥) 0\b/g, (_m, sid: string) => `${title(sid)} sold in the last hour`)
+    .replace(/\b([a-z][a-z0-9_]*)\.minutes_since_buy (<|≤) ([\d.]+)/g, (_m, _sid: string, _op: string, n: string) => `its last buy was under ${n} min ago`)
+    .replace(/\b([a-z][a-z0-9_]*)\.minutes_since_sell (<|≤) ([\d.]+)/g, (_m, _sid: string, _op: string, n: string) => `its last sell was under ${n} min ago`)
+    .replace(/\b([a-z][a-z0-9_]*)\.minutes_since_change (<|≤) ([\d.]+)/g, (_m, _sid: string, _op: string, n: string) => `they changed it under ${n} min ago`)
+    // A followed trader's side reads as a word: "Trader 0x12…ab · BTC is long".
+    .replace(/\b([a-z][a-z0-9_]*)\.side (=|≠) (-?1|0)\b/g, (_m, sid: string, op: string, n: string) => `${title(sid)} ${op === "≠" ? "isn’t" : "is"} ${n === "1" ? "long" : n === "0" ? "flat" : "short"}`)
     // Time to/since calendar events read as "in 2–48 hours", "less than 1 hour away".
     .replace(/(-?[\d.]+) ≤ ([a-z][a-z0-9_]*)\.hours_until ≤ (-?[\d.]+)/g, (_m, a: string, sid: string, b: string) => `${title(sid)} is ${a}–${b} hours away`)
     .replace(/([a-z][a-z0-9_]*)\.hours_until ([<≤]) (-?[\d.]+)/g, (_m, sid: string, _op: string, n: string) => `${title(sid)} is less than ${n} hour${n === "1" ? "" : "s"} away`)
@@ -366,7 +468,8 @@ export function describeStrategy(s: Strategy): { watches: string[]; watchKinds: 
     if (/^[a-z0-9]+(-[a-z0-9]+)+$/.test(q)) q = q.replaceAll("-", " ");
     return q.length > 34 ? `${q.slice(0, 32).replace(/[\s,:;·-]+\S*$/, "")}…` : q;
   };
-  const titles = new Map(s.signals.map((sig) => [sig.id, short(titleOf(sig)).replace(/ on-chain health$/i, "")]));
+  const titles = new Map(s.signals.map((sig) => [sig.id, short(titleOf(sig)).replace(/ on-chain( health)?$/i, "")]));
+  const sigById = new Map(s.signals.map((sig) => [sig.id, sig]));
   const watchLabel = (sig: Signal) => {
     const t = short(titleOf(sig));
     if (sig.kind === "price" && !/price/i.test(t)) return `${t} price`;
@@ -389,7 +492,7 @@ export function describeStrategy(s: Strategy): { watches: string[]; watchKinds: 
   const rules: PlainRule[] = s.triggers.map((t) => {
     const c = clauses(t.when);
     const then = s.actions
-      .filter((a) => a.on.includes(t.id))
+      .filter((a) => a.type !== "copy" && a.on.includes(t.id))
       .map((a): PlainRule["then"][number] => {
         if (a.type === "open") {
           const inst =
@@ -423,6 +526,7 @@ export function describeStrategy(s: Strategy): { watches: string[]; watchKinds: 
           const what = a.target === "all" ? "every position" : instrumentLabel(a.target.instrument);
           return { text: `${a.fraction < 1 ? `Close ${Math.round(a.fraction * 100)}% of` : "Close"} ${what}`, tone: "exit", icon: a.target === "all" ? undefined : instrumentIcon(a.target.instrument) };
         }
+        if (a.type === "copy") return { text: copyText(a), tone: "long" };
         return { text: `Send an alert: “${a.message}”`, tone: "alert" };
       });
     // "price > 0" is how a "do it now" order is written: say so instead of showing the comparison.
@@ -430,12 +534,41 @@ export function describeStrategy(s: Strategy): { watches: string[]; watchKinds: 
     return {
       id: t.id,
       match: c.logic === "OR" ? "any" : "all",
-      when: lines.length ? lines.map((l) => humanize(l, titles)) : ["Right away"],
+      when: lines.length ? lines.map((l) => humanize(l, titles, sigById)) : ["Right away"],
       hold: t.forMinutes ? `for ${minutesLabel(t.forMinutes)}` : undefined,
       then,
     };
   });
+  // Copy trading runs on the leader's trades, not on a rule: one plain rule per copy action.
+  for (const a of s.actions) {
+    if (a.type !== "copy") continue;
+    const gate = a.on.map((id) => s.triggers.findIndex((t) => t.id === id)).filter((i) => i >= 0).map((i) => `rule ${i + 1} holds`);
+    rules.push({
+      id: a.id,
+      match: "all",
+      when: [a.leader.venue === "solana" ? `${copyWho(a)} buys or sells a token` : `${copyWho(a)} opens, closes or flips a position`, ...gate],
+      then: [{ text: copyText(a), tone: "long" }],
+    });
+    const w = copyWho(a);
+    if (!watches.includes(w)) watches.push(w);
+    watchKinds.push({ label: w, kind: a.leader.venue === "solana" ? "wallet" : "trader" });
+  }
   return { watches, watchKinds, rules };
+}
+
+/** "Wallet 7xKp…9fQe" / "Trader 0x1234…abcd". */
+function copyWho(a: Extract<Action, { type: "copy" }>): string {
+  return a.leader.venue === "solana" ? `Wallet ${a.leader.wallet.slice(0, 4)}…${a.leader.wallet.slice(-4)}` : `Trader ${a.leader.trader.slice(0, 6)}…${a.leader.trader.slice(-4)}`;
+}
+
+/** What a copy action does, in one sentence. */
+function copyText(a: Extract<Action, { type: "copy" }>): string {
+  const size = sizeLabel(a.size);
+  const only = a.only?.length ? ` (only ${a.only.slice(0, 3).map((x) => (x.length > 12 ? `${x.slice(0, 4)}…` : x)).join(", ")}${a.only.length > 3 ? "…" : ""})` : "";
+  if (a.leader.venue === "solana")
+    return `Buy the same token with ${size}${only}, if its liquidity is above $${Math.round(a.minLiquidityUsd / 1000)}k${a.mirrorExits ? ", and sell when it sells" : ""}. Up to ${a.maxOpen} at once.`;
+  const lev = a.leverage ? `${a.leverage}×` : "their leverage";
+  return `Open the same position with ${size} at ${lev}${only}${a.mirrorExits ? ", and close when they close" : ""}. Up to ${a.maxOpen} at once.`;
 }
 
 /** Words of a sentence, for comparing a title with its thesis ("Buy 0.05 SOL of RAY" ≈ "Buy 0.05 sol of RAY now"). */

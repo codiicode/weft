@@ -1,0 +1,634 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Weft launch video</title>
+<style>
+  @font-face { font-family: "Newsreader"; src: url("../../scripts/og/newsreader-latin.woff2") format("woff2"); font-weight: 200 800; }
+  @font-face { font-family: "Inst"; src: url("../../scripts/og/instrument-sans-latin.woff2") format("woff2"); font-weight: 400 700; }
+  html, body { margin: 0; background: #0c0c0d; }
+  #stage { position: relative; width: 1920px; height: 1080px; overflow: hidden; background: #0c0c0d; color: #f4f3ef; font-family: "Inst", sans-serif; -webkit-font-smoothing: antialiased; }
+  .scene { position: absolute; inset: 0; opacity: 0; transform-origin: 50% 50%; }
+  .serif { font-family: "Newsreader", serif; font-weight: 400; letter-spacing: -0.02em; }
+  .center { position: absolute; left: 0; right: 0; text-align: center; }
+  .card { background: #141416; border: 1.5px solid #26262a; border-radius: 28px; }
+  .label { font-size: 21px; letter-spacing: 0.16em; text-transform: uppercase; color: #6f6e6a; }
+  .muted { color: #a3a29d; } .faint { color: #6f6e6a; }
+  .word { display: inline-block; }
+  .hl { border-radius: 8px; background-repeat: no-repeat; background-position: 0 50%; -webkit-box-decoration-break: clone; box-decoration-break: clone; padding: 0 4px; margin: 0 -4px; }
+  .tnum { font-variant-numeric: tabular-nums; }
+  svg { overflow: visible; }
+  svg text { font-family: "Inst", sans-serif; }
+</style>
+</head>
+<body>
+<div id="stage">
+  <svg id="warp" width="1920" height="1080" style="position:absolute;inset:0"></svg>
+  <div id="glow" style="position:absolute;inset:0"></div>
+
+  <!-- logo (open and end) -->
+  <div class="scene" id="s-logo">
+    <svg width="1920" height="1080" style="position:absolute;inset:0">
+      <g id="threads" fill="none" stroke-linecap="round"></g>
+      <circle id="knotRing" cx="960" cy="420" r="0" fill="none" stroke="#3ecf8e" stroke-width="2"/>
+      <circle id="knot" cx="960" cy="420" r="0" fill="#f4f3ef"/>
+    </svg>
+    <div class="center" id="wordmark" style="top:560px;font-size:150px;font-weight:600;letter-spacing:-0.045em">weft</div>
+    <div class="center serif muted" id="tagline" style="top:760px;font-size:56px">Trade the thesis.</div>
+    <div class="center" id="endExtras" style="top:880px;font-size:30px"></div>
+  </div>
+
+  <!-- hook -->
+  <div class="scene" id="s-hook">
+    <div class="center serif" id="hook1" style="top:380px;font-size:108px"></div>
+    <div class="center serif muted" id="hook2" style="top:540px;font-size:84px"></div>
+  </div>
+
+  <!-- the sentence -->
+  <div class="scene" id="s-prompt">
+    <div class="center muted" id="promptLabel" style="top:190px;font-size:34px">Say it the way you’d say it.</div>
+    <div class="card" id="promptCard" style="position:absolute;left:230px;top:270px;width:1460px;padding:52px 64px 104px;box-sizing:border-box">
+      <div id="promptText" style="font-size:46px;line-height:1.5"></div>
+      <div id="sendBtn" style="position:absolute;right:40px;bottom:32px;width:64px;height:64px;border-radius:18px;background:#f4f3ef;display:grid;place-items:center">
+        <svg width="28" height="28" viewBox="0 0 20 20"><path d="M10 15V5M5 10l5-5 5 5" stroke="#0c0c0d" stroke-width="2.4" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      </div>
+    </div>
+  </div>
+
+  <!-- the big diagram: built, then live -->
+  <div class="scene" id="s-graph">
+    <div class="center serif" id="gTitle1" style="top:70px;font-size:80px">Every phrase becomes a rule.</div>
+    <div class="center serif" id="gTitle2" style="top:70px;font-size:80px">Then it watches. Every 15 seconds.</div>
+    <svg id="big" width="1920" height="1080" style="position:absolute;inset:0"></svg>
+    <div id="gCaption" class="center muted" style="top:900px;font-size:32px"></div>
+    <div id="clockRow" style="position:absolute;left:120px;right:120px;top:930px"></div>
+  </div>
+
+  <!-- montage of other strategies -->
+  <div class="scene" id="s-montage">
+    <div class="center serif" id="mTitle" style="top:70px;font-size:80px">Any signal. Any market. One sentence.</div>
+    <div class="center" id="mSentence" style="top:200px;font-size:36px;padding:0 200px;line-height:1.4"></div>
+    <svg id="mSvg" width="1920" height="1080" style="position:absolute;inset:0"></svg>
+  </div>
+
+  <!-- wall of sources -->
+  <div class="scene" id="s-wall">
+    <div class="center serif" id="wallTitle" style="top:430px;font-size:120px">Not just prices.</div>
+    <div id="grid" style="position:absolute;left:140px;top:270px;width:1640px;display:grid;grid-template-columns:repeat(4,1fr);gap:20px"></div>
+    <div class="center muted" id="wallSub" style="top:950px;font-size:40px">Mix any of them in one sentence.</div>
+  </div>
+
+  <!-- copy traders -->
+  <div class="scene" id="s-copy">
+    <div class="serif" style="position:absolute;left:140px;top:110px;font-size:80px">Or copy the best traders.</div>
+    <div class="muted" style="position:absolute;left:144px;top:225px;font-size:32px">Hyperliquid’s most profitable accounts, one click away.</div>
+    <div class="card" id="table" style="position:absolute;left:140px;top:330px;width:820px;padding:12px 0"></div>
+    <div id="mirror" style="position:absolute;left:1040px;top:330px;width:740px"></div>
+    <svg id="cursor" width="40" height="40" viewBox="0 0 24 24" style="position:absolute;left:0;top:0;opacity:0"><path d="M4 2l15 9-7 1.5L8.5 20z" fill="#f4f3ef" stroke="#0c0c0d" stroke-width="1.5" stroke-linejoin="round"/></svg>
+    <div class="center muted" id="copySub" style="top:950px;font-size:34px">Every new trade, with your own amount. They close, you close.</div>
+  </div>
+
+  <!-- simple -->
+  <div class="scene" id="s-simple">
+    <div class="center serif" id="simpleTitle" style="top:150px;font-size:84px">Or keep it simple.</div>
+    <div id="simpleText" style="position:absolute;left:0;top:330px;width:1920px;text-align:center;font-size:80px;letter-spacing:-0.025em;white-space:nowrap"></div>
+    <svg id="simpleSvg" width="1920" height="1080" style="position:absolute;inset:0"></svg>
+    <div id="ticket" style="position:absolute;left:260px;top:590px;width:1400px;height:240px"></div>
+  </div>
+
+  <!-- safety -->
+  <div class="scene" id="s-safe">
+    <div class="center serif" style="top:150px;font-size:88px">Your money never leaves your wallet.</div>
+    <svg id="safeSvg" width="1920" height="1080" style="position:absolute;inset:0"></svg>
+    <div class="center muted" style="top:850px;font-size:40px">Weft can trade for you. It can’t withdraw.</div>
+  </div>
+</div>
+
+<script>
+/* ================= helpers ================= */
+const $ = (id) => document.getElementById(id);
+const clamp = (x, a = 0, b = 1) => Math.min(b, Math.max(a, x));
+const seg = (t, a, b) => clamp((t - a) / (b - a));
+const eo = (x) => 1 - Math.pow(1 - x, 3);
+const eo5 = (x) => 1 - Math.pow(1 - x, 5);
+const eio = (x) => (x < 0.5 ? 4 * x * x * x : 1 - Math.pow(-2 * x + 2, 3) / 2);
+const lerp = (a, b, x) => a + (b - a) * x;
+const NS = "http://www.w3.org/2000/svg";
+const el = (tag, attrs = {}, parent) => { const e = document.createElementNS(NS, tag); for (const k in attrs) e.setAttribute(k, attrs[k]); if (parent) parent.appendChild(e); return e; };
+const div = (html, style = "", parent) => { const d = document.createElement("div"); d.innerHTML = html; d.style.cssText = style; if (parent) parent.appendChild(d); return d; };
+const win = (t, a, b, fi = 0.45, fo = 0.45) => Math.min(eo(seg(t, a, a + fi)), 1 - eio(seg(t, b - fo, b)));
+const C = { ink: "#f4f3ef", ink2: "#cfcec9", muted: "#a3a29d", faint: "#6f6e6a", line: "#26262a", line2: "#34343a", card: "#141416", paper: "#0c0c0d",
+  blue: "#7c8cff", violet: "#a78bfa", amber: "#f5a524", pink: "#f472b6", sky: "#38bdf8", long: "#3ecf8e", short: "#ff6b6b" };
+const DURATION = 73;
+
+/** A scene's life: fade, slow push-in, a little blur at the edges. */
+function stage(id, t, a, b, fi = 0.45, fo = 0.45, push = 0.03) {
+  const e = $(id);
+  const o = win(t, a, b, fi, fo);
+  e.style.opacity = o;
+  if (o <= 0) return o;
+  e.style.transform = `scale(${1 + push * seg(t, a, b)})`;
+  e.style.filter = o < 1 ? `blur(${(1 - o) * 12}px)` : "none";
+  return o;
+}
+function rise(e, p, dy = 24) { e.style.opacity = p; e.style.transform = `translateY(${(1 - p) * dy}px)`; }
+
+/* ================= background ================= */
+for (let x = 24; x < 1920; x += 48) el("line", { x1: x, y1: 0, x2: x, y2: 1080, stroke: "#fff", "stroke-opacity": 0.026 }, $("warp"));
+
+/* ================= logo ================= */
+const KNOT = { x: 960, y: 420 };
+const threadEls = [
+  [`M -40 250 C 400 250 640 420 ${KNOT.x} ${KNOT.y}`, C.amber],
+  [`M -40 335 C 420 335 660 420 ${KNOT.x} ${KNOT.y}`, C.pink],
+  [`M -40 420 L ${KNOT.x} ${KNOT.y}`, C.sky],
+  [`M -40 505 C 420 505 660 420 ${KNOT.x} ${KNOT.y}`, C.blue],
+  [`M -40 590 C 400 590 640 420 ${KNOT.x} ${KNOT.y}`, C.violet],
+  [`M ${KNOT.x} ${KNOT.y} L 1980 ${KNOT.y}`, C.long],
+].map(([d, c], i) => el("path", { d, stroke: c, "stroke-width": i === 5 ? 5 : 3.5, opacity: 0.95 }, $("threads")));
+const threadLen = threadEls.map((p) => p.getTotalLength());
+function drawLogo(t, a, end) {
+  const o = end ? win(t, a, DURATION + 1, 0.6, 0.1) : win(t, a, a + 3.6, 0.01, 0.55);
+  $("s-logo").style.opacity = o;
+  if (o <= 0) return;
+  const l = t - a;
+  threadEls.forEach((p, i) => {
+    const start = i < 5 ? 0.05 + i * 0.09 : 1.12;
+    const pr = eio(seg(l, start, start + (i < 5 ? 1.05 : 1.0)));
+    p.style.strokeDasharray = threadLen[i]; p.style.strokeDashoffset = threadLen[i] * (1 - pr);
+  });
+  const k = eo5(seg(l, 1.05, 1.45));
+  $("knot").setAttribute("r", 22 * k);
+  const ring = seg(l, 1.15, 2.2); $("knotRing").setAttribute("r", 22 + 80 * eo(ring)); $("knotRing").setAttribute("opacity", (1 - ring) * 0.8);
+  rise($("wordmark"), eo(seg(l, 1.5, 2.3)), 30);
+  rise($("tagline"), eo(seg(l, 2.0, 2.8)), 20);
+  rise($("endExtras"), end ? eo(seg(l, 2.6, 3.4)) : 0, 16);
+}
+$("endExtras").innerHTML = `
+  <div style="display:flex;justify-content:center;gap:30px;align-items:center">
+    <span style="font-size:42px;font-weight:600;letter-spacing:-0.015em">weft.fi</span>
+    <span style="width:1.5px;height:34px;background:${C.line2}"></span>
+    <span class="muted" style="font-size:34px">Live now</span>
+  </div>
+  <div class="label" style="margin-top:34px;font-size:22px">Perps · Stocks · Prediction markets · Solana tokens</div>`;
+
+/* ================= hook ================= */
+const words = (target, text) => { target.innerHTML = text.split(" ").map((w) => `<span class="word">${w}</span>`).join(" "); return [...target.children]; };
+const hookW1 = words($("hook1"), "You know what should happen.");
+const hookW2 = words($("hook2"), "You just can’t watch everything at once.");
+function drawHook(t) {
+  const A = 3.2, B = 6.7;
+  if (stage("s-hook", t, A, B, 0.2, 0.4) <= 0) return;
+  const st = (ws, s0) => ws.forEach((w, i) => { const p = eo(seg(t, s0 + i * 0.08, s0 + i * 0.08 + 0.5)); w.style.opacity = p; w.style.transform = `translateY(${(1 - p) * 40}px)`; w.style.filter = `blur(${(1 - p) * 8}px)`; });
+  st(hookW1, A + 0.12); st(hookW2, A + 1.35);
+}
+
+/* ================= the sentence ================= */
+const PROMPT = "If @elonmusk posts about flying cars at today’s Tesla event while $TSLA mentions on X triple, Tesla headlines keep coming, TSLA is up 2% and funding stays low, long TSLA 10x with $200. Take profit at 40%, stop at 15%, and sell if the buzz halves.";
+const PHRASES = [
+  { p: "@elonmusk posts about flying cars at today’s Tesla event", c: C.amber },
+  { p: "$TSLA mentions on X triple", c: C.pink },
+  { p: "Tesla headlines keep coming", c: C.sky },
+  { p: "TSLA is up 2%", c: C.blue },
+  { p: "funding stays low", c: C.violet },
+  { p: "long TSLA 10x with $200", c: C.long },
+  { p: "Take profit at 40%", c: C.long },
+  { p: "stop at 15%", c: C.short },
+  { p: "sell if the buzz halves", c: C.short },
+];
+const segs = []; { let pos = 0; for (const ph of PHRASES) { const at = PROMPT.indexOf(ph.p, pos); if (at > pos) segs.push({ text: PROMPT.slice(pos, at) }); segs.push({ text: ph.p, c: ph.c }); pos = at + ph.p.length; } if (pos < PROMPT.length) segs.push({ text: PROMPT.slice(pos) }); }
+const segEls = segs.map((s) => { const sp = document.createElement("span"); if (s.c) sp.className = "hl"; $("promptText").appendChild(sp); return sp; });
+const caret = document.createElement("span"); caret.style.cssText = `display:inline-block;width:4px;height:52px;background:${C.ink};vertical-align:-10px;margin-left:3px`; $("promptText").appendChild(caret);
+const P = { A: 6.5, B: 15.3, typeA: 7.1, typeB: 11.9, hlA: 12.05, hlStep: 0.27, send: 14.55 };
+function drawPrompt(t) {
+  if (stage("s-prompt", t, P.A, P.B, 0.4, 0.5, 0.02) <= 0) return;
+  rise($("promptLabel"), eo(seg(t, P.A + 0.1, P.A + 0.7)), 14);
+  const card = eo(seg(t, P.A, P.A + 0.6)); $("promptCard").style.transform = `translateY(${(1 - card) * 40}px) scale(${0.97 + 0.03 * card})`;
+  let left = Math.floor(PROMPT.length * seg(t, P.typeA, P.typeB)), k = 0;
+  segs.forEach((s, i) => {
+    const n = Math.max(0, Math.min(s.text.length, left)); left -= s.text.length;
+    segEls[i].textContent = s.text.slice(0, n);
+    if (s.c) {
+      const p = eo(seg(t, P.hlA + k * P.hlStep, P.hlA + k * P.hlStep + 0.45));
+      segEls[i].style.backgroundImage = `linear-gradient(${s.c}45, ${s.c}45)`;
+      segEls[i].style.backgroundSize = `${p * 100}% 100%`;
+      k++;
+    }
+  });
+  caret.style.opacity = t < P.typeB + 0.1 ? 1 : (Math.floor(t * 2.4) % 2 ? 0 : 1) * (1 - seg(t, P.send, P.send + 0.2));
+  const press = seg(t, P.send, P.send + 0.15) - seg(t, P.send + 0.15, P.send + 0.35);
+  $("sendBtn").style.transform = `scale(${1 - press * 0.12})`; $("sendBtn").style.boxShadow = `0 0 ${40 * press}px ${C.ink}`;
+}
+
+/* ================= diagram builder ================= */
+/**
+ * Signals on the left weave into one knot, the knot opens the trade(s), the trade branches into
+ * its exits. Every node has a title, a sub line, and room on the right for a live value and a tick.
+ */
+function graph(svg, spec) {
+  const g = el("g", {}, svg);
+  const wires = el("g", {}, g), nodes = el("g", {}, g);
+  const node = (x, y, w, h, n) => {
+    const grp = el("g", {}, nodes);
+    const rect = el("rect", { x, y: y - h / 2, width: w, height: h, rx: 20, fill: C.card, stroke: C.line2, "stroke-width": 2 }, grp);
+    el("circle", { cx: x + 28, cy: y, r: 7, fill: n.color }, grp);
+    const title = el("text", { x: x + 50, y: y - 6, "font-size": n.fs ?? 26, fill: C.ink, "font-weight": 500 }, grp); title.textContent = n.title;
+    const sub = el("text", { x: x + 50, y: y + 26, "font-size": (n.fs ?? 26) - 5, fill: C.muted }, grp); sub.textContent = n.sub ?? "";
+    const value = el("text", { x: x + w - 58, y: y - 4, "font-size": 25, fill: C.ink, "text-anchor": "end", "font-variant-numeric": "tabular-nums" }, grp);
+    const spark = el("path", { fill: "none", stroke: n.color, "stroke-width": 2, opacity: 0.85 }, grp);
+    const tick = el("g", { opacity: 0 }, grp);
+    const tc = el("circle", { cx: x + w - 28, cy: y, r: 12, fill: "none", stroke: C.amber, "stroke-width": 2.5 }, tick);
+    const tp = el("path", { d: `M ${x + w - 34} ${y} l 4 5 l 9 -10`, fill: "none", stroke: C.paper, "stroke-width": 3, "stroke-linecap": "round", "stroke-linejoin": "round", opacity: 0 }, tick);
+    return { grp, rect, title, sub, value, spark, tick, tc, tp, x, y, w, h, color: n.color };
+  };
+  const L = spec.layout;
+  const sigs = spec.signals.map((n, i) => node(L.sx, L.sy0 + i * L.sgap, L.sw, L.sh, n));
+  const knot = { x: L.kx, y: L.ky };
+  const wire = (d, color) => { const p = el("path", { d, fill: "none", stroke: color ?? C.line2, "stroke-width": 3, "stroke-linecap": "round" }, wires); p.dataset.len = p.getTotalLength(); p.style.strokeDasharray = p.dataset.len; p.style.strokeDashoffset = p.dataset.len; return p; };
+  const inW = sigs.map((s) => wire(`M ${s.x + s.w} ${s.y} C ${s.x + s.w + (knot.x - s.x - s.w) * 0.55} ${s.y} ${knot.x - (knot.x - s.x - s.w) * 0.45} ${knot.y} ${knot.x - 30} ${knot.y}`, s.color));
+  const acts = spec.actions.map((n, i) => node(L.ax, L.ay0 + i * L.agap, L.aw, L.ah, n));
+  const outW = acts.map((a) => wire(`M ${knot.x + 30} ${knot.y} C ${knot.x + 80} ${knot.y} ${a.x - 50} ${a.y} ${a.x} ${a.y}`, C.long));
+  const exits = (spec.exits ?? []).map((n, i) => node(L.ex, L.ey0 + i * L.egap, L.ew, L.eh, n));
+  const exW = exits.map((e) => wire(`M ${acts[0].x + acts[0].w} ${acts[0].y} C ${acts[0].x + acts[0].w + 60} ${acts[0].y} ${e.x - 60} ${e.y} ${e.x} ${e.y}`, e.color));
+  const ring = el("circle", { cx: knot.x, cy: knot.y, r: 30, fill: "none", stroke: C.long, "stroke-width": 2, opacity: 0 }, g);
+  const kc = el("circle", { cx: knot.x, cy: knot.y, r: 0, fill: C.paper, stroke: C.amber, "stroke-width": 4 }, g);
+  const kl = el("text", { x: knot.x, y: knot.y - 58, "font-size": 24, fill: C.amber, "text-anchor": "middle", "font-variant-numeric": "tabular-nums", stroke: C.paper, "stroke-width": 10, "paint-order": "stroke", "stroke-linejoin": "round" }, g);
+  // little pulses that travel along the wires
+  const pulses = inW.map((w, i) => el("circle", { r: 5, fill: sigs[i].color, opacity: 0 }, g));
+  return { g, sigs, acts, exits, inW, outW, exW, kc, kl, ring, knot, pulses };
+}
+const showNode = (n, p) => { n.grp.style.opacity = p; n.grp.style.transform = `translateX(${(1 - p) * -24}px)`; };
+const drawWire = (w, p) => { w.style.strokeDashoffset = w.dataset.len * (1 - p); };
+function setTick(n, met, pending = true) {
+  n.tick.setAttribute("opacity", pending || met ? 1 : 0);
+  n.tc.setAttribute("stroke", met ? C.long : C.amber); n.tc.setAttribute("fill", met ? C.long : "none");
+  n.tp.setAttribute("opacity", met ? 1 : 0);
+  n.rect.setAttribute("stroke", met ? `${C.long}` : C.line2);
+}
+/** A sparkline in a node, from a function of time, drawn up to `now`. */
+function spark(n, f, t0, now, lo, hi) {
+  const x0 = n.x + n.w - 230, x1 = n.x + n.w - 58, y0 = n.y + 10, y1 = n.y + 34;
+  const pts = []; const N = 40;
+  for (let i = 0; i <= N; i++) { const tt = now - (N - i) * 0.12; if (tt < t0) continue; const v = clamp((f(tt) - lo) / (hi - lo)); pts.push(`${(x0 + (x1 - x0) * i / N).toFixed(1)} ${(y1 - (y1 - y0) * v).toFixed(1)}`); }
+  n.spark.setAttribute("d", pts.length > 1 ? "M " + pts.join(" L ") : "");
+}
+
+/* ================= the big one ================= */
+const BIG = graph($("big"), {
+  layout: { sx: 100, sw: 540, sh: 92, sy0: 300, sgap: 122, kx: 850, ky: 544, ax: 950, aw: 420, ah: 100, ay0: 544, agap: 0, ex: 1460, ew: 370, eh: 88, ey0: 420, egap: 124 },
+  signals: [
+    { title: "@elonmusk on X", sub: "posts about flying cars", color: C.amber },
+    { title: "$TSLA mentions on X", sub: "triple in an hour", color: C.pink },
+    { title: "Tesla headlines", sub: "3 or more an hour", color: C.sky },
+    { title: "TSLA today", sub: "up 2% or more", color: C.blue },
+    { title: "TSLA funding", sub: "under 0.01% an hour", color: C.violet },
+  ],
+  actions: [{ title: "Long TSLA 10×", sub: "$200 on Hyperliquid", color: C.long, fs: 30 }],
+  exits: [
+    { title: "Take profit", sub: "+40% on the position", color: C.long },
+    { title: "Stop", sub: "−15% on the position", color: C.short },
+    { title: "Sell", sub: "if the buzz halves", color: C.short },
+  ],
+});
+// Live values, and when each condition becomes true.
+const LIVE = [
+  { met: 33.0, val: (t) => (t < 33.0 ? "no post yet" : "matched · just now"), f: null },
+  { met: 31.4, val: (t) => `+${Math.round(liveBuzz(t))}%`, f: (t) => liveBuzz(t), lo: 0, hi: 320 },
+  { met: 29.6, val: (t) => `${Math.min(7, Math.floor(seg(t, 26.2, 32.5) * 7.99))} / hour`, f: (t) => Math.min(7, seg(t, 26.2, 32.5) * 8), lo: 0, hi: 8 },
+  { met: 27.4, val: (t) => `+${liveTsla(t).toFixed(1)}%`, f: (t) => liveTsla(t), lo: 0, hi: 4 },
+  { met: 25.3, val: (t) => `${(0.0034 + 0.0009 * Math.sin(t * 5.1)).toFixed(4)}%`, f: (t) => 0.0034 + 0.0009 * Math.sin(t * 5.1), lo: 0, hi: 0.012 },
+];
+function liveBuzz(t) { return 30 + 230 * eio(seg(t, 26, 31.6)) + 18 * Math.sin(t * 6.3) + (t > 31.6 ? 40 * eo(seg(t, 31.6, 33)) : 0); }
+function liveTsla(t) { return 0.7 + 1.8 * eio(seg(t, 25.2, 27.6)) + 0.12 * Math.sin(t * 4.7); }
+const G = { A: 15.0, B: 35.4, build: 15.7, live: 24.6, fire: 33.15 };
+$("clockRow").innerHTML = `<div style="display:flex;justify-content:space-between;font-size:28px" class="tnum"><span id="clockDay"></span><span class="muted" id="checks"></span></div><div style="margin-top:16px;height:5px;border-radius:5px;background:#1d1d21;position:relative;overflow:hidden"><div id="clockBar" style="position:absolute;left:0;top:0;bottom:0;background:#7c8cff"></div></div>`;
+function drawGraph(t) {
+  if (stage("s-graph", t, G.A, G.B, 0.45, 0.5, 0.02) <= 0) return;
+  const swap = eio(seg(t, G.live - 0.6, G.live));
+  rise($("gTitle1"), eo(seg(t, G.A + 0.1, G.A + 0.8)) * (1 - swap), 24);
+  rise($("gTitle2"), swap, 24);
+  // build
+  BIG.sigs.forEach((n, i) => showNode(n, eo(seg(t, G.build + i * 0.2, G.build + 0.5 + i * 0.2))));
+  BIG.inW.forEach((w, i) => drawWire(w, eio(seg(t, G.build + 1.0 + i * 0.12, G.build + 1.9 + i * 0.12))));
+  const k = eo5(seg(t, G.build + 1.9, G.build + 2.3)); BIG.kc.setAttribute("r", 28 * k); BIG.kl.style.opacity = k;
+  BIG.outW.forEach((w) => drawWire(w, eio(seg(t, G.build + 2.2, G.build + 2.7))));
+  BIG.acts.forEach((n) => showNode(n, eo(seg(t, G.build + 2.5, G.build + 3.0))));
+  BIG.exW.forEach((w, i) => drawWire(w, eio(seg(t, G.build + 3.0 + i * 0.15, G.build + 3.6 + i * 0.15))));
+  BIG.exits.forEach((n, i) => showNode(n, eo(seg(t, G.build + 3.3 + i * 0.18, G.build + 3.8 + i * 0.18))));
+  const cap = eo(seg(t, G.build + 4.3, G.build + 4.9)) * (1 - seg(t, G.live - 0.6, G.live - 0.2));
+  $("gCaption").innerHTML = `<span style="color:${C.ink}">5 conditions</span> from 5 sources · <span style="color:${C.ink}">1 trade</span> · <span style="color:${C.ink}">3 ways out</span>`;
+  rise($("gCaption"), cap, 14);
+  // live
+  const live = t >= G.live;
+  let met = 0;
+  BIG.sigs.forEach((n, i) => {
+    const L = LIVE[i];
+    if (!live) { n.value.textContent = ""; n.spark.setAttribute("d", ""); setTick(n, false, false); return; }
+    const isMet = t >= L.met; if (isMet) met++;
+    n.value.textContent = L.val(t); n.value.setAttribute("fill", isMet ? C.long : C.ink);
+    if (L.f) spark(n, L.f, G.live, t, L.lo, L.hi);
+    setTick(n, isMet, true);
+    // a flash on the node when it turns true
+    const fl = Math.max(0, 1 - Math.abs(t - L.met - 0.15) / 0.3);
+    n.rect.setAttribute("fill", fl > 0 ? `rgba(62,207,142,${fl * 0.14})` : C.card);
+    // pulses run along the wires of true conditions
+    const pu = BIG.pulses[i]; const w = BIG.inW[i];
+    if (isMet && t < G.fire + 0.3) { const ph = ((t - L.met) * 0.9) % 1; const pt = w.getPointAtLength(w.dataset.len * ph); pu.setAttribute("cx", pt.x); pu.setAttribute("cy", pt.y); pu.setAttribute("opacity", Math.sin(Math.PI * ph)); } else pu.setAttribute("opacity", 0);
+    w.setAttribute("stroke", isMet ? C.long : n.color); w.setAttribute("stroke-opacity", isMet ? 1 : 0.55);
+  });
+  const fired = t >= G.fire;
+  BIG.kl.textContent = !live ? "All must be true" : fired ? "All 5 true · trading" : `${met} of 5 true`;
+  BIG.kl.setAttribute("fill", fired ? C.long : C.amber);
+  BIG.kc.setAttribute("stroke", fired ? C.long : C.amber); BIG.kc.setAttribute("fill", fired ? C.long : C.paper);
+  if (fired) { const r = seg(t, G.fire, G.fire + 1.1); BIG.kc.setAttribute("r", 28 + 14 * Math.sin(Math.PI * Math.min(1, r * 2))); BIG.ring.setAttribute("r", 30 + 110 * eo(r)); BIG.ring.setAttribute("opacity", (1 - r) * 0.9); } else BIG.ring.setAttribute("opacity", 0);
+  // the trade fills, the exits arm
+  const filled = t >= G.fire + 0.6;
+  const a = BIG.acts[0];
+  a.value.textContent = filled ? "$352.90" : live ? "waiting" : "";
+  a.value.setAttribute("fill", filled ? C.long : C.muted);
+  setTick(a, filled, live);
+  a.rect.setAttribute("fill", filled ? `rgba(62,207,142,${0.06 + 0.1 * Math.max(0, 1 - (t - G.fire - 0.6) / 0.8)})` : C.card);
+  const EXIT_SUB = [["+40% on the position", "+40% · placed on Hyperliquid"], ["−15% on the position", "−15% · placed on Hyperliquid"], ["if the buzz halves", "if the buzz halves · watching"]];
+  BIG.exits.forEach((n, i) => { const armed = t >= G.fire + 1.0 + i * 0.25; n.sub.textContent = EXIT_SUB[i][armed ? 1 : 0]; n.sub.setAttribute("fill", armed ? C.ink2 : C.muted); setTick(n, armed, false); if (armed) n.rect.setAttribute("stroke", n.color); });
+  // the clock
+  rise($("clockRow"), live ? eo(seg(t, G.live, G.live + 0.5)) : 0, 10);
+  const run = seg(t, G.live, G.fire);
+  const mins = eio(run) * (9 * 60 + 41);
+  const hh = 8 + Math.floor(mins / 60), mm = Math.floor(mins % 60);
+  $("clockDay").textContent = `Today ${String(hh).padStart(2, "0")}:${String(mm).padStart(2, "0")}${fired ? " · trade placed" : ""}`;
+  $("clockDay").style.color = fired ? C.long : C.ink;
+  $("checks").textContent = `${Math.floor(eio(run) * 2_324).toLocaleString("en-US")} checks`;
+  $("clockBar").style.width = `${run * 100}%`; $("clockBar").style.background = fired ? C.long : C.blue;
+}
+
+/* ================= montage ================= */
+const MONT = [
+  {
+    sentence: "Copy trader 0x7aa1…e8c2 with $100 a trade, but only while Fear & Greed is above 50 and BTC holds $80k.",
+    spec: {
+      layout: { sx: 300, sw: 520, sh: 92, sy0: 470, sgap: 122, kx: 960, ky: 592, ax: 1060, aw: 520, ah: 100, ay0: 592, agap: 0 },
+      signals: [
+        { title: "Trader 0x7aa1…e8c2", sub: "opens a position", color: C.long },
+        { title: "Crypto Fear & Greed", sub: "above 50", color: C.amber },
+        { title: "BTC", sub: "above $80,000", color: C.blue },
+      ],
+      actions: [{ title: "Copy the trade", sub: "$100 each · close with them", color: C.long, fs: 28 }],
+    },
+  },
+  {
+    sentence: "Buy $PUMP with 0.5 SOL when three smart wallets buy it within an hour, holders grow 5% and liquidity tops $2M.",
+    spec: {
+      layout: { sx: 300, sw: 520, sh: 86, sy0: 400, sgap: 104, kx: 960, ky: 608, ax: 1060, aw: 520, ah: 100, ay0: 608, agap: 0 },
+      signals: [
+        { title: "Wallet 7xKp…9fQe", sub: "buys $PUMP", color: C.long },
+        { title: "Wallet 9Qr2…mT4a", sub: "buys $PUMP", color: C.long },
+        { title: "Wallet Fh4T…2wLc", sub: "buys $PUMP", color: C.long },
+        { title: "$PUMP holders", sub: "up 5% in an hour", color: C.violet },
+        { title: "$PUMP liquidity", sub: "above $2M", color: C.sky },
+      ],
+      actions: [{ title: "Buy $PUMP", sub: "0.5 SOL · stop −20%", color: C.long, fs: 28 }],
+    },
+  },
+  {
+    sentence: "When Polymarket’s Fed cut odds pass 60%, the 2-year yield falls 10 bp and Fear & Greed is under 30, go long BTC and gold.",
+    spec: {
+      layout: { sx: 300, sw: 520, sh: 92, sy0: 470, sgap: 122, kx: 960, ky: 592, ax: 1060, aw: 520, ah: 100, ay0: 520, agap: 150 },
+      signals: [
+        { title: "Polymarket", sub: "Fed cut odds above 60%", color: C.blue },
+        { title: "US 2-year yield", sub: "down 10 bp in 5 days", color: C.sky },
+        { title: "Crypto Fear & Greed", sub: "under 30", color: C.amber },
+      ],
+      actions: [
+        { title: "Long BTC 2×", sub: "$100 · stop −10%", color: C.long, fs: 28 },
+        { title: "Long gold 3×", sub: "$100 · stop −10%", color: C.long, fs: 28 },
+      ],
+    },
+  },
+];
+const M = { A: 35.2, B: 46.4, start: 35.9, each: 3.5 };
+const mGraphs = MONT.map((m) => { const grp = el("g", { opacity: 0 }, $("mSvg")); const gr = graph(grp, m.spec); return { grp, gr }; });
+function drawMontage(t) {
+  if (stage("s-montage", t, M.A, M.B, 0.45, 0.45, 0.02) <= 0) return;
+  rise($("mTitle"), eo(seg(t, M.A + 0.1, M.A + 0.7)), 20);
+  const idx = Math.min(MONT.length - 1, Math.max(0, Math.floor((t - M.start) / M.each)));
+  const a0 = M.start + idx * M.each;
+  const sIn = eo(seg(t, a0, a0 + 0.4)), sOut = idx < MONT.length - 1 ? seg(t, a0 + M.each - 0.3, a0 + M.each) : 0;
+  $("mSentence").textContent = MONT[idx].sentence;
+  $("mSentence").style.opacity = t < M.start ? 0 : sIn * (1 - sOut);
+  mGraphs.forEach(({ grp, gr }, i) => {
+    const b = M.start + i * M.each;
+    const vis = t >= b - 0.05 && t < b + M.each + (i === MONT.length - 1 ? 9 : 0);
+    const out = i < MONT.length - 1 ? seg(t, b + M.each - 0.3, b + M.each) : 0;
+    grp.setAttribute("opacity", vis ? 1 - out : 0);
+    if (!vis) return;
+    gr.sigs.forEach((n, j) => showNode(n, eo(seg(t, b + 0.15 + j * 0.1, b + 0.55 + j * 0.1))));
+    gr.inW.forEach((w, j) => drawWire(w, eio(seg(t, b + 0.6 + j * 0.06, b + 1.2 + j * 0.06))));
+    const kk = eo5(seg(t, b + 1.1, b + 1.4)); gr.kc.setAttribute("r", 28 * kk); gr.kl.style.opacity = kk;
+    gr.outW.forEach((w) => drawWire(w, eio(seg(t, b + 1.35, b + 1.8))));
+    gr.acts.forEach((n, j) => showNode(n, eo(seg(t, b + 1.6 + j * 0.12, b + 2.0 + j * 0.12))));
+    // conditions tick true one after another, then it fires
+    let met = 0;
+    gr.sigs.forEach((n, j) => { const m = t >= b + 1.9 + j * 0.14; if (m) met++; setTick(n, m, t >= b + 1.6); gr.inW[j].setAttribute("stroke", m ? C.long : n.color); gr.inW[j].setAttribute("stroke-opacity", m ? 1 : 0.55); });
+    const fired = met === gr.sigs.length && t >= b + 1.9 + gr.sigs.length * 0.14;
+    gr.kl.textContent = fired ? `All ${gr.sigs.length} true` : `${met} of ${gr.sigs.length} true`;
+    gr.kl.setAttribute("fill", fired ? C.long : C.amber); gr.kc.setAttribute("stroke", fired ? C.long : C.amber); gr.kc.setAttribute("fill", fired ? C.long : C.paper);
+    if (fired) { const fstart = b + 1.9 + gr.sigs.length * 0.14; const r = seg(t, fstart, fstart + 0.9); gr.ring.setAttribute("r", 30 + 90 * eo(r)); gr.ring.setAttribute("opacity", (1 - r) * 0.9); gr.acts.forEach((n) => { setTick(n, true, true); n.value.textContent = "filled"; n.value.setAttribute("fill", C.long); }); }
+    else { gr.ring.setAttribute("opacity", 0); gr.acts.forEach((n) => { setTick(n, false, false); n.value.textContent = ""; }); }
+  });
+}
+
+/* ================= wall ================= */
+const SOURCES = [
+  ["Prices", "ETH breaks $2,600", C.blue], ["Funding", "Longs pay over 0.02% an hour", C.violet], ["Posts on X", "@elonmusk posts about Tesla", C.amber], ["Buzz on X", "$SOL mentions double", C.pink],
+  ["Wallets", "A wallet you follow buys", C.long], ["Traders", "A trader you copy goes long", C.long], ["Polymarket odds", "Fed cut odds pass 60%", C.blue], ["News", "Three Solana headlines in an hour", C.sky],
+  ["Fear & Greed", "The index falls to 20", C.amber], ["Rates", "2-year yield −10 bp in 5 days", C.sky], ["Weather", "Chicago 5°C colder next week", C.sky], ["Protocol fees", "Hyperliquid fees pass $5M a day", C.violet],
+];
+const tiles = SOURCES.map(([n, ex, c]) => div(`<div style="width:30px;height:3px;border-radius:2px;background:${c}"></div><div class="label" style="margin-top:16px;color:${C.muted}">${n}</div><div style="margin-top:14px;font-size:33px;line-height:1.25">“${ex}”</div>`, `background:${C.card};border:1.5px solid ${C.line};border-radius:22px;padding:28px 30px;height:150px`, $("grid")));
+const W = { A: 46.2, B: 52.6 };
+function drawWall(t) {
+  if (stage("s-wall", t, W.A, W.B, 0.4, 0.45) <= 0) return;
+  const ti = eo(seg(t, W.A + 0.1, W.A + 0.7)), up = eio(seg(t, W.A + 1.1, W.A + 1.7));
+  $("wallTitle").style.opacity = ti; $("wallTitle").style.transform = `translateY(${(1 - ti) * 30 - up * 330}px) scale(${1 - up * 0.42})`;
+  tiles.forEach((tl, i) => {
+    const p = eo5(seg(t, W.A + 1.5 + i * 0.09, W.A + 2.0 + i * 0.09));
+    tl.style.opacity = p; tl.style.transform = `translateY(${(1 - p) * 40}px) scale(${0.94 + 0.06 * p})`;
+    const lit = Math.max(0, 1 - Math.abs(t - (W.A + 3.0 + i * 0.13)) / 0.3);
+    tl.style.borderColor = lit > 0 ? `rgba(244,243,239,${0.15 + lit * 0.7})` : C.line;
+    tl.style.background = lit > 0 ? `rgba(124,140,255,${lit * 0.12})` : C.card;
+  });
+  rise($("wallSub"), eo(seg(t, W.A + 4.4, W.A + 5.0)), 16);
+}
+
+/* ================= copy ================= */
+const TRADERS = [["0x7aa1…e8c2", "+$4.81M", "+62%"], ["0x3f9c…11ab", "+$3.92M", "+41%"], ["0x8d2e…a07f", "+$2.77M", "+88%"], ["0xc41b…5e9d", "+$2.10M", "+23%"]];
+const COLS = "grid-template-columns:60px 1fr 190px 120px 170px";
+div(`<div style="display:grid;${COLS};padding:14px 32px;font-size:24px;color:${C.faint}"><span>#</span><span>Trader</span><span style="text-align:right">30-day profit</span><span style="text-align:right">Return</span><span></span></div>`, "", $("table"));
+const rowEls = TRADERS.map(([a, p, r], i) => div(`<div style="display:grid;${COLS};align-items:center;padding:20px 32px;font-size:30px;border-top:1.5px solid ${C.line}"><span class="faint">${i + 1}</span><span>${a}</span><span style="text-align:right;color:${C.long}" class="tnum">${p}</span><span style="text-align:right;color:${C.ink2}" class="tnum">${r}</span><span style="text-align:right"><span class="copyBtn" style="display:inline-block;border:1.5px solid ${C.line2};border-radius:12px;padding:8px 18px;font-size:24px;font-weight:600">Copy</span></span></div>`, "", $("table")));
+const lane = (label, color) => div(`<div style="font-size:24px;color:${C.muted}">${label}</div><div class="ev" style="margin-top:14px;font-size:32px;min-height:40px"></div>`, `background:${C.card};border:1.5px solid ${C.line};border-radius:22px;padding:26px 32px;margin-bottom:22px;border-left:6px solid ${color}`, $("mirror"));
+const laneLeader = lane("Trader 0x7aa1…e8c2", C.blue);
+const arrow = div(`<svg width="60" height="70" viewBox="0 0 60 70"><path d="M30 4 V58 M14 44 L30 62 L46 44" stroke="${C.long}" stroke-width="5" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg>`, "text-align:center;margin:-8px 0 14px", $("mirror"));
+const laneYou = lane("Your copy", C.long);
+const K = { A: 52.4, B: 58.6 };
+function drawCopy(t) {
+  if (stage("s-copy", t, K.A, K.B) <= 0) return;
+  const A = K.A;
+  rowEls.forEach((r, i) => rise(r, eo(seg(t, A + 0.3 + i * 0.1, A + 0.8 + i * 0.1)), 20));
+  const btnEl = rowEls[0].querySelector(".copyBtn");
+  const btn = btnEl.getBoundingClientRect(), sc = $("s-copy").getBoundingClientRect(), k = sc.width / 1920;
+  const tx = (btn.left - sc.left + btn.width / 2) / k, ty = (btn.top - sc.top + btn.height / 2) / k;
+  const mv = eio(seg(t, A + 1.0, A + 1.8));
+  const click = seg(t, A + 1.9, A + 2.05) - seg(t, A + 2.05, A + 2.2);
+  $("cursor").style.opacity = eo(seg(t, A + 0.9, A + 1.2)) * (1 - seg(t, A + 2.7, A + 3.1));
+  $("cursor").style.transform = `translate(${lerp(tx + 260, tx, mv) - 6}px, ${lerp(ty + 260, ty, mv) - 4}px) scale(${1 - click * 0.15})`;
+  const on = t > A + 2.05;
+  btnEl.style.background = on ? C.ink : "transparent"; btnEl.style.color = on ? C.paper : C.ink; btnEl.textContent = on ? "Copying" : "Copy";
+  const show = (e, p) => { e.style.opacity = p; e.style.transform = `translateX(${(1 - p) * 30}px)`; };
+  show(laneLeader, eo(seg(t, A + 2.3, A + 2.8))); show(arrow, eo(seg(t, A + 3.0, A + 3.4))); show(laneYou, eo(seg(t, A + 3.0, A + 3.5)));
+  const closed = t > A + 4.6;
+  laneLeader.querySelector(".ev").innerHTML = closed ? `Closes BTC <span style="color:${C.long}">+8.2%</span>` : t > A + 2.6 ? "Opens a BTC long at 10×" : "";
+  laneYou.querySelector(".ev").innerHTML = closed ? `Closed too <span style="color:${C.long}">+8.1%</span>` : t > A + 3.3 ? `Long BTC · <b>$100</b> at 10× <span style="color:${C.long}">✓</span>` : "";
+  $("copySub").style.opacity = eo(seg(t, A + 3.6, A + 4.2));
+}
+
+/* ================= simple ================= */
+// The sentence is typed, its four meaningful words are picked out, and each drops into its column
+// of the order ticket. Size and entry are worked out and roll in, then the order fills.
+const SIMPLE = "Long ETH 20x with $100 now.";
+const S = { A: 58.4, B: 63.4 };
+const SIMPLE_TOKENS = [["Long", C.long], ["ETH", C.blue], ["20x", C.violet], ["$100", C.amber]];
+$("simpleText").innerHTML = [...SIMPLE].map((ch) => `<span>${ch === " " ? "&nbsp;" : ch}</span>`).join("");
+const sChars = [...$("simpleText").children];
+const sCaret = div("", `position:absolute;top:14px;width:5px;height:80px;background:${C.ink}`, $("simpleText"));
+const TICKET = [["Side", "Long", C.long], ["Market", "ETH"], ["Leverage", "20×"], ["Margin", "$100"], ["Size", "$2,000"], ["Entry", "$2,431.40"]];
+const TW = [210, 210, 220, 220, 250, 290], TCX = TW.map((_, i) => TW.slice(0, i).reduce((a, b) => a + b, 0)), TLEN = 1400, TX = 260, TY = 590, TB = 760;
+const tCols = TICKET.map(([label, value, color], i) => {
+  const c = div(`<div class="label">${label}</div><div class="v tnum" style="margin-top:22px;font-size:56px;line-height:1.15;letter-spacing:-0.02em;color:${color ?? C.ink};white-space:nowrap"></div>`, `position:absolute;left:${TCX[i]}px;top:36px`, $("ticket"));
+  return { c, v: c.querySelector(".v"), value, rolls: i >= 4 };
+});
+/** An odometer: every digit spins down into place, the right-hand ones a few more turns. */
+function odometer(target, str) {
+  const digits = [...str].filter((ch) => /\d/.test(ch)).length;
+  let j = 0;
+  target.innerHTML = [...str].map((ch) => {
+    if (!/\d/.test(ch)) return `<span style="display:inline-block">${ch}</span>`;
+    const turns = 1 + (digits - 1 - j++);
+    const stack = Array.from({ length: 10 * turns + Number(ch) + 1 }, (_, k) => `<span style="display:block;height:1.15em">${k % 10}</span>`).join("");
+    return `<span class="od" data-k="${10 * turns + Number(ch)}" style="display:inline-block;height:1.15em;overflow:hidden;vertical-align:top"><span style="display:block">${stack}</span></span>`;
+  }).join("");
+  return [...target.querySelectorAll(".od")].map((o) => ({ inner: o.firstChild, k: Number(o.dataset.k) }));
+}
+tCols.forEach((c) => { if (c.rolls) c.odo = odometer(c.v, c.value); else c.v.textContent = c.value; });
+const tFoot = div(`<span class="faint" style="font-size:26px">Market order on Hyperliquid</span><span id="tStatus" style="font-size:26px"></span>`, `position:absolute;left:0;right:0;top:${TB - TY + 30}px;display:flex;justify-content:space-between`, $("ticket"));
+const SV = $("simpleSvg");
+const hair = (y, color = C.line2, w = 1.5) => { const p = el("path", { d: `M ${TX} ${y} L ${TX + TLEN} ${y}`, stroke: color, "stroke-width": w, fill: "none" }, SV); p.dataset.len = TLEN; p.style.strokeDasharray = TLEN; return p; };
+const hTop = hair(TY), hBot = hair(TB), hFill = hair(TY, C.long, 2.5);
+let sTok = null;
+function simpleLayout() {
+  // measured once, after the fonts are in (offsets ignore the scene's scale transform)
+  const box = $("simpleText");
+  return SIMPLE_TOKENS.map(([w, color], i) => {
+    const at = SIMPLE.indexOf(w), a = sChars[at], b = sChars[at + w.length - 1];
+    const x0 = box.offsetLeft + a.offsetLeft, x1 = box.offsetLeft + b.offsetLeft + b.offsetWidth;
+    const y = box.offsetTop + a.offsetTop + a.offsetHeight + 4;
+    const under = el("path", { d: `M ${x0} ${y} L ${x1} ${y}`, stroke: color, "stroke-width": 4, "stroke-linecap": "round", fill: "none" }, SV);
+    under.dataset.len = x1 - x0; under.style.strokeDasharray = x1 - x0;
+    const cx = (x0 + x1) / 2, tx = TX + TCX[i] + 2;
+    const drop = el("path", { d: `M ${cx} ${y + 10} C ${cx} ${y + 90}, ${tx} ${TY - 90}, ${tx} ${TY}`, stroke: color, "stroke-width": 2, "stroke-opacity": 0.7, fill: "none" }, SV);
+    drop.dataset.len = drop.getTotalLength(); drop.style.strokeDasharray = drop.dataset.len;
+    const land = el("circle", { cx: tx, cy: TY, r: 5, fill: color, opacity: 0 }, SV);
+    return { under, drop, land };
+  });
+}
+function drawSimple(t) {
+  if (stage("s-simple", t, S.A, S.B, 0.4, 0.45) <= 0) return;
+  const A = S.A;
+  if (!sTok) sTok = simpleLayout();
+  rise($("simpleTitle"), eo(seg(t, A + 0.1, A + 0.7)), 20);
+  // typing
+  const n = Math.floor(SIMPLE.length * seg(t, A + 0.5, A + 1.5));
+  sChars.forEach((c, i) => (c.style.opacity = i < n ? 1 : 0));
+  const last = sChars[Math.max(0, n - 1)];
+  sCaret.style.left = `${n ? last.offsetLeft + last.offsetWidth + 4 : sChars[0].offsetLeft}px`;
+  sCaret.style.opacity = t < A + 1.6 ? 1 : 0;
+  // the four words are picked out and drop into the ticket
+  const fade = 1 - seg(t, A + 3.4, A + 3.9);
+  sTok.forEach((k, i) => {
+    const u = eio(seg(t, A + 1.6 + i * 0.12, A + 1.95 + i * 0.12));
+    k.under.style.strokeDashoffset = k.under.dataset.len * (1 - u);
+    const d = eio(seg(t, A + 1.8 + i * 0.12, A + 2.35 + i * 0.12));
+    k.drop.style.strokeDashoffset = k.drop.dataset.len * (1 - d);
+    k.drop.style.opacity = fade;
+    k.land.setAttribute("opacity", d >= 1 ? fade : 0);
+    sChars.slice(SIMPLE.indexOf(SIMPLE_TOKENS[i][0]), SIMPLE.indexOf(SIMPLE_TOKENS[i][0]) + SIMPLE_TOKENS[i][0].length).forEach((c) => (c.style.color = u > 0.5 ? C.ink : ""));
+  });
+  // muted filler words once the four are picked out
+  const dim = eo(seg(t, A + 1.6, A + 2.1));
+  sChars.forEach((c, i) => { if (!SIMPLE_TOKENS.some(([w]) => i >= SIMPLE.indexOf(w) && i < SIMPLE.indexOf(w) + w.length)) c.style.color = dim > 0 ? `rgba(244,243,239,${1 - 0.6 * dim})` : ""; });
+  // the ticket
+  const ht = eio(seg(t, A + 1.85, A + 2.6)), hb = eio(seg(t, A + 2.0, A + 2.75));
+  hTop.style.strokeDashoffset = TLEN * (1 - ht); hBot.style.strokeDashoffset = TLEN * (1 - hb);
+  tCols.forEach((c, i) => {
+    const at = i < 4 ? A + 2.25 + i * 0.12 : A + 2.7 + (i - 4) * 0.15;
+    const p = eo5(seg(t, at, at + 0.45));
+    c.c.style.opacity = p; c.c.style.transform = `translateY(${(1 - p) * 26}px)`;
+    if (c.rolls) { const r = eo5(seg(t, at, at + 0.9)); c.odo.forEach((o) => (o.inner.style.transform = `translateY(${-o.k * r * 1.15}em)`)); }
+  });
+  // it fills
+  const fillAt = A + 3.6, f = eio(seg(t, fillAt, fillAt + 0.5));
+  hFill.style.strokeDashoffset = TLEN * (1 - f);
+  tFoot.style.opacity = eo(seg(t, A + 2.6, A + 3.0));
+  $("tStatus").innerHTML = t >= fillAt ? `<span class="label" style="color:${C.long}">Filled</span><span class="tnum" style="margin-left:18px;color:${C.ink2}">0.8225 ETH</span>` : `<span class="faint">Sending…</span>`;
+  $("tStatus").style.opacity = t >= fillAt ? eo(seg(t, fillAt, fillAt + 0.3)) : 1;
+}
+
+/* ================= safety ================= */
+const SS = $("safeSvg");
+const box = (x, title, sub) => { const g = el("g", {}, SS); el("rect", { x, y: 400, width: 440, height: 220, rx: 30, fill: C.card, stroke: C.line2, "stroke-width": 2 }, g); const a = el("text", { x: x + 44, y: 480, "font-size": 26, fill: C.muted }, g); a.textContent = sub; const b = el("text", { x: x + 44, y: 540, "font-size": 48, fill: C.ink, "font-weight": 600 }, g); b.textContent = title; return g; };
+const bWeft = box(360, "Weft", "Trading-only key"), bYou = box(1120, "Your wallet", "Your money stays here");
+const tradeLine = el("path", { d: "M 800 470 L 1120 470", stroke: C.long, "stroke-width": 5, "stroke-linecap": "round" }, SS);
+const tradeLabel = el("text", { x: 960, y: 440, "font-size": 28, fill: C.long, "text-anchor": "middle" }, SS); tradeLabel.textContent = "Place a trade ✓";
+const dots = [0, 1, 2].map(() => el("circle", { r: 8, cy: 470, fill: C.long }, SS));
+const wdLine = el("path", { d: "M 1120 560 L 800 560", stroke: C.short, "stroke-width": 4, "stroke-dasharray": "14 12" }, SS);
+const wall = el("rect", { x: 951, y: 520, width: 10, height: 80, rx: 5, fill: C.short }, SS);
+const wdLabel = el("text", { x: 960, y: 640, "font-size": 28, fill: C.short, "text-anchor": "middle" }, SS); wdLabel.textContent = "Withdraw ✕ blocked";
+const wdDot = el("circle", { r: 8, cy: 560, fill: C.short }, SS);
+const F = { A: 63.2, B: 67.8 };
+function drawSafe(t) {
+  if (stage("s-safe", t, F.A, F.B, 0.45, 0.5) <= 0) return;
+  const A = F.A;
+  [bWeft, bYou].forEach((g, i) => { const p = eo(seg(t, A + 0.3 + i * 0.2, A + 0.9 + i * 0.2)); g.style.opacity = p; g.style.transform = `translateY(${(1 - p) * 20}px)`; });
+  const tl = eo(seg(t, A + 1.0, A + 1.5)); [tradeLine, tradeLabel].forEach((e) => (e.style.opacity = tl));
+  dots.forEach((d, i) => { const ph = ((t - A - 1.2) * 0.7 + i / 3) % 1; d.setAttribute("cx", 800 + 320 * ph); d.style.opacity = t > A + 1.2 ? Math.sin(Math.PI * ph) : 0; });
+  const wl = eo(seg(t, A + 1.7, A + 2.2)); [wdLine, wall, wdLabel].forEach((e) => (e.style.opacity = wl));
+  const ph = ((t - A - 2.1) * 0.8) % 1;
+  wdDot.setAttribute("cx", ph < 0.5 ? lerp(1120, 968, eo(ph * 2)) : lerp(968, 1040, eio((ph - 0.5) * 2)));
+  wdDot.style.opacity = t > A + 2.1 ? 1 - Math.max(0, (ph - 0.75) * 4) : 0;
+}
+
+/* ================= timeline ================= */
+const END = 67.6;
+function renderAt(t) {
+  drawLogo(t, 0, false);
+  drawHook(t);
+  drawPrompt(t);
+  drawGraph(t);
+  drawMontage(t);
+  drawWall(t);
+  drawCopy(t);
+  drawSimple(t);
+  drawSafe(t);
+  if (t >= END) drawLogo(t, END, true);
+  const gx = 50 + 20 * Math.sin(t * 0.21), gy = 40 + 15 * Math.cos(t * 0.17);
+  $("glow").style.background = `radial-gradient(1100px 700px at ${gx}% ${gy}%, rgba(124,140,255,0.07), transparent 70%)`;
+}
+window.DURATION = DURATION;
+window.renderAt = renderAt;
+window.CUES = { P, G, M, W, K, S, F, END, LIVE: LIVE.map((l) => l.met), promptLength: PROMPT.length };
+if (!navigator.webdriver) {
+  const q = new URLSearchParams(location.search);
+  if (q.has("t")) document.fonts.ready.then(() => renderAt(Number(q.get("t"))));
+  else { const t0 = performance.now(); const loop = () => { renderAt(((performance.now() - t0) / 1000) % DURATION); requestAnimationFrame(loop); }; document.fonts.ready.then(loop); }
+}
+</script>
+</body>
+</html>

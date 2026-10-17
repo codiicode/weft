@@ -5,6 +5,17 @@ import { examples } from "@weft/strategy/examples";
 /** Seeded examples that were removed from the code. */
 const RETIRED_EXAMPLES = ["el-nino-harvest"];
 
+/** Entries removed at their owner's request: [id, created before]. The date keeps a later strategy that happens to get the same id. */
+const REMOVED_ENTRIES: [string, number][] = [["ray-buy-now", Date.UTC(2026, 9, 17)]];
+
+/** A strategy's rules without its instruments (which get resolved from placeholders to real ones). */
+const rulesOf = (s: Strategy) =>
+  JSON.stringify({
+    signals: s.signals.map((x) => [x.id, x.kind, x.label ?? null]),
+    triggers: s.triggers,
+    actions: s.actions.map((a) => ({ ...a, instrument: undefined, target: undefined, legs: undefined })),
+  });
+
 /** Public strategy library: saved, shareable, forkable strategy documents. */
 
 export interface LibraryEntry {
@@ -41,13 +52,18 @@ export class StrategyLibrary {
     } else {
       // Examples taken out of the code leave the library too (only the seeded originals, never copies).
       for (const id of RETIRED_EXAMPLES) this.db.prepare("DELETE FROM strategies WHERE id = ? AND forked_from IS NULL").run(id);
+      for (const [id, before] of REMOVED_ENTRIES) this.db.prepare("DELETE FROM strategies WHERE id = ? AND created_at < ?").run(id, before);
       // New examples join an existing library.
       for (const ex of examples) if (!this.get(ex.id)) this.save(ex, { author: "" });
-      // Keep seeded examples' wording in step with the code (instruments may have been resolved since).
+      // Keep seeded examples in step with the code. Instruments may have been resolved since (real
+      // mints and market ids), so only wording changes keep them; a change to the rules replaces the
+      // whole document and the placeholders get resolved again on startup.
       const upd = this.db.prepare("UPDATE strategies SET doc = ?, updated_at = ? WHERE id = ? AND forked_from IS NULL");
       for (const ex of examples) {
         const cur = this.get(ex.id);
-        if (cur && (cur.strategy.thesis !== ex.thesis || cur.strategy.name !== ex.name))
+        if (!cur || cur.forkedFrom) continue;
+        if (rulesOf(cur.strategy) !== rulesOf(ex)) upd.run(JSON.stringify(ex), Date.now(), ex.id);
+        else if (cur.strategy.thesis !== ex.thesis || cur.strategy.name !== ex.name)
           upd.run(JSON.stringify({ ...cur.strategy, thesis: ex.thesis, name: ex.name }), Date.now(), ex.id);
       }
     }

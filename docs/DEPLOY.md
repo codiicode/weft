@@ -15,7 +15,7 @@ Before building for production, set in `apps/web/.env.local`:
 - `NEXT_PUBLIC_API_URL=https://<your-api-host>` (otherwise the app calls localhost)
 - `NEXT_PUBLIC_PRIVY_APP_ID=<privy app id>`
 
-In the Privy dashboard, add the site origin (e.g. `https://weft-tawny.vercel.app`) to allowed origins.
+In the Privy dashboard, add the site origin (production: `https://weft.fi`; keep `https://weft-tawny.vercel.app` too) to allowed origins.
 
 ## API (Fly.io)
 
@@ -25,7 +25,7 @@ fly launch --no-deploy --copy-config      # uses fly.toml in the repo root
 fly volumes create weft_data --size 1
 fly secrets set ANTHROPIC_API_KEY=... PRIVY_APP_ID=... PRIVY_APP_SECRET=... \
   TELEGRAM_BOT_TOKEN=... WEFT_LIVE_ENABLED=1 \
-  WEB_ORIGINS=https://weft-tawny.vercel.app
+  WEB_ORIGINS=https://weft-tawny.vercel.app,https://weft.fi,https://www.weft.fi,https://app.weft.fi
 fly deploy
 ```
 

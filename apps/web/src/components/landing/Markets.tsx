@@ -10,16 +10,16 @@ const LOGOS: Record<string, string[]> = {
   perps: ["BTC", "ETH", "HYPE"],
   stocks: ["NVDA", "TSLA", "GOLD"],
   predictions: ["OUTCOME"],
-  tokens: ["PUMP", "WIF", "BONK"],
+  tokens: ["PUMP", "WIF", "JUP"],
   options: ["ETH", "BTC"],
 };
 
 const blurb: Record<string, string> = {
-  perps: "Crypto perpetuals with leverage. Every order carries a stop.",
-  stocks: "Shares, indices and commodities, as perps on Hyperliquid or tokenized on Solana.",
-  predictions: "Buy the side of an outcome market your data says is mispriced.",
-  tokens: "Any Solana token by contract address, memecoins included. Rug checks run before every swap.",
-  options: "Spreads and bought calls or puts. You know the worst case before you trade.",
+  perps: "Crypto perpetuals on Hyperliquid, up to each market’s own max leverage. Your stop is placed on Hyperliquid too.",
+  stocks: "Stocks, indices and gold as perps on Hyperliquid, or tokenized shares on Solana.",
+  predictions: "Fed decisions, crypto prices and sports on Hyperliquid. Buy the side you think is priced wrong, or use Polymarket’s odds as a signal.",
+  tokens: "Any Solana token by contract address, from majors to brand-new launches. Bought and sold through Jupiter, straight from your own wallet.",
+  options: "Spreads and bought calls or puts, so you know the most you can lose before you trade.",
 };
 
 function Flow({ graph }: { graph: { signal: string; trigger: string; action: string } }) {
@@ -66,7 +66,7 @@ export function Markets() {
       layout="stack"
       label="Markets"
       title="What it can trade"
-      lead="One strategy can watch funding and open a 20× ETH long, or watch a token’s price and liquidity and buy the dip. Weft picks where to trade."
+      lead="You name the market. Weft knows where it trades and sends the order there."
     >
       <div className="grid gap-10 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)] lg:gap-14">
         <ul ref={listRef} className="border-t border-line" onMouseEnter={() => setPaused(true)} onMouseLeave={() => setPaused(false)}>

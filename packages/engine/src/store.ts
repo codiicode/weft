@@ -26,6 +26,16 @@ export interface DeploymentRuntime {
   lastEquitySampleAt?: number | null;
   /** Optional (additive): the most money that was in positions at once (margin), USD. Returns are on this. */
   peakInUseUsd?: number;
+  /** Optional (additive): copy trading progress per copy action (what was already seen of the leader). */
+  copy?: Record<string, CopyState>;
+}
+
+export interface CopyState {
+  /** Solana: when copying started (older trades are never copied) and the trade ids already handled. */
+  since: number;
+  seen: string[];
+  /** Hyperliquid: the leader's side per coin at the last check. */
+  last?: Record<string, "long" | "short">;
 }
 
 /**

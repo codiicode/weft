@@ -24,6 +24,8 @@ export interface ReplayOptions {
   /** Token safety facts by mint, or a provider. */
   tokenFacts?: Record<string, TokenFacts> | TokenFactsProvider;
   usdPriceInstruments?: Record<string, Instrument>;
+  /** Leaders' trades for copy actions. */
+  copy?: EngineOptions["copy"];
 }
 
 export interface ReplayResult {
@@ -75,6 +77,7 @@ export async function replay(strategy: Strategy, timeline: ReplayFrame[], opts: 
     marketData,
     signalProviders: [signals],
     tokenFacts,
+    copy: opts.copy,
     clock: () => clock,
     fees: opts.fees,
     slippageBps: opts.slippageBps,

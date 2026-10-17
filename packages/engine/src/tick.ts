@@ -5,6 +5,7 @@ import {
   exprRefs,
   instrumentKey,
   instrumentLabel,
+  resolveSize,
   type Instrument,
   type Intent,
   type OpenIntent,
@@ -45,6 +46,14 @@ export interface TickDeps {
   warningIntervalMs: number;
   tickEventIntervalMs: number;
   equitySampleIntervalMs: number;
+  /** Leaders' trades, for copy actions. Without it, copy actions stay idle. */
+  copy?: CopyFeeds;
+}
+
+/** A Solana wallet's token trades (oldest first) and a Hyperliquid account's open positions. */
+export interface CopyFeeds {
+  solanaWallet?: (address: string) => Promise<{ id: string; at: number; side: "buy" | "sell"; mint: string }[]>;
+  hyperliquidTrader?: (address: string) => Promise<{ positions: { coin: string; side: "long" | "short"; leverage: number }[] }>;
 }
 
 const DAY = (now: number) => new Date(now).toISOString().slice(0, 10);
@@ -344,6 +353,12 @@ export async function runTick(s: Session): Promise<void> {
   const result = evaluate(strategy, { now: s.now, signals: snapshots, equityUsd: equity, positions: positionsForEval }, s.rt.evalState);
   s.rt.evalState = result.state;
   triggerEvents(s, result.triggers);
+  // c2. Copy trading: the leaders' new trades become intents too (exits first, like the rules').
+  const copies = await copyIntents(s, result.triggers, equity);
+  if (copies.length) {
+    const rank = (i: Intent) => (i.type === "close" ? 0 : i.type === "notify" ? 2 : 1);
+    result.intents = [...result.intents, ...copies].sort((x, y) => rank(x) - rank(y));
+  }
   for (const i of result.intents) s.emit("intent", `${describeIntent(s, i)} (${ruleName(s, i.triggerId).toLowerCase()})`, { intent: i });
 
   // d. Risk.
@@ -392,6 +407,124 @@ export async function runTick(s: Session): Promise<void> {
     { equityUsd: round2(eq), positions: s.positions.size, fired: result.triggers.filter((t) => t.fired).map((t) => t.id) },
     { key: "tick", gapMs: s.deps.tickEventIntervalMs }
   );
+}
+
+/* ---- c2. copy trading ---- */
+
+const shortAddr = (a: string) => `${a.slice(0, 4)}…${a.slice(-4)}`;
+
+/**
+ * Turn each copy action's leader activity since the last check into intents. Solana: a new buy of a
+ * token becomes a buy of the same token (if liquid enough and under the open-copies limit), a sell
+ * closes our copy. Hyperliquid: a newly opened (or flipped) position is opened the same way, a
+ * closed one closes ours. Whatever the leader held before copying started is left alone.
+ */
+async function copyIntents(s: Session, triggers: TriggerResult[], equity: number): Promise<Intent[]> {
+  const strategy = s.deployment.strategy;
+  const out: Intent[] = [];
+  const feeds = s.deps.copy;
+  for (const a of strategy.actions) {
+    if (a.type !== "copy") continue;
+    const state = ((s.rt.copy ??= {})[a.id] ??= { since: s.now, seen: [] });
+    const gateOpen = !a.on.length || a.on.some((id) => triggers.find((t) => t.id === id)?.met === true);
+    const mine = s.open().filter((p) => p.actionId === a.id);
+    const base = { strategyId: strategy.id, actionId: a.id, triggerId: `copy:${a.id}` };
+    const only = a.only?.map((x) => x.toUpperCase());
+    try {
+      if (a.leader.venue === "solana") {
+        if (!feeds?.solanaWallet) {
+          s.warn(`copy:${a.id}`, "Copying a Solana wallet needs wallet data (Helius), which isn't set up on this server");
+          continue;
+        }
+        const trades = await withTimeout(feeds.solanaWallet(a.leader.wallet), s.deps.signalTimeoutMs);
+        const seen = new Set(state.seen);
+        let open = mine.length;
+        for (const t of trades) {
+          if (t.at < state.since || seen.has(t.id)) continue;
+          seen.add(t.id);
+          if (only && !only.includes(t.mint.toUpperCase())) continue;
+          const key = `sol:token:${t.mint}`;
+          const held = mine.some((p) => p.instrumentKey === key);
+          if (t.side === "sell") {
+            if (held && a.mirrorExits) out.push({ ...base, key: `${strategy.id}:${a.id}:copy:${t.id}`, type: "close", target: key, fraction: 1 });
+            continue;
+          }
+          if (held || !gateOpen) continue;
+          if (open >= a.maxOpen) {
+            s.warn(`copy:max:${a.id}`, `Didn’t copy ${shortAddr(t.mint)}: already ${a.maxOpen} copied positions open`);
+            continue;
+          }
+          const facts = await s.deps.tokenFacts?.getTokenFacts(t.mint, {}).catch(() => null);
+          if (facts && facts.liquidity_usd < a.minLiquidityUsd) {
+            s.emit("rejected", `Didn’t copy ${shortAddr(t.mint)}: liquidity ${fmtUsd(facts.liquidity_usd)} is under ${fmtUsd(a.minLiquidityUsd)}`, { copy: a.id, mint: t.mint });
+            continue;
+          }
+          const instrument = { kind: "token" as const, chain: "solana" as const, mint: t.mint, quote: "SOL" as const, route: "auto" as const, assetClass: "crypto" as const };
+          out.push({
+            ...base,
+            key: `${strategy.id}:${a.id}:copy:${t.id}`,
+            type: "open",
+            instrument,
+            instrumentKey: key,
+            side: "long",
+            size: resolveSize(a.size, equity),
+            leverage: 1,
+            order: { ...a.order, maxSlippageBps: a.order.maxSlippageBps ?? strategy.risk.defaultMaxSlippageBps },
+            exits: a.exits,
+          });
+          open++;
+        }
+        state.seen = [...seen].slice(-300);
+      } else {
+        if (!feeds?.hyperliquidTrader) continue;
+        const now = (await withTimeout(feeds.hyperliquidTrader(a.leader.trader), s.deps.signalTimeoutMs)).positions;
+        const cur: Record<string, { side: "long" | "short"; leverage: number }> = {};
+        for (const p of now) cur[p.coin] = { side: p.side, leverage: p.leverage };
+        // First look: remember what the leader already holds, copy nothing yet.
+        if (!state.last) {
+          state.last = Object.fromEntries(Object.entries(cur).map(([c, v]) => [c, v.side]));
+          continue;
+        }
+        let open = mine.length;
+        const coins = new Set([...Object.keys(state.last), ...Object.keys(cur)]);
+        for (const coin of coins) {
+          const was = state.last[coin];
+          const is = cur[coin]?.side;
+          if (was === is) continue;
+          if (only && !only.includes(coin.toUpperCase())) continue;
+          const key = `hl:perp:${coin}`;
+          const held = mine.some((p) => p.instrumentKey === key);
+          const tag = `${coin}:${is ?? "flat"}:${s.now}`;
+          // Closed or flipped: close our copy first.
+          if (was && held && a.mirrorExits) out.push({ ...base, key: `${strategy.id}:${a.id}:copy:${tag}:close`, type: "close", target: key, fraction: 1 });
+          if (!is || !gateOpen) continue;
+          if (held && !(was && a.mirrorExits)) continue;
+          if (open >= a.maxOpen) {
+            s.warn(`copy:max:${a.id}`, `Didn’t copy ${coin}: already ${a.maxOpen} copied positions open`);
+            continue;
+          }
+          const leverage = Math.max(1, Math.min(a.leverage ?? cur[coin]!.leverage, strategy.risk.maxLeverage));
+          out.push({
+            ...base,
+            key: `${strategy.id}:${a.id}:copy:${tag}`,
+            type: "open",
+            instrument: { kind: "perp", venue: "hyperliquid", symbol: coin, assetClass: "crypto" },
+            instrumentKey: key,
+            side: is,
+            size: resolveSize(a.size, equity),
+            leverage,
+            order: { ...a.order, maxSlippageBps: a.order.maxSlippageBps ?? strategy.risk.defaultMaxSlippageBps },
+            exits: a.exits,
+          });
+          if (!held) open++;
+        }
+        state.last = Object.fromEntries(Object.entries(cur).map(([c, v]) => [c, v.side]));
+      }
+    } catch (e) {
+      s.warn(`copy:${a.id}`, `Couldn’t read the leader’s trades: ${errMsg(e)}`);
+    }
+  }
+  return out;
 }
 
 /* ---- a. marking & exits ---- */
@@ -837,6 +970,10 @@ const lowerFirst = (t: string) => t.replace(/^\w/, (c) => c.toLowerCase());
 
 /** "Rule 2" or the trigger's own label: the same names the app shows. */
 function ruleName(s: Session, triggerId: string): string {
+  if (triggerId.startsWith("copy:")) {
+    const a = s.deployment.strategy.actions.find((x) => x.id === triggerId.slice(5));
+    if (a?.type === "copy") return `Copying ${shortAddr(a.leader.venue === "solana" ? a.leader.wallet : a.leader.trader)}`;
+  }
   const triggers = s.deployment.strategy.triggers;
   const idx = triggers.findIndex((t) => t.id === triggerId);
   const t = triggers[idx];

@@ -102,33 +102,30 @@ async function tokenStrategy(thesis: string, symbol: string, catalog: Catalog): 
   const s: StrategyInput = {
     schemaVersion: 1,
     id: slug(`${symbol}-momentum`),
-    name: `$${symbol} ${dip != null ? `dip ${dip}%` : level != null ? "level" : "momentum"} + sentiment`,
+    name: `$${symbol} ${dip != null ? `dip ${dip}%` : level != null ? "level" : "momentum"}, buyers in control`,
     thesis,
     tags: ["solana", "token"],
     signals: [
       { id: "px", kind: "price", label: `$${symbol}`, params: { instrument: inst } },
       { id: "chain", kind: "token_onchain", label: `$${symbol} on-chain`, params: { mint } },
-      { id: "social", kind: "social", label: `$${symbol} on X`, params: { cashtags: [symbol] } },
     ],
     triggers: [
       {
         id: "entry",
-        label: dip != null ? `Down ${dip}% & bullish` : level != null ? `Price ≤ ${level} & bullish` : "Breakout & bullish",
+        label: dip != null ? `Down ${dip}%, buyers in control` : level != null ? `Price ≤ ${level}, buyers in control` : "Breakout, buyers in control",
         when: { op: "and", args: [
           priceCond,
-          { op: "gt", left: { ref: "social.sentiment" }, right: { value: 0.3 } },
-          { op: "gt", left: { ref: "social.mentions_change_1h_pct" }, right: { value: 150 } },
-          { op: "gt", left: { ref: "chain.buy_sell_ratio_1h" }, right: { value: 1.3 } },
+          { op: "gt", left: { ref: "chain.buy_sell_ratio_1h" }, right: { value: 1.5 } },
         ] },
         forMinutes: 5,
       },
       { id: "dev_dump", label: "Dev selling", when: { op: "gt", left: { ref: "chain.dev_sold_pct" }, right: { value: 20 } } },
-      { id: "hype_gone", label: "Sentiment flips", when: { op: "lt", left: { ref: "social.sentiment" }, right: { value: -0.2 } }, forMinutes: 30 },
+      { id: "sellers_take_over", label: "Sellers take over", when: { op: "lt", left: { ref: "chain.buy_sell_ratio_1h" }, right: { value: 0.7 } }, forMinutes: 30 },
     ],
     actions: [
       { id: "buy", type: "open", on: ["entry"], instrument: inst, side: "long", size: { unit: "native", value: size }, order: { maxPriceImpactBps: 200 }, exits: { takeProfit: { pct: 40 }, stopLoss: { pct: 20 }, timeExitHours: 48 } },
       { id: "alert", type: "notify", on: ["entry"], channel: "telegram", message: `$${symbol} entry conditions met: buying ${size} SOL.` },
-      { id: "exit", type: "close", on: ["dev_dump", "hype_gone"], target: { instrument: inst } },
+      { id: "exit", type: "close", on: ["dev_dump", "sellers_take_over"], target: { instrument: inst } },
     ],
   };
   return { s, notes: [`Resolved $${symbol} to mint ${mint}.`] };

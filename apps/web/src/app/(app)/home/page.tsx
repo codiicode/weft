@@ -15,9 +15,9 @@ import { RunListHeader, RunRow } from "@/components/app/RunCard";
 import { IconSend } from "@/components/graph/icons";
 
 const IDEAS = [
-  "Open a 20x ETH long if ETH breaks $2,600 and funding stays low",
-  "Long BTC 10x with $100 if it drops 5% in a day",
-  "Buy $BONK with 0.1 SOL if it drops 10% in an hour",
+  "Buy $50 of ETH now",
+  "If @elonmusk posts about Dogecoin, long DOGE 5x with $100",
+  "Long BTC and ETH 20x with $100 each if Fear & Greed drops to 20",
 ];
 
 function SectionHead({ title, href, link }: { title: string; href?: string; link?: string }) {
@@ -94,7 +94,7 @@ export default function Home() {
           <Card className="flex flex-col items-start gap-4 px-5 py-6 sm:flex-row sm:items-center sm:justify-between">
             <div>
               <p className="text-[14.5px] font-medium text-ink">{auth.enabled && !auth.authenticated ? "Sign in to see your runs" : "Nothing running yet"}</p>
-              <p className="mt-0.5 text-[14px] text-muted">Write a thesis above, or start from one of the strategies below. Test it on history before any money goes in.</p>
+              <p className="mt-0.5 text-[14px] text-muted">Write a trade idea above, or start from one of the strategies below. You can test it on past prices before any money goes in.</p>
             </div>
             {auth.enabled && !auth.authenticated ? (
               <Btn onClick={auth.login} variant="ghost">
@@ -135,7 +135,7 @@ export default function Home() {
             Alerts go to {alerts.data.sinks.join(" and ")}
           </span>
         ) : (
-          <span className="text-muted">Trades run from your own Hyperliquid account.</span>
+          <span className="text-muted">Trades run from your own account on Hyperliquid or Solana.</span>
         )}
         <Link href="/accounts" className="text-muted hover:text-ink">
           Set up trading →

@@ -7,9 +7,11 @@ import { Button } from "../ui/Button";
 const links = [
   ["How it works", "#work"],
   ["Markets", "#markets"],
+  ["Data", "#watches"],
   ["Safety", "#safety"],
   ["Strategies", "#strategies"],
   ["Token", "#token"],
+  ["Revenue", "/revenue"],
 ];
 
 export function Nav() {

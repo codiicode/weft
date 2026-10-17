@@ -1,3 +1,4 @@
+import { polymarketListings } from "./polymarket.ts";
 import { instrumentKey, type Instrument } from "@weft/strategy";
 import type { Catalog, CatalogQuery, MarketListing, Product } from "./types.ts";
 import type { VenueMarketData } from "./market-data.ts";
@@ -25,7 +26,7 @@ export class VenueCatalog implements Catalog {
 
   async list(product: Product, q: CatalogQuery = {}): Promise<MarketListing[]> {
     const limit = q.limit ?? 50;
-    let rows: (MarketListing & { _rank?: number })[];
+    let rows: (MarketListing & { _rank?: number; _searched?: boolean })[];
     switch (product) {
       case "perps":
         rows = await this.perps();
@@ -44,6 +45,7 @@ export class VenueCatalog implements Catalog {
         break;
     }
     const filtered = rows.filter((r) =>
+      r._searched ||
       matchesSearch(
         q.search,
         r.label,
@@ -54,7 +56,7 @@ export class VenueCatalog implements Catalog {
       )
     );
     filtered.sort((a, b) => (b._rank ?? b.volume24hUsd ?? 0) - (a._rank ?? a.volume24hUsd ?? 0));
-    return filtered.slice(0, limit).map(({ _rank, ...r }) => r);
+    return filtered.slice(0, limit).map(({ _rank, _searched, ...r }) => r);
   }
 
   /** One listing by instrument key, looking in the products it could belong to. */
@@ -69,6 +71,12 @@ export class VenueCatalog implements Catalog {
       const all = await this.list(p, { limit: 10_000 }).catch(() => []);
       const hit = all.find((r) => r.instrumentKey === key);
       if (hit) return hit;
+    }
+    // Polymarket odds (watch-only) aren't all listed: read the market directly.
+    if (key.startsWith("pm:outcome:")) {
+      const id = key.split(":")[2]!;
+      const m = await this.md.ctx.pm.market(id).catch(() => null);
+      return (m && polymarketListings(m).find((r) => r.instrumentKey === key)) ?? null;
     }
     // Tokens outside the trending list: search by mint.
     if (key.startsWith("sol:token:")) {
@@ -113,19 +121,26 @@ export class VenueCatalog implements Catalog {
 
   /* ---------------- predictions ---------------- */
 
-  private async predictions(search?: string): Promise<(MarketListing & { _rank?: number })[]> {
-    // Hyperliquid's own (HIP-4) markets only: they trade from the same account as perps, with deep
-    // books on the busy ones. Jupiter's prediction books are too thin to get out of a position, so
-    // they are no longer listed (the parsing stays for reference).
-    void search;
+  private async predictions(search?: string): Promise<(MarketListing & { _rank?: number; _searched?: boolean })[]> {
+    // Tradable: Hyperliquid's own (HIP-4) markets, from the same account as perps. Jupiter's
+    // prediction books are too thin to get out of a position, so they aren't listed.
+    // Watch-only: Polymarket odds, to use as signals (busiest when browsing, Polymarket's own search
+    // when searching). Tradable markets always sort first.
     const now = this.md.ctx.now();
-    const hl = await this.md.hlOutcomes().catch(() => null);
-    const out: (MarketListing & { _rank?: number })[] = [];
+    const [hl, pm] = await Promise.all([
+      this.md.hlOutcomes().catch(() => null),
+      (search?.trim() ? this.md.ctx.pm.search(search.trim(), 15) : this.md.ctx.pm.top(30)).catch(() => []),
+    ]);
+    const out: (MarketListing & { _rank?: number; _searched?: boolean })[] = [];
     for (const m of hl?.markets ?? []) {
       if (m.sides[0].mid == null) continue;
       if (m.expiresAt != null && m.expiresAt < now) continue;
-      out.push(hlOutcomeListing(m));
+      out.push({ ...hlOutcomeListing(m), _rank: 1e15 + (m.volume24hUsd ?? 0) });
     }
+    // Searching keeps Polymarket's relevance order (below every tradable market).
+    pm.forEach((m, i) => {
+      for (const r of polymarketListings(m)) out.push({ ...r, ...(search?.trim() ? { _searched: true, _rank: 1e12 - i } : {}) });
+    });
     return out;
   }
 

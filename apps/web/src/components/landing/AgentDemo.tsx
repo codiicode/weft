@@ -19,9 +19,10 @@ type Scenario = {
   parts: { phrase: string; tone: Tone; rule: string; kind: "Do" | "When" | "Exit" }[];
   /** The condition the film is about: a value that travels to its threshold and crosses it. */
   watch: { name: string; from: number; threshold: number; to: number; dir: "above" | "below"; fmt: (v: number) => string; seed: number };
-  /** The other condition, already true while the agent waits. */
-  also: { label: string; value: string };
-  diagram: { s1: [string, string]; s2: [string, string]; action: [string, string] };
+  /** The other conditions, already true while the agent waits. */
+  also: { label: string; value: string }[];
+  /** Two or three conditions feed one rule, which feeds the trade. */
+  diagram: { signals: [string, string][]; action: [string, string] };
   waiting: string;
   met: string;
   filled: [string, string];
@@ -41,12 +42,35 @@ const SCENARIOS: Scenario[] = [
       { phrase: "20% stop", tone: "short", rule: "Stop at −20% on the position (price −1%)", kind: "Exit" },
     ],
     watch: { name: "ETH", from: 2552, threshold: 2600, to: 2604, dir: "above", fmt: usd0, seed: 7 },
-    also: { label: "funding 0.0041%", value: "funding" },
-    diagram: { s1: ["ETH price", "above $2,600"], s2: ["ETH funding", "under 0.01% / h"], action: ["Long ETH 20×", "$50 · stop −20%"] },
-    waiting: "ETH is still under $2,600. Weft doesn’t guess, it waits.",
+    also: [{ label: "funding 0.0041%", value: "funding" }],
+    diagram: { signals: [["ETH price", "above $2,600"], ["ETH funding", "under 0.01% / h"]], action: ["Long ETH 20×", "$50 · stop −20%"] },
+    waiting: "ETH is still under $2,600, so nothing happens yet.",
     met: "ETH broke $2,600 with funding still low. Sending the order…",
     filled: ["Long ETH 20× filled at $2,604", "Stop placed on Hyperliquid at $2,578 (−20% on the position)"],
     venue: "Hyperliquid",
+  },
+  {
+    prompt: "If @elonmusk posts about Dogecoin while DOGE funding is under 0.01% an hour and mentions on X double, long DOGE 5x with $100. 25% stop.",
+    parts: [
+      { phrase: "long DOGE 5x with $100", tone: "long", rule: "Long DOGE at 5× with $100", kind: "Do" },
+      { phrase: "@elonmusk posts about Dogecoin", tone: "signal", rule: "A new @elonmusk post about Dogecoin", kind: "When" },
+      { phrase: "DOGE funding is under 0.01% an hour", tone: "signal", rule: "Funding under 0.01% an hour", kind: "When" },
+      { phrase: "mentions on X double", tone: "signal", rule: "DOGE mentions on X up 100% in an hour", kind: "When" },
+      { phrase: "25% stop", tone: "short", rule: "Stop at −25% on the position (price −5%)", kind: "Exit" },
+    ],
+    watch: { name: "DOGE mentions, 1h", from: 18, threshold: 100, to: 142, dir: "above", fmt: (v) => `+${Math.round(Math.max(0, v))}%`, seed: 23 },
+    also: [
+      { label: "Elon posted", value: "post" },
+      { label: "funding 0.0038%", value: "funding" },
+    ],
+    diagram: {
+      signals: [["@elonmusk on X", "posts about Dogecoin"], ["DOGE funding", "under 0.01% / h"], ["DOGE mentions", "up 100%+ in 1h"]],
+      action: ["Long DOGE 5×", "$100 · stop −25%"],
+    },
+    waiting: "Elon posted and funding is low, but the buzz hasn’t doubled yet.",
+    met: "Mentions are up 142% in an hour. All three are true. Sending the order…",
+    filled: ["Long DOGE 5× filled at $0.0806", "Stop placed on Hyperliquid at $0.0766 (−25% on the position)"],
+    venue: "X + Hyperliquid",
   },
   {
     prompt: "Buy $MET with 0.5 SOL if it drops 10% in an hour while liquidity stays above $5M. 20% stop.",
@@ -57,27 +81,31 @@ const SCENARIOS: Scenario[] = [
       { phrase: "20% stop", tone: "short", rule: "Stop at −20%", kind: "Exit" },
     ],
     watch: { name: "MET 1h", from: -1.8, threshold: -10, to: -10.6, dir: "below", fmt: pct(1), seed: 19 },
-    also: { label: "liquidity $8.4M", value: "liquidity" },
-    diagram: { s1: ["$MET, last hour", "down 10%+"], s2: ["$MET liquidity", "above $5M"], action: ["Buy $MET", "0.5 SOL · stop −20%"] },
-    waiting: "$MET is down, but not 10% yet. Weft waits for the dip you asked for.",
+    also: [{ label: "liquidity $8.4M", value: "liquidity" }],
+    diagram: { signals: [["$MET, last hour", "down 10%+"], ["$MET liquidity", "above $5M"]], action: ["Buy $MET", "0.5 SOL · stop −20%"] },
+    waiting: "$MET is down, but not 10% yet. No buy.",
     met: "$MET is down 10.6% in an hour and liquidity is deep. Swapping…",
     filled: ["Bought $MET with 0.5 SOL", "Swapped through Jupiter from your own wallet · stop at −20%"],
     venue: "Solana via Jupiter",
   },
   {
-    prompt: "Short SOL 5x with $50 if funding stays above 0.05% an hour and SOL is below $180. 15% stop.",
+    prompt: "Short SOL 5x with $50 if funding stays above 0.02% an hour, SOL is below $110 and Fear & Greed is above 70. 15% stop.",
     parts: [
       { phrase: "Short SOL 5x with $50", tone: "short", rule: "Short SOL at 5× with $50", kind: "Do" },
-      { phrase: "funding stays above 0.05% an hour", tone: "signal", rule: "Funding above 0.05% an hour", kind: "When" },
-      { phrase: "SOL is below $180", tone: "signal", rule: "SOL price below $180", kind: "When" },
+      { phrase: "funding stays above 0.02% an hour", tone: "signal", rule: "Funding above 0.02% an hour", kind: "When" },
+      { phrase: "SOL is below $110", tone: "signal", rule: "SOL price below $110", kind: "When" },
+      { phrase: "Fear & Greed is above 70", tone: "signal", rule: "Crypto Fear & Greed above 70", kind: "When" },
       { phrase: "15% stop", tone: "short", rule: "Stop at −15% on the position (price +3%)", kind: "Exit" },
     ],
-    watch: { name: "SOL funding", from: 0.031, threshold: 0.05, to: 0.052, dir: "above", fmt: (v) => `${v.toFixed(4)}%`, seed: 31 },
-    also: { label: "SOL $171.40", value: "price" },
-    diagram: { s1: ["SOL funding", "above 0.05% / h"], s2: ["SOL price", "below $180"], action: ["Short SOL 5×", "$50 · stop −15%"] },
-    waiting: "Funding isn’t crowded enough yet. Weft waits.",
-    met: "Longs are paying 0.052% an hour and SOL is under $180. Shorting…",
-    filled: ["Short SOL 5× filled at $171.40", "Stop placed on Hyperliquid at $176.54 (−15% on the position)"],
+    watch: { name: "SOL funding", from: 0.011, threshold: 0.02, to: 0.021, dir: "above", fmt: (v) => `${v.toFixed(4)}%`, seed: 31 },
+    also: [
+      { label: "SOL $104.70", value: "price" },
+      { label: "Fear & Greed 74", value: "greed 74" },
+    ],
+    diagram: { signals: [["SOL funding", "above 0.02% / h"], ["SOL price", "below $110"], ["Fear & Greed", "above 70"]], action: ["Short SOL 5×", "$50 · stop −15%"] },
+    waiting: "The crowd is greedy, but funding is still under 0.02%. No short yet.",
+    met: "Longs are paying 0.021% an hour and greed is at 74. Shorting…",
+    filled: ["Short SOL 5× filled at $104.70", "Stop placed on Hyperliquid at $107.84 (−15% on the position)"],
     venue: "Hyperliquid",
   },
 ];
@@ -171,15 +199,18 @@ function Diagram({ s, on, met }: { s: Scenario; on: number; met: boolean }) {
     />
   );
   const actionTone = s.parts[0]!.tone === "short" ? "var(--short)" : "var(--long)";
+  const sigs = s.diagram.signals;
+  const n = sigs.length;
+  const H = n * 68 - 4;
+  const mid = H / 2;
+  const rowY = (i: number) => 10 + i * 68 - (n > 2 ? 10 : 0);
   return (
-    <svg viewBox="0 0 520 132" className="h-auto w-full" aria-label={`${s.diagram.s1[0]} and ${s.diagram.s2[0]} feed one rule, which opens: ${s.diagram.action[0]}`}>
-      {edge("M150 32 C185 32 185 66 216 66", 2)}
-      {edge("M150 100 C185 100 185 66 216 66", 2)}
-      {edge("M330 66 L366 66", 3)}
-      {node(4, 10, 146, s.diagram.s1, "var(--signal)", 0)}
-      {node(4, 78, 146, s.diagram.s2, "var(--signal)", 1)}
-      {node(216, 44, 114, ["Both true", "check every 15 s"], "var(--trigger)", 2, met)}
-      {node(366, 44, 150, s.diagram.action, actionTone, 3, met)}
+    <svg viewBox={`0 0 520 ${H}`} className="h-auto w-full" aria-label={`${sigs.map((x) => x[0]).join(", ")} feed one rule, which opens: ${s.diagram.action[0]}`}>
+      {sigs.map((_, i) => edge(`M150 ${rowY(i) + 22} C185 ${rowY(i) + 22} 185 ${mid} 216 ${mid}`, n))}
+      {edge(`M330 ${mid} L366 ${mid}`, n + 1)}
+      {sigs.map((sg, i) => node(4, rowY(i), 146, sg, "var(--signal)", i))}
+      {node(216, mid - 22, 114, [n === 2 ? "Both true" : `All ${n} true`, "check every 15 s"], "var(--trigger)", n, met)}
+      {node(366, mid - 22, 150, s.diagram.action, actionTone, n + 1, met)}
     </svg>
   );
 }
@@ -221,7 +252,7 @@ export function AgentDemo() {
   const shown = Math.min(s.prompt.length, Math.floor((t / TYPE_MS) * s.prompt.length));
   const sent = t >= T.sent;
   const lit = t < T.rules ? 0 : Math.min(s.parts.length, 1 + Math.floor((t - T.rules) / 500));
-  const diagramOn = t < T.diagram ? 0 : Math.min(4, 1 + Math.floor((t - T.diagram) / 350));
+  const diagramOn = t < T.diagram ? 0 : Math.min(s.diagram.signals.length + 2, 1 + Math.floor((t - T.diagram) / 350));
   const watching = t >= T.watch;
   const met = t >= T.met;
   const filled = t >= T.filled;
@@ -256,7 +287,7 @@ export function AgentDemo() {
     <Section
       id="demo"
       title="Say it once. Weft watches the market for you."
-      lead="Write the trade the way you’d say it. Weft turns every part of the sentence into a rule, checks the market around the clock, and trades the moment all of it is true. Not a second before."
+      lead="Type the trade the way you’d say it, with one condition or five: a price, a post on X, a wallet, the mood of the market. Each part becomes a rule. Weft checks them every 15 to 30 seconds, day and night, and places the order once all of them hold."
     >
       <div ref={box} className="mt-12 overflow-hidden rounded-[18px] border border-line bg-card shadow-window">
         {/* Window bar */}
@@ -329,7 +360,7 @@ export function AgentDemo() {
                 <span className="tnum text-[13px]">
                   <span className={ok ? "text-long" : "text-ink"}>{w.fmt(now)}</span>
                   <span className="text-faint"> · </span>
-                  <span className="text-long">{s.also.label}</span>
+                  <span className="text-long">{s.also.map((a) => a.label).join(" · ")}</span>
                 </span>
               </div>
               <svg viewBox={`0 0 ${W} ${H}`} className="mt-2 h-auto w-full" aria-label={`${w.name} moving toward ${w.fmt(w.threshold)}, then crossing it`}>
@@ -350,7 +381,7 @@ export function AgentDemo() {
                       <span className={hit ? "text-long" : "text-ink-2"}>
                         {w.name} {w.fmt(v)} {hit ? "✓" : "✗"}
                       </span>
-                      <span className="text-long">{s.also.value} ✓</span>
+                      <span className="text-long">{s.also.map((a) => `${a.value} ✓`).join(" ")}</span>
                       <span className={hit ? "text-long" : ""}>{hit ? `rule met → ${verb}` : "waiting"}</span>
                     </li>
                   );
@@ -387,7 +418,7 @@ export function AgentDemo() {
                     <span className={`h-2 w-2 rounded-full ${watching ? "animate-pulse" : ""}`} style={{ background: watching ? "var(--signal)" : "var(--muted)" }} />
                   </span>
                   <div>
-                    <div className="text-[15px] font-medium text-ink">{watching ? (met ? "Both conditions true" : "Waiting: 1 of 2 conditions true") : "No trade yet"}</div>
+                    <div className="text-[15px] font-medium text-ink">{watching ? (met ? (s.diagram.signals.length === 2 ? "Both conditions true" : `All ${s.diagram.signals.length} conditions true`) : `Waiting: ${s.diagram.signals.length - 1} of ${s.diagram.signals.length} conditions true`) : "No trade yet"}</div>
                     <div className="text-[13px] text-muted">{met ? s.met : watching ? s.waiting : "Nothing trades until every rule is true."}</div>
                   </div>
                 </>

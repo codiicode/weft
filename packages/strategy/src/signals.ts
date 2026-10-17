@@ -32,7 +32,7 @@ export const SIGNAL_KINDS = {
     },
   },
   funding: {
-    description: "Perp funding and open interest.",
+    description: "Perp funding and open interest on Hyperliquid, plus the same coin's funding on Binance and Bybit (core perps only) and Hyperliquid's gap to the higher of them.",
     params: z.object({ instrument: PerpInstrument }),
     fields: {
       rate_1h_pct: "number",
@@ -40,6 +40,9 @@ export const SIGNAL_KINDS = {
       apr_pct: "number",
       open_interest_usd: "number",
       oi_zscore_30d: "number",
+      binance_rate_1h_pct: "number",
+      bybit_rate_1h_pct: "number",
+      funding_gap_1h_pct: "number",
     },
   },
   liquidity: {
@@ -151,12 +154,40 @@ export const SIGNAL_KINDS = {
     },
   },
   macro: {
-    description: "A macro/rates series, e.g. US2Y yield or USD/BRL.",
+    description: "A macro or market-wide series: rates, FX, stock indices, the economy, and crypto-wide data (Fear & Greed, dominance, total market cap, stablecoin supply, TVL, protocol fees). Daily or slower; changes are per observation.",
     params: z.object({ series: z.string().min(1) }),
     fields: {
       value: "number",
       change_1d: "number",
       change_5d: "number",
+    },
+  },
+  wallet: {
+    description:
+      "A Solana wallet's trading, for following smart money, insiders or a dev wallet: its buys and sells in the last hour (of one token, or of any token when mint is omitted), SOL spent and received, minutes since its last buy or sell, and how much of the token it still holds.",
+    params: z.object({ address: SolanaMint.describe("The wallet to watch"), mint: SolanaMint.optional().describe("Only count trades of this token") }),
+    fields: {
+      buys_1h: "number",
+      sells_1h: "number",
+      sol_spent_1h: "number",
+      sol_received_1h: "number",
+      minutes_since_buy: "number",
+      minutes_since_sell: "number",
+      token_balance: "number",
+    },
+  },
+  trader: {
+    description:
+      "Another Hyperliquid account's position in one coin (a known trader or a vault), for following them: side (1 long, −1 short, 0 flat), size, leverage, entry, profit, and minutes since it last opened, closed or flipped.",
+    params: z.object({ address: z.string().regex(/^0x[0-9a-fA-F]{40}$/, "a Hyperliquid address (0x…)"), coin: z.string().min(1).describe("Perp symbol, e.g. BTC") }),
+    fields: {
+      side: "number",
+      size_usd: "number",
+      leverage: "number",
+      entry_price: "number",
+      unrealized_pnl_pct: "number",
+      minutes_since_change: "number",
+      account_value_usd: "number",
     },
   },
   position: {
@@ -202,6 +233,8 @@ export const Signal = z.discriminatedUnion("kind", [
   z.object({ ...base, kind: z.literal("model"), params: SIGNAL_KINDS.model.params }),
   z.object({ ...base, kind: z.literal("calendar"), params: SIGNAL_KINDS.calendar.params }),
   z.object({ ...base, kind: z.literal("macro"), params: SIGNAL_KINDS.macro.params }),
+  z.object({ ...base, kind: z.literal("wallet"), params: SIGNAL_KINDS.wallet.params }),
+  z.object({ ...base, kind: z.literal("trader"), params: SIGNAL_KINDS.trader.params }),
   z.object({ ...base, kind: z.literal("position"), params: SIGNAL_KINDS.position.params }),
 ]);
 export type Signal = z.infer<typeof Signal>;
@@ -220,6 +253,8 @@ export const DEFAULT_MAX_AGE: Record<SignalKind, number> = {
   model: 3_600,
   calendar: 3_600,
   macro: 3_600,
+  wallet: 300,
+  trader: 120,
   position: 60,
 };
 

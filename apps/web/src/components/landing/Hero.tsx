@@ -16,7 +16,7 @@ export function Hero() {
         </h1>
         <div className="mt-8 flex flex-col gap-6 sm:mt-10 lg:flex-row lg:items-center lg:justify-between">
           <p className="enter max-w-[34rem] text-[17px] leading-[1.55] text-ink-2 text-pretty sm:text-[19px]" style={{ animationDelay: "260ms" }}>
-            Say what you think will happen. Weft turns it into rules you can read, tests them on real history, and trades them from your own wallet.
+            From “buy $50 of ETH” to “if this account posts, this wallet buys and funding is low, go long.” Weft turns your words into rules you can read and trades them from your own wallet.
           </p>
           <div className="enter flex shrink-0 flex-wrap items-center gap-2" style={{ animationDelay: "340ms" }}>
             <Button href="/new" size="lg">

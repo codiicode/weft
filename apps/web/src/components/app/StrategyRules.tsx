@@ -25,7 +25,7 @@ export function StrategyRules({ strategy, met }: { strategy: Strategy; met?: Rec
               {simulated(w.kind) && (
                 <span
                   className="ml-1.5 rounded-[5px] bg-paper-2 px-1.5 py-px align-[1px] text-[11.5px] text-muted"
-                  title="This feed uses sample data for now. Fine for alerts; trading decisions shouldn’t rely on it yet."
+                  title="This data is simulated for now. It works for alerts, but real trades can’t use it yet."
                 >
                   sample data
                 </span>
@@ -62,7 +62,7 @@ export function StrategyRules({ strategy, met }: { strategy: Strategy; met?: Rec
               </div>
             ) : (
               <p className="text-[14.5px] leading-relaxed text-ink">
-                <span className="text-muted">When </span>
+                {!(r.when.length === 1 && r.when[0] === "Right away") && <span className="text-muted">When </span>}
                 {r.when.map((w, j) => (
                   <span key={j}>
                     {j > 0 && <span className="text-muted"> {r.match === "any" ? "or" : "and"} </span>}

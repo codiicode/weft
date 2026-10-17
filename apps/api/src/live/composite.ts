@@ -1,3 +1,4 @@
+import { tradesSolana } from "./solana.ts";
 import type { CreateDeploymentInput, DeploymentRecord, Engine, EngineEvent, ExitsPatch } from "@weft/engine";
 import type { Strategy } from "@weft/strategy";
 
@@ -33,7 +34,7 @@ export class CompositeEngine implements Engine {
 
   async createDeployment(input: CreateDeploymentInput): Promise<DeploymentRecord> {
     if (input.mode === "live") {
-      if (input.strategy.actions.some((a) => a.type === "open" && a.instrument.kind === "token")) {
+      if (tradesSolana(input.strategy)) {
         if (!this.solana) throw new Error("Solana trading is not configured on this server");
         return this.solana.createDeployment(input);
       }

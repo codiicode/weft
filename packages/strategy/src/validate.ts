@@ -132,11 +132,21 @@ export function semanticIssues(s: Strategy): Issue[] {
       if (venues.size > 1) err(`${p}.legs`, "all legs must trade on the same venue");
     }
 
+    if (a.type === "copy") {
+      if (a.leverage != null && a.leverage > s.risk.maxLeverage) err(`${p}.leverage`, `leverage ${a.leverage}× exceeds the strategy max of ${s.risk.maxLeverage}×`);
+      if (a.leader.venue === "solana" && a.leverage != null && a.leverage > 1) err(`${p}.leverage`, "leverage only applies to Hyperliquid copies");
+    }
+
     if (a.type === "close" && a.target !== "all") {
       if (!opened.has(instrumentKey(a.target.instrument)))
         warn(`${p}.target`, "closes an instrument this strategy never opens");
     }
   });
+
+  // Only a pure copy strategy may run without signals and triggers.
+  const onlyCopies = s.actions.every((a) => a.type === "copy");
+  if (!onlyCopies && !s.signals.length) err("signals", "add at least one signal");
+  if (!onlyCopies && !s.triggers.length) err("triggers", "add at least one trigger");
 
   // ---- graph hygiene ----
   s.signals.forEach((x, i) => !usedSignals.has(x.id) && warn(`signals[${i}]`, `signal "${x.id}" is not used by any trigger`));

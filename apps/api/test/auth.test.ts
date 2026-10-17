@@ -51,7 +51,7 @@ function fakeEngine(): Engine {
   };
 }
 
-function setup(opts: { aiDailyLimit?: number } = {}) {
+function setup(opts: { aiDailyLimit?: number; anonAiDailyLimit?: number } = {}) {
   const dir = mkdtempSync(join(tmpdir(), "weft-auth-"));
   const accounts = new Accounts(join(dir, "accounts.db"));
   const app = createApp({
@@ -63,6 +63,7 @@ function setup(opts: { aiDailyLimit?: number } = {}) {
     auth: createAuthenticator({ appId: APP_ID, keyResolver: keys.publicKey }),
     accounts,
     aiDailyLimit: opts.aiDailyLimit,
+    anonAiDailyLimit: opts.anonAiDailyLimit,
   });
   const call = async (method: string, path: string, body?: unknown, tok?: string) =>
     app.request(path, {
@@ -84,7 +85,22 @@ describe("Privy auth", () => {
     expect((await call("GET", "/health")).status).toBe(200);
     expect(((await (await call("GET", "/health")).json()) as { auth: { enabled: boolean } }).auth.enabled).toBe(true);
     expect((await call("POST", "/deployments", { strategyId: "crowded-fade", allocationUsd: 1000 })).status).toBe(401);
-    expect((await call("POST", "/ai/generate", { thesis: "buy btc" })).status).toBe(401);
+    expect((await call("POST", "/strategies", { strategy: {} })).status).toBe(401);
+  });
+
+  it("lets visitors draft a few strategies without an account, counted per IP", async () => {
+    const prev = process.env.ANTHROPIC_API_KEY;
+    delete process.env.ANTHROPIC_API_KEY; // template mode, no network
+    const { app } = setup({ anonAiDailyLimit: 2 });
+    const draft = (ip: string) =>
+      app.request("/ai/generate", { method: "POST", headers: { "content-type": "application/json", "x-forwarded-for": `${ip}, 10.0.0.1` }, body: JSON.stringify({ thesis: "long btc 2x if it drops 5% in a day" }) });
+    expect((await draft("1.1.1.1")).status).toBe(200);
+    expect((await draft("1.1.1.1")).status).toBe(200);
+    const third = await draft("1.1.1.1");
+    expect(third.status).toBe(429);
+    expect(((await third.json()) as { error: string }).error).toMatch(/Sign in/);
+    expect((await draft("2.2.2.2")).status).toBe(200); // another visitor has their own count
+    if (prev) process.env.ANTHROPIC_API_KEY = prev;
   });
 
   it("rejects tokens for another app, another issuer, or expired ones", async () => {

@@ -111,5 +111,14 @@ export const fixtureRouter: Router = (url, body) => {
   if (u.host === "www.cpc.ncep.noaa.gov") return fixtureText("noaa_wksst9120.for");
   if (u.host === "fred.stlouisfed.org") return fixtureText("fred_dgs2.csv");
   if (u.host === "api.frankfurter.dev") return fixture("frankfurter_usdbrl.json");
+  if (u.host === "cointelegraph.com")
+    return `<rss><channel><item><title>Bitcoin ETF inflows climb</title><pubDate>${new Date(Date.now() - 600_000).toUTCString()}</pubDate></item></channel></rss>`;
+  if (u.host === "api.alternative.me")
+    return { data: [{ value: "55", timestamp: "1792195200" }, { value: "63", timestamp: "1792108800" }, { value: "53", timestamp: "1792022400" }, { value: "40", timestamp: "1791936000" }, { value: "35", timestamp: "1791849600" }, { value: "30", timestamp: "1791763200" }] };
+  if (u.host === "api.coingecko.com") return { data: { market_cap_percentage: { btc: 59.2979, eth: 10.7245 }, total_market_cap: { usd: 2_759_339_430_723 }, market_cap_change_percentage_24h_usd: -3.4174 } };
+  if (u.host === "stablecoins.llama.fi") return [1, 2, 3, 4, 5, 6].map((i) => ({ date: String(1792000000 + i * 86400), totalCirculatingUSD: { peggedUSD: (300 + i) * 1e9 } }));
+  if (u.host === "api.llama.fi" && u.pathname.startsWith("/v2/historicalChainTvl/Solana")) return [1, 2, 3, 4, 5, 6].map((i) => ({ date: 1792000000 + i * 86400, tvl: (5.9 + i / 10) * 1e9 }));
+  if (u.host === "api.llama.fi" && u.pathname === "/summary/fees/hyperliquid")
+    return { totalDataChart: [3.0, 3.2, 3.4, 3.1, 4.4, 3.1].map((v, i) => [1792000000 + i * 86400, (u.searchParams.get("dataType") === "dailyRevenue" ? 0.8 : 1) * v * 1e6]) };
   return undefined;
 };

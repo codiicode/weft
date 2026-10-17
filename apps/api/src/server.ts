@@ -27,6 +27,9 @@ import { CompositeEngine } from "./live/composite.ts";
 import { Reconciler } from "./live/reconcile.ts";
 import { TelegramBot } from "./lib/telegram.ts";
 import { createApp } from "./app.ts";
+import { claudePostMatcher } from "./ai/post-matcher.ts";
+import { HeliusWebhook } from "./live/helius-webhook.ts";
+import { createTopTraders } from "./lib/traders.ts";
 
 const PORT = Number(process.env.PORT ?? 8787);
 const DATA_DIR = process.env.WEFT_DATA_DIR ?? fileURLToPath(new URL("../.data/", import.meta.url));
@@ -35,6 +38,11 @@ mkdirSync(DATA_DIR, { recursive: true });
 const venues = createVenues({
   oiHistoryPath: join(DATA_DIR, "oi-history.json"),
   ...(process.env.JUPITER_API_KEY ? { jupiterUrl: "https://api.jup.ag", jupiterApiKey: process.env.JUPITER_API_KEY } : {}),
+  // Token data reads Solana too; the public endpoint is heavily rate limited.
+  ...(process.env.SOLANA_RPC_URL ? { solanaRpcUrl: process.env.SOLANA_RPC_URL } : process.env.HELIUS_API_KEY ? { solanaRpcUrl: `https://mainnet.helius-rpc.com/?api-key=${process.env.HELIUS_API_KEY}` } : {}),
+  // X data (social, post_match) and wallet tracking: live when their keys are set, simulated or off otherwise.
+  ...(process.env.TWITTERAPI_IO_KEY ? { twitterApiKey: process.env.TWITTERAPI_IO_KEY, postMatcher: process.env.ANTHROPIC_API_KEY ? claudePostMatcher() : undefined } : {}),
+  ...(process.env.HELIUS_API_KEY ? { heliusApiKey: process.env.HELIUS_API_KEY } : {}),
 });
 const accounts = new Accounts(join(DATA_DIR, "accounts.db"));
 const paperEngine = createEngine({
@@ -42,6 +50,7 @@ const paperEngine = createEngine({
   marketData: venues.marketData,
   signalProviders: venues.signalProviders,
   tokenFacts: venues.tokenFacts,
+  copy: venues.copyFeeds,
 });
 
 // Live trading: per-user Privy agent wallets → Hyperliquid. A separate engine and store, so paper
@@ -58,6 +67,7 @@ const liveEngine = live
       marketData: venues.marketData,
       signalProviders: venues.signalProviders,
       tokenFacts: venues.tokenFacts,
+      copy: venues.copyFeeds,
       executor: liveRouter!,
     })
   : null;
@@ -91,6 +101,7 @@ const solanaEngine = solana
       marketData: venues.marketData,
       signalProviders: venues.signalProviders,
       tokenFacts: venues.tokenFacts,
+      copy: venues.copyFeeds,
       executor: new SolanaRouterExecutor(solana, (id) => accounts.deploymentOwner(id)),
     })
   : null;
@@ -135,7 +146,9 @@ solanaReconcileTimer?.unref();
 if (live) live.holders = holders;
 if (solana) solana.holders = holders;
 const library = new StrategyLibrary(join(DATA_DIR, "library.db"));
-const signalModes = Object.fromEntries(venues.signalProviders.flatMap((p) => p.kinds.map((k) => [k, p.mode] as const)));
+// The provider the router actually uses for each kind (the first one registered), so a live feed
+// listed ahead of a simulated fallback counts as live.
+const signalModes = Object.fromEntries([...new Set(venues.signalProviders.flatMap((p) => p.kinds))].map((k) => [k, venues.signals.modeOf(k)!] as const));
 
 // One bot for everyone: users link their own chat from Settings. TELEGRAM_CHAT_ID (optional) still gets everything.
 const telegram = process.env.TELEGRAM_BOT_TOKEN
@@ -168,7 +181,51 @@ if (tape) {
 // Weft trades with real money only on the hosted service; paper runs stay for local development.
 const allowPaper = process.env.WEFT_ALLOW_PAPER === "1" || !auth.enabled;
 
+// Watched Solana wallets (wallet signals and copy leaders of running strategies) are pushed to us by
+// Helius the moment they trade; each push checks the strategies that watch that wallet right away.
+const publicUrl = process.env.PUBLIC_API_URL ?? (process.env.RAILWAY_PUBLIC_DOMAIN ? `https://${process.env.RAILWAY_PUBLIC_DOMAIN}` : null);
+const watchersOf = new Map<string, Set<string>>();
+const lastPoke = new Map<string, number>();
+const heliusWebhook =
+  venues.ctx.helius && process.env.HELIUS_API_KEY && publicUrl
+    ? new HeliusWebhook({
+        apiKey: process.env.HELIUS_API_KEY,
+        publicUrl,
+        wallets: venues.ctx.helius,
+        kvGet: (k) => accounts.kvGet(k),
+        kvSet: (k, v) => accounts.kvSet(k, v),
+        log: (m) => console.log(`  ${m}`),
+        onActivity: (addresses) => {
+          const now = Date.now();
+          for (const a of addresses)
+            for (const id of watchersOf.get(a) ?? []) {
+              // At most one extra check every 3 s per strategy, however busy the wallet.
+              if (now - (lastPoke.get(id) ?? 0) < 3_000) continue;
+              lastPoke.set(id, now);
+              engine.tick(id).catch((e) => console.warn(`webhook tick ${id}: ${(e as Error).message}`));
+            }
+        },
+      })
+    : null;
+async function syncWatchedWallets() {
+  if (!heliusWebhook) return;
+  watchersOf.clear();
+  for (const d of await engine.listDeployments()) {
+    if (d.status !== "running") continue;
+    const add = (a: string) => watchersOf.set(a, (watchersOf.get(a) ?? new Set()).add(d.id));
+    for (const sig of d.strategy.signals) if (sig.kind === "wallet") add(sig.params.address);
+    for (const a of d.strategy.actions) if (a.type === "copy" && a.leader.venue === "solana") add(a.leader.wallet);
+  }
+  await heliusWebhook.sync([...watchersOf.keys()]);
+}
+if (heliusWebhook) {
+  setTimeout(() => syncWatchedWallets().catch((e) => console.warn(`helius webhook: ${(e as Error).message}`)), 5_000);
+  setInterval(() => syncWatchedWallets().catch((e) => console.warn(`helius webhook: ${(e as Error).message}`)), 60_000).unref();
+}
+
 const app = createApp({
+  heliusWebhook: heliusWebhook ?? undefined,
+  topTraders: createTopTraders(),
   allowPaper,
   tape: tape ?? undefined,
   catalog: venues.catalog,

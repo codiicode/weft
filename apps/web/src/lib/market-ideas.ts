@@ -11,6 +11,14 @@ export function ideasFor(r: MarketListing): string[] {
         `Sell my $${name} if liquidity drops 30% in a day`,
       ];
     case "predictions":
+      if (r.instrument.kind === "outcome" && r.instrument.venue === "polymarket") {
+        const q = `“${r.name ?? r.label}” (${r.instrument.outcome})`;
+        return [
+          `Long BTC 2× if Polymarket's odds for ${q} pass 60%`,
+          `Alert me if the odds for ${q} move 10 points in a day`,
+          `Long ETH 2× if the odds for ${q} jump 15 points in a day, 20% stop`,
+        ];
+      }
       return [
         `Buy ${r.label} under 40¢ if the odds move 10 points our way`,
         `Buy ${r.label} if the odds jump 10 points in a day`,
@@ -22,12 +30,12 @@ export function ideasFor(r: MarketListing): string[] {
       return [
         `${name}: go long on a 3% breakout with a 5% stop`,
         `Buy ${name} if it falls 4% in a day, take profit at +6%`,
-        `Short ${name} if it breaks below its weekly low, stop at +3%`,
+        `Short ${name} 2× if it falls 5% in a day, 10% stop`,
       ];
     default:
       return [
         `${name} breakout: long 2× on a 3% move up with a trailing stop`,
-        `Short ${name} when funding stays above 0.05% an hour for 8 hours`,
+        `Short ${name} when funding stays above 0.02% an hour for 8 hours`,
         `Buy ${name} if it drops 6% in a day, take profit at +8%`,
       ];
   }
@@ -66,7 +74,7 @@ export function chartMinMove(product: string | undefined, maxPrice: number): num
   return 10 ** (Math.floor(Math.log10(maxPrice)) - 3);
 }
 
-const VENUES: Record<string, string> = { hyperliquid: "Hyperliquid", jupiter: "Jupiter", deribit: "Deribit", solana: "Solana", geckoterminal: "GeckoTerminal" };
+const VENUES: Record<string, string> = { hyperliquid: "Hyperliquid", jupiter: "Jupiter", polymarket: "Polymarket", deribit: "Deribit", solana: "Solana", geckoterminal: "GeckoTerminal" };
 /** "hyperliquid" → "Hyperliquid"; unknown venues get a capital first letter. */
 export function venueName(v: string | null | undefined): string {
   if (!v) return "";

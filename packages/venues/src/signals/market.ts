@@ -5,6 +5,7 @@ import { bookTop, depthWithin, walkBook } from "../book.ts";
 import type { RawCandle } from "../hyperliquid/client.ts";
 import { normalizeYesNo, predictionPrice } from "../jupiter/parse.ts";
 import { num, pctChange } from "../util.ts";
+import { polymarketOutcome } from "../polymarket.ts";
 import { defineProvider, type Fields } from "./common.ts";
 
 /**
@@ -99,6 +100,28 @@ export async function priceFields(md: VenueMarketData, i: Instrument, now: numbe
 /* funding                                                               */
 /* ------------------------------------------------------------------ */
 
+/** Binance/Bybit hourly funding (%) for a coin, and Hyperliquid's premium over the higher of them. */
+export function otherVenueFunding(
+  rows: [string, [string, { fundingRate: string; fundingIntervalHours?: number } | null][]][] | null,
+  symbol: string,
+  hlHourlyPct: number | null
+): Fields {
+  const venues = rows?.find(([c]) => c.toUpperCase() === symbol.toUpperCase())?.[1] ?? [];
+  const hourly = (name: string) => {
+    const v = venues.find(([n]) => n === name)?.[1];
+    const r = v ? num(v.fundingRate) : null;
+    return r == null ? null : Math.round(((r * 100) / (v!.fundingIntervalHours ?? 8)) * 1e7) / 1e7;
+  };
+  const binance = hourly("BinPerp");
+  const bybit = hourly("BybitPerp");
+  const others = [binance, bybit].filter((x): x is number => x != null);
+  return {
+    binance_rate_1h_pct: binance,
+    bybit_rate_1h_pct: bybit,
+    funding_gap_1h_pct: hlHourlyPct != null && others.length ? Math.round((hlHourlyPct - Math.max(...others)) * 1e7) / 1e7 : null,
+  };
+}
+
 /** `oiZscore` comes from the OI sampler (null until it holds enough history). */
 export function fundingFieldsFrom(m: { funding: number | null; openInterestUsd: number | null }, oiZscore: number | null = null): Fields {
   const h = m.funding;
@@ -175,7 +198,10 @@ export function marketProviders(md: VenueMarketData, onError?: OnError): SignalP
       "live",
       async (s) => {
         const m = await md.perpMarket(s.params.instrument);
-        return fundingFieldsFrom(m, m.openInterestUsd != null ? md.ctx.oi.zscore(m.coin, m.openInterestUsd, md.ctx.now()) : null);
+        const own = fundingFieldsFrom(m, m.openInterestUsd != null ? md.ctx.oi.zscore(m.coin, m.openInterestUsd, md.ctx.now()) : null);
+        // Binance and Bybit funding for the same coin (core perps only), from Hyperliquid's own feed.
+        const other = s.params.instrument.dex ? null : await md.ctx.hl.predictedFundings().catch(() => null);
+        return { ...own, ...otherVenueFunding(other, s.params.instrument.symbol, own.rate_1h_pct as number | null) };
       },
       onError
     ),
@@ -188,6 +214,11 @@ export function marketProviders(md: VenueMarketData, onError?: OnError): SignalP
         if (i.venue === "hyperliquid") {
           const { market, side } = await md.hlOutcome(i);
           return { prob: side.mid, change_24h_pp: side.change24hPp, volume_24h_usd: market.volume24hUsd };
+        }
+        if (i.venue === "polymarket") {
+          const m = await md.ctx.pm.market(i.market);
+          const o = polymarketOutcome(m, i.outcome);
+          return o ? { prob: o.price, change_24h_pp: o.change24h, volume_24h_usd: m.volume24hUsd } : null;
         }
         const outcome = normalizeYesNo(i.outcome);
         if (!outcome) return null;

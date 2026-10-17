@@ -10,15 +10,16 @@ import { PageHeader, Card, Btn } from "@/components/app/AppShell";
 import { StrategyRules } from "@/components/app/StrategyRules";
 import { StrategyCanvas } from "@/components/app/StrategyCanvas";
 import { DeployPanel } from "@/components/app/DeployPanel";
-import { BacktestPanel } from "@/components/app/BacktestPanel";
+import { BacktestPanel, CopyNoBacktest } from "@/components/app/BacktestPanel";
 import { IconSend, IconCheck } from "@/components/graph/icons";
 
 const SUGGESTIONS = [
+  "Buy 0.5 SOL of $JUP now.",
   "Open a 20x ETH long with $50 if ETH breaks $2,600 and funding stays under 0.01% an hour. 20% stop.",
-  "Long BTC 10x with $100 if it drops 5% in a day. Take profit at 30%, stop at 20%.",
-  "Short SOL 5x with $50 when funding stays above 0.05% an hour for 8 hours.",
-  "Buy $BONK with 0.1 SOL if it drops 10% in an hour, 20% stop.",
-  "NVDA rallies into earnings. Be out before the report.",
+  "If @elonmusk posts about Dogecoin and DOGE mentions on X double in an hour, long DOGE 5x with $100. 25% stop.",
+  "If the Fear & Greed index reaches 20, open a 20x long on ETH and a 20x long on BTC with $100 on each.",
+  "Long natural gas 2x with $100 if Chicago is forecast to be 5°C colder next week than this week.",
+  "Long BTC 2x with $100 if Polymarket’s odds of a Fed cut pass 60%.",
 ];
 
 /** "Half the size" as an instruction the offline editor also understands. */
@@ -55,7 +56,6 @@ function Builder() {
   const requireAuth = useRequireAuth();
   const generate = async (t = thesis) => {
     if (t.trim().length < 3) return;
-    if (!requireAuth()) return;
     abort.current?.abort();
     abort.current = new AbortController();
     setStatus("running");
@@ -116,7 +116,7 @@ function Builder() {
   };
 
   const applyChange = async (text = change) => {
-    if (!result || text.trim().length < 2 || !requireAuth()) return;
+    if (!result || text.trim().length < 2) return;
     setChanging(true);
     setChangeError(null);
     try {
@@ -190,7 +190,7 @@ function Builder() {
               if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) generate();
             }}
             rows={3}
-            placeholder="e.g. Buy $WIF if it gets back above 2.40 and X turns bullish. Use 1 SOL and stop out at −15%."
+            placeholder="e.g. Buy $WIF with 1 SOL if it drops 15% in a day. Stop out at −15%."
             className="block min-h-[96px] w-full resize-none bg-transparent px-4 pt-4 text-[17px] leading-relaxed text-ink outline-none placeholder:text-faint"
             aria-label="Your trade idea"
           />
@@ -249,11 +249,18 @@ function Builder() {
           </ol>
         )}
 
-        {error && (
-          <div className="max-w-[860px] rounded-[12px] bg-[var(--short-soft)] px-4 py-3 text-[14px] text-short">
-            Couldn’t draft that: {error}
-          </div>
-        )}
+        {error &&
+          (/sign in/i.test(error) ? (
+            // A visitor used up today's free drafts: signing in is the way on, not an error.
+            <div className="flex max-w-[860px] flex-wrap items-center justify-between gap-3 rounded-[12px] border border-line bg-card px-4 py-3 text-[14px] text-ink-2">
+              <span>{error}</span>
+              <Btn onClick={() => requireAuth()}>Sign in</Btn>
+            </div>
+          ) : (
+            <div className="max-w-[860px] rounded-[12px] bg-[var(--short-soft)] px-4 py-3 text-[14px] text-short">
+              Couldn’t draft that: {error}
+            </div>
+          ))}
 
         {result && strategy && (
           <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} className="grid gap-8 xl:grid-cols-[minmax(0,1fr)_340px]">
@@ -356,7 +363,7 @@ function Builder() {
                 {changeError && <p className="mt-3 text-[13.5px] text-short">{changeError}</p>}
               </form>
 
-              <BacktestPanel strategy={strategy} />
+              {strategy.actions.some((a) => a.type === "copy") ? <CopyNoBacktest /> : <BacktestPanel strategy={strategy} />}
             </div>
 
             <div className="space-y-4">
@@ -365,9 +372,18 @@ function Builder() {
                 <div className="text-[15px] font-semibold tracking-[-0.015em] text-ink">Share it</div>
                 <p className="mt-1 text-[13.5px] leading-relaxed text-muted">Others can read and copy the rules. Your wallet and amounts stay private.</p>
                 {saved ? (
-                  <Link href={`/strategy?id=${encodeURIComponent(saved)}`} className="mt-3 inline-flex items-center gap-1.5 text-[14px] font-medium text-long">
-                    <IconCheck size={14} /> Published. View it →
-                  </Link>
+                  <div className="mt-3 space-y-2">
+                    <Link href={`/strategy?id=${encodeURIComponent(saved)}`} className="inline-flex items-center gap-1.5 text-[14px] font-medium text-long">
+                      <IconCheck size={14} /> Published. View it →
+                    </Link>
+                    <Btn
+                      variant="ghost"
+                      className="w-full"
+                      href={`https://x.com/intent/post?text=${encodeURIComponent(`${strategy.name}, a strategy on Weft`)}&url=${encodeURIComponent(`https://weft.fi/s/${saved}`)}`}
+                    >
+                      Post it on X
+                    </Btn>
+                  </div>
                 ) : (
                   <Btn onClick={save} variant="ghost" className="mt-3 w-full">
                     Publish

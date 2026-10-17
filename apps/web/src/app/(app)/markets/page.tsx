@@ -190,6 +190,7 @@ function Markets() {
                           </Link>
                           {r.instrument.kind === "perp" && r.instrument.dex && <Pill tone="signal">HIP-3 · {r.instrument.dex}</Pill>}
                           {r.instrument.kind === "token" && r.instrument.assetClass === "equity" && <Pill tone="signal">xStock</Pill>}
+                          {r.instrument.kind === "outcome" && r.instrument.venue === "polymarket" && <Pill tone="neutral">Polymarket · watch only</Pill>}
                         </div>
                         {r.name && <div className="truncate pl-[32px] text-[12px] text-faint">{r.name}</div>}
                       </td>
@@ -199,7 +200,7 @@ function Markets() {
                       <td className={`tnum px-3 py-3 text-right ${(chg ?? 0) >= 0 ? "text-long" : "text-short"}`}>{fmtPct(chg)}</td>
                       {cols.vol && <td className="hidden sm:table-cell tnum px-3 py-3 text-right text-ink-2">{fmtCompact(r.volume24hUsd)}</td>}
                       {cols.oi && <td className="hidden sm:table-cell tnum px-3 py-3 text-right text-ink-2">{fmtCompact(r.openInterestUsd)}</td>}
-                      {cols.fund && <td className={`hidden sm:table-cell tnum px-3 py-3 text-right ${(r.fundingHourlyPct ?? 0) >= 0 ? "text-ink-2" : "text-short"}`}>{r.fundingHourlyPct == null ? "—" : `${r.fundingHourlyPct.toFixed(4)}%`}</td>}
+                      {cols.fund && <td className={`hidden sm:table-cell tnum px-3 py-3 text-right ${(r.fundingHourlyPct ?? 0) > -0.00005 ? "text-ink-2" : "text-short"}`}>{r.fundingHourlyPct == null ? "—" : `${(Math.abs(r.fundingHourlyPct) < 0.00005 ? 0 : r.fundingHourlyPct).toFixed(4)}%`}</td>}
                       {cols.liq && <td className="hidden sm:table-cell tnum px-3 py-3 text-right text-ink-2">{fmtCompact(r.liquidityUsd)}</td>}
                       {cols.mcap && <td className="hidden sm:table-cell tnum px-3 py-3 text-right text-ink-2">{fmtCompact(r.marketCapUsd)}</td>}
                       {cols.lev && <td className="hidden sm:table-cell tnum px-5 py-3 text-right text-ink-2">{r.maxLeverage ? `${r.maxLeverage}×` : "—"}</td>}

@@ -17,7 +17,7 @@ import type { DeploymentRuntime, Store } from "./store.ts";
 import { errMsg, PaperExecutor, type Executor } from "./executor.ts";
 import { resolveFees, type FeeOverrides } from "./fees.ts";
 import { marginOf, unrealizedOf } from "./positions.ts";
-import { fmtUsd, runTick, Session, type TickDeps } from "./tick.ts";
+import { fmtUsd, runTick, Session, type CopyFeeds, type TickDeps } from "./tick.ts";
 
 export type Clock = (() => number) | { now(): number };
 
@@ -41,6 +41,8 @@ export interface EngineOptions {
   marketData: MarketData;
   signalProviders: SignalProvider[];
   tokenFacts?: TokenFactsProvider;
+  /** Leaders' trades for copy actions (a Solana wallet, a Hyperliquid account). */
+  copy?: CopyFeeds;
   /** ms since epoch. Default `Date.now`. */
   clock?: Clock;
   fees?: FeeOverrides;
@@ -95,6 +97,7 @@ export function createEngine(opts: EngineOptions): EngineRuntime {
     marketData,
     providers,
     tokenFacts: opts.tokenFacts,
+    copy: opts.copy,
     executor,
     fees: resolveFees(opts.fees),
     perpRealism: opts.perpRealism ?? executor.mode === "paper",

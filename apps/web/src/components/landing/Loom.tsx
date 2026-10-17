@@ -19,19 +19,53 @@ type Scene = { name: string; threads: Thread[]; rule: string; trade: string; det
 /** A scene where one condition fails: the agent waits instead of trading. */
 const waits = (s: Scene) => s.threads.some((t) => t.met === false);
 
-const f5 = (v: number) => v.toFixed(5);
-const sign2 = (v: number) => `${v >= 0 ? "+" : ""}${v.toFixed(2)}`;
 const pctS = (v: number) => `+${Math.round(v)}%`;
 const pct = (v: number) => `${Math.round(v)}%`;
 const usd = (d: number) => (v: number) => `$${v.toLocaleString("en-US", { minimumFractionDigits: d, maximumFractionDigits: d })}`;
 
 const SCENES: Scene[] = [
   {
-    name: "Memecoins",
+    name: "X + perps",
     threads: [
-      { icon: "/coins/PUMP.svg", label: "$PUMP price", value: 0.00398, fmt: f5, need: "≤ 0.004" },
-      { label: "Mood on X", value: 0.41, fmt: sign2, need: "> +0.3" },
-      { label: "Mentions, last hour", value: 180, fmt: pctS, need: "> +100%" },
+      { label: "@elonmusk post about Dogecoin", value: 1, fmt: () => "2 min ago", need: "new post" },
+      { label: "DOGE mentions on X, 1h", value: 142, fmt: pctS, need: "> +100%" },
+      { label: "DOGE funding, per hour", value: 0.0038, fmt: (v) => `${v.toFixed(4)}%`, need: "< 0.01%" },
+      { icon: "/coins/DOGE.svg", label: "DOGE, last hour", value: 2.4, fmt: (v) => `+${v.toFixed(1)}%`, need: "> 0%" },
+    ],
+    rule: "All four conditions met",
+    trade: "Long DOGE 5×",
+    detail: "$100 · stop −25% on the position · Hyperliquid",
+  },
+  {
+    name: "Copy a trader",
+    threads: [
+      { label: "Trader 0x7aa1…e8c2 on Hyperliquid", value: 1, fmt: () => "opened BTC long", need: "new trade" },
+      { icon: "/coins/BTC.svg", label: "Their position", value: 69.5, fmt: (v) => `$${v.toFixed(1)}k at 10×`, need: "any size" },
+      { label: "Crypto Fear & Greed", value: 61, fmt: (v) => `${Math.round(v)}`, need: "> 50" },
+      { label: "Copies open", value: 2, fmt: (v) => `${Math.round(v)}`, need: "< 5" },
+    ],
+    rule: "All four conditions met",
+    trade: "Long BTC 10× with $100",
+    detail: "Copying 0x7aa1…e8c2 · closes when they close",
+  },
+  {
+    name: "Perps",
+    threads: [
+      { icon: "/coins/ETH.svg", label: "ETH", value: 2604, fmt: usd(0), need: "> $2,600" },
+      { label: "Funding, per hour", value: 0.018, fmt: (v) => `${v.toFixed(4)}%`, need: "< 0.01%", met: false },
+      { label: "ETH, last 24h", value: 3.4, fmt: (v) => `+${v.toFixed(1)}%`, need: "> +2%" },
+      { label: "24h volume", value: 1.38, fmt: (v) => `$${v.toFixed(2)}B`, need: "> $1B" },
+    ],
+    rule: "3 of 4 conditions met",
+    trade: "No trade: funding is too high",
+    detail: "Longs are already paying up. Weft waits.",
+  },
+  {
+    name: "Smart money",
+    threads: [
+      { label: "Wallet 7xKp…9fQe bought $PUMP", value: 3, fmt: (v) => `${Math.round(v)} min ago`, need: "< 5 min" },
+      { icon: "/coins/PUMP.svg", label: "$PUMP buys per sell, 1h", value: 1.8, fmt: (v) => v.toFixed(1), need: "> 1.5" },
+      { label: "Holders, last hour", value: 6, fmt: pctS, need: "> +3%" },
       { label: "Liquidity", value: 2.07, fmt: (v) => `$${v.toFixed(2)}M`, need: "> $1M" },
     ],
     rule: "All four conditions met",
@@ -39,40 +73,16 @@ const SCENES: Scene[] = [
     detail: "Stop at −20% · Solana via Jupiter",
   },
   {
-    name: "Perps",
-    threads: [
-      { icon: "/coins/ETH.svg", label: "ETH", value: 2604, fmt: usd(0), need: "> $2,600" },
-      { label: "Funding, per hour", value: 0.018, fmt: (v) => `${v.toFixed(4)}%`, need: "< 0.01%", met: false },
-      { label: "Open interest, 24h", value: 3.8, fmt: (v) => `+${v.toFixed(1)}%`, need: "rising" },
-      { label: "24h volume", value: 1.38, fmt: (v) => `$${v.toFixed(2)}B`, need: "> $1B" },
-    ],
-    rule: "3 of 4 conditions met",
-    trade: "No trade: funding is too high",
-    detail: "The crowd is already long. Weft waits for every condition.",
-  },
-  {
     name: "Macro",
     threads: [
-      { label: "Fed cut odds", value: 68, fmt: pct, need: "> 65%" },
+      { label: "Fed cut odds on Polymarket", value: 63, fmt: pct, need: "> 60%" },
       { label: "2-year yield, 5 days", value: -14, fmt: (v) => `${v} bp`, need: "≤ −10 bp" },
-      { label: "Inflation nowcast", value: 2.6, fmt: (v) => `${v.toFixed(1)}%`, need: "< 3%" },
-      { icon: "/coins/BTC.svg", label: "Bitcoin vs 50-day average", value: 2.1, fmt: (v) => `+${v.toFixed(1)}%`, need: "above it" },
+      { label: "Crypto Fear & Greed", value: 22, fmt: (v) => `${Math.round(v)}`, need: "< 25" },
+      { icon: "/coins/BTC.svg", label: "BTC, last 24h", value: 2.1, fmt: (v) => `+${v.toFixed(1)}%`, need: "> 0%" },
     ],
     rule: "All four conditions met",
     trade: "Long BTC at 2×",
     detail: "Stop at −10% on the position · Hyperliquid",
-  },
-  {
-    name: "Earnings",
-    threads: [
-      { icon: "/coins/NVDA.svg", label: "NVIDIA vs 20-day average", value: 3.1, fmt: (v) => `+${v.toFixed(1)}%`, need: "above it" },
-      { label: "Earnings in", value: 40, fmt: (v) => `${Math.round(v)} hours`, need: "≤ 48 hours" },
-      { label: "Analyst revisions", value: 3, fmt: (v) => `+${Math.round(v)} this week`, need: "up" },
-      { label: "Options flow", value: 2, fmt: (v) => `calls ${v.toFixed(1)} : 1`, need: "> 1.5 : 1" },
-    ],
-    rule: "All four conditions met",
-    trade: "Long NVDA at 2×",
-    detail: "Closes an hour before the report",
   },
 ];
 

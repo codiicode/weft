@@ -1,5 +1,6 @@
 "use client";
 import { Suspense, useEffect, useMemo, useState } from "react";
+import { useTitle } from "@/lib/use-title";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import type { MarketListing, Quote } from "@weft/venues";
@@ -84,11 +85,14 @@ function IdeasCard({ row }: { row: MarketListing }) {
   const ideas = ideasFor(row);
   const venues = useTradingVenues();
   const soon = SOON.has(row.product) || (row.product === "tokens" && venues != null && !venues.solana);
+  const watchOnly = row.instrument.kind === "outcome" && row.instrument.venue === "polymarket";
   return (
     <Card className="p-5">
       <div className="text-[14px] font-medium text-ink">Put {row.product === "predictions" ? "this market" : row.label} to work</div>
       <p className="mt-0.5 text-[13px] text-muted">
-        {soon
+        {watchOnly
+          ? "Weft watches these odds live. Use them to trade other markets, like a long on BTC when the odds move. Trading on Polymarket itself comes later."
+          : soon
           ? "Trading this market opens soon. You can already build a strategy and get an alert whenever it would trade."
           : "Pick one to start. You can read and change every rule, and test it on history, before it trades."}
       </p>
@@ -117,6 +121,7 @@ function Market() {
   const [seed] = useState(() => (typeof window === "undefined" ? null : cachedRow(key)));
   const fetched = useApi(key ? () => api.market(key) : null, [key], { pollMs: 15_000 });
   const row = fetched.data ?? seed;
+  useTitle(row ? (row.product === "predictions" ? row.name ?? row.label : row.label) : null);
   const fmt = useMemo(() => priceFormatter(row), [row?.product]); // eslint-disable-line react-hooks/exhaustive-deps
   const isPrediction = row?.product === "predictions";
   const isPerp = row?.instrument.kind === "perp";
@@ -155,7 +160,7 @@ function Market() {
     if (isPrediction && row.price != null) stats.push(["Chance", `${Math.round(row.price * 100)}%`, "What the market thinks"]);
     if (row.volume24hUsd != null) stats.push(["24h volume", fmtCompact(row.volume24hUsd)]);
     if (row.openInterestUsd != null) stats.push(["Open interest", fmtCompact(row.openInterestUsd)]);
-    if (row.fundingHourlyPct != null) stats.push(["Funding", `${row.fundingHourlyPct.toFixed(4)}% / h`, `${(row.fundingHourlyPct * 24 * 365).toFixed(1)}% a year`]);
+    if (row.fundingHourlyPct != null) stats.push(["Funding", `${(Math.abs(row.fundingHourlyPct) < 0.00005 ? 0 : row.fundingHourlyPct).toFixed(4)}% / h`, `${(row.fundingHourlyPct * 24 * 365).toFixed(1)}% a year`]);
     if (row.liquidityUsd != null) stats.push(["Liquidity", fmtCompact(row.liquidityUsd)]);
     if (row.marketCapUsd != null) stats.push(["Market cap", fmtCompact(row.marketCapUsd)]);
     if (row.maxLeverage) stats.push(["Max leverage", `${row.maxLeverage}×`]);

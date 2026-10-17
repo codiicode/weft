@@ -12,3 +12,6 @@ coverage
 
 # Private keys kept on this machine only (fee wallet). Never commit.
 /secrets/
+
+# recorded app frames for the short videos (re-create with content/shorts/record-*.mjs)
+content/shorts/recordings/*/

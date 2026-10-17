@@ -360,6 +360,7 @@ export class SolanaLive {
     if (this.cfg.maxAllocationUsd != null && allocationUsd > this.cfg.maxAllocationUsd) throw new Error(`Solana runs are capped at $${this.cfg.maxAllocationUsd} for now`);
     for (const a of strategy.actions) {
       if (a.type === "options") throw new Error("options can't trade live yet");
+      if (a.type === "copy" && a.leader.venue !== "solana") throw new Error("a strategy can trade Solana tokens or Hyperliquid markets, not both in one run");
       if (a.type !== "open") continue;
       if (a.instrument.kind !== "token") throw new Error("a strategy can trade Solana tokens or Hyperliquid markets, not both in one run");
       if (a.order.type === "limit") throw new Error("limit orders on Solana tokens aren’t supported; use a market order with a slippage limit");
@@ -433,7 +434,7 @@ export class SolanaLive {
 
 /** True when a strategy opens positions in Solana tokens. */
 export function tradesSolana(s: Strategy): boolean {
-  return s.actions.some((a) => a.type === "open" && a.instrument.kind === "token");
+  return s.actions.some((a) => (a.type === "open" && a.instrument.kind === "token") || (a.type === "copy" && a.leader.venue === "solana"));
 }
 
 /** The base64 SPKI public key for a base64 PKCS8 P-256 private key. */

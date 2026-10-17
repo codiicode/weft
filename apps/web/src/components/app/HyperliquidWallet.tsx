@@ -239,7 +239,7 @@ export function HyperliquidWallet({ status, onChange, autoLink }: { status: Live
           <div className="flex items-center gap-2 text-[15px] font-semibold tracking-[-0.02em] text-ink">
             <IconKey size={14} /> It’s your wallet
           </div>
-          <p className="mt-2">Export the key to Rabby or MetaMask and you can use the same account on Hyperliquid directly. Stopping a strategy closes its positions first.</p>
+          <p className="mt-2">Export the key to Rabby or MetaMask to use the same account on Hyperliquid directly.</p>
           {address && (
             <>
               <button onClick={() => void exportWallet({ address }).catch(() => {})} className="mt-3 text-[13.5px] font-medium text-ink underline decoration-line-2 underline-offset-4 hover:decoration-ink">

@@ -9,6 +9,15 @@ const tokens = (n: number) => (n >= 1e6 ? `${(n / 1e6).toFixed(2)}M` : n >= 1e3 
 
 const short = (a: string) => `${a.slice(0, 6)}…${a.slice(-4)}`;
 
+/** A shortened address that opens in the chain's explorer, so anyone can check the figures. */
+function Addr({ a, href }: { a: string; href: string }) {
+  return (
+    <a href={href} target="_blank" rel="noopener noreferrer" className="underline decoration-line-2 underline-offset-4 hover:text-ink">
+      {short(a)} ↗
+    </a>
+  );
+}
+
 function Stat({ label, value, sub }: { label: string; value: string; sub?: string }) {
   return (
     <div className="bg-card p-5">
@@ -19,17 +28,19 @@ function Stat({ label, value, sub }: { label: string; value: string; sub?: strin
   );
 }
 
-/** Protocol revenue: what Weft has earned in fees, and how it splits. Owners only. */
+/** Protocol revenue: what Weft has earned in fees, how it splits, and the $WEFT buybacks. Public; owners also see the operating details. */
 export default function RevenuePage() {
   const auth = useAuth();
-  const e = useApi(auth.enabled && auth.authenticated ? () => api.revenue() : null, [auth.authenticated], { pollMs: 60_000 });
+  const e = useApi(() => api.revenue(), [], { pollMs: 60_000 });
+  const me = useApi(auth.enabled && auth.authenticated ? () => api.me() : null, [auth.authenticated]);
+  const owner = Boolean(me.data?.isAdmin);
   const d = e.data;
   return (
     <>
       <PageHeader title="Protocol revenue" sub="Weft’s fees from every trade, and how they split." />
       <div className="space-y-6 px-5 pb-16 pt-6 lg:px-10">
         {e.error && !d ? (
-          <Empty title="Not available" sub="This page is for Weft’s owners." />
+          <Empty title="Couldn’t load revenue" sub="Try again in a minute." />
         ) : !d ? (
           <div className="h-40 animate-pulse rounded-[12px] bg-paper-2" />
         ) : (
@@ -51,14 +62,14 @@ export default function RevenuePage() {
                     <dt className="text-muted">Claimed</dt>
                     <dd className="tnum text-right text-ink">{fmtUsd(d.hyperliquid.claimedUsd, 2)}</dd>
                     <dt className="text-muted">Builder account</dt>
-                    <dd className="tnum text-right text-ink-2">{fmtUsd(d.hyperliquid.accountValueUsd, 2)} · {short(d.hyperliquid.builder)}</dd>
+                    <dd className="tnum text-right text-ink-2">{fmtUsd(d.hyperliquid.accountValueUsd, 2)} · <Addr href={`https://hypurrscan.io/address/${d.hyperliquid.builder}`} a={d.hyperliquid.builder} /></dd>
                   </dl>
                 ) : (
                   <p className="mt-2 text-[13px] text-muted">No builder address set.</p>
                 )}
-                <p className="mt-3 text-[12.5px] leading-relaxed text-faint">
+                {owner && <p className="mt-3 text-[12.5px] leading-relaxed text-faint">
                   Fees build up on Hyperliquid and are claimed into the builder account with <code className="font-mono">scripts/claim-builder-fees.ts --send</code>.
-                </p>
+                </p>}
               </Card>
               <Card className="p-5">
                 <div className="text-[15px] font-semibold tracking-[-0.015em] text-ink">Solana</div>
@@ -71,9 +82,13 @@ export default function RevenuePage() {
                     <dt className="text-muted">Fees in USDC</dt>
                     <dd className="tnum text-right text-ink">{fmtUsd(d.solana.usdc, 2)}</dd>
                     <dt className="text-muted">Fee wallet</dt>
-                    <dd className="tnum text-right text-ink-2">{short(d.solana.feeWallet)}</dd>
-                    <dt className="text-muted">Gas float</dt>
-                    <dd className="tnum text-right text-ink-2">{d.solana.sol.toFixed(4)} SOL</dd>
+                    <dd className="tnum text-right text-ink-2"><Addr href={`https://solscan.io/account/${d.solana.feeWallet}`} a={d.solana.feeWallet} /></dd>
+                    {owner && (
+                      <>
+                        <dt className="text-muted">Gas float</dt>
+                        <dd className="tnum text-right text-ink-2">{d.solana.sol.toFixed(4)} SOL</dd>
+                      </>
+                    )}
                   </dl>
                 ) : (
                   <p className="mt-2 text-[13px] text-muted">No fee wallet set.</p>
@@ -120,9 +135,9 @@ export default function RevenuePage() {
               )}
             </section>
 
-            <p className="text-[12.5px] text-faint">
+            {owner && <p className="text-[12.5px] text-faint">
               Weft’s own records of fees paid by live runs: {fmtUsd(d.recordedUsd, 2)}. The venue figures above are what actually arrived.
-            </p>
+            </p>}
           </>
         )}
       </div>

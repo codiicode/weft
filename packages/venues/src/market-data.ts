@@ -17,6 +17,7 @@ import { USDC_MINT, type RawPredictionMarket } from "./jupiter/client.ts";
 import { normalizeYesNo, predictionBook, predictionPrice, swapFill } from "./jupiter/parse.ts";
 import { deribitBookUsd, deriveName, parseDeribitName, parseDeriveTicker } from "./options.ts";
 import { num } from "./util.ts";
+import { polymarketOutcome } from "./polymarket.ts";
 
 /** A quote that also says whether the visible book could absorb the full size. */
 export interface VenueQuote extends Quote {
@@ -132,6 +133,7 @@ export class VenueMarketData implements MarketData {
           const { side } = await this.hlOutcome(i);
           return { book: await this.ctx.hl.l2Book(side.coin), source: "hyperliquid:l2Book" };
         }
+        if (i.venue === "polymarket") return null;
         const outcome = normalizeYesNo(i.outcome);
         if (!outcome) return null;
         return { book: predictionBook(await this.ctx.jup.predictionOrderbook(i.market), outcome), source: "jupiter:prediction/orderbook" };
@@ -161,7 +163,7 @@ export class VenueMarketData implements MarketData {
       case "token":
         return this.tokenQuote(i, req);
       case "outcome":
-        return i.venue === "hyperliquid" ? this.hlOutcomeQuote(i, req) : this.jupOutcomeQuote(i, req);
+        return i.venue === "hyperliquid" ? this.hlOutcomeQuote(i, req) : i.venue === "polymarket" ? this.pmOutcomeQuote(i) : this.jupOutcomeQuote(i, req);
       case "option":
         return this.optionQuote(i, req);
     }
@@ -234,6 +236,14 @@ export class VenueMarketData implements MarketData {
     if (req.sizeUsd && req.sizeUsd > 0) return this.bookQuote(key, await this.ctx.hl.l2Book(side.coin), req, "hyperliquid:l2Book");
     if (side.mid == null) throw new Error(`hyperliquid: no mid for outcome ${side.coin}`);
     return { instrumentKey: key, price: side.mid, ts: this.ctx.now(), source: "hyperliquid:allMids" };
+  }
+
+  /** Polymarket odds (watch-only): the outcome's last price, no book. */
+  private async pmOutcomeQuote(i: OutcomeInstrument): Promise<VenueQuote> {
+    const m = await this.ctx.pm.market(i.market);
+    const o = polymarketOutcome(m, i.outcome);
+    if (o?.price == null) throw new Error(`polymarket: no price for ${i.market} ${i.outcome}`);
+    return { instrumentKey: instrumentKey(i), price: o.price, ts: this.ctx.now(), source: "polymarket:gamma" };
   }
 
   private async jupOutcomeQuote(i: OutcomeInstrument, req: QuoteRequest): Promise<VenueQuote> {

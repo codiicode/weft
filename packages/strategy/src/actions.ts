@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { Id } from "./signals.ts";
+import { SolanaMint } from "./instruments.ts";
 import { Instrument, OptionInstrument, TradableInstrument } from "./instruments.ts";
 
 /**
@@ -111,5 +112,36 @@ export const NotifyAction = z.object({
 });
 export type NotifyAction = z.infer<typeof NotifyAction>;
 
-export const Action = z.discriminatedUnion("type", [OpenAction, OptionsAction, CloseAction, NotifyAction]);
+/** Whose trades to copy: a Solana wallet (any token it buys) or a Hyperliquid account (any perp it opens). */
+export const CopyLeader = z.discriminatedUnion("venue", [
+  z.object({ venue: z.literal("solana"), wallet: SolanaMint }),
+  z.object({ venue: z.literal("hyperliquid"), trader: z.string().regex(/^0x[0-9a-fA-F]{40}$/, "a Hyperliquid address (0x…)") }),
+]);
+export type CopyLeader = z.infer<typeof CopyLeader>;
+
+/**
+ * Copy trading: every new trade the leader makes is copied with this action's own size. Solana:
+ * each token the wallet buys is bought (after the usual token checks and a liquidity floor), and
+ * sold when the wallet sells it. Hyperliquid: each perp position the account opens is opened the
+ * same way (long or short), and closed when it closes. Positions the leader already held when the
+ * strategy started are not copied. With `on`, copying only happens while one of those triggers holds.
+ */
+export const CopyAction = z.object({
+  id: Id,
+  label: z.string().max(60).optional(),
+  type: z.literal("copy"),
+  on: z.array(Id).default([]).describe("Optional: copy only while one of these triggers is true"),
+  leader: CopyLeader,
+  size: Size.describe("Per copied trade: SOL (native) or USD for Solana, USD for Hyperliquid"),
+  leverage: z.number().min(1).max(50).optional().describe("Hyperliquid: fixed leverage; omit to use the leader's (capped by risk.maxLeverage)"),
+  only: z.array(z.string().min(1)).max(50).optional().describe("Only these coins (Hyperliquid, e.g. BTC) or token mints (Solana)"),
+  minLiquidityUsd: z.number().nonnegative().default(100_000).describe("Solana: skip tokens with less liquidity than this"),
+  mirrorExits: z.boolean().default(true).describe("Close the copy when the leader closes or sells"),
+  maxOpen: z.number().int().min(1).max(50).default(5).describe("Most copied positions open at once"),
+  order: OrderSpec.prefault({}),
+  exits: Exits.prefault({}),
+});
+export type CopyAction = z.infer<typeof CopyAction>;
+
+export const Action = z.discriminatedUnion("type", [OpenAction, OptionsAction, CloseAction, NotifyAction, CopyAction]);
 export type Action = z.infer<typeof Action>;

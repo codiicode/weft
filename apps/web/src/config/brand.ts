@@ -23,8 +23,6 @@ export const brand = {
   holderDiscount: 0.5,
   socials: {
     x: "https://x.com/",
-    telegram: "https://t.me/",
-    github: "https://github.com/",
   },
   competitor: {
     name: "Catalyst",
