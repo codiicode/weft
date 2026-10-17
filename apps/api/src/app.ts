@@ -23,6 +23,10 @@ import type { Notifier } from "./lib/alerts.ts";
 import { AuthError, LOCAL_USER, type AuthUser, type Authenticator } from "./lib/auth.ts";
 import type { TelegramBot } from "./lib/telegram.ts";
 import type { Accounts } from "./lib/accounts.ts";
+import { REWARDS, type Rewards } from "./lib/rewards.ts";
+import type { Treasury } from "./token/treasury.ts";
+import type { HolderStatus } from "./live/holders.ts";
+import { PublicKey } from "@solana/web3.js";
 import type { LiveService } from "./live/service.ts";
 import { SECOND_INTERVALS, type SecondInterval, type TradeTape } from "./lib/tape.ts";
 import { tradesSolana, type SolanaLive } from "./live/solana.ts";
@@ -64,6 +68,14 @@ export interface AppDeps {
   accounts?: Accounts;
   /** AI generations per user per UTC day when auth is enabled (cost control). */
   aiDailyLimit?: number;
+  /** The same for $WEFT holders (default 100). */
+  holderAiDailyLimit?: number;
+  /** $WEFT holder status (fee discount, reward boost, perks). */
+  holders?: { enabled: boolean; status(userId: string): Promise<HolderStatus> };
+  /** Daily $WEFT rewards: the fee ledger, closed days and claims. */
+  rewards?: Rewards;
+  /** Buys, burns and pays out $WEFT. Absent until the token and its key are configured. */
+  treasury?: Treasury;
   /** Drafts per day for visitors without an account (per hashed IP), and for all of them together. */
   anonAiDailyLimit?: number;
   anonAiDailyTotal?: number;
@@ -126,6 +138,9 @@ export function createApp(deps: AppDeps) {
   const { catalog, marketData, engine, library, accounts } = deps;
   const authEnabled = !!deps.auth?.enabled;
   const aiDailyLimit = deps.aiDailyLimit ?? 30;
+  const holderAiDailyLimit = deps.holderAiDailyLimit ?? 100;
+  /** Holders draft more: the AI is one of the things $WEFT pays for. */
+  const aiLimitFor = async (userId: string) => (deps.holders?.enabled && (await deps.holders.status(userId).catch(() => null))?.active ? holderAiDailyLimit : aiDailyLimit);
   const allowPaper = deps.allowPaper ?? !authEnabled;
   const app = new Hono();
 
@@ -155,10 +170,11 @@ export function createApp(deps: AppDeps) {
     if (!authEnabled) return;
     if (owner !== user.id) throw new HTTPException(403, { message: "not yours" });
   };
-  const checkAiQuota = (user: AuthUser) => {
+  const checkAiQuota = async (user: AuthUser) => {
     if (!authEnabled || !accounts) return;
-    if (accounts.aiUsedToday(user.id) >= aiDailyLimit)
-      throw new HTTPException(429, { message: `daily AI limit reached (${aiDailyLimit} strategies per day)` });
+    const limit = await aiLimitFor(user.id);
+    if (accounts.aiUsedToday(user.id) >= limit)
+      throw new HTTPException(429, { message: `daily AI limit reached (${limit} strategies per day)${limit === aiDailyLimit && deps.holders?.enabled ? "; $WEFT holders get more" : ""}` });
     accounts.recordAiUse(user.id);
   };
 
@@ -180,7 +196,7 @@ export function createApp(deps: AppDeps) {
   const allowVisitor = async (c: Context, kind: "ai" | "backtest") => {
     const user = await optionalUser(c);
     if (user) {
-      if (kind === "ai") checkAiQuota(user);
+      if (kind === "ai") await checkAiQuota(user);
       return user;
     }
     if (!authEnabled || !accounts) return null;
@@ -305,9 +321,58 @@ export function createApp(deps: AppDeps) {
     return c.json({
       authEnabled,
       user: user ? (accounts?.get(user.id) ?? { id: user.id }) : null,
-      ai: user ? { usedToday: accounts?.aiUsedToday(user.id) ?? 0, dailyLimit: authEnabled ? aiDailyLimit : null } : null,
+      ai: user ? { usedToday: accounts?.aiUsedToday(user.id) ?? 0, dailyLimit: authEnabled ? await aiLimitFor(user.id) : null } : null,
       isAdmin: user ? Boolean(deps.isAdmin?.(user.id)) : false,
     });
+  });
+
+  /* ---------------- $WEFT rewards ---------------- */
+
+  /** The program and its public totals. */
+  app.get("/rewards", (c) =>
+    c.json({
+      enabled: Boolean(deps.rewards?.enabled),
+      startDay: deps.rewards?.startDay ?? null,
+      claims: Boolean(deps.treasury),
+      config: REWARDS,
+      holders: deps.holders?.enabled ? { minAmount: Number(process.env.WEFT_HOLDER_MIN ?? 0), bigAmount: Number(process.env.WEFT_BIG_HOLDER_MIN ?? Number(process.env.WEFT_HOLDER_MIN ?? 0) * 10) } : null,
+      aiDailyLimit: { everyone: aiDailyLimit, holders: holderAiDailyLimit },
+      stats: deps.rewards?.stats() ?? null,
+    })
+  );
+
+  /** Yours: today so far, what's waiting to be claimed, your holder tier. */
+  app.get("/me/rewards", async (c) => {
+    const user = await requireUser(c);
+    if (!deps.rewards) return c.json({ error: "rewards are not configured" }, 501);
+    const holder = deps.holders?.enabled ? await deps.holders.status(user.id).catch(() => null) : null;
+    return c.json({
+      ...deps.rewards.summary(user.id),
+      enabled: deps.rewards.enabled,
+      claims: Boolean(deps.treasury),
+      wallet: accounts?.solanaAccount(user.id)?.address ?? null,
+      holder: holder ? { tier: holder.tier, holds: holder.holds, minAmount: holder.minAmount, bigAmount: holder.bigAmount, boost: REWARDS.boost[holder.tier] } : null,
+    });
+  });
+
+  /** Send everything claimable to your Weft Solana wallet. */
+  const claiming = new Set<string>();
+  app.post("/rewards/claim", async (c) => {
+    const user = await requireUser(c);
+    if (!deps.rewards || !deps.treasury) return c.json({ error: "claims open when $WEFT launches" }, 503);
+    const wallet = accounts?.solanaAccount(user.id)?.address;
+    if (!wallet) return c.json({ error: "Set up your Solana wallet under Trading accounts first; rewards are sent there." }, 409);
+    if (claiming.has(user.id)) return c.json({ error: "a claim is already on its way" }, 409);
+    claiming.add(user.id);
+    try {
+      const r = await deps.rewards.claim(user.id, (tokens) => deps.treasury!.pay(new PublicKey(wallet), tokens));
+      return r ? c.json({ ok: true, tokens: r.tokens, tx: r.tx, wallet }) : c.json({ error: "nothing to claim yet" }, 409);
+    } catch (e) {
+      console.warn(`[rewards] claim failed for ${user.id.slice(0, 10)}: ${(e as Error).message.slice(0, 200)}`);
+      return c.json({ error: "The claim didn’t go through. Nothing was lost; try again in a minute." }, 502);
+    } finally {
+      claiming.delete(user.id);
+    }
   });
 
   /**
@@ -639,6 +704,9 @@ export function createApp(deps: AppDeps) {
       alertsOnly: body.mode === "paper" && body.alertsOnly ? true : undefined,
     });
     accounts?.setDeploymentOwner(record.id, user.id);
+    // Someone else's published strategy (or a copy of one): its creator earns from this run's fees.
+    const creator = accounts ? (accounts.strategyOwner(strategy.id) ?? (strategy.forkedFrom ? accounts.strategyOwner(strategy.forkedFrom) : null)) : null;
+    if (creator && creator !== user.id) accounts?.setDeploymentCreator(record.id, creator);
     // First tick right away so the UI has data immediately.
     engine.tick(record.id).catch((e) => console.error("first tick failed", e));
     return c.json(record, 201);
@@ -722,7 +790,7 @@ export function createApp(deps: AppDeps) {
     }
     if (!steps) {
       // Anything else: Claude edits the rules (counts toward the daily AI limit).
-      checkAiQuota(user);
+      await checkAiQuota(user);
       try {
         const r = await generateStrategy(snap.deployment.strategy.thesis, { catalog }, { base: snap.deployment.strategy, instruction: text });
         const v = validateStrategy(r.strategy);

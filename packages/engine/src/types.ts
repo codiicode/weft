@@ -119,6 +119,8 @@ export interface Fill {
    * P&L as it accrued, so it is NOT subtracted again from `realizedPnlUsd`.
    */
   fundingUsd?: number;
+  /** Optional (additive): the part of `feeUsd` that is Weft's own fee (builder / platform fee). */
+  builderFeeUsd?: number;
 }
 
 export type EngineEventType =

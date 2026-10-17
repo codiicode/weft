@@ -223,6 +223,53 @@ export interface Me {
 }
 
 /** Mirrors apps/api/src/lib/earnings.ts */
+export interface RewardRow {
+  day: string;
+  kind: "trade" | "create";
+  basisUsd: number;
+  share: number;
+  usd: number;
+  tokens: number | null;
+  claimedAt: number | null;
+  claimTx: string | null;
+}
+export interface RewardDay {
+  day: string;
+  feesUsd: number;
+  buybackUsd: number;
+  traderPoolUsd: number;
+  creatorPoolUsd: number;
+  burnUsd: number;
+  traders: number;
+  creators: number;
+  fundedAt: number | null;
+  traderTokens: number | null;
+  creatorTokens: number | null;
+  burnedTokens: number | null;
+  buyTx: string | null;
+  burnTx: string | null;
+}
+export interface RewardsProgram {
+  enabled: boolean;
+  startDay: string | null;
+  claims: boolean;
+  config: { buybackShare: number; traderShare: number; creatorShare: number; burnShare: number; boost: readonly number[] };
+  holders: { minAmount: number; bigAmount: number } | null;
+  aiDailyLimit: { everyone: number; holders: number };
+  stats: { daysClosed: number; feesUsd: number; rewardsUsd: number; rewardTokens: number; burnedTokens: number; days: RewardDay[] } | null;
+}
+export interface MyRewards {
+  enabled: boolean;
+  claims: boolean;
+  wallet: string | null;
+  holder: { tier: 0 | 1 | 2; holds: number; minAmount: number; bigAmount: number; boost: number } | null;
+  today: { day: string; feesPaidUsd: number; creatorFeesUsd: number; estTradeUsd: number; estCreateUsd: number };
+  claimableTokens: number;
+  earnedTokens: number;
+  earnedUsd: number;
+  history: RewardRow[];
+}
+
 export interface Earnings {
   hyperliquid: { builder: string; earnedUsd: number; unclaimedUsd: number; claimedUsd: number; accountValueUsd: number } | null;
   solana: { feeWallet: string; wsol: number; usdc: number; sol: number; solUsd: number | null; usd: number } | null;
@@ -338,6 +385,9 @@ export const api = {
 
   me: () => req<Me>("/me"),
   revenue: () => req<Earnings>("/revenue"),
+  rewards: () => req<RewardsProgram>("/rewards"),
+  myRewards: () => req<MyRewards>("/me/rewards"),
+  claimRewards: () => req<{ ok: true; tokens: number; tx: string; wallet: string }>("/rewards/claim", { method: "POST", json: {} }),
   reportProfile: (body: { wallets?: string[]; displayName?: string | null }) => req<Me["user"]>("/me", { method: "POST", json: body }),
 
   health: () =>

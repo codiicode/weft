@@ -26,6 +26,10 @@ const faqs = [
     a: `Writing and testing strategies is free. When a strategy trades, you pay ${(brand.builderFeeBps / 100).toFixed(2)}% on Hyperliquid and ${+(brand.swapFeeBps / 100).toFixed(2)}% on Solana swaps. Half of every fee buys back ${$T}. Once ${$T} is live, holders pay half.`,
   },
   {
+    q: `What is ${$T} for?`,
+    a: `It’s how Weft shares what it earns. Half of every fee buys ${$T} each day. Of that, ${Math.round(brand.rewards.traderShare * 100)}% goes back to the people who traded that day (by the fees they paid), ${Math.round(brand.rewards.creatorShare * 100)}% to the people whose strategies others ran, and ${Math.round(brand.rewards.burnShare * 100)}% is burned. Holders pay half the fee, get ${brand.rewards.holderBoost}× rewards (${brand.rewards.bigHolderBoost}× for the largest holders) and ${brand.aiDrafts.holders} AI drafts a day instead of ${brand.aiDrafts.everyone}. Rewards start the day ${$T} launches.`,
+  },
+  {
     q: "Is it safe to trade new tokens with it?",
     a: "Safer than doing it by hand, but never safe. Weft finds a token by its contract address, not its ticker, and checks every buy for the usual rug signs: whether the dev can still mint or freeze, how much the top wallets hold, how deep the liquidity is and whether the dev has sold. If a check fails, you get a warning. Add “only if it’s safe” and a failed check stops the buy instead. New tokens can still go to zero.",
   },

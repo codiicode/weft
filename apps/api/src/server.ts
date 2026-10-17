@@ -1,7 +1,11 @@
 import { TradeTape } from "./lib/tape.ts";
 import { Backups } from "./lib/backup.ts";
 import { PrivyClient } from "@privy-io/node";
-import { Connection } from "@solana/web3.js";
+import { Connection, Keypair } from "@solana/web3.js";
+import { JupiterSwapBuilder } from "@weft/execution";
+import type { Fill } from "@weft/engine";
+import { REWARDS, Rewards } from "./lib/rewards.ts";
+import { Treasury } from "./token/treasury.ts";
 import { HolderDiscount, holderConfigFromEnv } from "./live/holders.ts";
 import { SolanaReconciler, connectionBalances } from "./live/solana-reconcile.ts";
 import { SolanaLive, SolanaRouterExecutor, privySolanaApi, solanaConfigFromEnv } from "./live/solana.ts";
@@ -223,7 +227,61 @@ if (heliusWebhook) {
   setInterval(() => syncWatchedWallets().catch((e) => console.warn(`helius webhook: ${(e as Error).message}`)), 60_000).unref();
 }
 
+// $WEFT rewards. Every live fill's Weft fee goes into the ledger from now on (with the user and the
+// creator of the strategy); days earn rewards from WEFT_REWARDS_START (UTC date, set at launch).
+const rewards = new Rewards(join(DATA_DIR, "rewards.db"), { startDay: process.env.WEFT_REWARDS_START || null });
+engine.subscribe((e) => {
+  if (e.type !== "fill") return;
+  const fill = e.data?.fill as Fill | undefined;
+  if (!fill?.builderFeeUsd) return;
+  const userId = accounts.deploymentOwner(e.deploymentId);
+  if (!userId) return;
+  void engine.getSnapshot(e.deploymentId).then((s) => {
+    if (s?.deployment.mode !== "live") return;
+    rewards.record({ id: fill.id, ts: fill.ts, userId, deploymentId: e.deploymentId, creatorId: accounts.deploymentCreator(e.deploymentId), instrumentKey: fill.instrumentKey, feeUsd: fill.builderFeeUsd! });
+  });
+});
+// The treasury (the fee wallet's key) buys each day's $WEFT and pays claims: off until the token
+// exists and WEFT_TREASURY_KEY is set.
+const treasury = (() => {
+  if (!holderCfg.mint || !process.env.WEFT_TREASURY_KEY) return null;
+  try {
+    const keypair = Keypair.fromSecretKey(Uint8Array.from(JSON.parse(process.env.WEFT_TREASURY_KEY)));
+    const key = process.env.JUPITER_API_KEY;
+    return new Treasury({
+      conn: new Connection(solCfg.rpcUrl, "confirmed"),
+      keypair,
+      mint: holderCfg.mint,
+      decimals: Number(process.env.WEFT_TOKEN_DECIMALS ?? 6),
+      jupiter: new JupiterSwapBuilder(key ? { apiKey: key, baseUrl: "https://api.jup.ag/swap/v1" } : {}),
+      log: (m) => console.log(`  ${m}`),
+    });
+  } catch (e) {
+    console.log(`  treasury: FAILED to load (${(e as Error).message.slice(0, 120)})`);
+    return null;
+  }
+})();
+// After each UTC midnight: close the day (shares by fees × holder boost), then buy and burn for it.
+let rewardsRunning = false;
+const runRewards = async () => {
+  if (rewardsRunning) return;
+  rewardsRunning = true;
+  try {
+    for (const day of rewards.pendingDays()) await rewards.closeDay(day, async (u) => REWARDS.boost[(await holders.status(u)).tier]);
+    if (treasury) for (const d of rewards.unfundedDays()) await treasury.fund(rewards, d);
+  } finally {
+    rewardsRunning = false;
+  }
+};
+const rewardsTimer = setInterval(() => void runRewards().catch((e) => console.warn("rewards failed:", (e as Error).message)), 10 * 60_000);
+rewardsTimer.unref();
+setTimeout(() => void runRewards().catch((e) => console.warn("rewards failed:", (e as Error).message)), 30_000).unref();
+console.log(`  rewards: ${rewards.enabled ? `from ${rewards.startDay}` : "ledger only (WEFT_REWARDS_START not set)"} · treasury ${treasury ? treasury.address.toBase58().slice(0, 8) + "…" : "off"}`);
+
 const app = createApp({
+  holders,
+  rewards,
+  treasury: treasury ?? undefined,
   heliusWebhook: heliusWebhook ?? undefined,
   topTraders: createTopTraders(),
   allowPaper,
@@ -365,6 +423,7 @@ for (const sig of ["SIGINT", "SIGTERM"] as const) {
     tape?.stop();
     if (reconcileTimer) clearInterval(reconcileTimer);
     if (solanaReconcileTimer) clearInterval(solanaReconcileTimer);
+    clearInterval(rewardsTimer);
     nativeStops?.stop();
     backups?.stop();
     server.close();

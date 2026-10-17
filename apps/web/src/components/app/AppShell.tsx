@@ -19,6 +19,7 @@ const NAV = [
   { href: "/markets", label: "Markets", icon: "M3.5 14.5 8 9.5l3 3 5.5-6.5" },
   { href: "/traders", label: "Traders", icon: "M7 9a2.5 2.5 0 1 0 0-5 2.5 2.5 0 0 0 0 5zM2.5 16c0-2.5 2-4.5 4.5-4.5s4.5 2 4.5 4.5M13 9.5a2 2 0 1 0 0-4M14.5 16c0-1.9-.9-3.4-2.3-4.1" },
   { href: "/leaderboard", label: "Leaderboard", icon: "M5 16V10M10 16V4.5M15 16v-4" },
+  { href: "/rewards", label: "Rewards", icon: "M4 8.5h12v8H4zM3 5.5h14v3H3zM10 5.5v11M10 5.5C8.5 3 6 3 6 4.5S8 5.5 10 5.5c2 0 4-.5 4-1S11.5 3 10 5.5" },
   { href: "/revenue", label: "Revenue", icon: "M10 3v14M13.5 6H8.25a2.25 2.25 0 0 0 0 4.5h3.5a2.25 2.25 0 0 1 0 4.5H6" },
 ];
 const ACCOUNT_NAV = [

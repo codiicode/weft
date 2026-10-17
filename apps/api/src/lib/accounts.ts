@@ -41,6 +41,10 @@ export class Accounts {
         user_id TEXT NOT NULL
       );
       CREATE INDEX IF NOT EXISTS deployment_owners_user ON deployment_owners (user_id);
+      CREATE TABLE IF NOT EXISTS deployment_creators (
+        deployment_id TEXT PRIMARY KEY,
+        creator_id TEXT NOT NULL
+      );
       CREATE TABLE IF NOT EXISTS solana_accounts (
         user_id TEXT PRIMARY KEY,
         address TEXT NOT NULL,
@@ -129,6 +133,14 @@ export class Accounts {
   deploymentOwner(deploymentId: string): string | null {
     const r = this.db.prepare("SELECT user_id FROM deployment_owners WHERE deployment_id = ?").get(deploymentId) as { user_id: string } | undefined;
     return r?.user_id ?? null;
+  }
+  /** Whose published strategy a run is (for creator rewards); never the run's own owner. */
+  setDeploymentCreator(deploymentId: string, creatorId: string) {
+    this.db.prepare("INSERT OR REPLACE INTO deployment_creators (deployment_id, creator_id) VALUES (?, ?)").run(deploymentId, creatorId);
+  }
+  deploymentCreator(deploymentId: string): string | null {
+    const r = this.db.prepare("SELECT creator_id FROM deployment_creators WHERE deployment_id = ?").get(deploymentId) as { creator_id: string } | undefined;
+    return r?.creator_id ?? null;
   }
   deploymentsOf(userId: string): Set<string> {
     const rows = this.db.prepare("SELECT deployment_id FROM deployment_owners WHERE user_id = ?").all(userId) as { deployment_id: string }[];

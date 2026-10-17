@@ -189,6 +189,7 @@ export class Session {
       reason,
       ts: this.now,
       ...(funding != null ? { fundingUsd: funding } : {}),
+      ...(res.builderFeeUsd > 0 ? { builderFeeUsd: res.builderFeeUsd } : {}),
     };
     this.fills.push(fill);
     this.forceSample = true;
@@ -272,6 +273,7 @@ export class Session {
       feeUsd: res.feeUsd,
       reason: "entry",
       ts: this.now,
+      ...(res.builderFeeUsd > 0 ? { builderFeeUsd: res.builderFeeUsd } : {}),
     };
     this.fills.push(fill);
     this.forceSample = true;

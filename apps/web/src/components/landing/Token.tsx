@@ -11,6 +11,23 @@ function Thread({ delay = 0 }: { delay?: number }) {
   );
 }
 
+const pct = (x: number) => `${Math.round(x * 100)}%`;
+const r = brand.rewards;
+
+/** Where each day's buyback goes, as one bar split three ways. */
+const SPLIT = [
+  { share: r.traderShare, color: "var(--long)", title: "Back to traders", body: `Every day. Your share is the fees you paid that day, so trading only for the reward never pays.` },
+  { share: r.creatorShare, color: "var(--signal)", title: "To creators", body: "Publish a strategy. When other people run it, you earn from the fees their runs pay." },
+  { share: r.burnShare, color: "var(--trigger)", title: "Burned", body: `Gone for good. There is no team allocation and nothing new is ever minted, so the supply only shrinks.` },
+];
+
+const HOLD = [
+  ["Half the fee", `Hold ${$T} and every trade costs ${brand.holderDiscount === 0.5 ? "half" : `${pct(1 - brand.holderDiscount)} of`} the fee.`],
+  [`${r.holderBoost}× rewards`, `Holders get a bigger share of the daily rewards; ${r.bigHolderBoost}× for the largest holders.`],
+  [`${brand.aiDrafts.holders} AI drafts a day`, `Instead of ${brand.aiDrafts.everyone}. Weft writes, rewrites and tests more strategies for you.`],
+  ["Claim daily", "Rewards for each day are ready the morning after (UTC). One click sends them to your wallet."],
+];
+
 export function Token() {
   return (
     <section id="token" className="scroll-mt-16 border-t border-line">
@@ -26,14 +43,59 @@ export function Token() {
             {$T} gets bought back.
           </h2>
         </Reveal>
+        <Reveal delay={120}>
+          <p className="mt-6 max-w-[640px] text-[clamp(1.05rem,1.6vw,1.25rem)] leading-relaxed text-ink-2">
+            {pct(brand.buybackShare) === "50%" ? "Half" : pct(brand.buybackShare)} of every fee Weft earns buys {$T} on the open market, every day. Then it goes back
+            to the people who use Weft: the traders, the people who write the strategies, and the rest is burned.
+          </p>
+        </Reveal>
+
         <Reveal delay={200}>
-          <dl className="mt-14 grid gap-x-10 gap-y-6 border-t border-line pt-8 text-[15px] sm:grid-cols-2 lg:grid-cols-5">
+          <div className="mt-14">
+            <div className="flex items-baseline justify-between text-[13px] text-muted">
+              <span>Each day’s buyback</span>
+              <span className="tnum">100%</span>
+            </div>
+            <div className="mt-3 flex h-3 gap-[3px] overflow-hidden rounded-full">
+              {SPLIT.map((s) => (
+                <div key={s.title} style={{ width: pct(s.share), background: s.color }} />
+              ))}
+            </div>
+            <div className="mt-8 grid gap-8 sm:grid-cols-3">
+              {SPLIT.map((s) => (
+                <div key={s.title} className="border-t-2 pt-4" style={{ borderColor: s.color }}>
+                  <div className="tnum text-[clamp(2rem,3.4vw,2.8rem)] font-semibold leading-none tracking-[-0.04em] text-ink">{pct(s.share)}</div>
+                  <div className="mt-3 text-[16px] font-semibold tracking-[-0.015em] text-ink">{s.title}</div>
+                  <p className="mt-1.5 text-[14.5px] leading-relaxed text-muted">{s.body}</p>
+                </div>
+              ))}
+            </div>
+            <p className="mt-8 text-[14.5px] text-ink-2">
+              In practice: pay $40 in fees today and about $10 of {$T} is yours to claim tomorrow, more if you hold {$T}.
+            </p>
+          </div>
+        </Reveal>
+
+        <Reveal delay={260}>
+          <div className="mt-20">
+            <h3 className="text-[20px] font-semibold tracking-[-0.02em] text-ink">Why hold {$T}</h3>
+            <div className="mt-6 grid gap-px overflow-hidden rounded-[14px] border border-line bg-line sm:grid-cols-2 lg:grid-cols-4">
+              {HOLD.map(([k, v]) => (
+                <div key={k} className="bg-paper p-6">
+                  <div className="text-[17px] font-semibold tracking-[-0.02em] text-ink">{k}</div>
+                  <p className="mt-2 text-[14px] leading-relaxed text-muted">{v}</p>
+                </div>
+              ))}
+            </div>
+          </div>
+        </Reveal>
+
+        <Reveal delay={300}>
+          <dl className="mt-16 grid gap-x-10 gap-y-6 border-t border-line pt-8 text-[15px] sm:grid-cols-2 lg:grid-cols-4">
             {[
               ["Fee on Hyperliquid", `${(brand.builderFeeBps / 100).toFixed(2)}% per trade`],
               ["Fee on Solana swaps", `${+(brand.swapFeeBps / 100).toFixed(2)}% per swap`],
-              ["Where fees go", `${Math.round(brand.buybackShare * 100) === 50 ? "Half" : `${Math.round(brand.buybackShare * 100)}%`} buys ${$T} on the open market`],
-              [`Hold ${$T}`, `Pay ${brand.holderDiscount === 0.5 ? "half" : `${Math.round((1 - brand.holderDiscount) * 100)}% of`} the fee`],
-              ["Launch", `${brand.chain}, through ${brand.launchpad}`],
+              ["Launch", `${brand.chain}, through ${brand.launchpad}. All of the supply on the curve, no team tokens`],
               [`Trading ${$T}`, `${brand.tokenFee.totalBps / 100}% fee: ${brand.tokenFee.protocolBps / 100}% to Weft, ${brand.tokenFee.buybackBps / 100}% buys back ${$T}, ${brand.tokenFee.meteoraBps / 100}% to Meteora`],
             ].map(([k, v]) => (
               <div key={k}>
@@ -43,7 +105,7 @@ export function Token() {
             ))}
           </dl>
           <p className="mt-8 text-[13.5px] text-muted">
-            No subscription. Every fee and every buyback is on the{" "}
+            Rewards start the day {$T} launches. Every fee, buyback, burn and reward is on the{" "}
             <a href="/revenue" className="text-ink underline decoration-line-2 underline-offset-4 hover:decoration-ink">
               Revenue page
             </a>
