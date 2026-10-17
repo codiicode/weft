@@ -53,13 +53,14 @@ const quote = getQuoteFromInputAmount({ config: weftCurve({ migrationQuoteThresh
 const expected = Number(quote.outputAmount.toString()) / 10 ** WEFT_TOKEN.decimals;
 const balance = (await conn.getBalance(launch.publicKey)) / LAMPORTS_PER_SOL;
 
-console.log(`$WEFT launch on ${network}`);
+console.log(`${test ? "TEST" : "$WEFT"} launch on ${network}`);
 console.log(`  launch wallet  ${launch.publicKey.toBase58()} · ${fmt(balance)} SOL`);
 console.log(`  fee claimer    ${treasury.toBase58()} (${test ? "the launch wallet itself: a test, nothing goes to Weft" : "treasury"})`);
 console.log(`  curve          graduates at ${threshold} SOL · fee ${LAUNCH_FEE.startBps / 100}% → ${TOKEN_FEE.totalBps / 100}% over ${LAUNCH_FEE.durationSec} s, then ${TOKEN_FEE.totalBps / 100}%`);
 console.log(devBuy > 0 ? `  dev buy        ${devBuy} SOL → about ${fmt(expected, 0)} ${TOKEN.symbol} (${fmt((expected / WEFT_TOKEN.supply) * 100, 2)}% of supply), all burned` : "  dev buy        none");
 console.log(`  token          ${TOKEN.name} (${TOKEN.symbol}) · ${TOKEN.uri} · no mint authority · metadata authority: the launch wallet`);
-const need = devBuy + (devBuy > 0 ? 0.06 : 0.04);
+// measured on mainnet (TEST, 2026-10-18): config + pool + metadata + burn cost 0.028 SOL
+const need = devBuy + 0.035;
 if (balance < need) throw new Error(`the launch wallet needs about ${fmt(need, 2)} SOL (has ${fmt(balance)})`);
 if (!sendIt) {
   console.log("\nNothing sent. Run again with --send to launch.");
@@ -105,15 +106,15 @@ if (devBuy <= 0) {
 }
 const got = BigInt((await conn.getTokenAccountBalance(ata)).value.amount);
 const gotUi = Number(got) / 10 ** WEFT_TOKEN.decimals;
-console.log(`  dev buy got ${fmt(gotUi, 0)} WEFT (${fmt((gotUi / WEFT_TOKEN.supply) * 100, 3)}% of supply)`);
+console.log(`  dev buy got ${fmt(gotUi, 0)} ${TOKEN.symbol} (${fmt((gotUi / WEFT_TOKEN.supply) * 100, 3)}% of supply)`);
 
 console.log("3. burn the dev buy");
-record.burnTx = await send(new Transaction().add(createBurnCheckedInstruction(ata, mintKp.publicKey, launch.publicKey, got, WEFT_TOKEN.decimals)), [launch], `burn ${fmt(gotUi, 0)} WEFT`);
+record.burnTx = await send(new Transaction().add(createBurnCheckedInstruction(ata, mintKp.publicKey, launch.publicKey, got, WEFT_TOKEN.decimals)), [launch], `burn ${fmt(gotUi, 0)} ${TOKEN.symbol}`);
 record.burnedTokens = gotUi;
 save();
 
 console.log(`\nlaunched: ${explorer("address", mintKp.publicKey.toBase58())}`);
-console.log(`  mint ${record.mint}\n  pool ${record.pool}\n  saved to secrets/launch-${network}.json`);
-console.log("Next: set WEFT_TOKEN_MINT, WEFT_DBC_POOL, WEFT_REWARDS_START, WEFT_HOLDER_MIN and WEFT_TREASURY_KEY on the server.");
+console.log(`  mint ${record.mint}\n  pool ${record.pool}\n  saved to secrets/launch-${network}${test ? "-test" : ""}.json`);
+if (!test) console.log("Next: set WEFT_TOKEN_MINT, WEFT_DBC_POOL, WEFT_REWARDS_START and WEFT_TREASURY_KEY on the server.");
 
 process.exit(0);
