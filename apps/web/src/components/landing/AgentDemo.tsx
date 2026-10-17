@@ -3,13 +3,16 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { AnimatePresence, motion } from "motion/react";
 import { useInView, useReducedMotion } from "@/lib/hooks";
 import { IconCheck, IconSend } from "../graph/icons";
+import { AssetIcon } from "../ui/AssetIcon";
 import { Section } from "./Section";
 
 /**
  * "Say it once": a short film of the whole loop, played for a few strategies in turn. You type a
  * trade in plain words, Weft turns the sentence into rules (each phrase lights up as it becomes
  * one), draws them as a diagram, then watches the market tick by tick until every condition holds,
- * and trades. Then the next strategy.
+ * and trades. Then the next strategy. A portfolio is the other kind of film: no condition to wait
+ * for, Weft picks the stocks and splits the money, then places every order. Arrows, dots and the
+ * arrow keys move between strategies.
  */
 
 type Tone = "long" | "signal" | "short";
@@ -27,6 +30,8 @@ type Scenario = {
   met: string;
   filled: [string, string];
   venue: string;
+  /** A portfolio instead of a condition: the holdings Weft picked, bought one after another. */
+  portfolio?: { symbol: string; dex?: string; name: string; usd: number }[];
 };
 
 const usd0 = (v: number) => `$${Math.round(v).toLocaleString("en-US")}`;
@@ -48,6 +53,31 @@ const SCENARIOS: Scenario[] = [
     met: "ETH broke $2,600 with funding still low. Sending the order…",
     filled: ["Long ETH 20× filled at $2,604", "Stop placed on Hyperliquid at $2,578 (−20% on the position)"],
     venue: "Hyperliquid",
+  },
+  {
+    prompt: "Build a stock portfolio of the companies you believe in most for Q4, like Nvidia, Tesla and SpaceX. Use $10,000 and split it however you think is best.",
+    parts: [
+      { phrase: "Build a stock portfolio", tone: "long", rule: "Buy 7 stocks at 1× on Hyperliquid", kind: "Do" },
+      { phrase: "the companies you believe in most", tone: "signal", rule: "Weft picks them and says why", kind: "Do" },
+      { phrase: "split it however you think is best", tone: "signal", rule: "Weighted by conviction, $10,000 in total", kind: "Do" },
+      { phrase: "for Q4", tone: "short", rule: "Sell everything on December 31", kind: "Exit" },
+    ],
+    watch: { name: "orders", from: 0, threshold: 1, to: 1, dir: "above", fmt: String, seed: 3 },
+    also: [],
+    diagram: { signals: [], action: ["Buy 7 stocks", "$10,000 · 1×"] },
+    waiting: "Buying each stock at 1× from your own account.",
+    met: "All 7 orders are in.",
+    filled: ["Bought 7 stocks for $10,000", "1× on Hyperliquid · everything sells on December 31"],
+    venue: "Hyperliquid stock perps, 1×",
+    portfolio: [
+      { symbol: "NVDA", name: "NVIDIA", usd: 2500 },
+      { symbol: "MSFT", name: "Microsoft", usd: 1500 },
+      { symbol: "GOOGL", name: "Alphabet", usd: 1500 },
+      { symbol: "META", name: "Meta", usd: 1500 },
+      { symbol: "AVGO", dex: "xyz", name: "Broadcom", usd: 1000 },
+      { symbol: "TSLA", name: "Tesla", usd: 1000 },
+      { symbol: "SPCX", dex: "xyz", name: "SpaceX (pre-IPO)", usd: 1000 },
+    ],
   },
   {
     prompt: "If the Spurs win at least 10 of their first 15 games and their title odds pass 25%, put $1,000 on them winning the NBA title. Sell if the odds drop below 15%.",
@@ -130,7 +160,9 @@ const TONE: Record<Tone, string> = { long: "var(--long)", signal: "var(--signal)
 
 // Timeline per strategy (ms): type → rules → diagram → watch → trade → hold → next strategy.
 const T = { sent: 3600, rules: 4200, diagram: 6600, watch: 8200, met: 15800, filled: 16700, end: 22000 };
-const TYPE_MS = T.sent - 400;
+// A portfolio has nothing to wait for: holdings appear, then the orders go in one by one.
+const TP = { sent: 3900, rules: 4500, diagram: 6600, watch: 9600, met: 12200, filled: 12700, end: 18500 };
+const timeline = (s: Scenario) => (s.portfolio ? TP : T);
 const TICKS = 64;
 
 /** Ticks that stay on the wrong side of the threshold, then cross it near the end. Deterministic. */
@@ -231,28 +263,80 @@ function Diagram({ s, on, met }: { s: Scenario; on: number; met: boolean }) {
   );
 }
 
+function Holdings({ s, shown, bought }: { s: Scenario; shown: number; bought: number }) {
+  const h = s.portfolio!;
+  const max = Math.max(...h.map((x) => x.usd));
+  const total = h.reduce((a, x) => a + x.usd, 0);
+  return (
+    <ul className="space-y-2.5" aria-label={`${h.length} stocks: ${h.map((x) => `${x.name} ${usd0(x.usd)}`).join(", ")}`}>
+      {h.map((x, i) => (
+        <motion.li
+          key={x.symbol}
+          initial={false}
+          animate={{ opacity: i < shown ? 1 : 0, x: i < shown ? 0 : 8 }}
+          transition={{ duration: 0.4, ease: [0.22, 1, 0.36, 1] }}
+          className="grid grid-cols-[22px_minmax(0,1fr)_96px] items-center gap-3 text-[13.5px]"
+        >
+          <AssetIcon symbol={x.symbol} dex={x.dex} size={22} />
+          <div className="min-w-0">
+            <div className="flex items-baseline justify-between gap-2">
+              <span className="truncate text-ink">{x.name}</span>
+              <span className="tnum text-[12px] text-muted">{Math.round((x.usd / total) * 100)}%</span>
+            </div>
+            <div className="mt-1.5 h-[3px] overflow-hidden rounded-full bg-paper-2">
+              <motion.div
+                className="h-full rounded-full"
+                style={{ background: i < bought ? "var(--long)" : "var(--signal)" }}
+                initial={false}
+                animate={{ width: i < shown ? `${(x.usd / max) * 100}%` : "0%" }}
+                transition={{ duration: 0.7, ease: [0.22, 1, 0.36, 1] }}
+              />
+            </div>
+          </div>
+          <span className={`tnum flex items-center justify-end gap-1.5 ${i < bought ? "text-long" : "text-ink"}`}>
+            {i < bought && <IconCheck size={13} strokeWidth={2.4} />}
+            {usd0(x.usd)}
+          </span>
+        </motion.li>
+      ))}
+    </ul>
+  );
+}
+
 export function AgentDemo() {
   const box = useRef<HTMLDivElement>(null);
   const inView = useInView(box, { rootMargin: "-15% 0px" });
   const reduce = useReducedMotion();
   const [t, setT] = useState(0);
   const [k, setK] = useState(0);
+  const kRef = useRef(0);
+  const startRef = useRef<number | null>(null);
+
+  /** Jump to a strategy and play it from the start. */
+  const go = (i: number) => {
+    const n = (i + SCENARIOS.length) % SCENARIOS.length;
+    kRef.current = n;
+    setK(n);
+    startRef.current = performance.now();
+    setT(reduce ? timeline(SCENARIOS[n]!).end - 1 : 0);
+  };
 
   useEffect(() => {
     if (reduce) {
-      setT(T.end - 1);
+      setT(timeline(SCENARIOS[kRef.current]!).end - 1);
       return;
     }
     if (!inView) return;
-    let start = performance.now() - t;
+    startRef.current = performance.now() - t;
     let raf = 0;
     const loop = (now: number) => {
-      let el = now - start;
-      if (el > T.end) {
+      let el = now - (startRef.current ?? now);
+      if (el > timeline(SCENARIOS[kRef.current]!).end) {
         // On to the next strategy.
-        start = now;
+        startRef.current = now;
         el = 0;
-        setK((i) => (i + 1) % SCENARIOS.length);
+        kRef.current = (kRef.current + 1) % SCENARIOS.length;
+        setK(kRef.current);
       }
       setT(el);
       raf = requestAnimationFrame(loop);
@@ -265,7 +349,8 @@ export function AgentDemo() {
   const s = SCENARIOS[k]!;
   const w = s.watch;
   const ticksSeries = useMemo(() => series(w), [w]);
-  const shown = Math.min(s.prompt.length, Math.floor((t / TYPE_MS) * s.prompt.length));
+  const T = timeline(s);
+  const shown = Math.min(s.prompt.length, Math.floor((t / (T.sent - 400)) * s.prompt.length));
   const sent = t >= T.sent;
   const lit = t < T.rules ? 0 : Math.min(s.parts.length, 1 + Math.floor((t - T.rules) / 500));
   const diagramOn = t < T.diagram ? 0 : Math.min(s.diagram.signals.length + 2, 1 + Math.floor((t - T.diagram) / 350));
@@ -297,7 +382,12 @@ export function AgentDemo() {
     .reverse();
   const verb = s.parts[0]!.tone === "short" ? "shorting" : "buying";
 
-  const status = filled ? "Order filled" : met ? "Rule met" : watching ? "Watching the market" : sent ? "Drafting your rules" : "Your idea";
+  const port = s.portfolio;
+  const picked = port ? (t < T.diagram ? 0 : Math.min(port.length, 1 + Math.floor((t - T.diagram) / 380))) : 0;
+  const bought = port && watching ? Math.min(port.length, 1 + Math.floor(((t - T.watch) / (T.met - T.watch)) * port.length)) : 0;
+  const status = port
+    ? filled ? "Orders filled" : watching ? "Placing orders" : t >= T.diagram ? "Picking stocks" : sent ? "Drafting your rules" : "Your idea"
+    : filled ? "Order filled" : met ? "Rule met" : watching ? "Watching the market" : sent ? "Drafting your rules" : "Your idea";
 
   return (
     <Section
@@ -305,15 +395,40 @@ export function AgentDemo() {
       title="Say it once. Weft watches the market for you."
       lead="Type the trade the way you’d say it, with one condition or five: a price, a post on X, a wallet, the mood of the market. Each part becomes a rule. Weft checks them every 15 to 30 seconds, day and night, and places the order once all of them hold."
     >
-      <div ref={box} className="mt-12 overflow-hidden rounded-[18px] border border-line bg-card shadow-window">
+      <div
+        ref={box}
+        tabIndex={0}
+        onKeyDown={(e) => {
+          if (e.key === "ArrowRight") go(k + 1);
+          else if (e.key === "ArrowLeft") go(k - 1);
+          else return;
+          e.preventDefault();
+        }}
+        className="mt-12 overflow-hidden rounded-[18px] border border-line bg-card shadow-window outline-none focus-visible:ring-2 focus-visible:ring-line-2"
+      >
         {/* Window bar */}
         <div className="flex items-center justify-between border-b border-line px-4 py-3 sm:px-5">
           <span className="flex items-center gap-3 text-[13px] text-muted">
-            New strategy
-            <span className="flex items-center gap-1.5" aria-label={`Example ${k + 1} of ${SCENARIOS.length}`}>
-              {SCENARIOS.map((_, i) => (
-                <span key={i} className="h-1.5 w-1.5 rounded-full transition-colors" style={{ background: i === k ? "var(--ink)" : "var(--line-2)" }} />
+            <span className="hidden sm:inline">New strategy</span>
+            <span className="flex items-center gap-0.5" role="group" aria-label={`Example ${k + 1} of ${SCENARIOS.length}`}>
+              <button type="button" onClick={() => go(k - 1)} aria-label="Previous example" className="grid h-7 w-7 place-items-center rounded-[7px] text-muted transition-colors hover:bg-paper-2 hover:text-ink">
+                <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M10 3.5 5.5 8l4.5 4.5" /></svg>
+              </button>
+              {SCENARIOS.map((sc, i) => (
+                <button
+                  key={i}
+                  type="button"
+                  onClick={() => go(i)}
+                  aria-label={`Example ${i + 1}: ${sc.diagram.action[0]}`}
+                  aria-current={i === k}
+                  className="grid h-7 w-5 place-items-center"
+                >
+                  <span className="h-1.5 rounded-full transition-all duration-300" style={{ width: i === k ? 16 : 6, background: i === k ? "var(--ink)" : "var(--line-2)" }} />
+                </button>
               ))}
+              <button type="button" onClick={() => go(k + 1)} aria-label="Next example" className="grid h-7 w-7 place-items-center rounded-[7px] text-muted transition-colors hover:bg-paper-2 hover:text-ink">
+                <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M6 3.5 10.5 8 6 12.5" /></svg>
+              </button>
             </span>
           </span>
           <span className="inline-flex items-center gap-1.5 text-[13px] font-medium text-ink">
@@ -363,6 +478,21 @@ export function AgentDemo() {
 
           {/* Right: the diagram, then the agent at work */}
           <div className="space-y-5 bg-card p-4 sm:p-6">
+            {port ? (
+              <div>
+                <p className="text-[12px] text-muted">How it trades · {s.venue}</p>
+                <div className="mt-3">
+                  <Holdings key={k} s={s} shown={picked} bought={bought} />
+                </div>
+                <div className={`mt-4 flex items-baseline justify-between gap-3 border-t border-line pt-3 text-[12.5px] transition-opacity duration-500 ${picked ? "opacity-100" : "opacity-0"}`}>
+                  <span className="text-muted">
+                    {watching ? `${bought} of ${port.length} orders filled` : `${port.length} stocks · ${usd0(port.reduce((a, x) => a + x.usd, 0))} · no leverage`}
+                  </span>
+                  <span className="text-ink">Sells everything on Dec 31</span>
+                </div>
+              </div>
+            ) : (
+            <>
             <div>
               <p className="text-[12px] text-muted">How it trades · {s.venue}</p>
               <div className="mt-2">
@@ -404,6 +534,8 @@ export function AgentDemo() {
                 })}
               </ul>
             </div>
+            </>
+            )}
           </div>
         </div>
 
@@ -434,8 +566,8 @@ export function AgentDemo() {
                     <span className={`h-2 w-2 rounded-full ${watching ? "animate-pulse" : ""}`} style={{ background: watching ? "var(--signal)" : "var(--muted)" }} />
                   </span>
                   <div>
-                    <div className="text-[15px] font-medium text-ink">{watching ? (met ? (s.diagram.signals.length === 2 ? "Both conditions true" : `All ${s.diagram.signals.length} conditions true`) : `Waiting: ${s.diagram.signals.length - 1} of ${s.diagram.signals.length} conditions true`) : "No trade yet"}</div>
-                    <div className="text-[13px] text-muted">{met ? s.met : watching ? s.waiting : "Nothing trades until every rule is true."}</div>
+                    <div className="text-[15px] font-medium text-ink">{port ? (watching ? `Placing orders: ${bought} of ${port.length}` : "No trade yet") : watching ? (met ? (s.diagram.signals.length === 2 ? "Both conditions true" : `All ${s.diagram.signals.length} conditions true`) : `Waiting: ${s.diagram.signals.length - 1} of ${s.diagram.signals.length} conditions true`) : "No trade yet"}</div>
+                    <div className="text-[13px] text-muted">{met ? s.met : watching ? s.waiting : port ? "Nothing is bought until you press start." : "Nothing trades until every rule is true."}</div>
                   </div>
                 </>
               )}

@@ -93,12 +93,14 @@ export async function generateStrategy(
   }
 
   const client = deps.client ?? new Anthropic();
+  // The date goes in the message, not the cached system prompt, so "for Q4" or "until Friday" can be turned into a time.
+  const today = timeContext(new Date());
   const messages: Anthropic.Beta.BetaMessageParam[] = [
     {
       role: "user",
       content: edit
-        ? `Here is the user's current strategy:\n${JSON.stringify(edit.base)}\n\nThey want this change: ${edit.instruction}\n\nChange only what the request needs and keep everything else (ids, thesis, sizes, risk) as it is. Look up markets only if the change needs a new instrument, then submit the full updated strategy. In the rationale, say in one or two plain sentences what you changed.`
-        : `Thesis: ${thesis}\n\nResearch the markets you need, then submit the strategy.`,
+        ? `${today}\n\nHere is the user's current strategy:\n${JSON.stringify(edit.base)}\n\nThey want this change: ${edit.instruction}\n\nChange only what the request needs and keep everything else (ids, thesis, sizes, risk) as it is. Look up markets only if the change needs a new instrument, then submit the full updated strategy. In the rationale, say in one or two plain sentences what you changed.`
+        : `${today}\n\nThesis: ${thesis}\n\nResearch the markets you need, then submit the strategy.`,
     },
   ];
 
@@ -185,3 +187,18 @@ export async function generateStrategy(
     throw e;
   }
 }
+
+/** Now, and the hours to the usual horizons, so the model never has to do date arithmetic. */
+export function timeContext(now: Date): string {
+  const hoursTo = (d: Date) => Math.max(1, Math.round((d.getTime() - now.getTime()) / 3_600_000));
+  const y = now.getUTCFullYear(), m = now.getUTCMonth();
+  const end = (year: number, month: number) => new Date(Date.UTC(year, month + 1, 0, 23, 59)); // last day of `month`
+  const qEnd = end(y, Math.floor(m / 3) * 3 + 2);
+  const nextQEnd = end(y, Math.floor(m / 3) * 3 + 5);
+  const friday = new Date(Date.UTC(y, m, now.getUTCDate() + ((5 - now.getUTCDay() + 7) % 7 || 7), 23, 59));
+  return [
+    `Now: ${now.toISOString().slice(0, 16)} UTC.`,
+    `Hours from now until: the end of this week (Friday) ${hoursTo(friday)}, the end of this month ${hoursTo(end(y, m))}, the end of this quarter (${qEnd.toISOString().slice(0, 10)}) ${hoursTo(qEnd)}, the end of next quarter (${nextQEnd.toISOString().slice(0, 10)}) ${hoursTo(nextQEnd)}, the end of the year ${hoursTo(end(y, 11))}.`,
+  ].join(" ");
+}
+
