@@ -226,6 +226,9 @@ function Run() {
 
   const d = s.deployment;
   const money = runMoney(s);
+  // With leverage, the money put in and the position differ: $5 at 20× holds $100 of ETH.
+  const levs = s.positions.map((p) => p.leverage ?? 1);
+  const lev = { max: Math.max(1, ...levs), min: Math.min(...(levs.length ? levs : [1])), positionUsd: s.positions.reduce((n, p) => n + p.sizeUsd * (p.leverage ?? 1), 0) };
   const status = d.status;
   // Owner actions on a live (or legacy) run that is still going. Alerts-only runs hold nothing.
   const canAct = (status === "running" || status === "paused") && !d.alertsOnly;
@@ -322,12 +325,25 @@ function Run() {
           <Stat
             label={money.traded ? "Put in" : "Budget"}
             value={fmtUsd(money.putIn, 2)}
-            sub={money.open ? `worth ${fmtUsd(money.worth, 2)} now` : money.traded ? `got back ${fmtUsd(money.worth, 2)}` : undefined}
+            sub={
+              money.open
+                ? lev.max > 1
+                  ? `a ${fmtUsd(lev.positionUsd, 2)} position at ${lev.max === lev.min ? "" : "up to "}${lev.max}×`
+                  : `worth ${fmtUsd(money.worth, 2)} now`
+                : money.traded
+                  ? `got back ${fmtUsd(money.worth, 2)}`
+                  : undefined
+            }
           />
-          <Stat label="Return" value={fmtPct(money.returnPct)} tone={tone(money.returnPct)} sub={money.fees > 0 ? `after ${fmtUsd(money.fees, 2)} fees` : undefined} />
+          <Stat
+            label="Return"
+            value={fmtPct(money.returnPct)}
+            tone={tone(money.returnPct)}
+            sub={money.fees > 0 ? `after ${fmtUsd(money.fees, 2)} fees${s.builderFeesUsd ? ` (Weft ${fmtUsd(s.builderFeesUsd, 2)})` : ""}` : undefined}
+          />
           <Stat label="Open profit" value={fmtUsd(s.unrealizedPnlUsd, 2)} tone={tone(s.unrealizedPnlUsd)} sub={s.positions.length ? fmtPct(money.openPct) : undefined} />
           <Stat label="Closed profit" value={fmtUsd(s.realizedPnlUsd, 2)} tone={tone(s.realizedPnlUsd)} />
-          <Stat label="Last check" value={ago(s.lastTickAt)} sub={s.builderFeesUsd ? `fees ${fmtUsd(s.builderFeesUsd, 2)}` : undefined} />
+          <Stat label="Last check" value={ago(s.lastTickAt)} />
         </div>
 
         <div className="grid gap-8 xl:grid-cols-[minmax(0,1fr)_380px]">
