@@ -32,7 +32,7 @@ export const LAUNCH_FEE = { startBps: 3000, durationSec: 60, periods: 60 } as co
 /** The part of Weft's own share of $WEFT trading fees that goes to buybacks (0.4 of 2.4). */
 export const TOKEN_FEE_BUYBACK_SHARE = TOKEN_FEE.buybackBps / (TOKEN_FEE.buybackBps + TOKEN_FEE.protocolBps);
 export const WEFT_TOKEN = {
-  name: "Weft",
+  name: "Weft Finance",
   symbol: "WEFT",
   /** Metaplex JSON served by the website. */
   uri: "https://weft.fi/token/weft.json",
