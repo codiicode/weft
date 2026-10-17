@@ -210,12 +210,12 @@ Weft does all three.
 
 ---
 
-## 3. $WEFT thread (post at token launch; fill in the address)
+## 3. $WEFT thread (post at token launch)
 
 **1/**
 $WEFT is live.
 
-Contract: `[ADDRESS]`
+Contract: HqmFi85adLD8BQA7en1HfajdAfzVFps5REgQaYuw6Ax8
 
 This is the only address. Anything else calling itself $WEFT is fake.
 
