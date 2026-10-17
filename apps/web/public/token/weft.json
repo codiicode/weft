@@ -1,0 +1,10 @@
+{
+  "name": "Weft",
+  "symbol": "WEFT",
+  "description": "The token of Weft (weft.fi), the AI agent that turns a market view in plain English into rules it trades from your own wallet. Half of every fee Weft earns buys $WEFT on the open market, and holders pay half the fee.",
+  "image": "https://weft.fi/token/weft-token-512.png",
+  "external_url": "https://weft.fi",
+  "extensions": {
+    "website": "https://weft.fi"
+  }
+}
