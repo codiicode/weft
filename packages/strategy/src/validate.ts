@@ -27,11 +27,26 @@ export function validateStrategy(input: unknown): ValidationResult {
   if (!parsed.success) {
     return { ok: false, errors: zodIssues(parsed.error), warnings: [] };
   }
-  const s = parsed.data;
+  const s = fitRiskToActions(parsed.data);
   const issues = semanticIssues(s);
   const errors = issues.filter((i) => i.severity === "error");
   const warnings = issues.filter((i) => i.severity === "warning");
   return errors.length ? { ok: false, errors, warnings } : { ok: true, strategy: s, warnings };
+}
+
+/**
+ * The exposure cap never blocks what the strategy itself asks for: "5% of the account at 20×" is
+ * 100% exposure, so the cap (default 50%) rises to fit its largest single order. It still binds
+ * when several orders add up. (Leverage and position size are checked below as errors instead.)
+ */
+export function fitRiskToActions(s: Strategy): Strategy {
+  let exp = s.risk.maxTotalExposurePct;
+  for (const a of s.actions) {
+    if (a.type !== "open" || a.size.unit !== "pct_equity") continue;
+    exp = Math.max(exp, a.size.value * (a.instrument.kind === "perp" ? a.leverage : 1));
+  }
+  exp = Math.min(500, exp);
+  return exp === s.risk.maxTotalExposurePct ? s : { ...s, risk: { ...s.risk, maxTotalExposurePct: exp } };
 }
 
 /** Throwing variant for trusted fixtures and tests. */

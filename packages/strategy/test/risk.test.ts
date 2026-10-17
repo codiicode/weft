@@ -82,3 +82,20 @@ describe("effectiveRisk", () => {
     expect(eff.token.minLiquidityUsd).toBe(200_000);
   });
 });
+
+describe("risk caps fit the strategy's own orders", () => {
+  it("raises the exposure cap to fit the strategy's largest order", async () => {
+    const { validateStrategy } = await import("../src/validate.ts");
+    const r = validateStrategy({
+      schemaVersion: 1, id: "eth-20x", name: "ETH 20× Long", thesis: "long eth 20x with 5% of the account",
+      signals: [{ id: "px", kind: "price", params: { instrument: { kind: "perp", venue: "hyperliquid", symbol: "ETH" } } }],
+      triggers: [{ id: "now", when: { op: "gt", left: { ref: "px.price" }, right: { value: 0 } }, maxFires: 1 }],
+      risk: { maxLeverage: 20 },
+      actions: [{ id: "go", type: "open", on: ["now"], instrument: { kind: "perp", venue: "hyperliquid", symbol: "ETH" }, side: "long", size: { unit: "pct_equity", value: 5 }, leverage: 20 }],
+    });
+    expect(r.ok).toBe(true);
+    if (!r.ok) return;
+    expect(r.strategy.risk.maxTotalExposurePct).toBe(100);
+    expect(r.strategy.risk.maxPositionPct).toBe(10); // untouched: checked as an error instead
+  });
+});
