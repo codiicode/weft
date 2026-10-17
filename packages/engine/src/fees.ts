@@ -13,7 +13,8 @@ import type { Instrument } from "@weft/strategy";
  * and are tracked separately per deployment: they later fund token buybacks.
  */
 export interface FeeSchedule {
-  hyperliquid: { takerBps: number; builderBps: number };
+  /** builderBps: perps (max 0.1%). spotBuilderBps: spot sells only (max 1%); Hyperliquid takes no builder fee on spot buys. */
+  hyperliquid: { takerBps: number; builderBps: number; spotBuilderBps?: number };
   outcome: { openBps: number; closeBps: number; builderBps: number };
   solana: { platformBps: number; networkFeeUsd: number };
   options: { notionalBps: number; perContractUsd?: number; capPctOfPremium: number };
@@ -22,7 +23,7 @@ export interface FeeSchedule {
 export type FeeOverrides = { [K in keyof FeeSchedule]?: Partial<FeeSchedule[K]> };
 
 export const DEFAULT_FEES: FeeSchedule = {
-  hyperliquid: { takerBps: 4.5, builderBps: 10 },
+  hyperliquid: { takerBps: 4.5, builderBps: 10, spotBuilderBps: 100 },
   outcome: { openBps: 0, closeBps: 0, builderBps: 10 },
   solana: { platformBps: 100, networkFeeUsd: 0.002 },
   options: { notionalBps: 3, capPctOfPremium: 12.5 },
@@ -57,9 +58,12 @@ export function computeFee(
 ): FeeQuote {
   const bps = (n: number) => (notionalUsd * n) / 10_000;
   switch (instrument.kind) {
-    case "perp":
-    case "spot": {
+    case "perp": {
       const builder = bps(fees.hyperliquid.builderBps);
+      return { feeUsd: bps(fees.hyperliquid.takerBps) + builder, builderFeeUsd: builder };
+    }
+    case "spot": {
+      const builder = phase === "close" ? bps(fees.hyperliquid.spotBuilderBps ?? fees.hyperliquid.builderBps) : 0;
       return { feeUsd: bps(fees.hyperliquid.takerBps) + builder, builderFeeUsd: builder };
     }
     case "outcome": {

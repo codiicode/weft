@@ -15,7 +15,8 @@ export const brand = {
   /** Where $WEFT launches. Swap to "pump.fun" (+ curve "bonding curve") and the copy follows. */
   launchpad: "Meteora",
   launchCurve: "Dynamic Bonding Curve",
-  builderFeeBps: 10, // Hyperliquid builder fee, 0.1% (Hyperliquid's maximum on perps)
+  builderFeeBps: 10, // Hyperliquid builder fee on perps and prediction markets, 0.1% (Hyperliquid's maximum on perps)
+  hlSpotFeeBps: 100, // Hyperliquid spot: 1% on sells (Hyperliquid's maximum; buys pay nothing)
   swapFeeBps: 100, // Jupiter platform fee on Solana swaps, 1% (matches @weft/engine DEFAULT_FEES.solana.platformBps)
   /** Share of fees that buys back $WEFT; the rest is Weft's revenue. */
   buybackShare: 0.5,

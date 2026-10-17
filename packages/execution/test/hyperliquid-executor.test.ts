@@ -271,6 +271,17 @@ describe("HyperliquidExecutor", () => {
     expect(res).toMatchObject({ status: "rejected", reason: expect.stringMatching(/buildApproveBuilderFee/) });
   });
 
+  it("spot sells carry the spot builder fee once approved, and the base fee until then; perps keep the base fee", async () => {
+    const order = async (inst: Instrument, side: "buy" | "sell", maxFee: number) => {
+      const ex = makeExec({ dryRun: true, info: fixtureInfo({ maxBuilderFee: async () => maxFee }), builder: { address: BUILDER, feeTenthsBps: 100, spotFeeTenthsBps: 1000 } });
+      const placed = await ex.placeOrder({ instrument: inst, side, size: { notionalUsd: 100 }, type: "market" });
+      return (placed.request.action as { builder?: { f: number } }).builder?.f;
+    };
+    expect(await order(HYPE, "sell", 1000)).toBe(1000);
+    expect(await order(HYPE, "sell", 100)).toBe(100);
+    expect(await order(BTC, "buy", 1000)).toBe(100);
+  });
+
   it("execute(): filled IOC → engine ExecutionResult with fee estimates", async () => {
     const { fetch, posted } = fakeFetch({ status: "ok", response: { type: "order", data: { statuses: [{ filled: { totalSz: "0.01", avgPx: "100100", oid: 7 } }] } } });
     const ex = makeExec({ fetch });

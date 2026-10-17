@@ -284,7 +284,7 @@ export interface Earnings {
 }
 
 export interface LiveStatus {
-  config: { enabled: boolean; network: "testnet" | "mainnet"; builder: string | null; builderFeeBps: number | null; maxAllocationUsd: number | null; maxLeverage: number };
+  config: { enabled: boolean; network: "testnet" | "mainnet"; builder: string | null; builderFeeBps: number | null; builderSpotFeeBps?: number | null; builderApproveBps?: number | null; maxAllocationUsd: number | null; maxLeverage: number };
   account: { userId: string; network: string; hlAddress: string; agentApprovedAt: number | null; builderApprovedAt: number | null } | null;
   agentAddress: string | null;
   venue: { accountValueUsd: number | null; withdrawableUsd: number | null; marginUsedUsd?: number | null; positionsWorthUsd?: number | null; agentApprovedOnVenue: boolean | null; builderMaxFeeTenthsBps: number | null } | null;

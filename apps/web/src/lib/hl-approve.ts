@@ -12,7 +12,7 @@ export function hlApprovals(s: LiveStatus | null | undefined) {
   const linked = !!s?.account && s.account.network === net;
   const funded = (s?.venue?.accountValueUsd ?? 0) > 0;
   const agentOk = !!s?.venue?.agentApprovedOnVenue;
-  const builderOk = !s?.config.builder || (s.venue?.builderMaxFeeTenthsBps ?? 0) >= (s.config.builderFeeBps ?? 0) * 10;
+  const builderOk = !s?.config.builder || (s.venue?.builderMaxFeeTenthsBps ?? 0) >= (s.config.builderApproveBps ?? s.config.builderFeeBps ?? 0) * 10;
   return { linked, funded, agentOk, builderOk, tradingOn: agentOk && builderOk, needsApproval: linked && funded && !(agentOk && builderOk) };
 }
 

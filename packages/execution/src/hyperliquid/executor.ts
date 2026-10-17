@@ -31,10 +31,12 @@ export interface HyperliquidExecutorConfig {
   /** Defaults to an HTTP client on the same base URL. */
   info?: HlInfo;
   /**
-   * Weft builder code. `feeTenthsBps` defaults to 50 (= 5 bps). Pass `null` for no builder.
-   * The user must have approved at least this fee (see `buildApproveBuilderFee`).
+   * Weft builder code. `feeTenthsBps` defaults to 50 (= 5 bps), on perps and outcomes;
+   * `spotFeeTenthsBps` on spot (Hyperliquid only charges it on sells; max 1000 = 1%). Pass `null`
+   * for no builder. The user must have approved at least `feeTenthsBps`; spot falls back to it
+   * until they've approved the spot fee (see `buildApproveBuilderFee`).
    */
-  builder?: { address: Hex; feeTenthsBps?: number } | null;
+  builder?: { address: Hex; feeTenthsBps?: number; spotFeeTenthsBps?: number } | null;
   /** Default max slippage for market opens when the order spec has none. Default 100 bps. */
   defaultSlippageBps?: number;
   /** Slippage bound for market closes (never blocked by the open limit). Default 500 bps, like the SDK. */
@@ -78,7 +80,7 @@ export interface PlaceOrderParams {
   /** Child TP/SL trigger orders, sent atomically with the entry (grouping "normalTpsl"). */
   tpsl?: TpslPrices;
   /** Override the configured builder for this order (`null` = none). */
-  builder?: { address: Hex; feeTenthsBps?: number } | null;
+  builder?: { address: Hex; feeTenthsBps?: number; spotFeeTenthsBps?: number } | null;
   /** Marks a (spot) close: skips the $10 minimum pre-check, which the venue enforces itself. */
   closing?: boolean;
 }
@@ -93,6 +95,8 @@ export interface PlacedOrder {
   dryRun: boolean;
   response?: ExchangeResponse;
   statuses?: OrderStatus[];
+  /** The builder fee this order carried. */
+  builder?: BuilderInfo | null;
 }
 
 const DEFAULT_BUILDER_FEE = 50;
@@ -151,12 +155,47 @@ export class HyperliquidExecutor implements Executor {
     }
   }
 
-  private builderFor(override: PlaceOrderParams["builder"]): BuilderInfo | null {
+  private builderFor(override: PlaceOrderParams["builder"], market?: ResolvedAsset["market"]): BuilderInfo | null {
     const b = override === undefined ? this.cfg.builder : override;
     if (!b) return null;
-    const f = b.feeTenthsBps ?? DEFAULT_BUILDER_FEE;
+    const f = market === "spot" && b.spotFeeTenthsBps != null ? b.spotFeeTenthsBps : (b.feeTenthsBps ?? DEFAULT_BUILDER_FEE);
     if (!Number.isInteger(f) || f < 0 || f > 1000) throw new Error(`invalid builder fee ${f} (tenths of bps)`);
     return { b: b.address.toLowerCase(), f };
+  }
+
+  /**
+   * The builder fee for an order on this asset. Spot carries the spot fee once the user has
+   * approved it, and the base fee until then (so an older approval never blocks a trade).
+   */
+  private async builderForAsset(override: PlaceOrderParams["builder"], a: ResolvedAsset): Promise<BuilderInfo | null> {
+    const want = this.builderFor(override, a.market);
+    if (!want) return null;
+    if (a.market === "spot" && this.info.maxBuilderFee) {
+      const base = this.builderFor(override)!;
+      if (want.f > base.f) {
+        const max = await this.info.maxBuilderFee(this.cfg.userAddress, want.b).catch(() => base.f);
+        if (!(max >= want.f)) {
+          await this.checkBuilderApproval(base, a);
+          return base;
+        }
+      }
+    }
+    await this.checkBuilderApproval(want, a);
+    return want;
+  }
+
+  /** Log the builder fee Hyperliquid took on a non-perp fill next to what Weft booked. */
+  private async auditBuilderFee(a: ResolvedAsset, oid: number, f: number, bookedUsd: number) {
+    await new Promise((r) => setTimeout(r, 4_000));
+    try {
+      const fills = await this.info.userFillsByTime!(this.cfg.userAddress, (this.cfg.now?.() ?? Date.now()) - 120_000);
+      const mine = fills.filter((x) => x.oid === oid);
+      if (!mine.length) return console.log(`[builder-fee] ${a.market} ${a.coin} oid ${oid}: fill not found yet`);
+      const took = mine.reduce((n, x) => n + Number(x.builderFee ?? 0), 0);
+      console.log(`[builder-fee] ${a.market} ${a.coin} oid ${oid}: venue took $${took.toFixed(4)}, Weft booked $${bookedUsd.toFixed(4)} (fee ${f / 10} bps)${Math.abs(took - bookedUsd) > Math.max(0.01, bookedUsd * 0.05) ? " · MISMATCH" : ""}`);
+    } catch (e) {
+      console.log(`[builder-fee] ${a.market} ${a.coin} oid ${oid}: check failed (${(e as Error).message.slice(0, 120)})`);
+    }
   }
 
   /** Fail closed if the user has not approved the builder fee: the venue would reject every order. */
@@ -213,8 +252,7 @@ export class HyperliquidExecutor implements Executor {
       orders.push(...this.tpslOrders(a, isBuy, sz, p.tpsl, refPx, p.clientId));
     }
 
-    const builder = this.builderFor(p.builder);
-    if (builder) await this.checkBuilderApproval(builder, a);
+    const builder = await this.builderForAsset(p.builder, a);
     const action = orderAction(orders.map(orderToWire), builder, grouping);
     const request = await this.client.sign(action);
     return { asset: a, orders, grouping, mid, request, builder };
@@ -258,8 +296,7 @@ export class HyperliquidExecutor implements Executor {
 
   async placeOrder(p: PlaceOrderParams): Promise<PlacedOrder> {
     const built = await this.buildOrder(p);
-    const { builder: _b, ...rest } = built;
-    return { ...rest, ...(await this.send(built)) };
+    return { ...built, ...(await this.send(built)) };
   }
 
   /**
@@ -465,10 +502,13 @@ export class HyperliquidExecutor implements Executor {
       const qty = Number(s.filled.totalSz);
       const price = Number(s.filled.avgPx);
       const notional = qty * price;
-      const builder = this.builderFor(undefined);
+      const builder = placed.builder ?? null;
       const builderPays = builder && !(placed.asset.market !== "perp" && req.side === "buy"); // no builder fee on spot buys
       const builderFeeUsd = builderPays ? (notional * builder.f) / 100_000 : 0;
       const feeUsd = (notional * (this.cfg.takerFeeBps ?? 4.5)) / 10_000 + builderFeeUsd;
+      // Spot and prediction-market fills: check what the venue actually took for Weft (its docs only
+      // promise builder fees on perps and spot), so the books follow the venue.
+      if (builder && placed.asset.market !== "perp" && this.info.userFillsByTime) void this.auditBuilderFee(placed.asset, s.filled.oid, builder.f, builderFeeUsd);
       const buy = req.side === "buy";
       const slippageBps = ((buy ? price - placed.mid : placed.mid - price) / placed.mid) * 10_000;
       return { status: "filled", qty, price, markPrice: placed.mid, feeUsd, builderFeeUsd, slippageBps };

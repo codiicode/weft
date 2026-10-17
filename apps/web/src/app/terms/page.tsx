@@ -6,6 +6,7 @@ import { brand, $T } from "@/config/brand";
 export const metadata: Metadata = { title: "Terms · Weft" };
 
 const hl = (brand.builderFeeBps / 100).toFixed(2);
+const hlSpot = +(brand.hlSpotFeeBps / 100).toFixed(2);
 const sol = +(brand.swapFeeBps / 100).toFixed(2);
 
 export default function Terms() {
@@ -73,8 +74,8 @@ export default function Terms() {
         <ul>
           <li>Writing and testing strategies is free.</li>
           <li>
-            Perp trades on Hyperliquid pay Weft {hl}%, collected by Hyperliquid. Spot and prediction-market buys are free; sells pay the
-            same {hl}%. You approve the fee once when you turn on trading.
+            Perp trades on Hyperliquid pay Weft {hl}%, collected by Hyperliquid. Spot and prediction-market buys are free; spot sells pay{" "}
+            {hlSpot}% and prediction-market sells {hl}%. You approve the fee once when you turn on trading.
           </li>
           <li>Swaps on Solana pay Weft a {sol}% fee, taken inside the swap.</li>
           <li>

@@ -202,7 +202,7 @@ export function DeployPanel({ strategy, strategyId, compact = false }: { strateg
             <p className="text-[13.5px] font-medium text-ink">{hl.agentOk ? "Approve Weft’s trading fee" : "Turn on trading"}</p>
             <p className="mt-1 text-[13px] leading-relaxed text-muted">
               {hl.agentOk
-                ? `Weft now takes ${(live.data?.config.builderFeeBps ?? 0) / 100}% per trade on Hyperliquid. Your account approves it once.`
+                ? `Weft takes ${(live.data?.config.builderFeeBps ?? 0) / 100}% on Hyperliquid perps${live.data?.config.builderSpotFeeBps ? ` and ${live.data.config.builderSpotFeeBps / 100}% on spot sales` : ""}. Your account approves it once.`
                 : "Your account approves Weft’s trading-only key once."}
               {hl.silent ? (hl.busy ? " Approving in the background…" : "") : " Sign it on the Wallets page."}
             </p>

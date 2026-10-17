@@ -94,7 +94,7 @@ export function Token() {
         <Reveal delay={300}>
           <dl className="mt-16 grid gap-x-10 gap-y-6 border-t border-line pt-8 text-[15px] sm:grid-cols-2 lg:grid-cols-4">
             {[
-              ["Fee on Hyperliquid", `${(brand.builderFeeBps / 100).toFixed(2)}% per trade`],
+              ["Fee on Hyperliquid", `${(brand.builderFeeBps / 100).toFixed(2)}% on perps, ${+(brand.hlSpotFeeBps / 100).toFixed(2)}% on spot sales`],
               ["Fee on Solana swaps", `${+(brand.swapFeeBps / 100).toFixed(2)}% per swap`],
               ["Launch", `${brand.chain}, through ${brand.launchpad}. All of the supply on the curve, no team tokens. Weft’s own buy at launch is burned`],
               [`Trading ${$T}`, `${brand.tokenFee.totalBps / 100}% fee: ${brand.tokenFee.protocolBps / 100}% to Weft, ${brand.tokenFee.buybackBps / 100}% buys back ${$T}, ${brand.tokenFee.meteoraBps / 100}% to Meteora`],

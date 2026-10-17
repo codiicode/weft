@@ -74,8 +74,8 @@ share them, in percent. Local development (sign-in off, or `WEFT_ALLOW_PAPER=1`)
 
 ## Fees and $WEFT (decided 2026-10-15)
 
-Weft charges 0.10% on Hyperliquid (the builder-code maximum on perps; `WEFT_BUILDER_FEE_TENTHS_BPS`,
-default 100) and 1% on Solana swaps (`WEFT_SOL_FEE_BPS`, default 100). Half of fees buy back $WEFT, half
+Weft charges 0.10% on Hyperliquid perps and prediction markets (the builder-code maximum on perps; `WEFT_BUILDER_FEE_TENTHS_BPS`,
+default 100), 1% on Hyperliquid spot sells (the spot maximum; `WEFT_BUILDER_SPOT_FEE_TENTHS_BPS`, default 1000; accounts that only approved 0.1% pay 0.1% until the silent re-approval) and 1% on Solana swaps (`WEFT_SOL_FEE_BPS`, default 100). Half of fees buy back $WEFT, half
 is Weft's revenue. Holding $WEFT halves the fee: set `WEFT_TOKEN_MINT` and `WEFT_HOLDER_MIN` (tokens) at
 launch (`WEFT_HOLDER_DISCOUNT`, default 0.5); holdings are read on-chain from the user's trading wallet
 and Solana wallets linked to their Privy account. Not built yet: the buyback job and its public ledger.

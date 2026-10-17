@@ -66,9 +66,9 @@ export function WalletAutopilot() {
       }, refresh);
     const funded = (s.venue?.accountValueUsd ?? 0) > 0;
     const agentOk = !!s.venue?.agentApprovedOnVenue;
-    const builderOk = !s.config.builder || (s.venue?.builderMaxFeeTenthsBps ?? 0) >= (s.config.builderFeeBps ?? 0) * 10;
+    const builderOk = !s.config.builder || (s.venue?.builderMaxFeeTenthsBps ?? 0) >= (s.config.builderApproveBps ?? s.config.builderFeeBps ?? 0) * 10;
     if (funded && !(agentOk && builderOk))
-      return step(`approve:${s.config.builderFeeBps ?? 0}`, async () => {
+      return step(`approve:${s.config.builderApproveBps ?? s.config.builderFeeBps ?? 0}`, async () => {
         const prep = await api.prepareApprovals(SIGNATURE_CHAIN[net]);
         for (const r of prep.requests) {
           const { signature } = await signTypedData(r.typedData as never, { ...SILENT, address: evm.address });

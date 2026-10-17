@@ -35,7 +35,8 @@ export interface LiveConfig {
   enabled: boolean;
   network: "testnet" | "mainnet";
   /** Weft's builder address and fee (tenths of a bp). Null: no builder fee. */
-  builder: { address: Hex; feeTenthsBps: number } | null;
+  /** feeTenthsBps: perps and outcomes (max 100 = 0.1%); spotFeeTenthsBps: spot sells (max 1000 = 1%). */
+  builder: { address: Hex; feeTenthsBps: number; spotFeeTenthsBps: number } | null;
   /** Optional ceiling per live run, USD. Null: none (people trade whatever amount they choose). */
   maxAllocationUsd: number | null;
   maxLeverage: number;
@@ -50,7 +51,7 @@ export function capFromEnv(v: string | undefined): number | null {
 
 export function liveConfigFromEnv(env: NodeJS.ProcessEnv = process.env): LiveConfig {
   const builder = env.WEFT_BUILDER_ADDRESS && /^0x[0-9a-fA-F]{40}$/.test(env.WEFT_BUILDER_ADDRESS)
-    ? { address: env.WEFT_BUILDER_ADDRESS.toLowerCase() as Hex, feeTenthsBps: Number(env.WEFT_BUILDER_FEE_TENTHS_BPS ?? 100) }
+    ? { address: env.WEFT_BUILDER_ADDRESS.toLowerCase() as Hex, feeTenthsBps: Number(env.WEFT_BUILDER_FEE_TENTHS_BPS ?? 100), spotFeeTenthsBps: Number(env.WEFT_BUILDER_SPOT_FEE_TENTHS_BPS ?? 1000) }
     : null;
   return {
     enabled: env.WEFT_LIVE_ENABLED === "1",
@@ -66,7 +67,7 @@ export const hlBaseUrl = (network: "testnet" | "mainnet") =>
   network === "mainnet" ? "https://api.hyperliquid.xyz" : "https://api.hyperliquid-testnet.xyz";
 
 export interface LiveStatus {
-  config: { enabled: boolean; network: "testnet" | "mainnet"; builder: string | null; builderFeeBps: number | null; maxAllocationUsd: number | null; maxLeverage: number };
+  config: { enabled: boolean; network: "testnet" | "mainnet"; builder: string | null; builderFeeBps: number | null; builderSpotFeeBps: number | null; builderApproveBps: number | null; maxAllocationUsd: number | null; maxLeverage: number };
   account: LiveAccount | null;
   agentAddress: string | null;
   /** From Hyperliquid, when an account is linked. */
@@ -157,6 +158,9 @@ export class LiveService {
         network: this.cfg.network,
         builder: this.cfg.builder?.address ?? null,
         builderFeeBps: this.cfg.builder ? this.cfg.builder.feeTenthsBps / 10 : null,
+        builderSpotFeeBps: this.cfg.builder ? this.cfg.builder.spotFeeTenthsBps / 10 : null,
+        /** What a full approval covers: accounts below it still trade, spot at the lower fee. */
+        builderApproveBps: this.cfg.builder ? Math.max(this.cfg.builder.feeTenthsBps, this.cfg.builder.spotFeeTenthsBps) / 10 : null,
         maxAllocationUsd: this.cfg.maxAllocationUsd,
         maxLeverage: this.cfg.maxLeverage,
       },
@@ -196,7 +200,9 @@ export class LiveService {
       this.cfg.builder ? info.maxBuilderFee(account.hlAddress, this.cfg.builder.address).catch(() => null) : Promise.resolve(null),
     ]);
     const agentDone = !!agents?.some((a) => a.address.toLowerCase() === agent.address.toLowerCase());
-    const builderDone = !this.cfg.builder || (typeof maxFee === "number" && maxFee >= this.cfg.builder.feeTenthsBps);
+    // Ask for the highest fee Weft charges (spot sells); perps stay at their own, lower fee.
+    const target = this.cfg.builder ? Math.max(this.cfg.builder.feeTenthsBps, this.cfg.builder.spotFeeTenthsBps) : 0;
+    const builderDone = !this.cfg.builder || (typeof maxFee === "number" && maxFee >= target);
     if (agentDone) this.accounts.markApproved(userId, "agent");
     if (builderDone && this.cfg.builder) this.accounts.markApproved(userId, "builder");
     if (!agentDone) {
@@ -205,7 +211,7 @@ export class LiveService {
       out.push({ kind: "agent", typedData: withDomainType(agentReq.typedData) });
     }
     if (this.cfg.builder && !builderDone) {
-      const b = buildApproveBuilderFee({ isMainnet: this.isMainnet, builder: this.cfg.builder.address, maxFeeTenthsBps: this.cfg.builder.feeTenthsBps, signatureChainId, nonce: now + 1 });
+      const b = buildApproveBuilderFee({ isMainnet: this.isMainnet, builder: this.cfg.builder.address, maxFeeTenthsBps: target, signatureChainId, nonce: now + 1 });
       this.pending.set(`${userId}:builder`, { kind: "builder", req: b, hlAddress: account.hlAddress, expires: now + 10 * 60_000 });
       out.push({ kind: "builder", typedData: withDomainType(b.typedData) });
     }
@@ -320,7 +326,10 @@ export class LiveService {
       fetch: this.fetchFn,
       // HIP-4 prediction markets trade through the same agent and account as perps.
       outcomes: { enabled: true },
-      builder: this.cfg.builder && feeMultiplier !== 1 ? { ...this.cfg.builder, feeTenthsBps: Math.round(this.cfg.builder.feeTenthsBps * feeMultiplier) } : this.cfg.builder,
+      builder:
+        this.cfg.builder && feeMultiplier !== 1
+          ? { ...this.cfg.builder, feeTenthsBps: Math.round(this.cfg.builder.feeTenthsBps * feeMultiplier), spotFeeTenthsBps: Math.round(this.cfg.builder.spotFeeTenthsBps * feeMultiplier) }
+          : this.cfg.builder,
       allowMainnetSend: this.isMainnet,
     });
     this.executors.set(key, ex);

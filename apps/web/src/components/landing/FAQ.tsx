@@ -23,7 +23,7 @@ const faqs = [
   },
   {
     q: "What does it cost?",
-    a: `Writing and testing strategies is free. When a strategy trades, you pay ${(brand.builderFeeBps / 100).toFixed(2)}% on Hyperliquid and ${+(brand.swapFeeBps / 100).toFixed(2)}% on Solana swaps. Half of every fee buys back ${$T}. Once ${$T} is live, holders pay half.`,
+    a: `Writing and testing strategies is free. When a strategy trades, you pay ${(brand.builderFeeBps / 100).toFixed(2)}% on Hyperliquid perps, ${+(brand.hlSpotFeeBps / 100).toFixed(2)}% on Hyperliquid spot sales and ${+(brand.swapFeeBps / 100).toFixed(2)}% on Solana swaps. Half of every fee buys back ${$T}. Once ${$T} is live, holders pay half.`,
   },
   {
     q: `What is ${$T} for?`,

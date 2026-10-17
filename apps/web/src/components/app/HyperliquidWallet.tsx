@@ -39,7 +39,7 @@ export function HyperliquidWallet({ status, onChange, autoLink }: { status: Live
 
   const funded = (status.venue?.accountValueUsd ?? 0) > 0;
   const agentOk = !!status.venue?.agentApprovedOnVenue;
-  const builderOk = !status.config.builder || (status.venue?.builderMaxFeeTenthsBps ?? 0) >= (status.config.builderFeeBps ?? 0) * 10;
+  const builderOk = !status.config.builder || (status.venue?.builderMaxFeeTenthsBps ?? 0) >= (status.config.builderApproveBps ?? status.config.builderFeeBps ?? 0) * 10;
   const tradingOn = agentOk && builderOk;
   const d = dep.data;
   const waiting = d && d.walletUsdc >= d.minUsdc && !d.inFlight;
@@ -174,7 +174,7 @@ export function HyperliquidWallet({ status, onChange, autoLink }: { status: Live
         <Step n={3} title="Weft can trade" done={tradingOn} active={funded}>
           <p className="text-[13.5px] leading-relaxed text-ink-2">
             Weft turns this on by itself once your money has arrived: a trading-only key for your account that can place and cancel orders, and nothing else.
-            {status.config.builder ? ` Weft’s fee is ${(status.config.builderFeeBps ?? 0) / 100}% per trade.` : ""}
+            {status.config.builder ? ` Weft’s fee is ${(status.config.builderFeeBps ?? 0) / 100}% on perps${status.config.builderSpotFeeBps ? ` and ${status.config.builderSpotFeeBps / 100}% on spot sales` : ""}.` : ""}
           </p>
           <div className="mt-3 flex flex-wrap items-center gap-2">
             {tradingOn ? (

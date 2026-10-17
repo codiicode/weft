@@ -67,6 +67,8 @@ export interface HlInfo {
   spotClearinghouseState?(user: string): Promise<SpotClearinghouseState>;
   orderStatus?(user: string, oidOrCloid: number | string): Promise<unknown>;
   maxBuilderFee?(user: string, builder: string): Promise<number>;
+  /** The user's fills since `startTime` (ms), each with the builder fee the venue actually took. */
+  userFillsByTime?(user: string, startTime: number): Promise<{ coin: string; oid: number; px: string; sz: string; fee: string; builderFee?: string }[]>;
 }
 
 export class HttpHlInfo implements HlInfo {
@@ -105,6 +107,9 @@ export class HttpHlInfo implements HlInfo {
   }
   maxBuilderFee(user: string, builder: string) {
     return this.post<number>({ type: "maxBuilderFee", user, builder });
+  }
+  userFillsByTime(user: string, startTime: number) {
+    return this.post<{ coin: string; oid: number; px: string; sz: string; fee: string; builderFee?: string }[]>({ type: "userFillsByTime", user, startTime, aggregateByTime: true });
   }
 }
 

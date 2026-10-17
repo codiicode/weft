@@ -79,7 +79,7 @@ function OwnWallet({ s, refresh }: { s: LiveStatus; refresh: () => Promise<unkno
   const linked = s.account && s.account.network === net ? s.account : null;
   const signer = linked ? wallets.find((w) => w.address.toLowerCase() === linked.hlAddress.toLowerCase()) : undefined;
   const agentOk = !!s.venue?.agentApprovedOnVenue;
-  const builderOk = !s.config.builder || (s.venue?.builderMaxFeeTenthsBps ?? 0) >= (s.config.builderFeeBps ?? 0) * 10;
+  const builderOk = !s.config.builder || (s.venue?.builderMaxFeeTenthsBps ?? 0) >= (s.config.builderApproveBps ?? s.config.builderFeeBps ?? 0) * 10;
   const funded = (s.venue?.accountValueUsd ?? 0) > 0;
 
   const run = async (label: string, fn: () => Promise<void>) => {
@@ -168,7 +168,7 @@ function OwnWallet({ s, refresh }: { s: LiveStatus; refresh: () => Promise<unkno
         <Step n={2} title="Allow Weft to trade" done={agentOk && builderOk} active={!!linked}>
           <p className="text-[13.5px] leading-relaxed text-ink-2">
             Sign once in your wallet. This gives Weft a trading-only key for your account: it can place and cancel orders, and nothing else.
-            {s.config.builder ? ` A second signature allows the ${(s.config.builderFeeBps ?? 0) / 100}% trading fee.` : ""}
+            {s.config.builder ? ` A second signature allows Weft’s fee: ${(s.config.builderFeeBps ?? 0) / 100}% on perps${s.config.builderSpotFeeBps ? `, ${s.config.builderSpotFeeBps / 100}% on spot sales` : ""}.` : ""}
           </p>
           {linked && !funded && (
             <p className="mt-2 text-[12.5px] leading-relaxed text-trigger">

@@ -80,7 +80,7 @@ describe("live trading", () => {
 
   it("walks a user from unlinked to ready: link, sign approvals in their wallet, verified on the venue", async () => {
     const builder = privateKeyToAccount(generatePrivateKey()).address.toLowerCase() as `0x${string}`;
-    const { live, hl, privy } = setup({ builder: { address: builder, feeTenthsBps: 50 } });
+    const { live, hl, privy } = setup({ builder: { address: builder, feeTenthsBps: 50, spotFeeTenthsBps: 50 } });
 
     let s = await live.status("u1");
     expect(s.ready).toBe(false);
