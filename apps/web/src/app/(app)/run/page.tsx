@@ -194,6 +194,18 @@ function Run() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [id]);
 
+  // A trade can land between loading the list and the live stream connecting (a strategy that buys
+  // right away does exactly that): whenever the number of trades changes, reload the list.
+  const fillCount = fills.data?.fills.length ?? 0;
+  useEffect(() => {
+    if (!id || !fillCount) return;
+    let alive = true;
+    api.events(id).then((r) => alive && setEvents(r.events.slice(-200).reverse())).catch(() => {});
+    return () => {
+      alive = false;
+    };
+  }, [id, fillCount]);
+
   const s = snap.data;
   const live = useMemo(
     () =>
@@ -226,6 +238,10 @@ function Run() {
 
   const d = s.deployment;
   const money = runMoney(s);
+  // The engine books every fee as realized, including the one paid to open a position that's still
+  // open: "closed profit" leaves that out (it's in Return), so it reads $0 until something closes.
+  const openIds = new Set(s.positions.map((p) => p.id));
+  const closedPnl = s.realizedPnlUsd + (fills.data?.fills ?? []).filter((f) => f.reason === "entry" && openIds.has(f.positionId)).reduce((n, f) => n + f.feeUsd, 0);
   // With leverage, the money put in and the position differ: $5 at 20× holds $100 of ETH.
   const levs = s.positions.map((p) => p.leverage ?? 1);
   const lev = { max: Math.max(1, ...levs), min: Math.min(...(levs.length ? levs : [1])), positionUsd: s.positions.reduce((n, p) => n + p.sizeUsd * (p.leverage ?? 1), 0) };
@@ -342,7 +358,7 @@ function Run() {
             sub={money.fees > 0 ? `after ${fmtUsd(money.fees, 2)} fees${s.builderFeesUsd ? ` (Weft ${fmtUsd(s.builderFeesUsd, 2)})` : ""}` : undefined}
           />
           <Stat label="Open profit" value={fmtUsd(s.unrealizedPnlUsd, 2)} tone={tone(s.unrealizedPnlUsd)} sub={s.positions.length ? fmtPct(money.openPct) : undefined} />
-          <Stat label="Closed profit" value={fmtUsd(s.realizedPnlUsd, 2)} tone={tone(s.realizedPnlUsd)} />
+          <Stat label="Closed profit" value={fmtUsd(closedPnl, 2)} tone={tone(closedPnl)} />
           <Stat label="Last check" value={ago(s.lastTickAt)} />
         </div>
 
