@@ -1,0 +1,288 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Weft vision</title>
+<style>
+  @font-face { font-family: "Newsreader"; src: url("../../scripts/og/newsreader-latin.woff2") format("woff2"); font-weight: 200 800; }
+  @font-face { font-family: "Inst"; src: url("../../scripts/og/instrument-sans-latin.woff2") format("woff2"); font-weight: 400 700; }
+  html, body { margin: 0; background: #0c0c0d; }
+  #stage { position: relative; width: 1920px; height: 1080px; overflow: hidden; background: #0c0c0d; color: #f4f3ef; font-family: "Inst", sans-serif; -webkit-font-smoothing: antialiased; }
+  .serif { font-family: "Newsreader", serif; font-weight: 400; letter-spacing: -0.02em; }
+  .muted { color: #a3a29d; } .faint { color: #6f6e6a; }
+  .label { font-size: 21px; letter-spacing: 0.16em; text-transform: uppercase; color: #6f6e6a; }
+  .m { display: inline-block; overflow: hidden; vertical-align: top; padding: 0.04em 0.06em 0.18em; margin: -0.04em -0.06em -0.18em; }
+  .m > span { display: inline-block; transform: translateY(140%); }
+  .scene { position: absolute; inset: 0; opacity: 0; visibility: hidden; }
+  .tnum { font-variant-numeric: tabular-nums; }
+  svg { overflow: visible; }
+  svg text { font-family: "Inst", sans-serif; }
+</style>
+</head>
+<body>
+<div id="stage">
+  <div id="finish"></div>
+
+  <!-- act 1: a thread through the history of trading -->
+  <div class="scene" id="s-history">
+    <svg id="strip" width="12000" height="1080" style="position:absolute;left:0;top:0"></svg>
+    <div id="hcaps" class="serif" style="position:absolute;left:0;right:0;top:96px;height:90px;font-size:64px"></div>
+    <div id="frags" style="position:absolute;inset:0"></div>
+  </div>
+
+  <!-- act 2: the turn -->
+  <div class="scene" id="s-turn">
+    <div id="turn1" class="serif" style="position:absolute;left:0;right:0;top:400px;text-align:center;font-size:88px"></div>
+    <div id="turn2" class="serif muted" style="position:absolute;left:0;right:0;top:520px;text-align:center;font-size:88px"></div>
+  </div>
+
+  <!-- act 3: one sentence, the world's signals, every market -->
+  <div class="scene" id="s-vision">
+    <svg id="vsvg" width="1920" height="1080" style="position:absolute;inset:0"></svg>
+    <div id="cards" style="position:absolute;inset:0"></div>
+    <div id="prompt" style="position:absolute;left:460px;top:470px;width:1000px;padding:30px 36px;box-sizing:border-box;border-radius:20px;background:linear-gradient(180deg,#17171a,#121214);border:1.5px solid #26262a;box-shadow:0 40px 120px rgba(0,0,0,0.55);font-size:40px"></div>
+    <div id="vcaps" class="serif" style="position:absolute;left:0;right:0;top:880px;height:80px;font-size:56px"></div>
+  </div>
+
+  <div id="end" style="position:absolute;inset:0"></div>
+  <div id="top"></div>
+</div>
+<script src="../shorts/film.js"></script>
+<script>
+$("finish").innerHTML = STAGE_FINISH; $("top").innerHTML = STAGE_TOP; setupFinish();
+const DURATION = 41.9;
+const BEAT = 60 / 146, BAR = 4 * BEAT, B1 = 0.03; // Goldn: first beat at 0.03 s
+const GOLD = "#e9b45a";
+
+/* ================= act 1: history ================= */
+// Each era is a line drawing the thread makes as it passes. Local coordinates, centred on (0, 0).
+const ERAS = [
+  { year: "600 BCE · Lydia", line: "The first coins.", paths: [
+    "M -150 -10 C -150 -110 -60 -160 20 -155 C 110 -150 160 -80 155 10 C 150 100 80 158 -10 152 C -100 146 -150 80 -150 -10",
+    "M -118 -6 C -116 -86 -46 -124 18 -120 C 88 -116 124 -60 121 8 C 118 78 62 120 -8 117 C -80 113 -120 62 -118 -6",
+    "M -78 -52 h 64 v 96 h -64 Z", "M 12 -18 h 58 v 58 h -58 Z", "M -62 -30 L -30 22 M 28 -2 L 54 24"] },
+  { year: "1602 · Amsterdam", line: "The first share anyone could buy.", paths: [
+    "M -140 -190 h 280 v 380 h -280 Z", "M -100 -140 H 100", "M -60 -108 H 60",
+    "M -100 -36 H 100", "M -100 0 H 100", "M -100 36 H 70", "M -100 72 H 100", "M -62 140 C -40 108 -20 162 0 130 C 20 104 42 152 72 124"] },
+  { year: "1792 · Wall Street", line: "Twenty-four brokers, one agreement.", paths: [
+    "M -160 190 H 160", "M -18 190 C -14 120 -16 60 -8 10", "M 18 190 C 14 120 16 60 8 10",
+    "M -8 30 C -50 0 -90 -20 -120 -60", "M 8 20 C 50 -10 90 -30 120 -70", "M 0 10 C 0 -40 -5 -80 0 -120",
+    "M -150 -50 C -190 -100 -130 -170 -70 -150 C -50 -212 40 -212 60 -150 C 120 -180 192 -110 150 -50 C 190 0 120 42 70 20 C 40 62 -40 62 -70 20 C -130 42 -190 0 -150 -50"] },
+  { year: "1867 · New York", line: "Prices start to travel.", paths: [
+    "M -95 40 V -30 C -95 -150 95 -150 95 -30 V 40", "M -130 40 H 130 V 110 H -130 Z", "M -60 -5 H 60", "M -60 20 H 60",
+    "M 125 66 C 196 66 228 122 194 168 C 160 214 70 204 46 236", "M 125 84 C 182 84 206 126 180 160 C 150 198 80 190 60 222"] },
+  { year: "1971 · Nasdaq", line: "Markets move onto screens.", paths: [
+    "M -180 -160 h 360 v 270 h -360 Z", "M -150 -130 h 300 v 210 h -300 Z", "M -40 110 L -60 175 H 60 L 40 110",
+    "M -125 40 L -85 18 L -45 30 L -5 -12 L 35 -2 L 75 -52 L 125 -40"] },
+  { year: "2009 · The internet", line: "Money without a bank.", paths: [
+    "M -215 -40 h 80 v 80 h -80 Z", "M -135 0 H -95", "M -95 -40 h 80 v 80 h -80 Z", "M -15 0 H 25", "M 25 -40 h 80 v 80 h -80 Z", "M 105 0 H 145", "M 145 -40 h 80 v 80 h -80 Z",
+    "M -195 -15 H -155 M -195 5 H -165", "M -75 -15 H -35 M -75 5 H -45", "M 45 -15 H 85 M 45 5 H 75", "M 165 -15 H 205 M 165 5 H 195"] },
+  { year: "Now · Everywhere", line: "Every market, every signal, all at once.", paths: [
+    "M -95 -190 h 190 v 380 h -190 Z", "M -25 -172 H 25",
+    "M -72 -130 H 72", "M -72 -100 H 40", "M -72 -48 H 72", "M -72 -18 H 26", "M -72 34 H 72", "M -72 64 H 50", "M -72 116 H 72", "M -72 146 H 34"] },
+];
+const ERA_X = (i) => 960 + i * 1450, ERA_Y = 440, BASE_Y = 820, T0 = B1 + BEAT, STEP = 6 * BEAT;
+const Ti = (i) => T0 + i * STEP;
+const SV = $("strip");
+const baseline = el("path", { d: `M -200 ${BASE_Y} H 11000`, stroke: GOLD, "stroke-width": 3, fill: "none", "stroke-linecap": "round" }, SV);
+const BASE_LEN = 11200; baseline.style.strokeDasharray = BASE_LEN;
+const eraEls = ERAS.map((e, i) => {
+  const g = el("g", { transform: `translate(${ERA_X(i)} ${ERA_Y})` }, SV);
+  const draw = e.paths.map((d) => el("path", { d, stroke: GOLD, "stroke-width": 3, fill: "none", "stroke-linecap": "round", "stroke-linejoin": "round" }, g));
+  // rise from the baseline into the drawing, and back down after it
+  const first = draw[0].getPointAtLength(0), lastP = draw[draw.length - 1], last = lastP.getPointAtLength(lastP.getTotalLength());
+  const by = BASE_Y - ERA_Y;
+  const rise = el("path", { d: `M -280 ${by} C -200 ${by} ${first.x - 120} ${first.y + 140} ${first.x} ${first.y}`, stroke: GOLD, "stroke-width": 3, fill: "none", "stroke-linecap": "round" }, g);
+  const fall = el("path", { d: `M ${last.x} ${last.y} C ${last.x + 120} ${last.y + 140} 200 ${by} 280 ${by}`, stroke: GOLD, "stroke-width": 3, fill: "none", "stroke-linecap": "round" }, g);
+  const segs = [rise, ...draw, fall].map((p) => { const L = p.getTotalLength(); p.style.strokeDasharray = L; p.style.strokeDashoffset = L; return { p, L }; });
+  const total = segs.reduce((a, s) => a + s.L, 0);
+  const year = svgText(SV, ERA_X(i), BASE_Y + 64, e.year.toUpperCase(), { "font-size": 22, "letter-spacing": 4, fill: "#8c8b86", "text-anchor": "middle", opacity: 0 });
+  const tick = el("circle", { cx: ERA_X(i), cy: BASE_Y, r: 6, fill: GOLD, opacity: 0 }, SV);
+  return { g, segs, total, year, tick };
+});
+const head = el("circle", { r: 7, fill: "#fff3d6", filter: "url(#bloom)", opacity: 0 }, SV);
+const hcaps = captions($("hcaps"), ERAS.map((e, i) => [Ti(i) + 0.2, e.line]), 17.5);
+// the camera follows the thread from era to era
+const camAt = (t) => {
+  let x = ERA_X(0) - 960;
+  for (let i = 0; i < ERAS.length - 1; i++) x += 1450 * eiox(seg(t, Ti(i) + 1.75, Ti(i + 1) + 0.15));
+  return x;
+};
+// what fills the screen in the last era: everything, flickering
+const FEED = [
+  ["ETH", C.blue, (n) => (2431.4 + n * 1.8).toFixed(1)], ["Fear & Greed", C.amber, (n) => String(Math.round(34 + n * 2))], ["Fed cut odds", C.blue, (n) => `${Math.round(61 + n)}%`],
+  ["BTC", C.blue, (n) => Math.round(81204 + n * 40).toLocaleString("en-US")], ["$TSLA mentions", C.pink, (n) => `×${(2.3 + n * 0.2).toFixed(1)}`], ["Funding", C.violet, (n) => `${(0.0034 + n * 0.0004).toFixed(4)}%`],
+  ["US 2Y", C.sky, (n) => `${(3.84 + n * 0.01).toFixed(2)}%`], ["NVDA", C.blue, (n) => `+${(2.1 + n * 0.1).toFixed(2)}%`], ["Headlines", C.sky, (n) => `${Math.round(7 + n)} an hour`],
+  ["SOL", C.blue, (n) => (182.61 + n * 0.3).toFixed(2)], ["Gold", C.blue, (n) => (2640 + n * 3).toFixed(1)], ["Spurs title odds", C.long, (n) => `${(25.6 + n * 0.3).toFixed(1)}%`],
+  ["HL fees", C.violet, (n) => `$${(5.2 + n * 0.05).toFixed(2)}M`], ["Polymarket", C.blue, (n) => `${Math.round(48 + n * 2)}¢`], ["Wallet 7xKp…", C.long, () => "bought"],
+];
+const fr = srnd(11), frags = [];
+for (let r = 0; r < 10; r++) for (let c = 0; c < 8; c++) {
+  const x = 40 + c * 236 + fr() * 70, y = 40 + r * 102 + fr() * 40;
+  if (y < 210 || (x > 600 && x < 1200 && y > 200 && y < 720) || (x > 700 && x < 1220 && y > 800 && y < 920)) continue; // keep the caption, the phone and the year clear
+  const e = div("", `position:absolute;left:${x.toFixed(0)}px;top:${y.toFixed(0)}px;font-size:22px;white-space:nowrap;opacity:0`, $("frags"));
+  frags.push({ e, f: FEED[frags.length % FEED.length], x, y, ta: Ti(6) + 0.45 + fr() * 1.1, base: 0.3 + fr() * 0.4 });
+}
+function drawHistory(t) {
+  if (t > 18.15) return put("s-history", { o: 0 });
+  const cam = camAt(t), vx = Math.abs(vel(camAt, t));
+  const out = eix(seg(t, 17.4, 18.11));
+  put("s-history", { o: 1 - seg(t, 17.8, 18.11), s: 1 + 0.25 * out, blur: 10 * out });
+  SV.style.transform = `translateX(${(-cam).toFixed(1)}px)`;
+  SV.style.filter = filterOf("strip", Math.min(40, vx / 220), 0, 0);
+  let hx = null, hy = null;
+  // the baseline, drawn up to wherever the thread is travelling
+  let reach = ERA_X(0) - 960 - 120 + (ERA_X(0) - 280 - (ERA_X(0) - 960 - 120)) * eio(seg(t, 0, Ti(0)));
+  if (t < Ti(0)) { hx = reach; hy = BASE_Y; }
+  ERAS.forEach((e, i) => {
+    const E = eraEls[i], a = Ti(i), b = Ti(i) + 1.65;
+    const P = eio(seg(t, a, b)) * E.total;
+    let acc = 0;
+    E.segs.forEach((s) => {
+      const d = clamp(P - acc, 0, s.L);
+      s.p.style.strokeDashoffset = s.L - d;
+      if (d > 0 && d < s.L) { const pt = s.p.getPointAtLength(d); hx = ERA_X(i) + pt.x; hy = ERA_Y + pt.y; }
+      acc += s.L;
+    });
+    E.year.setAttribute("opacity", eo(seg(t, a + 0.2, a + 0.7)));
+    E.tick.setAttribute("opacity", eo(seg(t, a, a + 0.3)));
+    // travel on along the baseline to the next era
+    if (i < ERAS.length - 1) {
+      const tr = eiox(seg(t, b, Ti(i + 1)));
+      if (t >= b) { reach = Math.max(reach, ERA_X(i) + 280 + (ERA_X(i + 1) - 280 - ERA_X(i) - 280) * tr); if (tr > 0 && tr < 1) { hx = reach; hy = BASE_Y; } }
+      if (t >= Ti(i + 1)) reach = Math.max(reach, ERA_X(i + 1) - 280);
+    }
+    if (i === ERAS.length - 1 && t >= b) reach = Math.max(reach, ERA_X(i) + 280 + 700 * eo(seg(t, b, b + 1.2)));
+  });
+  baseline.style.strokeDashoffset = BASE_LEN - (reach + 200);
+  if (hx != null) { head.setAttribute("cx", hx); head.setAttribute("cy", hy); head.setAttribute("opacity", 1); } else head.setAttribute("opacity", 0);
+  hcaps(t);
+  // now: everything at once
+  const k = Math.floor(t * 9);
+  frags.forEach((g, i) => {
+    const l = t - g.ta;
+    if (l < 0) { g.e.style.opacity = 0; return; }
+    const flick = l < 0.2 ? (Math.floor(l * 45) % 2 ? 0.2 : 1) : 1;
+    const [name, color, fmt] = g.f;
+    g.e.innerHTML = `<span style="color:${color}">${name}</span>&nbsp; <span class="tnum" style="color:${C.ink2}">${fmt(hash(i, k))}</span>`;
+    g.e.style.opacity = g.base * flick * (1 - seg(t, 17.5, 18.0));
+  });
+}
+
+/* ================= act 2: the turn ================= */
+const turn1 = maskWords($("turn1"), "Every era found a new way to trade.");
+const turn2 = maskWords($("turn2"), "Ours starts with a sentence.");
+function drawTurn(t) {
+  if (t < 18.0 || t > 21.9) return put("s-turn", { o: 0 });
+  put("s-turn", { o: 1 - seg(t, 21.5, 21.9), s: 1 + 0.02 * seg(t, 18.0, 21.9) });
+  reveal(turn1, t, 18.25, 0.07, 0.9, 21.2);
+  reveal(turn2, t, 19.6, 0.07, 0.9, 21.25);
+}
+
+/* ================= act 3: the vision ================= */
+const VS = $("vsvg");
+const PROMPT = "AI keeps eating software. What’s the trade?";
+$("prompt").innerHTML = `<div class="label" style="font-size:16px;margin-bottom:14px">New strategy</div><div id="ptext"></div>`;
+const K = { x: 960, y: 520 };
+// the world's signals: small cards that drift in from every side and gather into the sentence
+const CARDS = [
+  ["Earnings", "NVDA beats, guides higher", C.blue], ["Posts on X", "a CEO you follow posts", C.amber], ["Polymarket", "AI rules pass this year: 34%", C.blue],
+  ["Headlines", "software layoffs, 9 this week", C.sky], ["Funding", "longs pay 0.02% an hour", C.violet], ["Fear & Greed", "62, greed", C.amber],
+  ["Rates", "2-year −10 bp in 5 days", C.sky], ["Wallets", "a fund wallet buys $RENDER", C.long], ["Buzz on X", "$NVDA mentions ×3", C.pink],
+  ["Traders", "a top trader shorts SaaS", C.long], ["Prices", "MSFT breaks its high", C.blue], ["Weather", "Texas grid demand peaks", C.sky],
+];
+const cr = srnd(5);
+const SPOTS = [[330, 210], [800, 165], [1290, 200], [1680, 300], [250, 370], [1040, 340], [1690, 690], [300, 720], [760, 700], [1250, 720], [540, 880], [1460, 880]];
+const cards = CARDS.map(([src, txt, col], i) => {
+  const [cx, cy] = SPOTS[i], ph = cr() * 6;
+  const e = div(`<div style="width:3px;height:18px;background:${col};border-radius:2px"></div><div><div class="label" style="font-size:14px;color:${C.muted}">${src}</div><div style="font-size:22px;margin-top:6px;white-space:nowrap">${txt}</div></div>`,
+    `position:absolute;left:0;top:0;display:flex;gap:14px;align-items:flex-start;padding:16px 20px;border-radius:14px;background:#141416;border:1.5px solid #26262a;opacity:0`, $("cards"));
+  return { e, cx, cy, ph, col, t0: 24.3 + i * 0.09 };
+});
+// the threads the signals become, and the knot
+const threads = [C.amber, C.pink, C.sky, C.blue, C.violet].map((c, i) => {
+  const y0 = 260 + i * 130;
+  const p = el("path", { d: `M -40 ${y0} C 420 ${y0} 600 ${K.y} ${K.x} ${K.y}`, stroke: c, "stroke-width": 3.5, fill: "none", "stroke-linecap": "round" }, VS);
+  p.dataset.len = p.getTotalLength(); p.style.strokeDasharray = p.dataset.len; p.style.strokeDashoffset = p.dataset.len;
+  return p;
+});
+const ring = el("circle", { cx: K.x, cy: K.y, r: 0, fill: "none", stroke: C.long, "stroke-width": 2 }, VS);
+const knot = el("circle", { cx: K.x, cy: K.y, r: 0, fill: C.ink, filter: "url(#bloom)" }, VS);
+// every market, on an orbit round the knot
+const MARKETS = [["NVDA", "NVIDIA"], ["MSFT", "Microsoft"], ["BTC", "Bitcoin"], ["ETH", "Ethereum"], ["SOL", "Solana"], ["GOLD", "Gold"], ["TSLA", "Tesla"], ["OUTCOME", "Prediction markets"], ["HYPE", "Hyperliquid"], ["SP500", "S&P 500"]];
+const mk = MARKETS.map(([sym, name], i) => {
+  const g = el("g", { opacity: 0 }, VS);
+  const img = el("image", { href: `../../apps/web/public/coins/${sym}.svg`, width: 34, height: 34, x: -17, y: -17 }, g);
+  const tx = svgText(g, 0, 44, name, { "font-size": 20, fill: C.ink2, "text-anchor": "middle" });
+  const line = el("path", { stroke: C.long, "stroke-width": 2.5, fill: "none", opacity: 0 }, VS);
+  return { g, line, a0: (i / MARKETS.length) * Math.PI * 2 };
+});
+const TRADE = new Set([0, 1, 7]); // the thesis lands on three of them
+const vcaps = captions($("vcaps"), [[29.6, "Weft watches it all."], [31.9, "And trades it from your own wallet."]], 34.9);
+function drawVision(T) {
+  const t = T - 0.18; // the knot lands on the drop
+  if (t < 21.3 || t > 35.6) return put("s-vision", { o: 0 });
+  const zo = eix(seg(t, 34.9, 35.6));
+  put("s-vision", { o: Math.min(seg(t, 21.3, 21.7), 1 - seg(t, 35.3, 35.6)), s: 1 + 6 * zo, ox: K.x, oy: K.y, blur: 14 * zo });
+  // the sentence
+  const pin = eox(seg(t, 21.5, 22.2)), pout = eix(seg(t, 26.6, 27.3));
+  const n = Math.floor(PROMPT.length * seg(t, 22.1, 24.0));
+  $("ptext").innerHTML = PROMPT.slice(0, n) + (t < 24.4 ? `<span style="display:inline-block;width:3px;height:42px;background:${C.ink};vertical-align:-8px;margin-left:3px"></span>` : "");
+  $("prompt").style.opacity = pin * (1 - seg(pout, 0.6, 1));
+  $("prompt").style.transform = `translateY(${((1 - pin) * 30).toFixed(1)}px) scale(${(1 - 0.92 * pout).toFixed(4)})`;
+  $("prompt").style.transformOrigin = "500px 50px";
+  // the signals gather in, then fall into the sentence
+  cards.forEach((c, i) => {
+    const p = eox(seg(t, c.t0, c.t0 + 0.9)), g = eix(seg(t, 25.9 + i * 0.04, 26.9 + i * 0.04));
+    // in from further out, a slow float, then pulled into the sentence
+    const out = 1 + 0.35 * (1 - p), fl = 6 * Math.sin(t * 0.9 + c.ph);
+    let x = K.x + (c.cx - K.x) * out, y = K.y + (c.cy - K.y) * out + fl;
+    x = lerp(x, K.x, g); y = lerp(y, K.y + 20, g);
+    const w = c.e.offsetWidth, h = c.e.offsetHeight;
+    c.e.style.opacity = t < c.t0 ? 0 : Math.min(p, 1 - seg(g, 0.7, 1));
+    c.e.style.transform = `translate(${(x - w / 2).toFixed(1)}px, ${(y - h / 2).toFixed(1)}px) scale(${(1 - 0.6 * g).toFixed(3)})`;
+    c.e.style.filter = g > 0.05 ? `blur(${(g * 6).toFixed(1)}px)` : "none";
+  });
+  // …and become threads that tie into the knot
+  threads.forEach((p, i) => { drawWire(p, eio(seg(t, 26.7 + i * 0.07, 27.9 + i * 0.07))); p.style.opacity = 1 - 0.6 * eio(seg(t, 28.4, 29.4)); });
+  const k = seg(t, 27.8, 28.2); knot.setAttribute("r", Math.max(0, 22 * back(k) * (k > 0 ? 1 : 0)));
+  const rr = seg(t, 27.9, 29.0); ring.setAttribute("r", 22 + 140 * eox(rr)); ring.setAttribute("opacity", rr > 0 ? (1 - rr) * 0.8 : 0);
+  // every market comes round; the thesis lands on three of them
+  const spin = (t - 28) * 0.12;
+  mk.forEach((m, i) => {
+    const p = eox(seg(t, 28.3 + i * 0.07, 29.0 + i * 0.07));
+    const a = m.a0 + spin, x = K.x + Math.cos(a) * 560, y = K.y + Math.sin(a) * 262;
+    m.g.setAttribute("opacity", p * (TRADE.has(i) || t < 31 ? 1 : 1 - 0.55 * eo(seg(t, 31, 31.6))));
+    m.g.setAttribute("transform", `translate(${x.toFixed(1)} ${y.toFixed(1)}) scale(${(0.8 + 0.2 * p).toFixed(3)})`);
+    if (TRADE.has(i)) {
+      const lp = eio(seg(t, 30.4 + [...TRADE].indexOf(i) * 0.25, 31.2 + [...TRADE].indexOf(i) * 0.25));
+      const dx = x - K.x, dy = y - K.y, L = Math.hypot(dx, dy), ux = dx / L, uy = dy / L;
+      const sx = K.x + ux * 30, sy = K.y + uy * 30, ex = x - ux * 40, ey = y - uy * 40;
+      m.line.setAttribute("d", `M ${sx.toFixed(1)} ${sy.toFixed(1)} L ${(sx + (ex - sx) * lp).toFixed(1)} ${(sy + (ey - sy) * lp).toFixed(1)}`);
+      m.line.setAttribute("opacity", lp > 0 ? 1 : 0);
+    }
+  });
+  vcaps(t);
+}
+function drawWire(w, p) {
+  w.style.strokeDashoffset = w.dataset.len * (1 - p);
+  if (!w._h) w._h = el("circle", { r: 5, filter: "url(#glow)", opacity: 0 }, w.parentNode);
+  if (p > 0 && p < 1) { const pt = w.getPointAtLength(w.dataset.len * p); w._h.setAttribute("cx", pt.x); w._h.setAttribute("cy", pt.y); w._h.setAttribute("fill", w.getAttribute("stroke")); w._h.setAttribute("opacity", 1); }
+  else w._h.setAttribute("opacity", 0);
+}
+
+const drawEnd = endCard($("end"), { line1: "weft.fi", line2: "Trade the thesis." });
+function renderAt(t) {
+  drawHistory(t);
+  drawTurn(t);
+  drawVision(t);
+  drawEnd(t - 35.58);
+  finishFrame(t);
+}
+window.DURATION = DURATION;
+window.renderAt = renderAt;
+window.ready = document.fonts.ready.then(() => true);
+if (!navigator.webdriver) { const t0 = performance.now(); const loop = () => { renderAt(((performance.now() - t0) / 1000) % DURATION); requestAnimationFrame(loop); }; window.ready.then(loop); }
+</script>
+</body>
+</html>
