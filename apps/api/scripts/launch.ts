@@ -27,6 +27,10 @@ if (network !== "devnet" && network !== "mainnet") throw new Error("--network de
 const sendIt = network === "devnet" || process.argv.includes("--send");
 const threshold = Number(arg("threshold", network === "mainnet" ? "85" : "0.06"));
 const devBuy = Number(arg("dev-buy", network === "mainnet" ? "1" : "0.02"));
+// A throwaway test launch: its own name, symbol and metadata, no link to Weft's treasury.
+const test = process.argv.includes("--test");
+const TOKEN = test ? { name: arg("name", "TEST")!, symbol: arg("symbol", "TEST")!, uri: arg("uri", "https://weft.fi/token/test.json")! } : { name: WEFT_TOKEN.name, symbol: WEFT_TOKEN.symbol, uri: WEFT_TOKEN.uri };
+const signerFile = arg("wallet", network === "mainnet" ? "weft-launch" : "devnet-weft")!;
 
 const secrets = new URL("../../../secrets/", import.meta.url).pathname;
 const load = (name: string) => {
@@ -34,8 +38,8 @@ const load = (name: string) => {
   if (!existsSync(p)) throw new Error(`missing ${p}`);
   return Keypair.fromSecretKey(Uint8Array.from(JSON.parse(readFileSync(p, "utf8"))));
 };
-const launch = load(network === "mainnet" ? "weft-launch" : "devnet-weft");
-const treasury = load(network === "mainnet" ? "weft-treasury" : "devnet-treasury").publicKey;
+const launch = load(signerFile);
+const treasury = test ? load(signerFile).publicKey : load(network === "mainnet" ? "weft-treasury" : "devnet-treasury").publicKey;
 const rpc = network === "mainnet" ? process.env.SOLANA_RPC_URL ?? (process.env.HELIUS_API_KEY ? `https://mainnet.helius-rpc.com/?api-key=${process.env.HELIUS_API_KEY}` : "https://api.mainnet-beta.solana.com") : process.env.DEVNET_RPC ?? "https://api.devnet.solana.com";
 const conn = new Connection(rpc, "confirmed");
 const client = new DynamicBondingCurveClient(conn, "confirmed");
@@ -51,11 +55,11 @@ const balance = (await conn.getBalance(launch.publicKey)) / LAMPORTS_PER_SOL;
 
 console.log(`$WEFT launch on ${network}`);
 console.log(`  launch wallet  ${launch.publicKey.toBase58()} · ${fmt(balance)} SOL`);
-console.log(`  fee claimer    ${treasury.toBase58()} (treasury)`);
+console.log(`  fee claimer    ${treasury.toBase58()} (${test ? "the launch wallet itself: a test, nothing goes to Weft" : "treasury"})`);
 console.log(`  curve          graduates at ${threshold} SOL · fee ${LAUNCH_FEE.startBps / 100}% → ${TOKEN_FEE.totalBps / 100}% over ${LAUNCH_FEE.durationSec} s, then ${TOKEN_FEE.totalBps / 100}%`);
-console.log(`  dev buy        ${devBuy} SOL → about ${fmt(expected, 0)} WEFT (${fmt((expected / WEFT_TOKEN.supply) * 100, 2)}% of supply), all burned`);
-console.log(`  token          ${WEFT_TOKEN.name} (${WEFT_TOKEN.symbol}) · ${WEFT_TOKEN.uri} · no mint authority · metadata authority: the launch wallet`);
-const need = devBuy + 0.06;
+console.log(devBuy > 0 ? `  dev buy        ${devBuy} SOL → about ${fmt(expected, 0)} ${TOKEN.symbol} (${fmt((expected / WEFT_TOKEN.supply) * 100, 2)}% of supply), all burned` : "  dev buy        none");
+console.log(`  token          ${TOKEN.name} (${TOKEN.symbol}) · ${TOKEN.uri} · no mint authority · metadata authority: the launch wallet`);
+const need = devBuy + (devBuy > 0 ? 0.06 : 0.04);
 if (balance < need) throw new Error(`the launch wallet needs about ${fmt(need, 2)} SOL (has ${fmt(balance)})`);
 if (!sendIt) {
   console.log("\nNothing sent. Run again with --send to launch.");
@@ -71,7 +75,7 @@ const send = async (tx: Transaction, signers: Keypair[], label: string) => {
 
 const configKp = Keypair.generate(), mintKp = Keypair.generate();
 const record: Record<string, string | number> = { network, at: new Date().toISOString(), config: configKp.publicKey.toBase58(), mint: mintKp.publicKey.toBase58(), feeClaimer: treasury.toBase58(), threshold, devBuySol: devBuy };
-const save = () => writeFileSync(`${secrets}launch-${network}.json`, JSON.stringify(record, null, 2));
+const save = () => writeFileSync(`${secrets}launch-${network}${test ? "-test" : ""}.json`, JSON.stringify(record, null, 2));
 save();
 
 console.log("\n1. config");
@@ -86,15 +90,19 @@ console.log("2. pool, token and dev buy");
 const pool = deriveDbcPoolAddress(NATIVE_MINT, mintKp.publicKey, configKp.publicKey);
 record.pool = pool.toBase58();
 const ata = getAssociatedTokenAddressSync(mintKp.publicKey, launch.publicKey);
+const createPoolParam = { baseMint: mintKp.publicKey, config: configKp.publicKey, name: TOKEN.name, symbol: TOKEN.symbol, uri: TOKEN.uri, payer: launch.publicKey, poolCreator: launch.publicKey };
 record.poolTx = await send(
-  await client.creator.createPoolWithFirstBuy({
-    createPoolParam: { baseMint: mintKp.publicKey, config: configKp.publicKey, name: WEFT_TOKEN.name, symbol: WEFT_TOKEN.symbol, uri: WEFT_TOKEN.uri, payer: launch.publicKey, poolCreator: launch.publicKey },
-    firstBuyParam: { buyer: launch.publicKey, receiver: launch.publicKey, buyAmount: lamports, minimumAmountOut: quote.minimumAmountOut, referralTokenAccount: null },
-  }),
+  devBuy > 0
+    ? await client.creator.createPoolWithFirstBuy({ createPoolParam, firstBuyParam: { buyer: launch.publicKey, receiver: launch.publicKey, buyAmount: lamports, minimumAmountOut: quote.minimumAmountOut, referralTokenAccount: null } })
+    : await client.creator.createPool(createPoolParam),
   [launch, mintKp],
-  "createPoolWithFirstBuy"
+  devBuy > 0 ? "createPoolWithFirstBuy" : "createPool"
 );
 save();
+if (devBuy <= 0) {
+  console.log(`\nlaunched: ${explorer("address", mintKp.publicKey.toBase58())}\n  mint ${record.mint}\n  pool ${record.pool}`);
+  process.exit(0);
+}
 const got = BigInt((await conn.getTokenAccountBalance(ata)).value.amount);
 const gotUi = Number(got) / 10 ** WEFT_TOKEN.decimals;
 console.log(`  dev buy got ${fmt(gotUi, 0)} WEFT (${fmt((gotUi / WEFT_TOKEN.supply) * 100, 3)}% of supply)`);
