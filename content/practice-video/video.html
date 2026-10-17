@@ -60,21 +60,31 @@
     <svg id="cursor1" width="48" height="48" viewBox="0 0 24 24" style="position:absolute;left:0;top:0;opacity:0;filter:drop-shadow(0 4px 10px rgba(0,0,0,0.5))"><path d="M4 2l15 9-7 1.5L8.5 20z" fill="#f4f3ef" stroke="#0c0c0d" stroke-width="1.5" stroke-linejoin="round"/></svg>
   </div>
 
-  <!-- 4. a practice run -->
+  <!-- 4. a practice run: the run page, with real ETH candles in the site's own chart -->
   <div class="scene" id="s-run">
-    <div class="card" id="runCard" style="left:240px;top:250px;width:1440px;height:700px;padding:44px 56px">
-      <div style="display:flex;justify-content:space-between;align-items:center">
-        <div><div style="font-size:46px;font-weight:600;letter-spacing:-0.025em">ETH 20× Long</div><div style="font-size:26px;margin-top:8px" class="muted"><span style="color:#3ecf8e">●</span> Running · practice</div></div>
-        <div id="pnl" class="tnum" style="font-size:72px;font-weight:700;letter-spacing:-0.035em">$0.00</div>
+    <div class="card" id="runCard" style="left:200px;top:215px;width:1520px;height:800px;padding:38px 48px">
+      <div style="display:flex;justify-content:space-between;align-items:flex-start">
+        <div><div style="font-size:44px;font-weight:600;letter-spacing:-0.025em">ETH 20× Long</div><div style="font-size:24px;margin-top:8px" class="muted"><span style="color:#2fc58c">●</span> Running · practice · checks every 15 s</div></div>
+        <div style="text-align:right"><div class="label" style="font-size:18px">Profit</div><div id="pnl" class="tnum" style="font-size:64px;font-weight:700;letter-spacing:-0.035em;line-height:1.1">$0.00</div></div>
       </div>
-      <div style="margin-top:26px;padding:18px 24px;border-radius:14px;background:rgba(240,168,58,0.12);font-size:26px;color:#cfcec9"><b style="color:#f4f3ef">Practice.</b> Pretend money at real prices: these trades aren’t real.</div>
-      <svg id="chart" width="1328" height="300" style="position:absolute;left:56px;top:300px"></svg>
-      <div id="fill" style="position:absolute;right:56px;bottom:44px;width:560px;padding:26px 30px;border-radius:16px;background:#93e3bc;color:#0b1f15">
-        <div style="font-size:20px;letter-spacing:0.14em;font-weight:600;opacity:0.75">TRADE · PRACTICE</div>
-        <div class="tnum" style="font-size:34px;font-weight:700;margin-top:8px">Bought 8.36 ETH at $2,393.60</div>
-        <div class="tnum" style="font-size:26px;margin-top:6px">$1,000 at 20× · fee $29.00</div>
+      <div style="margin-top:20px;padding:16px 22px;border-radius:12px;background:rgba(240,168,58,0.10);border:1px solid rgba(255,255,255,0.06);font-size:23px;color:#cfcec9"><b style="color:#f4f3ef">Practice.</b> Pretend money at real prices: these trades aren’t real.</div>
+      <div style="margin-top:22px;border:1px solid rgba(255,255,255,0.08);border-radius:16px;background:#141416;padding:22px 26px 10px">
+        <div style="display:flex;justify-content:space-between;align-items:center">
+          <div style="display:flex;align-items:center;gap:14px"><img src="../../apps/web/public/coins/ETH.svg" width="40" height="40" style="border-radius:50%"><span style="font-size:28px;font-weight:500">ETH-PERP</span></div>
+          <div style="font-size:20px;color:#808289;display:flex;gap:22px"><span><span style="color:#2fc58c">▲</span> Bought</span><span><span style="color:#f26a57">▼</span> Sold</span><span style="color:#cfcec9">Open market →</span></div>
+        </div>
+        <div style="display:flex;align-items:center;gap:20px;margin-top:16px;font-size:20px;color:#808289">
+          <span>5s</span><span>15s</span><span>30s</span><span style="width:1px;height:20px;background:rgba(255,255,255,0.12)"></span>
+          <span style="color:#f4f3ef;background:#232327;border-radius:8px;padding:4px 12px">1m</span><span>5m</span><span>15m</span><span>30m</span><span>1h</span><span>4h</span><span>1D</span><span>1W</span>
+        </div>
+        <div id="ohlc" class="tnum" style="margin-top:12px;font-size:18px;color:#808289;height:24px"></div>
+        <div id="lw" style="width:1418px;height:370px;margin-top:6px"></div>
       </div>
-      <div class="faint" style="position:absolute;left:56px;bottom:40px;font-size:22px">Example</div>
+      <div class="faint" style="position:absolute;left:52px;bottom:12px;font-size:17px">Example · real ETH prices from Oct 17, 21:00 UTC</div>
+    </div>
+    <div id="toast" style="position:absolute;right:110px;bottom:56px;width:650px;padding:22px 26px;border-radius:16px;background:#1c1c20;border:1px solid rgba(255,255,255,0.1);box-shadow:0 30px 80px rgba(0,0,0,0.55);opacity:0">
+      <div style="display:flex;justify-content:space-between;font-size:20px"><span><span style="color:#2fc58c">●</span> Trade</span><span class="faint">Open →</span></div>
+      <div id="toastText" class="tnum" style="font-size:24px;margin-top:10px;line-height:1.4"></div>
     </div>
   </div>
 
@@ -105,6 +115,8 @@
   <div id="grain" style="position:absolute;inset:0;background-size:256px 256px"></div>
 </div>
 
+<script src="../../node_modules/lightweight-charts/dist/lightweight-charts.standalone.production.js"></script>
+<script src="eth-1m.js"></script>
 <script>
 /* ================= helpers ================= */
 const $ = (id) => document.getElementById(id);
@@ -208,26 +220,55 @@ function drawPanel(t) {
 
 /* ---------- 4. a practice run: b6 (the drop) – b10 ---------- */
 const R = { a: b(6), fill: b(6.5), z: b(10) - 0.3 };
-const chart = $("chart");
-const pts = Array.from({ length: 160 }, (_, i) => { const x = i / 159; return 2393.6 + Math.sin(x * 9) * 1.4 + Math.sin(x * 23 + 1) * 0.7 + x * x * 22 - x * 3; });
-const lo = Math.min(...pts) - 2, hi = Math.max(...pts) + 2;
-const PX = (i) => (i / 159) * 1328, PY = (v) => 280 - ((v - lo) / (hi - lo)) * 260;
-const linePath = el("path", { d: "M" + pts.map((v, i) => `${PX(i).toFixed(1)} ${PY(v).toFixed(1)}`).join(" L "), stroke: C.green, "stroke-width": 4, fill: "none", "stroke-linejoin": "round" }, chart);
-const len = linePath.getTotalLength();
-const entry = el("line", { x1: 0, x2: 1328, y1: PY(2393.6), y2: PY(2393.6), stroke: "#55554f", "stroke-width": 2, "stroke-dasharray": "10 10" }, chart);
-const head = el("circle", { r: 9, fill: C.green, filter: "url(#glow)" }, chart);
-function drawRun(t) {
+const DATA = window.ETH_1M, CANDLES = DATA.candles.map(([t, o, h, l, c]) => ({ time: Math.floor(t / 1000), open: o, high: h, low: l, close: c }));
+const E = DATA.entryIndex, ENTRY = CANDLES[E].close, QTY = 20000 / ENTRY, FEE = 29;
+const LW = window.LightweightCharts;
+const lw = LW.createChart($("lw"), {
+  width: 1418, height: 370,
+  layout: { background: { type: LW.ColorType.Solid, color: "transparent" }, textColor: "#808289", fontFamily: "Inst", fontSize: 17, attributionLogo: false },
+  grid: { vertLines: { color: "rgba(255,255,255,0.05)" }, horzLines: { color: "rgba(255,255,255,0.05)" } },
+  rightPriceScale: { borderVisible: false, scaleMargins: { top: 0.12, bottom: 0.1 } },
+  timeScale: { borderVisible: false, timeVisible: true, secondsVisible: false, rightOffset: 4 },
+  crosshair: { mode: LW.CrosshairMode.Hidden },
+  handleScroll: false, handleScale: false,
+});
+const lo = Math.min(...CANDLES.map((x) => x.low)), hi = Math.max(...CANDLES.map((x) => x.high));
+const candles = lw.addSeries(LW.CandlestickSeries, {
+  upColor: "#2fc58c", downColor: "#f26a57", wickUpColor: "#2fc58c", wickDownColor: "#f26a57", borderVisible: false,
+  priceLineStyle: LW.LineStyle.Dotted, priceFormat: { type: "price", precision: 1, minMove: 0.1 },
+  autoscaleInfoProvider: () => ({ priceRange: { minValue: lo, maxValue: hi } }),
+});
+let markers = null, entryLine = null, shown = -1;
+const fmt1 = (n) => n.toLocaleString("en-US", { minimumFractionDigits: 1, maximumFractionDigits: 1 });
+const ohlcRow = (k) => { const x = k; return `O <span style="color:#cfcec9">${fmt1(x.open)}</span>&nbsp;&nbsp; H <span style="color:#cfcec9">${fmt1(x.high)}</span>&nbsp;&nbsp; L <span style="color:#cfcec9">${fmt1(x.low)}</span>&nbsp;&nbsp; C <span style="color:#cfcec9">${fmt1(x.close)}</span>&nbsp;&nbsp; <span style="color:${x.close >= x.open ? "#2fc58c" : "#f26a57"}">${x.close >= x.open ? "+" : ""}${(((x.close - x.open) / x.open) * 100).toFixed(2)}%</span>`; };
+async function drawRun(t) {
   if (!window_("s-run", t, R.a - 0.05, R.z, { inD: 0.35 })) return;
-  const u = seg(t, R.a + 0.2, R.z);
-  linePath.style.strokeDasharray = len; linePath.style.strokeDashoffset = len * (1 - u);
-  const i = Math.round(u * 159), v = pts[i];
-  head.setAttribute("cx", PX(i)); head.setAttribute("cy", PY(v));
-  const pnl = t < R.fill ? 0 : 8.356 * (v - 2393.6) - 29;
-  $("pnl").textContent = pnl === 0 ? "$0.00" : `${pnl < 0 ? "−" : "+"}$${Math.abs(pnl).toFixed(2)}`;
-  $("pnl").style.color = pnl === 0 ? C.ink : pnl > 0 ? C.green : "#ff6b6b";
-  const f = seg(t, R.fill, R.fill + 0.5);
-  $("fill").style.opacity = f > 0 ? Math.min(1, f * 3) : 0;
-  $("fill").style.transform = `translateY(${(1 - eo(f)) * 50}px) scale(${lerp(0.94, 1, back(f))})`;
+  // history up to the entry candle, then the rest forms one candle at a time; the newest one grows
+  const after = CANDLES.length - 1 - E;
+  const k = t < R.fill ? 0 : seg(t, R.fill + 0.2, R.z - 0.5) * after;
+  const n = E + 1 + Math.floor(k), part = k - Math.floor(k);
+  const list = CANDLES.slice(0, Math.min(n, CANDLES.length));
+  if (n < CANDLES.length && t >= R.fill) {
+    const x = CANDLES[n], c = x.open + (x.close - x.open) * part;
+    list.push({ time: x.time, open: x.open, close: c, high: Math.max(x.open, c, x.open + (x.high - x.open) * part), low: Math.min(x.open, c, x.open + (x.low - x.open) * part) });
+  }
+  if (list.length !== shown) { candles.setData(list); shown = list.length; lw.timeScale().setVisibleLogicalRange({ from: -1, to: CANDLES.length + 3 }); }
+  else candles.update(list[list.length - 1]);
+  const bought = t >= R.fill;
+  if (bought && !markers) {
+    markers = LW.createSeriesMarkers(candles, [{ time: CANDLES[E].time, position: "belowBar", color: "#2fc58c", shape: "arrowUp", text: "Bought", size: 1.4 }]);
+    entryLine = candles.createPriceLine({ price: ENTRY, color: "#7c8cff", lineWidth: 1, lineStyle: LW.LineStyle.Dashed, axisLabelVisible: true, title: "" });
+  } else if (!bought && markers) { markers.setMarkers([]); markers = null; candles.removePriceLine(entryLine); entryLine = null; }
+  const last = list[list.length - 1];
+  $("ohlc").innerHTML = ohlcRow(last);
+  const pnl = bought ? QTY * (last.close - ENTRY) - FEE : 0;
+  $("pnl").textContent = !bought ? "$0.00" : `${pnl < 0 ? "−" : "+"}$${Math.abs(pnl).toFixed(2)}`;
+  $("pnl").style.color = !bought ? C.ink : pnl > 0 ? "#2fc58c" : "#f26a57";
+  const f = seg(t, R.fill, R.fill + 0.45);
+  $("toastText").textContent = `Bought ${QTY.toFixed(4)} ETH-PERP @ ${fmt1(ENTRY)} (20×), fee $${FEE.toFixed(2)}`;
+  $("toast").style.opacity = f > 0 ? Math.min(1, f * 3) * (1 - seg(t, R.z - 0.9, R.z - 0.5)) : 0;
+  $("toast").style.transform = `translateY(${(1 - eo(f)) * 40}px)`;
+  await new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r)));
 }
 
 /* ---------- 5. start it for real: b10 – b12 ---------- */
@@ -285,21 +326,22 @@ function drawEnd(t) {
   reveal(url, l, 2.2, 0.06, 0.9);
 }
 
-function renderAt(t) {
-  drawHook(t); drawMoney(t); drawPanel(t); drawRun(t); drawReal(t); drawEnd(t); caps(t);
+async function renderAt(t) {
+  drawHook(t); drawMoney(t); drawPanel(t); drawReal(t); drawEnd(t); caps(t);
   $("flash").style.opacity = (t >= b(6) ? Math.exp(-(t - b(6)) * 7) * 0.14 : 0).toFixed(3);
   const gx = 50 + 20 * Math.sin(t * 0.21), gy = 40 + 15 * Math.cos(t * 0.17);
   $("glowBg").style.background = `radial-gradient(1100px 700px at ${gx}% ${gy}%, rgba(245,165,36,0.06), transparent 70%)`;
   const fk = Math.floor(t * 24);
   $("grain").style.backgroundImage = GRAIN[fk % 8];
   $("grain").style.backgroundPosition = `${(hash(fk, 1) * 128).toFixed(0)}px ${(hash(fk, 2) * 128).toFixed(0)}px`;
+  await drawRun(t);
 }
 window.DURATION = DURATION;
 window.renderAt = renderAt;
 if (!navigator.webdriver) {
   const q = new URLSearchParams(location.search);
   if (q.has("t")) document.fonts.ready.then(() => renderAt(Number(q.get("t"))));
-  else { const t0 = performance.now(); const loop = () => { renderAt(((performance.now() - t0) / 1000) % DURATION); requestAnimationFrame(loop); }; document.fonts.ready.then(loop); }
+  else { const t0 = performance.now(); const loop = async () => { await renderAt(((performance.now() - t0) / 1000) % DURATION); requestAnimationFrame(loop); }; document.fonts.ready.then(loop); }
 }
 </script>
 </body>
