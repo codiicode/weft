@@ -24,7 +24,7 @@ set -a; source .env >/dev/null 2>&1; set +a
 if [ -n "$DRY" ]; then
   npx tsx scripts/launch.ts --network mainnet 2>&1 | grep -v "bigint: Failed"
   echo; echo "== 2/2 switch Weft onto the token (dry run) =="
-  bash scripts/post-launch.sh 2>/dev/null || echo "post-launch.sh --go runs here once the launch record exists"
+  bash "$ROOT/scripts/post-launch.sh" >/dev/null 2>&1 || echo "post-launch.sh --go runs here once the launch record exists"
   echo; echo "Dry run finished. Nothing was sent."
   exit 0
 fi
