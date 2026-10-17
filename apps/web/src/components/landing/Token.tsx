@@ -1,5 +1,6 @@
 import { Reveal } from "../ui/Reveal";
 import { brand, $T } from "@/config/brand";
+import { ContractAddress } from "./ContractAddress";
 
 /** An inline length of thread with a fee travelling along it. */
 function Thread({ delay = 0 }: { delay?: number }) {
@@ -53,6 +54,7 @@ export function Token() {
           </p>
         </Reveal>
 
+        <ContractAddress />
         <Reveal delay={200}>
           <div className="mt-14">
             <div className="flex items-baseline justify-between text-[13px] text-muted">
@@ -117,7 +119,10 @@ export function Token() {
             <a href="/revenue" className="text-ink underline decoration-line-2 underline-offset-4 hover:decoration-ink">
               Revenue page
             </a>
-            . We’ll post the contract address here at launch. Any token calling itself {$T} before then is fake.
+            .{" "}
+            {brand.contractAddress.startsWith("PLACEHOLDER")
+              ? `We’ll post the contract address here at launch. Any token calling itself ${$T} before then is fake.`
+              : `Any other token calling itself ${$T} is fake.`}
           </p>
         </Reveal>
       </div>
