@@ -25,7 +25,8 @@ export type TokenGates = z.infer<typeof TokenGates>;
 
 export const RiskPolicy = z.object({
   maxPositionPct: z.number().positive().max(100).default(10).describe("Max size of one position, % of allocated equity"),
-  maxTotalExposurePct: z.number().positive().max(500).default(50),
+  /** Counts leverage: the whole budget at 20× is 2,000%. */
+  maxTotalExposurePct: z.number().positive().max(5000).default(50),
   maxLeverage: z.number().min(1).max(50).default(5),
   maxDailyLossPct: z.number().positive().max(100).default(10).describe("Opens are blocked for the day after this loss"),
   /** Off by default: stops are added when the user asks for them (or set this to require one everywhere). */
@@ -88,7 +89,7 @@ export type StrategyInput = z.input<typeof Strategy>;
 /** User-level caps. No defaults on purpose: an absent cap means "no extra restriction". */
 export const RiskCaps = z.object({
   maxPositionPct: z.number().positive().max(100).optional(),
-  maxTotalExposurePct: z.number().positive().max(500).optional(),
+  maxTotalExposurePct: z.number().positive().max(5000).optional(),
   maxLeverage: z.number().min(1).max(50).optional(),
   maxDailyLossPct: z.number().positive().max(100).optional(),
   requireStopLoss: z.boolean().optional(),

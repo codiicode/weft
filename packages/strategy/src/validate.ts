@@ -36,7 +36,7 @@ export function validateStrategy(input: unknown): ValidationResult {
 
 /**
  * The exposure cap never blocks what the strategy itself asks for: "5% of the account at 20×" is
- * 100% exposure, so the cap (default 50%) rises to fit its largest single order. It still binds
+ * 100% exposure, so the cap (default 50%) rises to fit its largest single order (up to 5,000%: the whole budget at 50×). It still binds
  * when several orders add up. (Leverage and position size are checked below as errors instead.)
  */
 export function fitRiskToActions(s: Strategy): Strategy {
@@ -45,7 +45,7 @@ export function fitRiskToActions(s: Strategy): Strategy {
     if (a.type !== "open" || a.size.unit !== "pct_equity") continue;
     exp = Math.max(exp, a.size.value * (a.instrument.kind === "perp" ? a.leverage : 1));
   }
-  exp = Math.min(500, exp);
+  exp = Math.min(5000, exp);
   return exp === s.risk.maxTotalExposurePct ? s : { ...s, risk: { ...s.risk, maxTotalExposurePct: exp } };
 }
 

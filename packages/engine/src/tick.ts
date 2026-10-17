@@ -838,8 +838,14 @@ async function execute(s: Session, intent: Intent, usdPrices: Record<string, num
 }
 
 async function executeOpen(s: Session, i: OpenIntent, usdPrices: Record<string, number>): Promise<void> {
-  const usd = intentUsd(i, usdPrices);
+  let usd = intentUsd(i, usdPrices);
   if (usd == null || !(usd > 0)) return retryLater(s, i, "cannot size order: no USD price");
+  // A share of the budget ("all of it", "half") leaves room for the fee instead of waiting for cash
+  // that never comes; a stated amount is used as given.
+  if (!i.size.fixed && s.rt.cashUsd < usd * 1.01) {
+    const fit = s.rt.cashUsd / (1.01 + (i.instrument.kind === "token" ? 0.02 : 0.003 * i.leverage));
+    if (fit >= 1) usd = Math.min(usd, fit);
+  }
   if (s.rt.cashUsd < usd * 1.01) return retryLater(s, i, `insufficient cash: need ${fmtUsd(usd)}, have ${fmtUsd(s.rt.cashUsd)}`);
   // Prediction markets: make sure the position could be sold straight back before buying it.
   if (i.instrument.kind === "outcome") {

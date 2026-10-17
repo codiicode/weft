@@ -54,6 +54,19 @@ describe("entries and fees", () => {
     expect(await t.engine.getEvents(d.id, { sinceTs: T0 })).toHaveLength(0);
   });
 
+  it("puts the whole budget in when told to, leaving room for the fee", async () => {
+    const t = setup();
+    t.market.set(BTC, 100);
+    t.signals.set("go", { value: 1 });
+    const strategy = simpleStrategy({ instrument: BTC, side: "long", size: { unit: "pct_equity", value: 100 }, leverage: 20, exits: {} }, { risk: { maxPositionPct: 100, maxLeverage: 20 } } as never);
+    const d = await t.engine.createDeployment({ strategy, allocationUsd: 100 });
+    await t.engine.tick(d.id);
+    const s = (await t.engine.getSnapshot(d.id))!;
+    expect(s.positions).toHaveLength(1);
+    expect(s.positions[0]!.sizeUsd).toBeGreaterThan(90); // nearly all of the $100, not 5%
+    expect(s.cashUsd).toBeGreaterThanOrEqual(0);
+  });
+
   it("uses the size-aware fillPrice and respects maxSlippageBps", async () => {
     const t = setup();
     t.market.set(BTC, { price: 100, fillPrice: 100.5 });

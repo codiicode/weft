@@ -152,6 +152,7 @@ async function perpMomentum(thesis: string, symbol: string, catalog: Catalog, pr
     name: `${symbol} ${earnings ? "earnings drift" : side === "long" ? "momentum" : "breakdown"}`,
     thesis,
     tags: [product, earnings ? "earnings" : "momentum"],
+    risk: { maxPositionPct: 100 },
     signals,
     triggers: [
       { id: "entry", when, forMinutes: earnings ? 0 : 15 },
@@ -164,7 +165,8 @@ async function perpMomentum(thesis: string, symbol: string, catalog: Catalog, pr
         on: ["entry"],
         instrument: inst as Extract<Instrument, { kind: "perp" | "token" }>,
         side,
-        size: { unit: "pct_equity", value: 8 },
+        // no amount in the thesis: the whole budget picked at start
+        size: { unit: "pct_equity", value: 100 },
         ...(perp ? { leverage: 2 } : {}),
         exits: { takeProfit: { pct: earnings ? 8 : 12 }, stopLoss: { pct: earnings ? 4 : 5 }, ...(earnings ? {} : { trailingStopPct: 6 }) },
       },
