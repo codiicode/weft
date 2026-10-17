@@ -5,7 +5,7 @@ import { ThemeToggle } from "../ui/ThemeToggle";
 import { Button } from "../ui/Button";
 
 const links = [
-  ["How it works", "#work"],
+  ["How it works", "#demo"],
   ["Markets", "#markets"],
   ["Data", "#watches"],
   ["Safety", "#safety"],

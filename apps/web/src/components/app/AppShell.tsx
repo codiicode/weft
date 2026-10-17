@@ -106,7 +106,7 @@ function OpeningSoon() {
         </p>
         <div className="mt-8 flex flex-wrap gap-2">
           <Btn href={brand.socials.x}>Follow on X</Btn>
-          <Btn href="/#work" variant="quiet">
+          <Btn href="/#demo" variant="quiet">
             See how it works
           </Btn>
         </div>
