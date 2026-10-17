@@ -67,9 +67,9 @@ Weft gets a key that can place trades and nothing else. It can't withdraw. Your 
 Hyperliquid itself, so they hold even if Weft is down.
 
 **8/**
-Writing and backtesting is free, no sign-in needed to try it.
+Writing strategies is free, no sign-in needed to try it.
 
-When a strategy trades: 0.1% on Hyperliquid, 1% on Solana swaps.
+When a strategy trades: 0.1% on Hyperliquid perps, 1% on Hyperliquid spot sales and Solana swaps.
 
 Try a thesis → weft.fi
 
@@ -82,8 +82,7 @@ From a sentence to a live trade.
 
 "Every time SOL drops 5% in a day, long SOL 10x with $100. Take profit at 30%, stop at 15%."
 
-Weft wrote the rules, tested them on 90 days of real prices (12 trades, 67% won), and started it
-from my own account.
+Weft wrote the rules, I read them, and it started trading from my own account.
 
 weft.fi
 
@@ -151,8 +150,8 @@ A strategy in Weft is a sentence you can read back.
 No code, no node editor. If you can say it, you can run it.
 
 9.
-Before anything runs, Weft shows you every rule in plain English and tests it on recent market
-data. You see what it would have done, then decide.
+Before anything runs, Weft shows you every rule in plain English. Not sure yet? Run it as alerts
+only: you get a message for every trade it would make, and no money moves.
 
 10.
 Weft checks your conditions every 15 seconds, all day. Wallet trades arrive the moment they hit
@@ -187,8 +186,8 @@ our servers.
 16.
 What Weft costs:
 · writing strategies: free
-· backtesting: free
-· trading: 0.1% on Hyperliquid, 1% on Solana swaps
+· alerts-only runs: free
+· trading: 0.1% on Hyperliquid perps, 1% on Hyperliquid spot sales and Solana swaps
 
 That's it.
 
