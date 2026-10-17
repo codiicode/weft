@@ -1,7 +1,7 @@
 import { Loom } from "./Loom";
 import { Button } from "../ui/Button";
 
-const LINES = ["Trade the thesis,", "not the chart."];
+const LINES = ["Trade the thesis."];
 
 export function Hero() {
   return (
