@@ -97,6 +97,17 @@
     <svg id="cursor" width="40" height="40" viewBox="0 0 24 24" style="position:absolute;left:0;top:0;opacity:0"><path d="M4 2l15 9-7 1.5L8.5 20z" fill="#f4f3ef" stroke="#0c0c0d" stroke-width="1.5" stroke-linejoin="round"/></svg>
   </div>
 
+  <!-- portfolio: Weft picks the stocks -->
+  <div class="scene" id="s-port">
+    <div class="center serif" id="portTitle" style="top:96px;font-size:80px"></div>
+    <div id="portCard" style="position:absolute;left:140px;top:300px;width:720px;padding:40px 44px;box-sizing:border-box;border-radius:22px;background:linear-gradient(180deg,#17171a,#121214);border:1.5px solid #26262a">
+      <div class="label" style="font-size:18px;margin-bottom:18px">New strategy</div>
+      <div id="portText" style="font-size:38px;line-height:1.42"></div>
+    </div>
+    <div id="portRows" style="position:absolute;left:960px;top:290px;width:820px"></div>
+    <div id="portFoot" style="position:absolute;left:960px;top:880px;width:820px;display:flex;justify-content:space-between"></div>
+  </div>
+
   <!-- simple -->
   <div class="scene" id="s-simple">
     <div class="center serif" id="simpleTitle" style="top:150px;font-size:84px"></div>
@@ -143,7 +154,7 @@ const C = { ink: "#f4f3ef", ink2: "#cfcec9", muted: "#a3a29d", faint: "#6f6e6a",
   blue: "#7c8cff", violet: "#a78bfa", amber: "#f5a524", pink: "#f472b6", sky: "#38bdf8", long: "#3ecf8e", short: "#ff6b6b" };
 const rgb = (h) => [1, 3, 5].map((i) => parseInt(h.slice(i, i + 2), 16));
 const mix = (a, b, x) => { const A = rgb(a), B = rgb(b); return `rgb(${A.map((v, i) => Math.round(lerp(v, B[i], x))).join(",")})`; };
-const DURATION = 73;
+const DURATION = 78.6;
 
 /** Per-scene directional motion blur (an SVG filter whose deviation is set every frame). */
 const MB = {};
@@ -215,7 +226,7 @@ $("endExtras").innerHTML = `
   </span></span><br>
   <span class="m" style="display:inline-block;margin-top:30px"><span class="label" style="font-size:22px">Perps · Stocks · Prediction markets · Solana tokens</span></span>`;
 const endW = [...$("endExtras").querySelectorAll(".m > span")];
-const END = 67.6;
+const END = 72.95; // the end knot ties on bar 45 (74.0 s)
 function drawLogo(t) {
   const end = t >= END - 0.05;
   if (!end && t > 3.6) return put("s-logo", { o: 0 });
@@ -425,7 +436,7 @@ $("gCaption").innerHTML = `<span class="m"><span><span style="color:${C.ink}">5 
 const gCap = [...$("gCaption").querySelectorAll(".m > span")];
 // Live values, and when each condition becomes true.
 const LIVE = [
-  { met: 33.0, val: (t) => (t < 33.0 ? "no post yet" : "matched · just now"), f: null },
+  { met: 32.78, val: (t) => (t < 32.78 ? "no post yet" : "matched · just now"), f: null },
   { met: 31.4, val: (t) => `+${Math.round(liveBuzz(t))}%`, f: (t) => liveBuzz(t), lo: 0, hi: 320 },
   { met: 29.6, val: (t) => `${Math.min(7, Math.floor(seg(t, 26.2, 32.5) * 7.99))} / hour`, f: (t) => Math.min(7, seg(t, 26.2, 32.5) * 8), lo: 0, hi: 8 },
   { met: 27.4, val: (t) => `+${liveTsla(t).toFixed(1)}%`, f: (t) => liveTsla(t), lo: 0, hi: 4 },
@@ -434,7 +445,8 @@ const LIVE = [
 const LIVE_ORDER = LIVE.map((l) => l.met).sort((a, b) => a - b);
 function liveBuzz(t) { return 30 + 230 * eio(seg(t, 26, 31.6)) + 18 * Math.sin(t * 6.3) + (t > 31.6 ? 40 * eo(seg(t, 31.6, 33)) : 0); }
 function liveTsla(t) { return 0.7 + 1.8 * eio(seg(t, 25.2, 27.6)) + 0.12 * Math.sin(t * 4.7); }
-const G = { A: 15.0, B: 35.4, build: 15.4, live: 24.6, fire: 33.15 };
+// Cut to the beat of the soundtrack (146 BPM, a bar every 1.644 s): live on bar 15, the knot fires on bar 20.
+const G = { A: 15.0, B: 35.4, build: 15.4, live: 24.6, fire: 32.91 };
 $("clockRow").innerHTML = `<div style="display:flex;justify-content:space-between;align-items:baseline" class="tnum"><span id="clockDay" style="font-size:28px"></span><span class="label" id="checks" style="font-size:19px"></span></div><div style="margin-top:16px;height:2px;background:#1d1d21;position:relative"><div id="clockBar" style="position:absolute;left:0;top:0;bottom:0;background:#7c8cff;box-shadow:0 0 12px #7c8cff"></div></div>`;
 
 /* The nine phrases lift off the sentence and become the nine boxes. */
@@ -661,7 +673,7 @@ const wPulses = SOURCES.map(([, , c]) => el("circle", { r: 4.5, fill: c, filter:
 const wOutPulses = [0, 1, 2].map(() => el("circle", { r: 5, fill: C.long, filter: "url(#glow)", opacity: 0, cy: WK.y }, WS));
 const W = { A: 46.2, B: 52.6 };
 const wipeAt = (t, t0) => eiox(seg(t, t0, t0 + 0.65));
-const WIPES = [52.15, 58.15];
+const WIPES = [52.15, 58.05, 63.75]; // into copy, into the portfolio, into simple
 function drawWall(t) {
   if (t < 46.0 || t > 52.82) return put("s-wall", { o: 0 });
   const vx = Math.abs(vel((tt) => 1920 * toWall(tt) + 220 * wipeAt(tt, WIPES[0]), t));
@@ -758,11 +770,73 @@ function drawCopy(t) {
   reveal(copySub, t, A + 3.9, 0.035, 0.8);
 }
 
+/* ================= portfolio ================= */
+// One open sentence; Weft picks seven stocks, weights them, and places every order. The picks and
+// weights are what Weft's drafter returned for this sentence.
+const PORT_TEXT = "Build a stock portfolio of the companies you believe in most for Q4. Use $10,000 and split it however you think is best.";
+const PORT_HL = [["Build a stock portfolio", C.long], ["for Q4", C.short], ["split it however you think is best", C.blue]];
+const HOLD = [["NVDA", "NVIDIA", 2500], ["MSFT", "Microsoft", 1500], ["GOOGL", "Alphabet", 1500], ["META", "Meta", 1500], ["AVGO", "Broadcom", 1000], ["TSLA", "Tesla", 1000], ["SPCX", "SpaceX (pre-IPO)", 1000]];
+const ICONS = new Set(["NVDA", "MSFT", "GOOGL", "META", "TSLA"]);
+const portTitle = maskWords($("portTitle"), "Or let it build a portfolio.");
+{
+  let html = PORT_TEXT, k = 0;
+  // wrap the highlighted phrases so they can light up
+  for (const [ph] of PORT_HL) html = html.replace(ph, `<span class="pp" data-k="${k++}">${ph}</span>`);
+  $("portText").innerHTML = html;
+}
+const portSpans = [...$("portText").querySelectorAll(".pp")];
+const portChars = (() => { // every text node split into per-character spans, for typing
+  const out = [];
+  const walk = (n) => { for (const c of [...n.childNodes]) { if (c.nodeType === 3) { const frag = document.createDocumentFragment(); for (const ch of c.textContent) { const sp = document.createElement("span"); sp.textContent = ch; frag.appendChild(sp); out.push(sp); } c.replaceWith(frag); } else walk(c); } };
+  walk($("portText"));
+  return out;
+})();
+const portMax = Math.max(...HOLD.map((h) => h[2]));
+const portRows = HOLD.map(([sym, name, usd], i) => {
+  const icon = ICONS.has(sym) ? `<img src="../../apps/web/public/coins/${sym}.svg" style="width:40px;height:40px;border-radius:50%;background:#fff">` : `<span style="display:grid;place-items:center;width:40px;height:40px;border-radius:50%;background:#26262a;color:#a3a29d;font-size:15px;font-weight:600">${sym.slice(0, 2)}</span>`;
+  const r = div(`<div style="display:grid;grid-template-columns:40px 1fr 150px;gap:22px;align-items:center;height:74px">${icon}
+      <div><div style="display:flex;justify-content:space-between;align-items:baseline"><span style="font-size:30px">${name}</span><span class="tnum muted" style="font-size:22px">${Math.round((usd / 10000) * 100)}%</span></div>
+      <div style="margin-top:10px;height:4px;border-radius:2px;background:#1d1d21;overflow:hidden"><div class="bar" style="height:100%;width:0;border-radius:2px;background:${C.blue}"></div></div></div>
+      <div class="amt tnum" style="text-align:right;font-size:30px">$${usd.toLocaleString("en-US")}</div></div>`, "opacity:0", $("portRows"));
+  return { r, bar: r.querySelector(".bar"), amt: r.querySelector(".amt"), w: usd / portMax };
+});
+$("portFoot").innerHTML = `<span class="label" id="portFootL">7 stocks · $10,000 · no leverage</span><span class="label" style="color:${C.ink}">Sells everything on Dec 31</span>`;
+const PORT = { A: 58.4, B: 64.0 };
+function drawPort(t) {
+  if (t < WIPES[1] || t > WIPES[2] + 0.68) return put("s-port", { o: 0 });
+  const w = wipeAt(t, WIPES[1]), w2 = wipeAt(t, WIPES[2]);
+  put("s-port", { x: 220 * (1 - w) - 220 * w2, o: 1 - 0.8 * w2, clip: w < 1 ? `inset(0 0 0 ${(1920 * (1 - w)).toFixed(1)}px)` : "" });
+  const A = PORT.A;
+  reveal(portTitle, t, A + 0.15, 0.05, 0.8);
+  const cin = eox(seg(t, A + 0.25, A + 0.9));
+  $("portCard").style.opacity = cin; $("portCard").style.transform = `translateY(${((1 - cin) * 30).toFixed(1)}px)`;
+  const n = Math.floor(portChars.length * seg(t, A + 0.45, A + 1.65));
+  portChars.forEach((c, i) => (c.style.opacity = i < n ? 1 : 0));
+  portSpans.forEach((sp, i) => {
+    const col = PORT_HL[i][1], p = eo(seg(t, A + 1.75 + i * 0.15, A + 2.15 + i * 0.15));
+    sp.style.backgroundImage = `linear-gradient(${col}, ${col}), linear-gradient(${col}30, ${col}30)`;
+    sp.style.backgroundSize = `${p * 100}% 3px, ${p * 100}% 100%`; sp.style.backgroundPosition = "0 100%, 0 0"; sp.style.backgroundRepeat = "no-repeat";
+  });
+  let filled = 0;
+  portRows.forEach((row, i) => {
+    const p = eox(seg(t, A + 1.9 + i * 0.12, A + 2.5 + i * 0.12));
+    row.r.style.opacity = p; row.r.style.transform = `translateX(${((1 - p) * 30).toFixed(1)}px)`;
+    row.bar.style.width = `${(row.w * 100 * eo(seg(t, A + 2.0 + i * 0.12, A + 2.8 + i * 0.12))).toFixed(1)}%`;
+    const f = t >= A + 3.3 + i * 0.16; if (f) filled++;
+    row.bar.style.background = f ? C.long : C.blue;
+    row.amt.style.color = f ? C.long : C.ink;
+    row.amt.textContent = `${f ? "✓ " : ""}$${HOLD[i][2].toLocaleString("en-US")}`;
+  });
+  $("portFoot").style.opacity = eo(seg(t, A + 2.9, A + 3.3));
+  $("portFootL").textContent = t >= A + 3.3 ? `${filled} of 7 orders filled` : "7 stocks · $10,000 · no leverage";
+  $("portFootL").style.color = filled === 7 ? C.long : "";
+}
+
 /* ================= simple ================= */
 // The sentence is typed, its four meaningful words are picked out, and each drops into its column
 // of the order ticket. Size and entry are worked out and roll in, then the order fills.
 const SIMPLE = "Long ETH 20x with $100 now.";
-const S = { A: 58.4, B: 63.4 };
+const S = { A: 64.0, B: 69.0 };
 const simpleTitle = maskWords($("simpleTitle"), "Or keep it simple.");
 const SIMPLE_TOKENS = [["Long", C.long], ["ETH", C.blue], ["20x", C.violet], ["$100", C.amber]];
 $("simpleText").innerHTML = [...SIMPLE].map((ch) => `<span>${ch === " " ? "&nbsp;" : ch}</span>`).join("");
@@ -808,10 +882,10 @@ function simpleLayout() {
     return { under, drop, land };
   });
 }
-const toSafe = (t) => eiox(seg(t, 63.0, 63.6));
+const toSafe = (t) => eiox(seg(t, 68.6, 69.2));
 function drawSimple(t) {
-  if (t < WIPES[1] || t > 63.62) return put("s-simple", { o: 0 });
-  const w = wipeAt(t, WIPES[1]), vy = Math.abs(vel((tt) => 1080 * toSafe(tt), t));
+  if (t < WIPES[2] || t > 69.22) return put("s-simple", { o: 0 });
+  const w = wipeAt(t, WIPES[2]), vy = Math.abs(vel((tt) => 1080 * toSafe(tt), t));
   put("s-simple", { x: 220 * (1 - w), y: -1080 * toSafe(t), by: Math.min(40, vy / 200), clip: w < 1 ? `inset(0 0 0 ${(1920 * (1 - w)).toFixed(1)}px)` : "" });
   const A = S.A;
   if (!sTok) sTok = simpleLayout();
@@ -877,11 +951,11 @@ const gateC = el("circle", { cx: 960, cy: 590, r: 26, fill: C.paper, stroke: C.s
 el("rect", { x: 950, y: 588, width: 20, height: 15, rx: 3, fill: C.short }, gate);
 el("path", { d: "M 954 588 v -5 a 6 6 0 0 1 12 0 v 5", stroke: C.short, "stroke-width": 2.5, fill: "none" }, gate);
 const wdDot = el("circle", { r: 6, cy: 590, fill: C.short, filter: "url(#glow)", opacity: 0 }, SS);
-const F = { A: 63.2, B: 67.8 };
+const F = { A: 68.8, B: 73.4 };
 function drawSafe(t) {
-  if (t < 63.0 || t > 67.75) return put("s-safe", { o: 0 });
-  const vy = Math.abs(vel((tt) => 1080 * toSafe(tt), t)), c = eix(seg(t, 67.25, 67.7));
-  put("s-safe", { y: 1080 * (1 - toSafe(t)), by: Math.min(40, vy / 200), s: 1 - 0.97 * c, ox: 960, oy: 420, blur: 12 * c, o: 1 - seg(t, 67.5, 67.72) });
+  if (t < 68.6 || t > 73.1) return put("s-safe", { o: 0 });
+  const vy = Math.abs(vel((tt) => 1080 * toSafe(tt), t)), c = eix(seg(t, 72.6, 73.05));
+  put("s-safe", { y: 1080 * (1 - toSafe(t)), by: Math.min(40, vy / 200), s: 1 - 0.97 * c, ox: 960, oy: 420, blur: 12 * c, o: 1 - seg(t, 72.85, 73.07) });
   const A = F.A;
   reveal(safeTitle, t, A + 0.45, 0.04, 0.8);
   [gWeft, gAcct].forEach((g, i) => { const p = eox(seg(t, A + 0.6 + i * 0.15, A + 1.3 + i * 0.15)); g.style.opacity = p; g.style.transform = `translateY(${((1 - p) * 30).toFixed(1)}px)`; });
@@ -924,10 +998,11 @@ function renderAt(t) {
   drawMontage(t);
   drawWall(t);
   drawCopy(t);
+  drawPort(t);
   drawSimple(t);
   drawSafe(t);
   drawWipeLine(t);
-  if (t < 33 || t > 36) $("flash").style.opacity = 0;
+  if (t < G.fire || t > 36) $("flash").style.opacity = 0;
   const gx = 50 + 20 * Math.sin(t * 0.21), gy = 40 + 15 * Math.cos(t * 0.17);
   $("glowBg").style.background = `radial-gradient(1100px 700px at ${gx}% ${gy}%, rgba(124,140,255,0.07), transparent 70%)`;
   const fk = Math.floor(t * 24);

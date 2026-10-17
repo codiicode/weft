@@ -49,6 +49,18 @@ const SCENES: Scene[] = [
     detail: "Copying 0x7aa1…e8c2 · closes when they close",
   },
   {
+    name: "Prediction markets",
+    threads: [
+      { icon: "/coins/NBA.svg", label: "Spurs, first 15 games", value: 11, fmt: (v) => `${Math.round(v)}–${15 - Math.round(v)}`, need: "≥ 10 wins" },
+      { label: "Spurs title odds on Hyperliquid", value: 25.6, fmt: (v) => `${v.toFixed(1)}%`, need: "> 25%" },
+      { label: "Same question on Polymarket", value: 24.9, fmt: (v) => `${v.toFixed(1)}%`, need: "> 20%" },
+      { label: "Spurs streak", value: 3, fmt: (v) => `won ${Math.round(v)} straight`, need: "winning" },
+    ],
+    rule: "All four conditions met",
+    trade: "Buy Spurs YES with $1,000",
+    detail: "NBA title market · sells if the odds fall under 15% · Hyperliquid",
+  },
+  {
     name: "Perps",
     threads: [
       { icon: "/coins/ETH.svg", label: "ETH", value: 2604, fmt: usd(0), need: "> $2,600" },
