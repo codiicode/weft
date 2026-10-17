@@ -380,7 +380,7 @@ function Builder() {
                     <Btn
                       variant="ghost"
                       className="w-full"
-                      href={`https://x.com/intent/post?text=${encodeURIComponent(`${strategy.name}, a strategy on Weft`)}&url=${encodeURIComponent(`https://weft.fi/s/${saved}`)}`}
+                      href={`https://x.com/intent/post?text=${encodeURIComponent(`${strategy.name}, a strategy on Weft`)}&url=${encodeURIComponent(`https://weft.fi/s/${saved}`)}&via=weftfinance`}
                     >
                       Post it on X
                     </Btn>

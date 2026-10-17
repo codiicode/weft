@@ -51,7 +51,7 @@ function StrategyView() {
             </Btn>
             <Btn
               variant="quiet"
-              href={`https://x.com/intent/post?text=${encodeURIComponent(`${s.name}, a strategy on Weft`)}&url=${encodeURIComponent(`https://weft.fi/s/${e.id}`)}`}
+              href={`https://x.com/intent/post?text=${encodeURIComponent(`${s.name}, a strategy on Weft`)}&url=${encodeURIComponent(`https://weft.fi/s/${e.id}`)}&via=weftfinance`}
             >
               Post on X
             </Btn>

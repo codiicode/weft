@@ -11,7 +11,7 @@ _Last updated by the build session. All numbers below were verified by running t
 | Simulated data never trades | Server refuses live trades on simulated signals (only `model`); the drafter no longer reaches for `model` |
 | Off-site backup | Built (hourly on the volume, R2 copy when `R2_*` is set). R2 keys not set yet. |
 | End-to-end with real money | Done earlier on mainnet (Solana buy/sell/fees/close, Hyperliquid deposit/trade/withdraw). Copy trading has not run with real money yet. |
-| X account | Not created; `brand.socials.x` and the legal pages' contact point to it |
+| X account | @weftfinance (https://x.com/weftfinance): in `brand.socials.x`, the site's twitter card, share links (`via`) and the token metadata |
 | Rotate relayer key | Skipped by decision: the key was shown in a session transcript on 2026-10-17; worst case is losing its gas float (~$12) and gas-free deposits pausing until refilled |
 
 ## What exists
@@ -79,6 +79,27 @@ default 100) and 1% on Solana swaps (`WEFT_SOL_FEE_BPS`, default 100). Half of f
 is Weft's revenue. Holding $WEFT halves the fee: set `WEFT_TOKEN_MINT` and `WEFT_HOLDER_MIN` (tokens) at
 launch (`WEFT_HOLDER_DISCOUNT`, default 0.5); holdings are read on-chain from the user's trading wallet
 and Solana wallets linked to their Privy account. Not built yet: the buyback job and its public ledger.
+
+### The $WEFT token (Meteora Dynamic Bonding Curve, decided 2026-10-17)
+
+`apps/api/src/token/curve.ts`, numbers from `node scripts/token.ts plan`:
+
+- 1B supply, priced in SOL, all of it on the curve. No team share, no vesting, no first buy by Weft. The mint authority is gone at creation; Weft keeps the metadata update authority until the links are final.
+- The curve sells 800M. It starts at a ≈27.4 SOL market cap and graduates at 85 SOL in the curve to a DAMM v2 pool:
+  - about 85 SOL and 200M WEFT, less Meteora's 0.2% migration fee;
+  - graduation price ≈ 425 SOL market cap;
+  - 100% of the LP is permanently locked, and its fees still go to Weft.
+- The trading fee is 3% on the curve and in the graduated pool, paid in SOL:
+  - Meteora keeps 20% of it (0.6%);
+  - Weft gets 2.4%, of which 0.4% is for $WEFT buybacks and 2% is protocol revenue.
+  - The buyback split is Weft's job; the contract pays all 2.4% to Weft.
+- Anti-sniper: the curve fee starts at 30% when trading opens and falls linearly to 3% over 60 s, 0.45 points a second.
+- Verified on devnet on 2026-10-17 with a 0.14 SOL test threshold (mint `EsVaCwjg…`):
+  - the first buy paid 29.1%, and a buy after the minute paid 3%;
+  - sell, graduation, migration and claim all worked;
+  - the DAMM v2 pool's fee reads 3% with a 20% protocol share.
+- Launch wallet: `jaoKYAcEXGVwEVwT6YRwqogvRiXGeEYbtaU6hhAbsu1`. The key is in `secrets/weft-launch.json`. It is unfunded; it creates the config and the pool and is the fee claimer.
+- Still open: mainnet script (create config + pool with the launch wallet), the buyback job, and revoking the metadata authority after launch.
 
 ## Hyperliquid live on mainnet (since 2026-10-16)
 

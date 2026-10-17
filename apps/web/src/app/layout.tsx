@@ -13,7 +13,7 @@ export const metadata: Metadata = {
   description: brand.description,
   metadataBase: new URL(brand.url),
   openGraph: { title: `${brand.name}: ${brand.tagline}`, description: brand.description, type: "website", images: [{ url: "/og.png", width: 1200, height: 630 }] },
-  twitter: { card: "summary_large_image", title: `${brand.name}: ${brand.tagline}`, description: brand.description, images: ["/og.png"] },
+  twitter: { card: "summary_large_image", site: "@weftfinance", title: `${brand.name}: ${brand.tagline}`, description: brand.description, images: ["/og.png"] },
   icons: {
     icon: [
       { url: "/icon.svg", type: "image/svg+xml" },

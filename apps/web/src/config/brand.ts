@@ -24,7 +24,7 @@ export const brand = {
   /** Holding $WEFT cuts trading fees by this much. */
   holderDiscount: 0.5,
   socials: {
-    x: "https://x.com/",
+    x: "https://x.com/weftfinance",
   },
   competitor: {
     name: "Catalyst",

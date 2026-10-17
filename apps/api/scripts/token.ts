@@ -18,14 +18,15 @@ import {
   getCurrentPoint,
   getQuoteFromInputAmount,
 } from "@meteora-ag/dynamic-bonding-curve-sdk";
-import { MIGRATION_FEE_OPTION, TOKEN_FEE, WEFT_TOKEN, weftCurve } from "../src/token/curve.ts";
+import { LAUNCH_FEE, MIGRATION_FEE_OPTION, TOKEN_FEE, WEFT_TOKEN, weftCurve } from "../src/token/curve.ts";
 
 const sol = (lamports: BN | number | bigint) => Number(lamports.toString()) / LAMPORTS_PER_SOL;
 const tokens = (raw: BN | number | bigint) => Number(raw.toString()) / 10 ** WEFT_TOKEN.decimals;
 const fmt = (n: number, d = 4) => n.toLocaleString("en-US", { maximumFractionDigits: d });
 
 function plan(threshold = 85) {
-  const cfg = weftCurve({ migrationQuoteThreshold: threshold });
+  // Quotes below are after the launch minute, at the steady 3%.
+  const cfg = weftCurve({ migrationQuoteThreshold: threshold, launchFee: false });
   const q = (amount: number) => getQuoteFromInputAmount({ config: cfg, swapBaseForQuote: false, amountIn: new BN(Math.round(amount * LAMPORTS_PER_SOL)), slippageBps: 100 } as never) as unknown as { outputAmount: BN; tradingFee: BN; protocolFee: BN };
   // price at the very start, from a tiny buy
   const tiny = q(0.001);
@@ -33,6 +34,8 @@ function plan(threshold = 85) {
   console.log(`$${WEFT_TOKEN.symbol}: ${fmt(WEFT_TOKEN.supply, 0)} supply, ${WEFT_TOKEN.decimals} decimals, priced in SOL`);
   console.log(`graduates at ${threshold} SOL in the curve; 20% of the supply goes into the DAMM v2 pool, locked`);
   console.log(`trading fee ${TOKEN_FEE.totalBps / 100}%: Meteora ${TOKEN_FEE.meteoraBps / 100}%, $WEFT buybacks ${TOKEN_FEE.buybackBps / 100}%, Weft ${TOKEN_FEE.protocolBps / 100}%`);
+  const step = (LAUNCH_FEE.startBps - TOKEN_FEE.totalBps) / LAUNCH_FEE.periods;
+  console.log(`launch: ${LAUNCH_FEE.startBps / 100}% when trading opens, −${step / 100} points a second, ${TOKEN_FEE.totalBps / 100}% from ${LAUNCH_FEE.durationSec} s (${[0, 15, 30, 45, 60].map((s) => `${s} s ${((LAUNCH_FEE.startBps - step * Math.min(s, LAUNCH_FEE.periods)) / 100).toFixed(2)}%`).join(", ")})`);
   console.log(`start price ${startPrice.toExponential(3)} SOL → market cap ≈ ${fmt(startPrice * WEFT_TOKEN.supply, 1)} SOL`);
   for (const a of [0.1, 1, 10]) {
     const r = q(a);
@@ -94,7 +97,7 @@ async function devnet() {
   if (funds < threshold * 1.3 + 0.15) throw new Error(`the buyer needs about ${fmt(threshold * 1.4 + 0.3, 2)} SOL on devnet to reach graduation; use the faucet link above and rerun`);
 
   const resume = process.env.POOL && process.env.MINT ? { pool: new PublicKey(process.env.POOL), mint: new PublicKey(process.env.MINT) } : null;
-  let pool: PublicKey, mint: PublicKey;
+  let pool: PublicKey, mint: PublicKey, openedAt = 0;
   if (resume) ({ pool, mint } = resume);
   else {
   console.log(`config (${threshold} SOL threshold for the test; mainnet uses 85)`);
@@ -107,6 +110,7 @@ async function devnet() {
   const mintKp = Keypair.generate();
   const poolTx = await client.creator.createPool({ baseMint: mintKp.publicKey, config: configKp.publicKey, name: `${WEFT_TOKEN.name} (devnet test)`, symbol: WEFT_TOKEN.symbol, uri: WEFT_TOKEN.uri, payer: weft.publicKey, poolCreator: weft.publicKey });
   await send(conn, poolTx, [weft, mintKp], "createPool");
+  openedAt = Date.now();
   pool = deriveDbcPoolAddress(NATIVE_MINT, mintKp.publicKey, configKp.publicKey);
   mint = mintKp.publicKey;
   console.log(`  mint ${mint.toBase58()}`);
@@ -125,7 +129,8 @@ async function devnet() {
     // A partial fill buys up to graduation and hands back the rest, so an exact-in quote doesn't apply.
     const q = mode === SwapMode.PartialFill ? null : client.pool.swapQuote({ virtualPool: vp, config: cfg, swapBaseForQuote: false, amountIn, slippageBps: 300, hasReferral: false, eligibleForFirstSwapWithMinFee: false, currentPoint: await getCurrentPoint(conn, cfg.activationType) });
     const tx = await client.pool.swap2({ owner: buyer.publicKey, pool, swapBaseForQuote: false, referralTokenAccount: null, swapMode: mode, amountIn, minimumAmountOut: q ? q.minimumAmountOut : new BN(0) } as never);
-    await send(conn, tx, [buyer], q ? `buy ${amountSol} SOL (quoted ${fmt(tokens(q.outputAmount), 0)} WEFT)` : `buy up to ${amountSol} SOL, partial fill to graduation`);
+    const feePct = q ? ((sol(q.tradingFee) + sol(q.protocolFee)) / amountSol) * 100 : 0;
+    await send(conn, tx, [buyer], q ? `buy ${amountSol} SOL (quoted ${fmt(tokens(q.outputAmount), 0)} WEFT, fee ${fmt(feePct, 2)}%)` : `buy up to ${amountSol} SOL, partial fill to graduation`);
   };
 
   if (!resume) {
@@ -133,6 +138,10 @@ async function devnet() {
   await buy(threshold * 0.2);
   const afterBuy = await held();
   console.log(`  holds ${fmt(tokens(afterBuy), 0)} WEFT`);
+  // the launch fee falls to 3% over the first minute; sell and graduate after it
+  const wait = openedAt + (LAUNCH_FEE.durationSec + 3) * 1000 - Date.now();
+  if (wait > 0) { console.log(`  waiting ${Math.ceil(wait / 1000)} s for the launch fee to reach ${TOKEN_FEE.totalBps / 100}%`); await new Promise((r) => setTimeout(r, wait)); }
+  await buy(threshold * 0.02);
   const solBefore = sol(await conn.getBalance(buyer.publicKey));
   const sellTx = await client.pool.swap({ owner: buyer.publicKey, pool, swapBaseForQuote: true, amountIn: new BN(Math.floor(afterBuy / 2)), minimumAmountOut: new BN(0), referralTokenAccount: null });
   await send(conn, sellTx, [buyer], "sell half");
@@ -157,7 +166,8 @@ async function devnet() {
 
   console.log("Weft claims its trading fees");
   const metrics = await client.state.getPoolFeeMetrics(pool);
-  const lamports = (v: unknown) => (v && typeof (v as { toString?: unknown }).toString === "function" && /^[0-9a-f]+$/i.test(String(v)) ? sol(new BN(String(v), 16)) : 0);
+  // BN amounts in lamports (toString is decimal)
+  const lamports = (v: unknown) => (v == null ? 0 : sol(new BN(String(v))));
   console.log(`  unclaimed: ${fmt(lamports(metrics.current.partnerQuoteFee), 6)} SOL for Weft (of ${fmt(lamports(metrics.total.totalTradingQuoteFee), 6)} SOL in trading fees)`);
   const before = sol(await conn.getBalance(weft.publicKey));
   const claimTx = await client.partner.claimPartnerTradingFee({ feeClaimer: weft.publicKey, payer: weft.publicKey, pool, maxBaseAmount: new BN(0), maxQuoteAmount: U64_MAX, receiver: weft.publicKey });

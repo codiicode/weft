@@ -23,6 +23,11 @@ import {
  * the graduated pool. Of Weft's 2.4%, 0.4% buys back $WEFT and 2% is protocol revenue.
  */
 export const TOKEN_FEE = { totalBps: 300, meteoraBps: 60, buybackBps: 40, protocolBps: 200 } as const;
+/**
+ * Against snipers (decided 2026-10-17): the curve's fee starts at 30% when trading opens and falls in a
+ * straight line to 3% over the first minute, one step a second (−0.45 points each). Split the same way.
+ */
+export const LAUNCH_FEE = { startBps: 3000, durationSec: 60, periods: 60 } as const;
 /** The part of Weft's own share of $WEFT trading fees that goes to buybacks (0.4 of 2.4). */
 export const TOKEN_FEE_BUYBACK_SHARE = TOKEN_FEE.buybackBps / (TOKEN_FEE.buybackBps + TOKEN_FEE.protocolBps);
 export const WEFT_TOKEN = {
@@ -41,12 +46,14 @@ export interface CurveOptions {
   curveFeeBps?: number;
   /** Trading fee of the graduated DAMM v2 pool, in bps. */
   migratedPoolFeeBps?: number;
+  /** Start at LAUNCH_FEE and fall to curveFeeBps over its first minute (default true). */
+  launchFee?: boolean;
 }
 
 /** The DAMM v2 config the graduated pool uses: a custom fee tier, so 3% carries on after graduation. */
 export const MIGRATION_FEE_OPTION = MigrationFeeOption.Customizable;
 
-export function weftCurve({ migrationQuoteThreshold, curveFeeBps = TOKEN_FEE.totalBps, migratedPoolFeeBps = TOKEN_FEE.totalBps }: CurveOptions): ConfigParameters {
+export function weftCurve({ migrationQuoteThreshold, curveFeeBps = TOKEN_FEE.totalBps, migratedPoolFeeBps = TOKEN_FEE.totalBps, launchFee = true }: CurveOptions): ConfigParameters {
   return buildCurve({
     token: {
       tokenType: TokenType.SPLToken,
@@ -61,7 +68,9 @@ export function weftCurve({ migrationQuoteThreshold, curveFeeBps = TOKEN_FEE.tot
     fee: {
       baseFeeParams: {
         baseFeeMode: BaseFeeMode.FeeSchedulerLinear,
-        feeSchedulerParam: { startingFeeBps: curveFeeBps, endingFeeBps: curveFeeBps, numberOfPeriod: 0, totalDuration: 0 },
+        feeSchedulerParam: launchFee
+          ? { startingFeeBps: LAUNCH_FEE.startBps, endingFeeBps: curveFeeBps, numberOfPeriod: LAUNCH_FEE.periods, totalDuration: LAUNCH_FEE.durationSec }
+          : { startingFeeBps: curveFeeBps, endingFeeBps: curveFeeBps, numberOfPeriod: 0, totalDuration: 0 },
       },
       dynamicFeeEnabled: false,
       collectFeeMode: CollectFeeMode.QuoteToken, // fees in SOL

@@ -5,6 +5,7 @@
   "image": "https://weft.fi/token/weft-token-512.png",
   "external_url": "https://weft.fi",
   "extensions": {
-    "website": "https://weft.fi"
+    "website": "https://weft.fi",
+    "twitter": "https://x.com/weftfinance"
   }
 }
