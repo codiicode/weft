@@ -18,10 +18,9 @@ echo "start  $DAY (rewards from this UTC day)"
 echo "server WEFT_TOKEN_MINT, WEFT_DBC_POOL, WEFT_REWARDS_START, WEFT_TREASURY_KEY (from secrets/weft-treasury.json)"
 echo "site   brand.contractAddress = $MINT, then deploy"
 [ "${1:-}" = "--go" ] || { echo; echo "Nothing changed. Run with --go."; exit 0; }
-KEY=$(node -e 'process.stdout.write(JSON.stringify(require("./secrets/weft-treasury.json")))')
 railway variables --service weft-api --skip-deploys --set "WEFT_TOKEN_MINT=$MINT" --set "WEFT_DBC_POOL=$POOL" --set "WEFT_REWARDS_START=$DAY" >/dev/null
-railway variables --service weft-api --set "WEFT_TREASURY_KEY=$KEY" >/dev/null
-unset KEY
+# the key goes through stdin: never on screen, never in the process list
+node -e 'process.stdout.write(JSON.stringify(require("./secrets/weft-treasury.json")))' | railway variables --service weft-api --set-from-stdin WEFT_TREASURY_KEY >/dev/null
 echo "server variables set (Railway redeploys the API)"
 sed -i '' "s/contractAddress: \"PLACEHOLDER_CONTRACT_ADDRESS_SOLANA\"/contractAddress: \"$MINT\"/" apps/web/src/config/brand.ts
 grep -q "$MINT" apps/web/src/config/brand.ts || { echo "brand.ts not updated"; exit 1; }
