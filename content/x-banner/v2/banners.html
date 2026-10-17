@@ -637,6 +637,37 @@ const drawBtc = (w, h) => paper2d(w, h, (g) => {
   txt(g, "Stop set at −10%", 40, h - 40, F(36, 600), "#333");
 });
 
+/* ---------- thesis post: copy a trader ---------- */
+const drawLeaders = (w, h) => paper2d(w, h, (g) => {
+  txt(g, "TOP TRADERS · HYPERLIQUID", 40, 70, F(28), "#2e2e2e");
+  txt(g, "Last 30 days", 40, 140, F(56, 700));
+  [["1", "0x8f3a…d21c", "+412%"], ["2", "0x1b7e…90aa", "+287%"], ["3", "0xc04d…5e18", "+194%"]].forEach(([n, a, r], i) => {
+    const y = 262 + i * 112;
+    if (!i) rr(g, 24, y - 64, w - 48, 92, 16, null, "#111", 6);
+    txt(g, n, 52, y, F(40, 600), "#666"); txt(g, a, 110, y, F(40, i ? 500 : 700)); txt(g, r, w - 56, y, F(40, 700), "#111", "right");
+  });
+  txt(g, "You copy #1", 40, h - 40, F(36, 700));
+});
+const drawCopied = (w, h) => paper2d(w, h, (g) => {
+  txt(g, "0x8f3a…d21c · TRADES", 36, 64, F(26), "#2e2e2e");
+  [["Long BTC 5×", true], ["Short SOL", false], ["Long ETH 3×", true], ["Long HYPE", false]].forEach(([l, ok], i) => {
+    const y = 146 + i * 92;
+    if (ok) rr(g, 22, y - 58, w - 44, 82, 14, null, "#111", 5);
+    txt(g, l, 44, y, F(36, ok ? 700 : 500), ok ? "#111" : "#444");
+    txt(g, ok ? "Copied" : "Skipped", w - 48, y, F(32, ok ? 700 : 500), ok ? "#111" : "#444", "right");
+  });
+});
+const drawBtcFloor = (w, h) => paper2d(w, h, (g) => {
+  if (IMG.BTC) g.drawImage(IMG.BTC, 22, 22, 130, 130);
+  txt(g, "BITCOIN", 172, 76, F(30), "#2e2e2e");
+  txt(g, "Above $80k", 172, 130, F(40, 700));
+  txt(g, "$84,310", 40, 320, F(140, 700));
+  const pts = [101, 100.3, 100.8, 102, 101.4, 102.9, 102.2, 103.6, 104.4, 104], x0 = 40, x1 = w - 40, X = (i) => x0 + (i / (pts.length - 1)) * (x1 - x0), Y = (p) => 480 - (p - 100) * 24;
+  g.strokeStyle = "#111"; g.lineWidth = 9; g.lineJoin = "round"; g.lineCap = "round"; g.beginPath(); pts.forEach((p, i) => (i ? g.lineTo(X(i), Y(p)) : g.moveTo(X(i), Y(p)))); g.stroke();
+  g.lineWidth = 5; g.setLineDash([18, 14]); g.beginPath(); g.moveTo(x0, 530); g.lineTo(x1, 530); g.stroke(); g.setLineDash([]);
+  txt(g, "Below $80k, copying pauses", 40, h - 40, F(36, 600), "#333");
+});
+
 /* ---------- the three banners ---------- */
 const Q = new URLSearchParams(location.search), V = Q.get("v") ?? "1";
 // ?raw=1 shows each scene before printing, ?raw=1&ink=1 after
@@ -680,6 +711,17 @@ const BANNERS = {
     tile(80, 560, 600, 320, rulesTile([["WHEN", "Headlines report a Fed cut"]], ["Buy BTC", "$500"], "Stop at 10%"), "pink", o);
     tile(1000, 570, 520, 300, fillTile("ORDER FILLED", "Bought BTC", "$500 at $81,204", ["Stop at −10% on Hyperliquid", "From your own wallet"]), "green", o);
     postPrompt(290, 410, 1020, "“If headlines report a Fed cut, buy $500 of BTC. Stop at 10%.”");
+  },
+
+  copy() {
+    $b.style.width = "1600px"; $b.style.height = "900px"; $b.className = "dark"; dots("#2a2a2e", 24);
+    const o = { contrast: 1.0, cell: 5, solid: 0.42 };
+    tile(56, 34, 480, 340, drawLeaders, "news", o);
+    tile(592, 66, 420, 260, drawCopied, "pink", o);
+    tile(1068, 30, 480, 330, drawBtcFloor, "sky", o);
+    tile(80, 560, 600, 320, rulesTile([["WHEN", "Top trader opens a trade"], ["AND", "It’s BTC or ETH"], ["AND", "BTC above $80k"]], ["Copy it", "$100"], "Their timing. Your size."), "amberBlue", o);
+    tile(1000, 570, 520, 300, fillTile("COPIED", "Long BTC", "$100 at $84,310", ["Copied from 0x8f3a…d21c", "From your own wallet"]), "green", o);
+    postPrompt(330, 396, 940, "“Copy the top trader on Hyperliquid, but only BTC and ETH, $100 per trade, and only while BTC is above $80k.”");
   },
 
   start() {
