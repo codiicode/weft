@@ -1,240 +1,260 @@
-# Weft: tweets
+# Weft on X: launch thread and posts after
 
-Rules for everything here: only claim what is live today, real prices and fees, no hype words,
-no "memecoins" (say tokens), never put words in a real person's mouth (a strategy can *react to*
-@elonmusk posting, it never quotes him). Fees: free to write and test, 0.1% on Hyperliquid trades,
-1% on Solana swaps.
+Voice: calm, exact, concrete. Every tweet shows one real thing Weft does.
+
+- No hype words (revolutionary, game-changer, next-gen), no rockets, no profit promises.
+- Only what's live. Never mention backtests (hidden for now) or options.
+- Fees today: 0.1% on Hyperliquid perps and prediction markets, 1% on Hyperliquid spot sells and on Solana swaps.
+- `[card]` means: attach the strategy's share card. Open the strategy on weft.fi, press Share; the link `weft.fi/s/…` unfurls as a card.
+- Lengths are checked: every tweet is 280 characters or less.
 
 ---
 
-## 1. Launch thread (with the launch video)
+## 1. Launch thread (post with `content/launch-video/out/weft-launch-v5.mp4` on 1/)
 
 **1/**
-Weft is live.
+You have a thesis. Weft makes it a trade.
 
-Write a trade the way you'd say it. Weft turns it into rules you can read, tests them on real
-history, and trades them from your own wallet.
-
-Perps, stocks, prediction markets and Solana tokens.
+Say what you think will happen, in plain English. Weft turns it into rules you can read, watches the world for you, and trades it from your own wallet.
 
 weft.fi
-[video: weft-launch-v3-x.mp4]
 
 **2/**
-Most trading tools ask you to pick a price.
+It reads more than charts.
 
-But a thesis is rarely about one price. It's "if this happens, and that, and the market agrees,
-then go". Weft is built for that: one sentence, as many conditions as you need.
+Posts on X. Headlines. Prediction-market odds. Funding. Wallets. Sports results. The weather. Rates and inflation.
+
+"If Fed cut odds pass 65% and the 2-year yield falls, buy BTC and gold" is one sentence. Weft watches it around the clock.
 
 **3/**
-What it can watch, all in the same sentence:
+One sentence, every market:
 
-· prices, funding, open interest
-· posts and buzz on X
-· headlines
-· Polymarket odds
-· wallets and top traders
-· Fear & Greed, rates, Fed dates
-· weather forecasts
-· protocol fees and TVL
+· perps and stocks on Hyperliquid
+· prediction markets
+· Solana tokens and tokenized stocks
+
+Same app, same wallet.
 
 **4/**
-Example:
+You see every rule before anything runs, written out in plain English.
 
-"If @elonmusk posts about flying cars at the Tesla event while $TSLA mentions on X triple and
-TSLA is up 2%, long TSLA 10x with $200. Take profit at 40%, stop at 15%."
+Change one by saying it: "tighter stop", "half the size", "sell if the buzz fades".
 
-Five conditions, five sources. Weft checks them every 15 seconds and trades when all are true.
+Not ready to put money in? Run it as alerts only. You get a message for every trade it would make.
 
 **5/**
-Or keep it simple.
+Your money stays yours.
 
-"Long ETH 20x with $100 now."
+Weft gets a key that can place trades and nothing else. It can't withdraw or send your money anywhere.
 
-That works too.
+Stops on Hyperliquid sit on Hyperliquid itself, so they hold even if Weft is offline.
 
 **6/**
-Or copy someone.
+Or don't write anything.
 
-Pick one of Hyperliquid's most profitable traders, or any Solana wallet. Weft copies every new
-trade with your amount and closes when they close. You can add conditions, like only copying
-while BTC is above $80k.
+Copy a top Hyperliquid trader or any Solana wallet, with your own size and your own conditions:
+
+"Copy this trader, but only while BTC is above $80k."
 
 **7/**
-Your money never leaves your account.
+Writing strategies is free. When one trades, Weft takes 0.1% on Hyperliquid perps and 1% on spot sales and Solana swaps.
 
-Weft gets a key that can place trades and nothing else. It can't withdraw. Your stops sit on
-Hyperliquid itself, so they hold even if Weft is down.
+Half of every fee goes to $WEFT buybacks. More on that soon.
 
 **8/**
-Writing strategies is free, no sign-in needed to try it.
+What's your thesis?
 
-When a strategy trades: 0.1% on Hyperliquid perps, 1% on Hyperliquid spot sales and Solana swaps.
-
-Try a thesis → weft.fi
+Write it at weft.fi. No sign-in needed to draft one.
 
 ---
 
-## 2. Captions for the short videos
+## 2. Posts after launch
 
-**Tour** (content/shorts/out/weft-tour.mp4, 42 s)
-From a sentence to a live trade.
+Post one or two a day. The best format is a thesis plus its card: it shows the product in one look.
 
-"Every time SOL drops 5% in a day, long SOL 10x with $100. Take profit at 30%, stop at 15%."
+### Theses (one sentence, the rules, the card)
 
-Weft wrote the rules, I read them, and it started trading from my own account.
+**T1: prediction markets** [card: spurs-hot-start]
+"If the Spurs win 10 of their first 15 games and their title odds pass 25%, put $1,000 on them winning it all. Sell if the odds drop below 15%."
 
-weft.fi
+Weft watches the standings and the odds. One sentence, two conditions, one trade.
 
-**Copy a trader** (content/shorts/out/weft-copy.mp4, 28 s)
-Copy a trader, keep your own rules.
+**T2: macro** [card: fed-pivot]
+Bonds tend to price a rate cut before the odds do.
 
-Pick one of Hyperliquid's most profitable accounts, add a condition in plain words ("only while BTC
-is above $80k"), and Weft mirrors every new trade with your amount. They close, you close.
+"When Fed cut odds pass 65% while the 2-year yield falls, buy YES on the cut, and get long BTC and gold."
 
-**What Weft watches** (content/shorts/out/weft-sources.mp4, 25 s)
-Weft watches more than prices.
+A prediction market, a perp and a commodity, from one sentence.
 
-Posts on X, buzz, headlines, Polymarket odds, wallets, Fear & Greed, rates, the weather. Mix any of
-them in one sentence.
+**T3: weather** [card: cold-snap]
+A colder week in the Midwest means more heating and more demand for gas.
 
----
+"Long natural gas when Chicago's forecast drops 5°C."
 
-## 3. Standalone tweets
+Weft checks the forecast around the clock and trades when it turns.
 
-**Strategies as tweets** (each one is a real, runnable strategy; link it with a share link from the app)
+**T4: sentiment** [card: buy-the-panic]
+"When the Fear & Greed Index hits 20, open 20× longs on ETH and BTC with $100 each."
 
-1.
-"If the Fear & Greed index hits 20, open a 20x long on ETH and BTC with $100 each."
+Most people buy the panic in hindsight. Weft does it while it's happening.
 
-That's a whole strategy. Paste it into Weft.
+**T5: stocks on Solana** [card: nvdax-earnings-drift]
+"Buy tokenized NVDA two days before earnings, sell before the print."
 
-2.
-"Long natural gas 2x with $100 if Chicago is forecast to be 5°C colder next week."
+Weft knows the earnings calendar. Tokenized stocks trade around the clock on Solana.
 
-Weft reads the forecast so you don't have to.
+**T6: crowded trades** [card: crowded-fade]
+"When SOL longs get crowded, with funding high and open interest far above normal, short it with a tight stop."
 
-3.
-"Long BTC 2x with $100 if Polymarket's odds of a Fed cut pass 60%."
+Funding and open interest from Hyperliquid, Binance and Bybit, checked around the clock.
 
-Prediction markets as a signal, perps as the trade.
+**T7: breakouts** [card: eth-breakout-20x]
+"Open a 20× ETH long if ETH breaks $2,600 while funding stays under 0.01% an hour."
 
-4.
-"Copy 0x7aa1…e8c2 with $100 a trade, but only while Fear & Greed is above 50."
+The second condition is the point: a breakout nobody is overpaying for.
 
-Copy trading with a condition on top.
+### What Weft can do
 
-5.
-"Buy $PUMP with 0.5 SOL when three wallets I follow buy it within an hour and liquidity is above
-$2M."
+**F1: posts on X**
+Weft can act when an account you pick posts about something specific.
 
-6.
-"Short SOL 3x with $100 when funding goes over 0.02% an hour and open interest is 30% above
-normal. Stop at 8%."
+Not keywords. It reads the post and decides whether it's about what you said, then checks the rest of your rules.
 
-Crowded trades, unwound.
+**F2: wallets**
+Follow a wallet on Solana. When it buys, Weft knows within seconds, and can buy too: your size, your limits, only if the token passes its safety checks.
 
-7.
-"Buy 0.5 SOL of $JUP now."
+**F3: copy trading**
+Copy a Hyperliquid trader, but on your terms:
 
-Not everything has to be clever.
+· your own size per trade
+· only while a condition holds
+· up to N positions at once
+· their exits, or your own stops
 
-**Product**
+It never copies positions they opened before you started.
 
-8.
-A strategy in Weft is a sentence you can read back.
+**F4: plain-English edits**
+A running strategy takes instructions:
 
-"When ETH breaks $2,600 and funding stays under 0.01% an hour, long ETH 5x with $100. Stop at
-10%."
+"sell half"
+"move the stop to break-even"
+"take profit at 30%"
 
-No code, no node editor. If you can say it, you can run it.
+You see exactly what will change before anything does.
 
-9.
-Before anything runs, Weft shows you every rule in plain English. Not sure yet? Run it as alerts
-only: you get a message for every trade it would make, and no money moves.
+**F5: safety on Solana tokens**
+Before every Solana token buy, Weft checks whether the dev can still mint or freeze, how much the top wallets hold, how deep the liquidity is and whether the dev has sold.
 
-10.
-Weft checks your conditions every 15 seconds, all day. Wallet trades arrive the moment they hit
-the chain.
+A failed check warns you. "Only if it's safe" turns it into a hard stop.
 
-11.
-Every strategy can run as alerts only. Weft messages you when it would have traded, and no money
-moves.
+**F6: stops that hold**
+On Hyperliquid, your stop-loss and take-profit sit on Hyperliquid itself.
 
-12.
-Share a strategy with one link. Anyone can open it, read the rules, and run their own copy.
+If Weft goes offline, they still fire.
 
-13.
-New tokens are where people get hurt. Weft finds tokens by contract address, not ticker, and
-checks every buy: can the dev still mint or freeze, how much do the top wallets hold, how deep is
-the liquidity, has the dev sold.
+**F7: alerts only**
+Every strategy can run as alerts only. Same rules, same data, no money. You get a message for each trade it would have made.
 
-**Safety**
+Watch it for a week. Then decide.
 
-14.
-Weft never holds your money.
+**F8: deposits**
+Send USDC on Arbitrum to your Weft address. Weft moves it onto Hyperliquid for you and pays the network fee.
 
-Your funds stay in your own Hyperliquid account and your own Solana wallet. Weft's key can place
-trades. It cannot withdraw.
+No bridge, no extension, nothing to approve.
 
-15.
-If Weft goes down, your stops on Hyperliquid stay where they are. They live on Hyperliquid, not on
-our servers.
+**F9: your wallet**
+The wallet Weft makes for you is yours. Export the key to Phantom, Rabby or MetaMask whenever you like, and use the same account anywhere.
 
-**Fees and revenue**
+**F10: Telegram**
+Get every fill, stop and alert in Telegram. Link it once in Settings.
 
-16.
-What Weft costs:
-· writing strategies: free
-· alerts-only runs: free
-· trading: 0.1% on Hyperliquid perps, 1% on Hyperliquid spot sales and Solana swaps
+### Engagement
 
-That's it.
+**E1**
+What's your thesis for this week?
 
-17.
-Every fee Weft earns is public, live, at weft.fi/revenue. Half of it is set aside to buy back
-$WEFT.
+Reply with one sentence. We'll turn the best ones into strategies and post the cards.
 
-**Copy trading**
+**E2**
+Name a market Weft should watch that nobody else does.
 
-18.
-The traders page lists Hyperliquid's most profitable accounts over the last 30 days, with
-profit, return and account size. Click Copy and pick your amount.
+**E3**
+Which one are you?
 
-19.
-Copying a wallet you trust is one sentence:
+· "I know what should happen, I just can't watch it all day"
+· "I want to copy someone better than me"
+· "I want to bet on my team"
 
-"Copy wallet 7xKp…9fQe on Solana with 0.2 SOL a trade, only tokens with $100k+ liquidity, max 5
-open."
+Weft does all three.
 
-**Short and punchy** (for days with nothing to announce)
+### Short ones
 
-20.
-Trade the thesis, not the chart.
-
-21.
-You know what should happen. You just can't watch everything at once.
-
-22.
-Your opinion, running 24/7, from your own wallet.
+- Trade the thesis.
+- You call it. Weft trades it.
+- Opinions are free. Now they're tradable.
+- The best traders don't stare at charts all day. They set rules and let them run.
 
 ---
 
-## 4. Replies (for common questions)
+## 3. $WEFT thread (post at token launch; fill in the address)
 
-**"Is it custodial?"**
-No. Your money stays in your own Hyperliquid account and Solana wallet. Weft's key can trade but
-can't withdraw. You can revoke it any time.
+**1/**
+$WEFT is live.
 
-**"Which markets?"**
-Hyperliquid perps (crypto, stocks, commodities), Hyperliquid prediction markets, and Solana tokens
-through Jupiter.
+Contract: `[ADDRESS]`
 
-**"Do I need to code?"**
-No. You write a sentence, Weft shows you the rules in plain English, you test it, you start it.
+This is the only address. Anything else calling itself $WEFT is fake.
 
-**"What does it cost?"**
-Free to write and test. 0.1% per trade on Hyperliquid, 1% on Solana swaps.
+**2/**
+How it launched:
 
-**"Can I lose money?"**
-Yes. Leverage can lose more than you expect and tokens can go to zero. Test first and start small.
+· all of the supply on the curve, no team tokens
+· Weft's own buy at launch: burned in the same minute
+· the liquidity locks forever when the curve completes
+
+**3/**
+What it's for: Weft buys $WEFT on the open market, in small amounts about every ten minutes.
+
+With half of every fee the app earns, and 0.4% of every $WEFT trade.
+
+**4/**
+Of everything it buys:
+
+· 50% goes back to the people who traded with Weft that day, by the fees they paid
+· 20% to the people whose strategies others ran
+· 30% is burned
+
+Claim yours every day, right after midnight UTC.
+
+**5/**
+Hold it, pay less:
+
+· Holder, 100K $WEFT: 25% off every trade, 1.5× rewards
+· Whale, 1M $WEFT: 50% off, 2× rewards
+
+Both get 100 AI drafts a day instead of 30.
+
+**6/**
+Every fee, buyback, burn and reward is public at weft.fi/revenue.
+
+### Weekly after launch
+
+**W1**
+This week on Weft:
+
+· $[X] in fees
+· [N] $WEFT bought back
+· [N] burned
+· [N] shared out to traders and creators
+
+All on-chain: weft.fi/revenue
+
+---
+
+## 4. Profile
+
+- Name: Weft
+- Bio: You have a thesis. Weft makes it a trade.
+  Perps · stocks · prediction markets · Solana
+- Website: weft.fi
+- Pinned: the launch thread
