@@ -446,6 +446,42 @@ function postPrompt(x, y, w, text) {
   return e;
 }
 
+
+/* ---------- explainer graphics (1600 × 900) ---------- */
+const drawSource = (kicker, value, sub) => (w, h) => paper2d(w, h, (g) => {
+  txt(g, kicker, 30, 58, F(26), "#2e2e2e");
+  txt(g, value, 28, 150, F(value.length > 12 ? 50 : 62, 700));
+  if (sub) txt(g, sub, 30, 210, F(28, 500), "#333");
+});
+const drawMarket = (icon, kicker, value, sub) => (w, h) => paper2d(w, h, (g) => {
+  if (icon && IMG[icon]) g.drawImage(IMG[icon], 34, 34, 150, 150);
+  txt(g, kicker, 36, h - 196, F(32), "#2e2e2e");
+  txt(g, value, 32, h - 116, F(64, 700));
+  if (sub) txt(g, sub, 36, h - 48, F(34, 500), "#333");
+});
+const drawMiniRules = (lines) => (w, h) => paper2d(w, h, (g) => {
+  const gap = 22, bh = (h - 52 - gap * (lines.length - 1)) / lines.length;
+  lines.forEach(([k, v], i) => {
+    const y = 26 + i * (bh + gap);
+    rr(g, 26, y, w - 52, bh, 20, "#e8e8e8", "#111", 5);
+    txt(g, k, 56, y + bh * 0.36, F(26), "#2e2e2e"); txt(g, v, 56, y + bh * 0.74, F(44, 600));
+  });
+});
+const drawMiniWallet = (w, h) => paper2d(w, h, (g) => {
+  rr(g, 26, 26, w - 52, h - 52, 28, "#ececec", "#111", 5);
+  txt(g, "YOUR WALLET", 66, 108, F(28), "#2e2e2e");
+  txt(g, "$12,480.00", 62, 240, F(96, 700));
+  txt(g, "Weft trades from it.", 66, h - 150, F(40, 600));
+  txt(g, "It can't withdraw.", 66, h - 88, F(40, 500), "#444");
+});
+const drawStep = (n, title, body) => (w, h) => paper2d(w, h, (g) => {
+  txt(g, n, 34, 130, F(110, 400, "Newsreader"));
+  txt(g, title, 38, 214, F(48, 700));
+  body(g, w, h);
+});
+const chip = (g, x, y, t) => { g.font = F(30, 600); const tw = g.measureText(t).width; rr(g, x, y, tw + 44, 62, 31, null, "#111", 4); txt(g, t, x + 22, y + 42, F(30, 600)); return tw + 44; };
+function headline(text, x, y, size = 64) { div(text, `position:absolute;left:${x}px;top:${y}px;font-size:${size}px;color:#f4f3ef;line-height:1.1`).classList.add("serif"); }
+
 /* ---------- the three banners ---------- */
 const Q = new URLSearchParams(location.search), V = Q.get("v") ?? "1";
 // ?raw=1 shows each scene before printing, ?raw=1&ink=1 after
@@ -470,6 +506,84 @@ function banner1(scenes, text, cells = [], layout = LAYOUT, withLogo = true) {
   if (withLogo) logo(1268, 418, 44, "dark");
 }
 const BANNERS = {
+  // 1: what Weft is
+  w1() {
+    $b.style.width = "1600px"; $b.style.height = "900px";
+    $b.className = "dark"; dots("#2a2a2e", 24);
+    const o = { contrast: 1.0, cell: 5, solid: 0.42 };
+    headline("An AI agent that trades your ideas.", 0, 70, 70);
+    $b.lastChild.style.cssText += ";left:0;right:0;text-align:center";
+    tile(60, 210, 420, 330, drawMiniRules([["WHEN", "Fed cut odds pass 65%"], ["AND", "2-year yield falls"], ["THEN", "Buy BTC and gold"]]), "amberBlue", o);
+    tile(1120, 230, 420, 300, drawMiniWallet, "orange", o);
+    postPrompt(530, 300, 540, "“When Fed cut odds pass 65% and the 2-year yield falls, buy BTC and gold.”");
+    tile(60, 600, 350, 260, drawMarket("BTC", "PERPS", "BTC long 10×", "on Hyperliquid"), "sky", o);
+    tile(440, 600, 350, 260, drawMarket("NVDA", "STOCKS", "NVDA · TSLA", "perps and tokens"), "news", o);
+    tile(820, 600, 350, 260, drawMarket("OUTCOME", "PREDICTION MARKETS", "Fed cuts? 61%", "buy YES or NO"), "pink", o);
+    tile(1190, 600, 350, 260, drawMarket("SOL", "SOLANA", "Any token", "with safety checks"), "green", o);
+  },
+  // 2: how a strategy works
+  w2() {
+    $b.style.width = "1600px"; $b.style.height = "900px";
+    $b.className = "dark"; dots("#2a2a2e", 24);
+    const o = { contrast: 1.0, cell: 5, solid: 0.42 };
+    headline("How a strategy works", 80, 70, 70);
+    const X = [60, 445, 830, 1215], Y = 220, W = 330, H = 430;
+    const s2 = el("svg", { width: 1600, height: 900, style: "position:absolute;inset:0" }, $b);
+    const cols = ["#f5a524", "#f472b6", "#38bdf8", "#3ecf8e"];
+    for (let i = 0; i < 3; i++) {
+      const x0 = X[i] + W, x1 = X[i + 1], y = Y + H / 2;
+      el("path", { d: `M ${x0 - 6} ${y} C ${x0 + 30} ${y}, ${x1 - 30} ${y}, ${x1 + 6} ${y}`, stroke: cols[i], "stroke-width": 4, fill: "none", "stroke-linecap": "round" }, s2);
+      el("circle", { cx: (x0 + x1) / 2, cy: y, r: 6, fill: cols[i] }, s2);
+    }
+    tile(X[0], Y, W, H, drawStep("01", "Write it", (g) => {
+      ["“Long ETH if it", "breaks $2,600", "and funding", "stays low.”"].forEach((l, i) => txt(g, l, 38, 350 + i * 96, F(64, 400, "Newsreader")));
+    }), "amberBlue", o);
+    tile(X[1], Y, W, H, drawStep("02", "Read the rules", (g, w) => {
+      [["WHEN", "ETH > $2,600"], ["AND", "funding < 0.01%"], ["THEN", "Long 20× · $100"]].forEach(([k, v], i) => {
+        const y = 262 + i * 196; rr(g, 34, y, w - 68, 170, 20, "#e8e8e8", "#111", 5);
+        txt(g, k, 60, y + 52, F(26), "#2e2e2e"); txt(g, v, 60, y + 124, F(46, 600));
+      });
+    }), "pink", o);
+    tile(X[2], Y, W, H, drawStep("03", "Change it", (g) => {
+      chip(g, 38, 276, "tighter stop"); chip(g, 38, 368, "half the size"); chip(g, 38, 460, "sell if it stalls");
+      txt(g, "Say it, and see", 40, 630, F(44, 600)); txt(g, "the change first.", 40, 686, F(44, 600));
+      txt(g, "✓ Stop moved to −10%", 40, 800, F(40, 700));
+    }), "sky", o);
+    tile(X[3], Y, W, H, drawStep("04", "It runs", (g) => {
+      [["14:02", "ETH broke $2,600"], ["14:02", "Long 20× filled"], ["14:02", "Stop set on Hyperliquid"], ["24/7", "Still watching"]].forEach(([t, l], i) => {
+        const y = 312 + i * 140;
+        txt(g, t, 40, y, F(32, 600), "#444"); txt(g, l, 40, y + 54, F(40, 600));
+      });
+    }), "green", o);
+    div("It checks your conditions around the clock and trades from your own wallet.", "position:absolute;left:80px;top:720px;font-size:32px;color:#a3a29d");
+  },
+  // 3: what Weft can watch
+  w3() {
+    $b.style.width = "1600px"; $b.style.height = "900px";
+    $b.className = "dark"; dots("#222226", 24);
+    const o = { contrast: 1.0, cell: 5, solid: 0.42 };
+    headline("What Weft can watch", 60, 54, 64);
+    const SRC = [
+      ["PRICE", "ETH $2,431", "sky", "#38bdf8"], ["FUNDING", "0.0035% / h", "violet", "#a78bfa"], ["OPEN INTEREST", "+18% today", "blue", "#7c8cff"],
+      ["POSTS ON X", "@account posted", "news", "#e9e5d8"], ["HEADLINES", "Fed signals a cut", "amber", "#f5a524"], ["ODDS", "Fed cut 61%", "pink", "#f472b6"],
+      ["SOLANA WALLET", "7xKp… bought", "green", "#3ecf8e"], ["TOP TRADER", "Long SOL 5×", "orange", "#f39a52"], ["SPORTS", "Spurs 11–4", "news", "#e9e5d8"],
+      ["WEATHER", "Chicago −5°C", "sky", "#38bdf8"], ["RATES", "2-year 3.84%", "violet", "#a78bfa"], ["EARNINGS", "NVDA in 2 days", "amberBlue", "#f0c35a"],
+    ];
+    const K = { x: 1300, y: 520 }, CW = 290, CH = 132;
+    const sv = el("svg", { width: 1600, height: 900, style: "position:absolute;inset:0" }, $b);
+    sv.innerHTML = `<defs><filter id="bloom2" x="-200%" y="-200%" width="500%" height="500%"><feGaussianBlur stdDeviation="12" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter></defs>`;
+    SRC.forEach(([k, v, ink, col], i) => {
+      const cx = 60 + (i % 3) * (CW + 26), cy = 170 + Math.floor(i / 3) * (CH + 46);
+      const sx = cx + CW, sy = cy + CH / 2;
+      if (i % 3 === 2) el("path", { d: `M ${sx} ${sy} C ${sx + 160} ${sy}, ${K.x - 220} ${K.y + (sy - K.y) * 0.25}, ${K.x} ${K.y}`, stroke: col, "stroke-width": 3, fill: "none", opacity: 0.9 }, sv);
+      tile(cx, cy, CW, CH, drawSource(k, v), ink, o);
+    });
+    el("path", { d: `M ${K.x} ${K.y} L 1620 ${K.y}`, stroke: "#3ecf8e", "stroke-width": 5 }, sv);
+    el("circle", { cx: K.x, cy: K.y, r: 46, fill: "none", stroke: "#3ecf8e", "stroke-width": 1.5, opacity: 0.4 }, sv);
+    el("circle", { cx: K.x, cy: K.y, r: 16, fill: "#f4f3ef", filter: "url(#bloom2)" }, sv);
+    div("Mix any of them<br>in one rule.", `position:absolute;left:${K.x - 120}px;top:${K.y + 70}px;font-size:40px;color:#f4f3ef;line-height:1.15`).classList.add("serif");
+  },
+
   // a post graphic (1600 × 900) for the Spurs thesis
   spurs() {
     $b.style.width = "1600px"; $b.style.height = "900px";
