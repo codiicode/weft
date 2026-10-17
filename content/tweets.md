@@ -13,11 +13,25 @@ Voice: calm, exact, concrete. Every tweet shows one real thing Weft does.
 ## 1. Launch thread (post with `content/launch-video/out/weft-launch-v5.mp4` on 1/)
 
 **1/**
-You have a thesis. Weft makes it a trade.
+Weft is live.
 
-Say what you think will happen, in plain English. Weft turns it into rules you can read, watches the world for you, and trades it from your own wallet.
+You type a trade idea the way you'd say it: "buy ETH if the Fed cuts, sell if it drops 8%."
+
+Weft sets it up and trades it for you on Hyperliquid and Solana, from your own wallet.
 
 weft.fi
+
+*Alternatives for 1/:*
+
+> Most good trade ideas never get traded. You're asleep or at work when the moment comes.
+>
+> Weft waits for it. Write the idea in plain English and it makes the trade from your own wallet.
+>
+> weft.fi
+
+> Weft is live. Type a trade idea in plain English and it trades it for you.
+>
+> weft.fi
 
 **2/**
 It reads more than charts.
