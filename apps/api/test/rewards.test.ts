@@ -106,3 +106,20 @@ describe("$WEFT rewards", () => {
     expect(r.owedTokenBuyback()).toBe(12_345n);
   });
 });
+
+describe("repairing a buy recorded with 0 tokens", () => {
+  it("fills the buy and its own day's pots, once", () => {
+    const r = new Rewards(join(mkdtempSync(join(tmpdir(), "rw-")), "r.db"), { startDay: "2026-10-17" });
+    const at = Date.parse("2026-10-17T18:00:00Z");
+    r.addBuy({ at, source: "token", spentUsd: 493.92, boughtTokens: 0, burnedTokens: 0, swapTx: "sig1", burnTx: null });
+    expect(r.unmeasuredBuys().map((b) => b.swapTx)).toEqual(["sig1"]);
+    const [b] = r.unmeasuredBuys();
+    r.repairBuy(b!.id, 1000, 300, "burn1");
+    r.repairBuy(b!.id, 1000, 300, "burn1");
+    expect(r.unmeasuredBuys()).toHaveLength(0);
+    const st = r.stats(at);
+    expect(st.boughtTokens).toBe(1000);
+    expect(st.burnedTokens).toBe(300);
+    expect(Math.round(st.todayPotTokens)).toBe(700);
+  });
+});

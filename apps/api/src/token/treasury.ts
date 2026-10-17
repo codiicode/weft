@@ -174,7 +174,41 @@ export class Treasury {
       const tx = await this.dbc.pool.swap2({ owner: this.me, pool: this.c.dbcPool!, swapBaseForQuote: false, referralTokenAccount: null, swapMode: SwapMode.ExactIn, amountIn, minimumAmountOut: q.minimumAmountOut } as never);
       sig = await this.send(tx);
     }
-    return { got: (await this.tokenBalance(out)) - before, tx: sig };
+    return { got: await this.received(sig, out, before), tx: sig };
+  }
+
+  /**
+   * $WEFT a swap brought in, read from the transaction itself: a balance read right after
+   * confirmation can still show the old amount (that made launch day's first buy count as 0).
+   */
+  private async received(sig: string, account: PublicKey, before: bigint | null): Promise<bigint> {
+    for (let i = 0; i < 10; i++) {
+      const tx = await this.c.conn.getTransaction(sig, { commitment: "confirmed", maxSupportedTransactionVersion: 0 }).catch(() => null);
+      if (tx?.meta) {
+        const mine = (b: { owner?: string; mint: string }) => b.mint === this.c.mint.toBase58() && b.owner === this.me.toBase58();
+        const amt = (list: typeof tx.meta.postTokenBalances) => BigInt(list?.find(mine)?.uiTokenAmount.amount ?? "0");
+        return amt(tx.meta.postTokenBalances) - amt(tx.meta.preTokenBalances);
+      }
+      await new Promise((r) => setTimeout(r, 1500));
+    }
+    if (before == null) throw new Error(`couldn't read swap ${sig}`);
+    return (await this.tokenBalance(account)) - before;
+  }
+
+  /** Buys recorded with 0 tokens (the balance hadn't caught up): measure them from their swap, burn the share, fill the pots. */
+  private async repairBuys(rewards: Rewards, r: TickResult) {
+    const unit = 10 ** this.c.decimals;
+    for (const b of rewards.unmeasuredBuys()) {
+      const got = await this.received(b.swapTx, this.ata(this.me), null);
+      if (got <= 0n) continue;
+      const bought = Number(got) / unit;
+      const burnRaw = BigInt(Math.floor(Rewards.split(bought).burn * unit));
+      const burnTx = await this.burn(burnRaw);
+      rewards.repairBuy(b.id, bought, Number(burnRaw) / unit, burnTx);
+      r.boughtTokens += bought;
+      r.burnedTokens += Number(burnRaw) / unit;
+      this.c.log?.(`treasury: repaired buy ${b.swapTx.slice(0, 12)}…: ${bought.toFixed(0)} WEFT, burned ${(Number(burnRaw) / unit).toFixed(0)}`);
+    }
   }
 
   private async burn(raw: bigint): Promise<string | null> {
@@ -201,6 +235,8 @@ export class Treasury {
     const { protocolBps, buybackBps } = REWARDS.tokenFee;
     let px: number | null = null;
     const solUsd = async () => (px ??= await this.solUsd());
+
+    await this.repairBuys(rewards, r).catch((e) => this.c.log?.(`treasury: repairing buys failed (${(e as Error).message.slice(0, 120)})`));
 
     // 1. fees on $WEFT trades: claim, split, buy (plus any buyback a failed run left owed)
     let owed = rewards.owedTokenBuyback();

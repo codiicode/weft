@@ -194,6 +194,29 @@ export class Rewards {
     }
   }
 
+  /** Buys that went through but were recorded with 0 tokens. */
+  unmeasuredBuys(): { id: number; swapTx: string }[] {
+    return (this.db.prepare("SELECT id, swap_tx FROM buys WHERE bought_tokens = 0 AND spent_usd > 0 AND swap_tx IS NOT NULL").all() as { id: number; swap_tx: string }[]).map((r) => ({ id: r.id, swapTx: r.swap_tx }));
+  }
+
+  /** Set the tokens of a buy recorded with 0 (see unmeasuredBuys); its rest joins the pots of the day it happened. */
+  repairBuy(id: number, boughtTokens: number, burnedTokens: number, burnTx: string | null) {
+    const row = this.db.prepare("SELECT day, bought_tokens FROM buys WHERE id = ?").get(id) as { day: string; bought_tokens: number } | undefined;
+    if (!row || row.bought_tokens !== 0) return;
+    const s = Rewards.split(boughtTokens);
+    this.db.exec("BEGIN");
+    try {
+      this.db.prepare("UPDATE buys SET bought_tokens = ?, burned_tokens = ?, burn_tx = ? WHERE id = ?").run(boughtTokens, burnedTokens, burnTx, id);
+      // a day that has already closed and shared out can't take more: then today's pots get it
+      const closed = this.db.prepare("SELECT 1 FROM reward_days WHERE day = ?").get(row.day);
+      this.addToPot(closed ? dayOf(Date.now()) : row.day, s.trader, s.creator);
+      this.db.exec("COMMIT");
+    } catch (e) {
+      this.db.exec("ROLLBACK");
+      throw e;
+    }
+  }
+
   recordTokenFeeClaim(c: { at: number; stage: "curve" | "pool"; claimedSol: number; protocolSol: number; buybackSol: number; claimTx: string | null; transferTx: string | null }) {
     this.db
       .prepare("INSERT INTO token_fee_claims (at, stage, claimed_sol, protocol_sol, buyback_sol, claim_tx, transfer_tx) VALUES (?, ?, ?, ?, ?, ?, ?)")
