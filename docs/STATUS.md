@@ -12,7 +12,7 @@ _Last updated by the build session. All numbers below were verified by running t
 | Off-site backup | Built (hourly on the volume, R2 copy when `R2_*` is set). R2 keys not set yet. |
 | End-to-end with real money | Done earlier on mainnet (Solana buy/sell/fees/close, Hyperliquid deposit/trade/withdraw). Copy trading has not run with real money yet. |
 | X account | Not created; `brand.socials.x` and the legal pages' contact point to it |
-| Rotate relayer key | Recommended: the key was shown in a session transcript on 2026-10-17 |
+| Rotate relayer key | Skipped by decision: the key was shown in a session transcript on 2026-10-17; worst case is losing its gas float (~$12) and gas-free deposits pausing until refilled |
 
 ## What exists
 
