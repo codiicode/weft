@@ -68,7 +68,9 @@ const runs = [
 ];
 /** The last check is always a few seconds ago. */
 const fresh = (s) => ({ ...s, lastTickAt: Date.now() - 4_000 });
-const RUNS = new Map(runs.map((r) => [r.deployment.id, r]));
+// FRESH=1: a brand-new account (no runs yet, $250 just deposited), for the first-trade video.
+const FRESH = process.env.FRESH === "1";
+const RUNS = new Map(FRESH ? [] : runs.map((r) => [r.deployment.id, r]));
 const fill = (dep, id, sym, side, price, reason, agoMin, pnl) => ({ id, deploymentId: dep, positionId: `${dep}-${sym}`, instrumentKey: `hyperliquid:perp:${sym}`, side, qty: 1, price, feeUsd: 1.0, reason, ts: now - agoMin * 60_000, ...(pnl != null ? { realizedPnlUsd: pnl } : {}) });
 const FILLS = {
   "demo-copy": [
@@ -98,17 +100,19 @@ const EVENTS = {
   ].reverse(),
 };
 
-const accountValue = 2400;
+const accountValue = FRESH ? 250 : 2400;
 const LIVE_STATUS = {
   config: { enabled: true, network: "mainnet", builder: "0x0000000000000000000000000000000000000000", builderFeeBps: 10, maxAllocationUsd: null, maxLeverage: 20 },
   account: { userId: "demo", network: "mainnet", hlAddress: "0x5e2b7a40c3d91f6a8be0e4b1d7c2a9f03b6e91ad", agentApprovedAt: now - 20 * D, builderApprovedAt: now - 20 * D },
   agentAddress: "0x1111111111111111111111111111111111111111",
-  venue: { accountValueUsd: accountValue, withdrawableUsd: 1462.5, marginUsedUsd: 600, positionsWorthUsd: 937.5, agentApprovedOnVenue: true, builderMaxFeeTenthsBps: 100 },
+  venue: FRESH
+    ? { accountValueUsd: accountValue, withdrawableUsd: accountValue, marginUsedUsd: 0, positionsWorthUsd: 0, agentApprovedOnVenue: true, builderMaxFeeTenthsBps: 1000 }
+    : { accountValueUsd: accountValue, withdrawableUsd: 1462.5, marginUsedUsd: 600, positionsWorthUsd: 937.5, agentApprovedOnVenue: true, builderMaxFeeTenthsBps: 100 },
   ready: true, blockers: [],
 };
 const SOLANA = {
   enabled: true, signerId: "demo", policyId: "demo", wallet: { address: "7xKpQ2mVb9fQe4tLr8NcZs1Wd3Hy6Ju5Ag0Ek9fQe", delegated: true },
-  balances: { sol: 3.2, usdc: 140, usd: 140 + 3.2 * 180 }, solUsd: 180, maxAllocationUsd: null, feeBps: 100, holder: null, ready: true, blockers: [],
+  balances: FRESH ? { sol: 0, usdc: 0, usd: 0 } : { sol: 3.2, usdc: 140, usd: 140 + 3.2 * 180 }, solUsd: 180, maxAllocationUsd: null, feeBps: 100, holder: null, ready: true, blockers: [],
 };
 
 const MOCK = [

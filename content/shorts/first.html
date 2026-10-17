@@ -1,0 +1,223 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Weft: your first trade</title>
+<style>
+  @font-face { font-family: "Newsreader"; src: url("../../scripts/og/newsreader-latin.woff2") format("woff2"); font-weight: 200 800; }
+  @font-face { font-family: "Inst"; src: url("../../scripts/og/instrument-sans-latin.woff2") format("woff2"); font-weight: 400 700; }
+  html, body { margin: 0; background: #0c0c0d; }
+  #stage { position: relative; width: 1920px; height: 1080px; overflow: hidden; background: #0c0c0d; color: #f4f3ef; font-family: "Inst", sans-serif; -webkit-font-smoothing: antialiased; }
+  .serif { font-family: "Newsreader", serif; font-weight: 400; letter-spacing: -0.02em; }
+  .muted { color: #a3a29d; } .faint { color: #6f6e6a; }
+  .m { display: inline-block; overflow: hidden; vertical-align: top; padding: 0.04em 0.06em 0.18em; margin: -0.04em -0.06em -0.18em; }
+  .m > span { display: inline-block; transform: translateY(140%); }
+  .lay { position: absolute; left: 0; top: 0; width: 1600px; transform-origin: 0 0; }
+  .lay img { display: block; width: 1600px; }
+  .card { position: absolute; box-sizing: border-box; border-radius: 24px; background: linear-gradient(180deg,#17171a,#121214); border: 1.5px solid #26262a; box-shadow: inset 0 1px 0 rgba(255,255,255,0.05), 0 40px 120px rgba(0,0,0,0.5); }
+  .label { font-size: 19px; letter-spacing: 0.16em; text-transform: uppercase; color: #6f6e6a; }
+  .opt { height: 76px; border-radius: 16px; border: 1.5px solid #2c2c31; display: flex; align-items: center; padding: 0 28px; gap: 18px; font-size: 30px; margin-top: 16px; background: #141416; }
+  .tnum { font-variant-numeric: tabular-nums; }
+  .mono { font-family: ui-monospace, "SF Mono", Menlo, monospace; }
+  svg { overflow: visible; }
+</style>
+</head>
+<body>
+<div id="stage">
+  <div id="finish"></div>
+  <div id="intro" class="serif" style="position:absolute;left:0;right:0;top:420px;text-align:center;font-size:96px"></div>
+  <div id="caps" class="serif" style="position:absolute;left:0;right:0;top:46px;height:80px;font-size:56px"></div>
+
+  <!-- step 1: sign in, the wallets appear -->
+  <div id="s-sign" style="position:absolute;inset:0;opacity:0">
+    <div class="card" id="signCard" style="left:610px;top:250px;width:700px;padding:44px 48px 40px">
+      <div style="font-size:40px;font-weight:600;letter-spacing:-0.02em">Sign in to Weft</div>
+      <div class="opt" id="optEmail"><svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="#f4f3ef" stroke-width="1.8"><rect x="3" y="5" width="18" height="14" rx="2.5"/><path d="M3.5 6.5l8.5 6.5 8.5-6.5"/></svg>Continue with email</div>
+      <div class="opt"><svg width="30" height="30" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9" fill="none" stroke="#f4f3ef" stroke-width="1.8"/><path d="M12 12h8" stroke="#f4f3ef" stroke-width="1.8"/></svg>Continue with Google</div>
+      <div class="opt"><svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="#f4f3ef" stroke-width="1.8"><rect x="3" y="6" width="18" height="13" rx="2.5"/><path d="M16 12.5h2"/></svg>Connect a wallet</div>
+    </div>
+    <div id="walletsRow" style="position:absolute;left:330px;top:330px;width:1260px;display:flex;gap:40px">
+      <div class="card" id="w1" style="position:relative;flex:1;padding:40px 44px;opacity:0">
+        <div class="label">Hyperliquid wallet</div>
+        <div style="font-size:30px;margin-top:14px" class="muted">Perps, stocks, prediction markets</div>
+        <div class="mono" style="font-size:34px;margin-top:30px">0x5e2b…91ad</div>
+      </div>
+      <div class="card" id="w2" style="position:relative;flex:1;padding:40px 44px;opacity:0">
+        <div class="label">Solana wallet</div>
+        <div style="font-size:30px;margin-top:14px" class="muted">Tokens and tokenized stocks</div>
+        <div class="mono" style="font-size:34px;margin-top:30px">7xKp…9fQe</div>
+      </div>
+    </div>
+    <div id="walletNote" class="muted" style="position:absolute;left:0;right:0;top:690px;text-align:center;font-size:32px;opacity:0">Made for you when you sign in. Yours to keep: export the keys any time.</div>
+    <svg id="cursor1" width="44" height="44" viewBox="0 0 24 24" style="position:absolute;left:0;top:0;opacity:0;filter:drop-shadow(0 4px 10px rgba(0,0,0,0.5))"><path d="M4 2l15 9-7 1.5L8.5 20z" fill="#f4f3ef" stroke="#0c0c0d" stroke-width="1.5" stroke-linejoin="round"/></svg>
+  </div>
+
+  <!-- step 2: add money -->
+  <div id="s-money" style="position:absolute;inset:0;opacity:0">
+    <div class="card" id="moneyCard" style="left:460px;top:220px;width:1000px;padding:44px 52px">
+      <div class="label">Add money</div>
+      <div style="font-size:34px;margin-top:16px">Send USDC on Arbitrum to your Weft address</div>
+      <div class="mono" style="margin-top:22px;font-size:27px;padding:22px 26px;border-radius:14px;background:#0f0f11;border:1.5px solid #26262a;color:#cfcec9">0x5e2b7a40c3d91f6a8be0e4b1d7c2a9f03b6e91ad</div>
+      <div id="arr1" style="display:flex;justify-content:space-between;align-items:center;margin-top:30px;font-size:30px;opacity:0"><span>250 USDC arrived on Arbitrum</span><span style="color:#3ecf8e">✓</span></div>
+      <div id="arr2" style="display:flex;justify-content:space-between;align-items:center;margin-top:16px;font-size:30px;opacity:0"><span>Moved to Hyperliquid, gas paid by Weft</span><span style="color:#3ecf8e">✓</span></div>
+      <div style="height:1.5px;background:#26262a;margin:30px 0 24px"></div>
+      <div style="display:flex;justify-content:space-between;align-items:baseline"><span class="muted" style="font-size:30px">Ready to trade</span><span id="bal" class="tnum" style="font-size:72px;font-weight:700;letter-spacing:-0.035em">$0.00</span></div>
+    </div>
+  </div>
+
+  <!-- the app -->
+  <div id="win" style="position:absolute;left:272px;top:156px;width:1376px;height:896px;border-radius:16px;overflow:hidden;background:#0d0d0e;border:1px solid #2a2a2e;box-shadow:0 60px 160px rgba(0,0,0,0.65),inset 0 1px 0 rgba(255,255,255,0.04);opacity:0">
+    <div style="position:relative;height:36px;display:flex;align-items:center;justify-content:center;gap:9px;font-size:15px;color:#6f6e6a;border-bottom:1px solid #1d1d21;background:#111113">
+      <svg width="11" height="13" viewBox="0 0 11 13"><rect x="0.75" y="5.5" width="9.5" height="6.75" rx="1.5" fill="none" stroke="#6f6e6a" stroke-width="1.3"/><path d="M3 5.5V3.8a2.5 2.5 0 0 1 5 0v1.7" fill="none" stroke="#6f6e6a" stroke-width="1.3"/></svg>
+      <span>app.weft.fi/<span id="path" style="color:#a3a29d"></span></span>
+      <span style="position:absolute;right:20px;font-size:12px;letter-spacing:0.16em;color:#55554f">DEMO ACCOUNT</span>
+    </div>
+    <div id="vp" style="position:absolute;left:0;top:36px;width:1600px;height:1000px;transform:scale(0.86);transform-origin:0 0;overflow:hidden;background:#0c0c0d">
+      <div class="lay" id="layB"><img id="imgB"></div>
+      <div class="lay" id="layA"><img id="imgA"></div>
+      <div id="ripple" style="position:absolute;left:0;top:0;width:60px;height:60px;margin:-30px 0 0 -30px;border-radius:50%;border:2px solid #f4f3ef;opacity:0"></div>
+      <svg id="cursor" width="34" height="34" viewBox="0 0 24 24" style="position:absolute;left:0;top:0;opacity:0;filter:drop-shadow(0 4px 10px rgba(0,0,0,0.5))"><path d="M4 2l15 9-7 1.5L8.5 20z" fill="#f4f3ef" stroke="#0c0c0d" stroke-width="1.5" stroke-linejoin="round"/></svg>
+    </div>
+  </div>
+  <div id="end" style="position:absolute;inset:0"></div>
+  <div id="top"></div>
+</div>
+<script src="film.js"></script>
+<script src="recordings/first/manifest.js"></script>
+<script>
+$("finish").innerHTML = STAGE_FINISH; $("top").innerHTML = STAGE_TOP; setupFinish();
+const DURATION = 43;
+const MAN = window.FIRST, DIR = "recordings/first/";
+const shot = (name) => DIR + MAN.shots[name].file;
+const H = (name) => MAN.shots[name].h;
+const seqAt = (name, ms) => { let f = MAN.seqs[name][0][1]; for (const [at, file] of MAN.seqs[name]) if (at <= ms) f = file; return DIR + f; };
+const B = MAN.boxes, mid = (b, dy = 0) => [b[0] + b[2] / 2, b[1] + b[3] / 2 - dy];
+
+/* ---------- step 1: sign in (2.3 – 7.0) ---------- */
+const SG = { a: 2.3, click: 3.7, wallets: 4.3, z: 6.8 };
+function drawSign(t) {
+  if (t < SG.a - 0.05 || t > SG.z + 0.5) return put("s-sign", { o: 0 });
+  const i = eo(seg(t, SG.a, SG.a + 0.5)), o = eix(seg(t, SG.z, SG.z + 0.45));
+  put("s-sign", { o: i * (1 - o), y: (1 - i) * 50 - o * 50, blur: (1 - i) * 10 + o * 12 });
+  // the cursor picks email; the card gives way to the two wallets
+  const cu = eio(seg(t, SG.a + 0.5, SG.click));
+  const [cx, cy] = [lerp(1300, 900, cu), lerp(900, 405, cu)];
+  const press = seg(t, SG.click, SG.click + 0.2);
+  $("cursor1").style.opacity = t < SG.a + 0.4 ? 0 : 1 - seg(t, SG.click + 0.3, SG.click + 0.6);
+  $("cursor1").style.transform = `translate(${cx}px, ${cy}px) scale(${1 - 0.15 * Math.sin(Math.PI * press)})`;
+  $("optEmail").style.background = t > SG.click ? "#232327" : "#141416";
+  const gone = eio(seg(t, SG.wallets - 0.15, SG.wallets + 0.35));
+  $("signCard").style.opacity = 1 - gone; $("signCard").style.transform = `scale(${1 - 0.06 * gone})`;
+  ["w1", "w2"].forEach((id, k) => {
+    const u = seg(t, SG.wallets + 0.1 + k * 0.18, SG.wallets + 0.7 + k * 0.18);
+    $(id).style.opacity = eo(u); $(id).style.transform = `translateY(${(1 - eo(u)) * 60}px) scale(${lerp(0.96, 1, back(u))})`;
+  });
+  const n = eo(seg(t, SG.wallets + 0.8, SG.wallets + 1.3));
+  $("walletNote").style.opacity = n; $("walletNote").style.transform = `translateY(${(1 - n) * 20}px)`;
+}
+
+/* ---------- step 2: add money (7.0 – 12.0) ---------- */
+const MO = { a: 7.0, arr1: 8.4, arr2: 9.4, bal: 9.6, z: 11.7 };
+function drawMoney(t) {
+  if (t < MO.a - 0.05 || t > MO.z + 0.5) return put("s-money", { o: 0 });
+  const i = eo(seg(t, MO.a, MO.a + 0.5)), o = eix(seg(t, MO.z, MO.z + 0.45));
+  put("s-money", { o: i * (1 - o), y: (1 - i) * 50 - o * 80, blur: (1 - i) * 10 + o * 12, s: 1 - 0.04 * o });
+  [["arr1", MO.arr1], ["arr2", MO.arr2]].forEach(([id, at]) => { const u = eo(seg(t, at, at + 0.45)); $(id).style.opacity = u; $(id).style.transform = `translateY(${(1 - u) * 16}px)`; });
+  const b = eio(seg(t, MO.bal, MO.bal + 0.9));
+  $("bal").textContent = `$${(250 * b).toFixed(2)}`;
+  $("bal").style.color = b >= 1 ? C.long : C.ink;
+}
+
+/* ---------- the app window ---------- */
+const typeA = 13.65, typeZ = 17.45;
+const CLIPS = [
+  { a: 12.3, b: 18.4, path: "home", h: 1000,
+    src: (t) => (t < typeA ? shot("home") : DIR + MAN.seqs.typing[Math.min(MAN.seqs.typing.length - 1, Math.floor(seg(t, typeA, typeZ) * MAN.seqs.typing.length))][1]),
+    cam: [[12.9, 800, 500, 1], [13.6, 665, 250, 2.0], [17.3, 665, 250, 2.0], [17.8, 900, 250, 2.0]],
+    cur: [[12.9, 1150, 520], [13.4, ...mid(B.homeInput), true], [13.8, ...mid(B.homeInput)], [17.4, 1150, 260], [17.95, 1212, 165, true]] },
+  { a: 18.4, b: 21.4, path: "new?go=1", h: 1000,
+    src: (t) => { const u = t - 18.4, last = MAN.seqs.draft[MAN.seqs.draft.length - 1][0]; return seqAt("draft", lerp(0, last, seg(u, 0, 2.8))); },
+    cam: [[18.4, 900, 250, 2.0], [18.9, 560, 330, 1.75], [21.4, 640, 380, 1.5]] },
+  { a: 21.4, b: 26.3, path: "new?go=1", h: 1000, src: () => shot("draftDone"),
+    cam: [[21.4, 640, 380, 1.5], [22.1, 660, 330, 1.75], [23.6, 660, 360, 1.75], [24.4, 700, 560, 1.75], [26.3, 700, 575, 1.75]] },
+  { a: 26.3, b: 29.4, path: "new?go=1", h: 1000, src: () => shot("draftDone"),
+    cam: [[26.3, 700, 575, 1.75], [27.0, 1390, 410, 2.0], [29.4, 1390, 425, 2.0]],
+    cur: [[26.7, 1150, 700], [27.9, ...mid(B.start), true], [29.2, ...mid(B.start)]] },
+  { a: 29.4, b: 34.4, path: "run?id=…", h: 1000, src: (t) => (t < 30.4 ? seqAt("start", 600 + (t - 29.4) * 1000) : shot("run")),
+    cam: [[29.4, 520, 150, 1.9], [31.4, 520, 165, 1.9], [32.2, 1300, 470, 1.9], [34.4, 1300, 480, 1.9]] },
+  { a: 34.4, b: 38.6, path: "portfolio", h: 1000, src: () => shot("portfolio"),
+    cam: [[34.4, 800, 400, 1.2], [35.1, 520, 230, 1.85], [36.3, 520, 240, 1.85], [37.0, 800, 520, 1.5], [38.6, 800, 530, 1.5]] },
+];
+const camAt = (clip, t) => {
+  const k = clip.cam; let c = k[0];
+  if (t >= k[k.length - 1][0]) c = k[k.length - 1];
+  else for (let i = 0; i < k.length - 1; i++) if (t >= k[i][0] && t < k[i + 1][0]) { const e = eio(seg(t, k[i][0], k[i + 1][0])); c = [t, lerp(k[i][1], k[i + 1][1], e), lerp(k[i][2], k[i + 1][2], e), lerp(k[i][3], k[i + 1][3], e)]; }
+  let [, fx, fy, z] = c;
+  fx = clamp(fx, 800 / z, 1600 - 800 / z); fy = clamp(fy, 500 / z, clip.h - 500 / z);
+  return { fx, fy, z };
+};
+const place = (layer, img, clip, t) => {
+  const { fx, fy, z } = camAt(clip, t);
+  layer.style.transform = `translate(${(800 - fx * z).toFixed(2)}px, ${(500 - fy * z).toFixed(2)}px) scale(${z.toFixed(4)})`;
+  const src = clip.src(t);
+  if (img.getAttribute("src") !== src) img.setAttribute("src", src);
+  return { fx, fy, z };
+};
+const XF = 0.22, WIN_A = 12.0, WIN_Z = 38.2;
+async function drawWindow(t) {
+  const e = eox(seg(t, WIN_A, WIN_A + 1.2)), x = eix(seg(t, WIN_Z, WIN_Z + 0.7));
+  if (!put("win", { o: Math.min(seg(t, WIN_A, WIN_A + 0.35), 1 - seg(t, WIN_Z + 0.35, WIN_Z + 0.7)), y: 240 * (1 - e) + 90 * x, s: (0.92 + 0.08 * e) * (1 - 0.12 * x), ox: 688, oy: 448, blur: 10 * x, extra: `perspective(2200px) rotateX(${(16 * (1 - e)).toFixed(2)}deg)` })) return;
+  const i = Math.max(0, CLIPS.findIndex((c) => t >= c.a && t < c.b)), clip = CLIPS[t >= CLIPS[CLIPS.length - 1].b ? CLIPS.length - 1 : t < CLIPS[0].a ? 0 : i];
+  $("path").textContent = clip.path;
+  const cam = place($("layA"), $("imgA"), clip, t);
+  const prev = CLIPS[CLIPS.indexOf(clip) - 1];
+  const xf = prev && t - clip.a < XF && prev.src(t) !== clip.src(t) ? eo((t - clip.a) / XF) : 1;
+  $("layA").style.opacity = xf;
+  $("layB").style.opacity = xf < 1 ? 1 : 0;
+  if (xf < 1) place($("layB"), $("imgB"), prev, t);
+  const cur = clip.cur;
+  if (!cur || t < cur[0][0] - 0.3 || t > cur[cur.length - 1][0] + 0.4) { $("cursor").style.opacity = 0; $("ripple").style.opacity = 0; }
+  else {
+    let p = cur[0];
+    if (t >= cur[cur.length - 1][0]) p = cur[cur.length - 1];
+    else for (let j = 0; j < cur.length - 1; j++) if (t >= cur[j][0] && t < cur[j + 1][0]) { const e2 = eiox(seg(t, cur[j][0] + 0.05, cur[j + 1][0] - 0.08)); p = [t, lerp(cur[j][1], cur[j + 1][1], e2), lerp(cur[j][2], cur[j + 1][2], e2)]; }
+    const vx = 800 + (p[1] - cam.fx) * cam.z, vy = 500 + (p[2] - cam.fy) * cam.z;
+    const click = cur.filter((k) => k[3]).map((k) => t - k[0]).find((d) => d >= -0.12 && d < 0.6);
+    const press = click == null ? 0 : click < 0 ? 1 - Math.abs(click) / 0.12 : Math.max(0, 1 - click / 0.12);
+    $("cursor").style.opacity = Math.min(seg(t, cur[0][0] - 0.3, cur[0][0]), 1 - seg(t, cur[cur.length - 1][0], cur[cur.length - 1][0] + 0.4));
+    $("cursor").style.transform = `translate(${(vx - 7).toFixed(1)}px, ${(vy - 5).toFixed(1)}px) scale(${1 - 0.18 * press})`;
+    if (click != null && click >= 0) { const r = seg(click, 0, 0.6); $("ripple").style.opacity = (1 - r) * 0.8; $("ripple").style.transform = `translate(${vx.toFixed(1)}px, ${vy.toFixed(1)}px) scale(${0.3 + 1.2 * eox(r)})`; }
+    else $("ripple").style.opacity = 0;
+  }
+  await Promise.all([$("imgA").decode().catch(() => {}), xf < 1 ? $("imgB").decode().catch(() => {}) : null]);
+}
+
+const introW = maskWords($("intro"), "Your first trade on Weft.");
+const caps = captions($("caps"), [
+  [2.45, "Sign in with email, Google or a wallet."],
+  [7.1, "Send USDC. Weft moves it and pays the gas."],
+  [12.4, "Write the trade you want."],
+  [18.5, "Weft drafts the rules."],
+  [21.6, "Read every rule before anything runs."],
+  [26.4, "Choose an amount and start."],
+  [29.5, "It checks your conditions every 15 seconds."],
+  [34.5, "When they’re met, it trades from your wallet."],
+], 38.0);
+const drawEnd = endCard($("end"), { line2: "Your first strategy takes a minute." });
+
+async function renderAt(t) {
+  reveal(introW, t, 0.25, 0.06, 0.9, 1.75);
+  caps(t);
+  drawSign(t);
+  drawMoney(t);
+  drawEnd(t - 38.7);
+  finishFrame(t);
+  await drawWindow(t);
+}
+window.DURATION = DURATION;
+window.renderAt = renderAt;
+window.ready = document.fonts.ready.then(() => true);
+if (!navigator.webdriver) { const t0 = performance.now(); const loop = async () => { await renderAt(((performance.now() - t0) / 1000) % DURATION); requestAnimationFrame(loop); }; window.ready.then(loop); }
+</script>
+</body>
+</html>
