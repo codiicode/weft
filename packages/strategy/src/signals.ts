@@ -190,6 +190,24 @@ export const SIGNAL_KINDS = {
       account_value_usd: "number",
     },
   },
+  sports: {
+    description:
+      "A team's regular-season record in a league (ESPN standings): wins, losses, ties or draws, games played, win rate, current streak (+3 = won 3 in a row, −2 = lost 2), league points (soccer and hockey) and standing.",
+    params: z.object({
+      league: z.enum(["nba", "wnba", "nfl", "mlb", "nhl", "mls", "epl", "laliga", "bundesliga", "seriea", "ligue1"]),
+      team: z.string().min(2).describe('Team name, city or abbreviation, e.g. "Spurs", "San Antonio", "SA"'),
+    }),
+    fields: {
+      wins: "number",
+      losses: "number",
+      ties: "number",
+      games_played: "number",
+      win_pct: "number",
+      streak: "number",
+      points: "number",
+      rank: "number",
+    },
+  },
   position: {
     description: "This strategy's own position, for exits like 'close if down 8%'. Omit instrument for the whole strategy.",
     params: z.object({ instrument: Instrument.optional() }),
@@ -235,6 +253,7 @@ export const Signal = z.discriminatedUnion("kind", [
   z.object({ ...base, kind: z.literal("macro"), params: SIGNAL_KINDS.macro.params }),
   z.object({ ...base, kind: z.literal("wallet"), params: SIGNAL_KINDS.wallet.params }),
   z.object({ ...base, kind: z.literal("trader"), params: SIGNAL_KINDS.trader.params }),
+  z.object({ ...base, kind: z.literal("sports"), params: SIGNAL_KINDS.sports.params }),
   z.object({ ...base, kind: z.literal("position"), params: SIGNAL_KINDS.position.params }),
 ]);
 export type Signal = z.infer<typeof Signal>;
@@ -255,6 +274,7 @@ export const DEFAULT_MAX_AGE: Record<SignalKind, number> = {
   macro: 3_600,
   wallet: 300,
   trader: 120,
+  sports: 3_600,
   position: 60,
 };
 

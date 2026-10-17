@@ -13,7 +13,7 @@ export function Closing() {
   const [ph, setPh] = useState("Type a trade idea…");
   useEffect(() => {
     if (v || matchMedia("(prefers-reduced-motion: reduce)").matches) return;
-    const examples = ["Buy 0.5 SOL of $JUP now", "Long ETH 20x with $50 if it breaks $2,600, 20% stop", "Short SOL 5x if mentions of $SOL on X double and funding is above 0.02%", "Long natural gas 2x if Chicago is forecast to get 5°C colder next week", "Long BTC 2x if Polymarket’s odds of a Fed cut pass 60%"];
+    const examples = ["Buy 0.5 SOL of $JUP now", "Long ETH 20x with $50 if it breaks $2,600, 20% stop", "Short SOL 5x if mentions of $SOL on X double and funding is above 0.02%", "Long natural gas 2x if Chicago is forecast to get 5°C colder next week", "Long BTC 2x if Polymarket’s odds of a Fed cut pass 60%", "Put $1,000 on the Spurs winning the NBA title if they win 10 of their first 15 games"];
     let i = 0;
     let n = 0;
     let dir = 1;

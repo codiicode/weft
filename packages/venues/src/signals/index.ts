@@ -10,6 +10,7 @@ import { newsProvider } from "./news.ts";
 import { xProviders } from "./x.ts";
 import { walletProvider } from "./wallet.ts";
 import { traderProvider } from "./trader.ts";
+import { sportsProvider } from "./sports.ts";
 import { simulatedProviders } from "./simulated.ts";
 
 export function createSignalProviders(md: VenueMarketData, urls: ExternalUrls = {}, onError?: (kind: string, err: unknown) => void): SignalProvider[] {
@@ -22,6 +23,7 @@ export function createSignalProviders(md: VenueMarketData, urls: ExternalUrls = 
     ...(md.ctx.opts.twitterApiKey ? xProviders(md.ctx.http, md.ctx.opts.twitterApiKey, { matcher: md.ctx.opts.postMatcher, onError }) : []),
     ...(md.ctx.helius ? [walletProvider(md.ctx.helius, onError)] : []),
     traderProvider(md.ctx.hl, onError),
+    sportsProvider(md.ctx.http, undefined, onError),
     calendarProvider(),
     ...simulatedProviders({
       marketProb: async (i) => {

@@ -239,6 +239,7 @@ const KIND_PHRASE: Partial<Record<SignalKind, string>> = {
   odds: "prediction-market odds",
   forecast: "forecast series",
   macro: "macro series",
+  sports: "sports standings",
 };
 
 const FIELD_PHRASE: Record<string, string> = {

@@ -278,41 +278,40 @@ export const buyThePanic = defineStrategy({
   ],
 });
 
-/** Posts on X: a Strategy (MSTR) bitcoin purchase announced by @saylor, with funding still low. */
-export const saylorBuys = defineStrategy({
+/** Hyperliquid's own market on the 2026-27 NBA champion, the Spurs' YES side. */
+const SPURS_TITLE = { kind: "outcome", venue: "hyperliquid", market: "11493", outcome: "YES", question: "NBA 2026/2027 winner: San Antonio Spurs?" } as const;
+
+/** Prediction markets: a strong start to the season, once the title odds start to agree → buy YES. */
+export const spursHotStart = defineStrategy({
   schemaVersion: 1,
-  id: "saylor-buys",
-  name: "Saylor buys, you buy",
-  thesis: "When @saylor posts that Strategy bought more bitcoin and funding is still low, go long BTC 3×.",
-  tags: ["x", "perps"],
+  id: "spurs-hot-start",
+  name: "Back a hot start",
+  thesis: "If the Spurs win at least 10 of their first 15 games and their title odds pass 25%, put $1,000 on them winning the NBA title. Sell if the odds drop below 15%.",
+  tags: ["predictions", "sports"],
+  risk: { maxPositionPct: 100, maxTotalExposurePct: 100 },
   signals: [
-    { id: "saylor", kind: "post_match", params: { accounts: ["saylor"], claim: "announces that Strategy (MicroStrategy) bought more bitcoin" } },
-    { id: "btc_funding", kind: "funding", params: { instrument: { kind: "perp", venue: "hyperliquid", symbol: "BTC" } } },
+    { id: "spurs", kind: "sports", label: "Spurs record (NBA)", params: { league: "nba", team: "Spurs" } },
+    { id: "title_odds", kind: "odds", label: "Spurs title odds", params: { instrument: SPURS_TITLE } },
   ],
   triggers: [
     {
-      id: "fresh_buy",
+      id: "hot_start",
+      label: "10+ wins in the first 15 games, odds above 25%",
       when: {
         op: "and",
         args: [
-          { op: "is", ref: "saylor.matched", value: true },
-          { op: "lt", left: { ref: "saylor.minutes_since_match" }, right: { value: 30 } },
-          { op: "lt", left: { ref: "btc_funding.rate_1h_pct" }, right: { value: 0.01 } },
+          { op: "gte", left: { ref: "spurs.games_played" }, right: { value: 15 } },
+          { op: "gte", left: { ref: "spurs.wins" }, right: { value: 10 } },
+          { op: "gt", left: { ref: "title_odds.prob" }, right: { value: 0.25 } },
         ],
       },
+      maxFires: 1,
     },
+    { id: "fade", label: "Odds back under 15%", when: { op: "lt", left: { ref: "title_odds.prob" }, right: { value: 0.15 } } },
   ],
   actions: [
-    {
-      id: "long_btc",
-      type: "open",
-      on: ["fresh_buy"],
-      instrument: { kind: "perp", venue: "hyperliquid", symbol: "BTC" },
-      side: "long",
-      size: { unit: "usd", value: 100 },
-      leverage: 3,
-      exits: { stopLoss: { positionPct: 15 }, takeProfit: { positionPct: 30 } },
-    },
+    { id: "buy_yes", type: "open", on: ["hot_start"], instrument: SPURS_TITLE, side: "long", size: { unit: "usd", value: 1000 }, exits: {} },
+    { id: "sell_yes", type: "close", on: ["fade"], target: { instrument: SPURS_TITLE } },
   ],
 });
 
@@ -339,4 +338,4 @@ export const coldSnap = defineStrategy({
   ],
 });
 
-export const examples: Strategy[] = [ethBreakout, buyThePanic, saylorBuys, coldSnap, pumpMomentum, fedPivot, crowdedFade, ethCallSpread, nvdaxEarnings];
+export const examples: Strategy[] = [ethBreakout, buyThePanic, spursHotStart, coldSnap, pumpMomentum, fedPivot, crowdedFade, ethCallSpread, nvdaxEarnings];

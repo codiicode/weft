@@ -50,6 +50,22 @@ const SCENARIOS: Scenario[] = [
     venue: "Hyperliquid",
   },
   {
+    prompt: "If the Spurs win at least 10 of their first 15 games and their title odds pass 25%, put $1,000 on them winning the NBA title. Sell if the odds drop below 15%.",
+    parts: [
+      { phrase: "put $1,000 on them winning the NBA title", tone: "long", rule: "Buy YES on the Spurs winning the 2027 NBA title, $1,000", kind: "Do" },
+      { phrase: "win at least 10 of their first 15 games", tone: "signal", rule: "Spurs: 10+ wins after 15 games", kind: "When" },
+      { phrase: "title odds pass 25%", tone: "signal", rule: "Spurs title odds above 25%", kind: "When" },
+      { phrase: "Sell if the odds drop below 15%", tone: "short", rule: "Sell if the odds fall below 15%", kind: "Exit" },
+    ],
+    watch: { name: "Spurs title odds", from: 21.1, threshold: 25, to: 25.6, dir: "above", fmt: (v) => `${v.toFixed(1)}%`, seed: 41 },
+    also: [{ label: "Spurs 11–4", value: "record" }],
+    diagram: { signals: [["Spurs record (NBA)", "10+ wins in 15 games"], ["Spurs title odds", "above 25%"]], action: ["Buy Spurs YES", "$1,000 · sell under 15%"] },
+    waiting: "The Spurs are 11–4, but the market still has them under 25%.",
+    met: "The odds hit 25.6% with the Spurs at 11–4. Buying YES…",
+    filled: ["Bought Spurs YES at 25.6¢, 3,906 shares", "Sells on Hyperliquid if the odds fall below 15%"],
+    venue: "ESPN + Hyperliquid",
+  },
+  {
     prompt: "If @elonmusk posts about Dogecoin while DOGE funding is under 0.01% an hour and mentions on X double, long DOGE 5x with $100. 25% stop.",
     parts: [
       { phrase: "long DOGE 5x with $100", tone: "long", rule: "Long DOGE at 5× with $100", kind: "Do" },

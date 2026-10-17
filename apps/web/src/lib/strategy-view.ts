@@ -41,6 +41,7 @@ const SIGNAL_TYPE: Record<Signal["kind"], SignalType> = {
   macro: "rates",
   wallet: "onchain",
   trader: "position",
+  sports: "sports",
   position: "position",
 };
 
@@ -59,6 +60,7 @@ const SOURCE: Record<Signal["kind"], string> = {
   macro: "Macro",
   wallet: "Wallet",
   trader: "Trader",
+  sports: "Sports",
   position: "Position",
 };
 
@@ -141,6 +143,7 @@ function signalTitle(s: Signal): string {
     return s.params.series.replaceAll("_", " ");
   }
   if (s.kind === "macro") return macroLabel(s.params.series);
+  if (s.kind === "sports") return `${s.params.team} (${s.params.league.toUpperCase()})`;
   if (s.kind === "news") return s.params.query;
   if (s.kind === "model") return s.params.question;
   if (s.kind === "calendar") return `${s.params.symbol ?? ""} ${s.params.event === "custom" ? "event" : s.params.event === "fomc" ? "Fed meeting" : s.params.event === "cpi" ? "inflation report" : s.params.event}`.trim();
@@ -347,6 +350,14 @@ const FIELD: Record<string, [name: string, unit?: "%" | "$" | "pp" | "bps" | "h"
   freeze_authority_revoked: ["freeze authority revoked"],
   lp_locked: ["liquidity locked"],
   migrated: ["graduated from launchpad"],
+  wins: ["wins"],
+  losses: ["losses"],
+  ties: ["ties or draws"],
+  games_played: ["games played"],
+  win_pct: ["win rate", "prob"],
+  streak: ["streak (+ wins, − losses in a row)"],
+  points: ["league points"],
+  rank: ["standing"],
   matched: ["post matched"],
   match_score: ["post match score"],
   minutes_since_match: ["minutes since the post", "min"],

@@ -18,6 +18,7 @@ const IDEAS = [
   "Buy $50 of ETH now",
   "If @elonmusk posts about Dogecoin, long DOGE 5x with $100",
   "Long BTC and ETH 20x with $100 each if Fear & Greed drops to 20",
+  "Put $1,000 on the Spurs winning the NBA title if their odds pass 25%",
 ];
 
 function SectionHead({ title, href, link }: { title: string; href?: string; link?: string }) {

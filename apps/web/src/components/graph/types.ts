@@ -12,6 +12,7 @@ export type SignalType =
   | "rates"
   | "onchain"
   | "liquidity"
+  | "sports"
   | "position";
 
 export interface SignalNode {

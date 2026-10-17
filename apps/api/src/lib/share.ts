@@ -46,6 +46,7 @@ const KIND: Record<string, string> = {
   macro: "Rates and macro",
   wallet: "A wallet",
   trader: "A Hyperliquid trader",
+  sports: "Sports results",
   position: "Its own position",
 };
 

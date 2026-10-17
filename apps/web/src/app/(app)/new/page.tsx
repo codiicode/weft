@@ -20,6 +20,7 @@ const SUGGESTIONS = [
   "If the Fear & Greed index reaches 20, open a 20x long on ETH and a 20x long on BTC with $100 on each.",
   "Long natural gas 2x with $100 if Chicago is forecast to be 5°C colder next week than this week.",
   "Long BTC 2x with $100 if Polymarket’s odds of a Fed cut pass 60%.",
+  "If the Spurs win at least 10 of their first 15 games and their title odds pass 25%, put $1,000 on them winning the NBA title. Sell if the odds drop below 15%.",
 ];
 
 /** "Half the size" as an instruction the offline editor also understands. */

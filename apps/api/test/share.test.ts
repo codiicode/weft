@@ -11,12 +11,12 @@ describe("share links", () => {
   const app = createApp({ catalog: { async list() { return []; } }, marketData: t.market, engine: t.engine, library: new StrategyLibrary(join(mkdtempSync(join(tmpdir(), "weft-share-")), "lib.db")), signalModes: {} });
 
   it("serves the strategy's own preview tags and sends people on to it", async () => {
-    const r = await app.request("/share/saylor-buys");
+    const r = await app.request("/share/spurs-hot-start");
     expect(r.status).toBe(200);
     const html = await r.text();
-    expect(html).toContain('<meta property="og:title" content="Saylor buys, you buy · Weft">');
-    expect(html).toContain("https://weft.fi/og/strategy/saylor-buys.png");
-    expect(html).toContain('location.replace("https://weft.fi/strategy?id=saylor-buys")');
+    expect(html).toContain('<meta property="og:title" content="Back a hot start · Weft">');
+    expect(html).toContain("https://weft.fi/og/strategy/spurs-hot-start.png");
+    expect(html).toContain('location.replace("https://weft.fi/strategy?id=spurs-hot-start")');
     expect((await app.request("/share/nope")).status).toBe(302);
   });
 

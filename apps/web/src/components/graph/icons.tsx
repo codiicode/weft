@@ -96,6 +96,13 @@ export const IconPosition = ({ size, ...p }: P) => (
   </svg>
 );
 
+export const IconSports = ({ size, ...p }: P) => (
+  <svg {...base(size)} {...p}>
+    <path d="M5 2.5h6v3.2a3 3 0 0 1-6 0z" />
+    <path d="M5 3.6H3a2 2 0 0 0 2 2.6M11 3.6h2a2 2 0 0 1-2 2.6M8 8.7v2.6M5.6 13.5h4.8M6.5 11.3h3v2.2h-3z" />
+  </svg>
+);
+
 export const signalIcon: Record<SignalType, (p: P) => React.JSX.Element> = {
   forecast: IconForecast,
   odds: IconOdds,
@@ -108,6 +115,7 @@ export const signalIcon: Record<SignalType, (p: P) => React.JSX.Element> = {
   rates: IconRates,
   onchain: IconChain,
   liquidity: IconLiquidity,
+  sports: IconSports,
   position: IconPosition,
 };
 

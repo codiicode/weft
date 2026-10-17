@@ -15,7 +15,7 @@ const faqs = [
   },
   {
     q: "What can it watch?",
-    a: "Prices, funding and open interest (on Hyperliquid, Binance and Bybit), order books, prediction-market odds from Hyperliquid and Polymarket, and on-chain data for Solana tokens: holders, buys and sells, liquidity and dev wallets. It can copy every trade a Solana wallet or a Hyperliquid trader makes, track how much a coin is talked about on X, and act when an account you pick posts something specific. Also crypto and market headlines, interest rates, stock indices, oil, the dollar, inflation and jobs data, earnings and Fed dates, weather forecasts, and crypto-wide numbers like the Fear & Greed Index, Bitcoin dominance, stablecoin supply, DeFi TVL and protocol fees.",
+    a: "Prices, funding and open interest (on Hyperliquid, Binance and Bybit), order books, prediction-market odds from Hyperliquid and Polymarket, and on-chain data for Solana tokens: holders, buys and sells, liquidity and dev wallets. It can copy every trade a Solana wallet or a Hyperliquid trader makes, track how much a coin is talked about on X, and act when an account you pick posts something specific. Also crypto and market headlines, interest rates, stock indices, oil, the dollar, inflation and jobs data, earnings and Fed dates, weather forecasts, sports standings (NBA, NFL, MLB, NHL and the big soccer leagues), and crypto-wide numbers like the Fear & Greed Index, Bitcoin dominance, stablecoin supply, DeFi TVL and protocol fees.",
   },
   {
     q: "Can I copy other traders?",

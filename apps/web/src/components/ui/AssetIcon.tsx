@@ -12,7 +12,7 @@ const HL = "https://app.hyperliquid.xyz/coins";
 const LOCAL = new Set([
   "BTC", "ETH", "SOL", "HYPE", "WIF", "BONK", "PUMP", "JUP", "USDC", "FARTCOIN", "DOGE",
   "NVDA", "TSLA", "GOLD", "AAPL", "COIN", "SILVER", "MSFT", "GOOGL", "AMZN", "META", "SP500", "XYZ100",
-  "WHEAT", "NATGAS", "COPPER", "OUTCOME",
+  "WHEAT", "NATGAS", "COPPER", "OUTCOME", "NBA",
 ]);
 /** Common aliases: perp names and tokenized stocks map to the same logo. */
 const ALIAS: Record<string, string> = { KBONK: "BONK", XBT: "BTC", WETH: "ETH", WSOL: "SOL", NVDAX: "NVDA", TSLAX: "TSLA", AAPLX: "AAPL", COINX: "COIN", CRCLX: "CRCL", SPX: "SP500" };

@@ -6,7 +6,7 @@ import { examples } from "@weft/strategy/examples";
 const RETIRED_EXAMPLES = ["el-nino-harvest"];
 
 /** Entries removed at their owner's request: [id, created before]. The date keeps a later strategy that happens to get the same id. */
-const REMOVED_ENTRIES: [string, number][] = [["ray-buy-now", Date.UTC(2026, 9, 17)]];
+const REMOVED_ENTRIES: [string, number][] = [["ray-buy-now", Date.UTC(2026, 9, 17)], ["saylor-buys", Date.UTC(2026, 9, 18)]];
 
 /** A strategy's rules without its instruments (which get resolved from placeholders to real ones). */
 const rulesOf = (s: Strategy) =>

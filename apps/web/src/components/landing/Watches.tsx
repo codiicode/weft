@@ -9,16 +9,16 @@ import { Reveal } from "../ui/Reveal";
 const SOURCES: { name: string; example: string; thesis?: string; href?: string; cta?: string; tone: string }[] = [
   { name: "Prices", example: "ETH breaks $2,600", thesis: "Long ETH 5x with $50 if ETH breaks $2,600. 20% stop.", tone: "var(--signal)" },
   { name: "Funding", example: "Longs pay over 0.02% an hour", thesis: "Short SOL 5x with $50 when funding stays above 0.02% an hour. 15% stop.", tone: "var(--signal)" },
-  { name: "Posts on X", example: "@saylor posts that Strategy bought more bitcoin", thesis: "If @saylor posts that Strategy bought more bitcoin, long BTC 3x with $100. Stop at -15% on the position.", tone: "var(--trigger)" },
+  { name: "Posts on X", example: "@elonmusk posts about Dogecoin", thesis: "If @elonmusk posts about Dogecoin, long DOGE 5x with $100. 25% stop.", tone: "var(--trigger)" },
   { name: "Buzz on X", example: "$SOL mentions double in an hour", thesis: "Long SOL 3x with $50 if mentions of $SOL on X double in an hour and the mood is bullish.", tone: "var(--trigger)" },
   { name: "Wallets", example: "A wallet you follow buys a token, and you buy too", tone: "var(--long)" },
   { name: "Hyperliquid traders", example: "A trader you copy opens a BTC long, and so do you", href: "/traders", cta: "Pick a trader →", tone: "var(--long)" },
-  { name: "Prediction odds", example: "Polymarket’s Fed cut odds pass 60%", thesis: "Long BTC 2x with $100 if Polymarket’s odds of a Fed cut pass 60%.", tone: "var(--signal)" },
+  { name: "Prediction markets", example: "The Spurs’ title odds pass 25%, and you buy YES", thesis: "Put $1,000 on the Spurs winning the NBA title if their odds pass 25%. Sell if the odds drop below 15%.", tone: "var(--signal)" },
   { name: "News", example: "Three negative Solana headlines in an hour", thesis: "Short SOL 3x with $50 if there are 3 or more negative news headlines about Solana in an hour.", tone: "var(--trigger)" },
   { name: "Fear & Greed", example: "The index falls to 20", thesis: "If the Fear & Greed index reaches 20, open a 20x long on ETH and a 20x long on BTC with $100 on each.", tone: "var(--short)" },
   { name: "Rates and the economy", example: "The 2-year yield drops 10 bp in 5 days", thesis: "Long BTC 2x with $100 if the US 2-year yield falls 10 bp in 5 days.", tone: "var(--signal)" },
   { name: "Weather", example: "Chicago gets 5°C colder next week", thesis: "Long natural gas 2x with $100 if Chicago is forecast to be 5°C colder next week than this week.", tone: "var(--signal)" },
-  { name: "Protocol fees", example: "Hyperliquid’s daily fees pass $5M", thesis: "Long HYPE 3x with $100 if Hyperliquid’s daily fees pass $5 million.", tone: "var(--signal)" },
+  { name: "Sports results", example: "The Spurs win 10 of their first 15 games", thesis: "If the Spurs win at least 10 of their first 15 games and their title odds pass 25%, put $1,000 on them winning the NBA title. Sell if the odds drop below 15%.", tone: "var(--trigger)" },
 ];
 
 export function Watches() {
