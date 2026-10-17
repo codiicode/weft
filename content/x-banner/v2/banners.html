@@ -501,6 +501,39 @@ function pfpCanvas(draw) {
   c.style.cssText = "position:absolute;inset:0;width:1000px;height:1000px"; $b.appendChild(c);
 }
 
+
+/* ---------- profile picture, printed: halftone glow, grain, rough edge ---------- */
+function printedPfp(glow) {
+  $b.style.width = "1000px"; $b.style.height = "1000px"; $b.className = "dark"; dots("#2a2a2e", 24, 1.6);
+  const S = 2000, c = document.createElement("canvas"); c.width = S; c.height = S; const g = c.getContext("2d");
+  const rnd = srnd(42), cx = S / 2 - 16, cy = S / 2;
+  // a halftone glow behind the mark, densest at the centre
+  const cell = 26, R = 760;
+  for (let y = cell / 2; y < S; y += cell) for (let x = cell / 2; x < S; x += cell) {
+    const d = Math.hypot((x - cx) / 1.25, y - cy) / R;
+    if (d >= 1) continue;
+    const k = Math.pow(1 - d, 1.6), r = cell * 0.46 * Math.sqrt(k);
+    if (r < 0.8) continue;
+    g.fillStyle = glow(k); g.beginPath(); g.arc(x, y, r, 0, 7); g.fill();
+  }
+  // the mark, then a printed edge: grain eats into it a little
+  const m = document.createElement("canvas"); m.width = S; m.height = S; const mg = m.getContext("2d");
+  mg.filter = "blur(5px)"; markPath(mg, cx, cy, 1160, "#fff", 3.5, 5.2); mg.filter = "none";
+  const md = mg.getImageData(0, 0, S, S), p = md.data;
+  for (let i = 0; i < p.length; i += 4) { const a = p[i + 3] / 255 + (rnd() - 0.5) * 0.7; p[i] = 244; p[i + 1] = 243; p[i + 2] = 239; p[i + 3] = a > 0.5 ? 255 : 0; }
+  mg.putImageData(md, 0, 0);
+  g.drawImage(m, 0, 0);
+  // paper grain over everything
+  const id = g.getImageData(0, 0, S, S), q = id.data;
+  for (let i = 0; i < q.length; i += 4) {
+    const n = rnd();
+    if (q[i + 3] === 0) { if (n > 0.965) { q[i] = q[i + 1] = q[i + 2] = 130; q[i + 3] = 70; } }
+    else { const d = (n - 0.5) * 26; q[i] += d; q[i + 1] += d; q[i + 2] += d; }
+  }
+  g.putImageData(id, 0, 0);
+  c.style.cssText = "position:absolute;inset:0;width:1000px;height:1000px"; $b.appendChild(c);
+}
+
 /* ---------- the three banners ---------- */
 const Q = new URLSearchParams(location.search), V = Q.get("v") ?? "1";
 // ?raw=1 shows each scene before printing, ?raw=1&ink=1 after
@@ -525,6 +558,10 @@ function banner1(scenes, text, cells = [], layout = LAYOUT, withLogo = true) {
   if (withLogo) logo(1268, 418, 44, "dark");
 }
 const BANNERS = {
+  pfpD() { printedPfp((k) => `rgba(150,150,156,${0.25 + 0.55 * k})`); },
+  pfpE() { printedPfp((k) => `rgba(240,195,90,${0.3 + 0.6 * k})`); },
+  pfpF() { printedPfp((k) => `rgba(124,140,255,${0.3 + 0.6 * k})`); },
+
   pfpA() {
     $b.style.width = "1000px"; $b.style.height = "1000px"; $b.className = "dark"; dots("#34343a", 40, 3.4);
     pfpCanvas((g, S) => { g.save(); g.shadowColor = "rgba(244,243,239,0.35)"; g.shadowBlur = 60; markPath(g, S / 2 - 20, S / 2, 1150, "#f4f3ef", 3.4, 5.0); g.restore(); });
