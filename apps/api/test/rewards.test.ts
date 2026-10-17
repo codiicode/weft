@@ -123,3 +123,16 @@ describe("repairing a buy recorded with 0 tokens", () => {
     expect(Math.round(st.todayPotTokens)).toBe(700);
   });
 });
+
+describe("token-fee bookkeeping", () => {
+  it("remembers what each claim booked and what's still owed to the revenue wallet", () => {
+    const r = new Rewards(join(mkdtempSync(join(tmpdir(), "rw-")), "r.db"), { startDay: "2026-10-17" });
+    r.recordTokenFeeClaim({ at: 1, stage: "curve", claimedSol: 28.6745, protocolSol: 23.9, buybackSol: 4.78, claimTx: "c1", transferTx: null });
+    r.recordTokenFeeClaim({ at: 2, stage: "curve", claimedSol: 0.2243, protocolSol: 0.19, buybackSol: 0.04, claimTx: "c1", transferTx: null });
+    expect(r.claimedSolFor("c1")).toBeCloseTo(28.8988, 4);
+    expect(r.claimedSolFor("nope")).toBe(0);
+    expect(r.owedRevenue()).toBe(0n);
+    r.setOwedRevenue(8_283_287_584n);
+    expect(r.owedRevenue()).toBe(8_283_287_584n);
+  });
+});

@@ -242,6 +242,19 @@ export class Rewards {
   }
 
   /** Token-fee SOL (lamports) set aside for a buy that didn't go through yet; retried next run. */
+  /** Weft's share of claimed $WEFT fees not yet sent to the revenue wallet (lamports). */
+  owedRevenue(): bigint {
+    const r = this.db.prepare("SELECT value FROM kv WHERE key = 'owed_revenue'").get() as { value: string } | undefined;
+    return r ? BigInt(r.value) : 0n;
+  }
+  setOwedRevenue(lamports: bigint) {
+    this.db.prepare("INSERT OR REPLACE INTO kv (key, value) VALUES ('owed_revenue', ?)").run(lamports.toString());
+  }
+  /** SOL already booked for one claim transaction (0 if none). */
+  claimedSolFor(tx: string): number {
+    return (this.db.prepare("SELECT COALESCE(SUM(claimed_sol), 0) AS s FROM token_fee_claims WHERE claim_tx = ?").get(tx) as { s: number }).s;
+  }
+
   owedTokenBuyback(): bigint {
     const r = this.db.prepare("SELECT value FROM kv WHERE key = 'owed_token_buyback'").get() as { value: string } | undefined;
     return r ? BigInt(r.value) : 0n;

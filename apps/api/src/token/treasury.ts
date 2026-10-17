@@ -49,6 +49,10 @@ const MIN_CLAIM_SOL = 0.01;
 /** SOL the treasury keeps for transaction fees and token accounts. */
 const GAS_RESERVE_SOL = 0.05;
 const MIN_BUY_USD = 0.5;
+/** Programs whose transactions pay the treasury fees: the bonding curve and the graduated pool. */
+const DBC_PROGRAM = "dbcij3LWUppWqq96dh6gJWwBifmcGfLSB5D4DuSMaqN";
+const DAMM_V2_PROGRAM = "cpamdpZCGKUy5JxQXB4dcpGPiikHawvSWAd6mEn1sGG";
+const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
 export interface TickResult {
   claimedSol: number;
@@ -110,7 +114,7 @@ export class Treasury {
       const tx = await this.dbc.partner.claimPartnerTradingFee({ feeClaimer: this.me, payer: this.me, pool, maxBaseAmount: new BN(0), maxQuoteAmount: U64_MAX, receiver: this.me } as never);
       const sig = await this.send(tx);
       await this.unwrapSol();
-      out.push({ lamports: curveFee, stage: "curve", tx: sig });
+      out.push({ lamports: (await this.solIn(sig)) ?? curveFee, stage: "curve", tx: sig });
     }
     // After graduation: the treasury's position in the locked DAMM v2 pool.
     const vp = await this.dbc.state.getPool(pool).catch(() => null);
@@ -138,11 +142,87 @@ export class Treasury {
           });
           const sig = await this.send(tx);
           await this.unwrapSol();
-          out.push({ lamports: solFee, stage: "pool", tx: sig });
+          out.push({ lamports: (await this.solIn(sig)) ?? solFee, stage: "pool", tx: sig });
         }
       }
     }
     return out;
+  }
+
+  /**
+   * SOL (and wrapped SOL) a transaction brought the treasury, with its own network fee added back:
+   * what a claim actually paid out, fees that arrived between reading and claiming included.
+   * Null when the transaction can't be read.
+   */
+  private async solIn(sig: string): Promise<bigint | null> {
+    const tx = await this.txMeta(sig);
+    if (!tx) return null;
+    return tx.delta + (tx.payer ? tx.fee : 0n);
+  }
+  private async txMeta(sig: string) {
+    for (let i = 0; i < 10; i++) {
+      const tx = await this.c.conn.getTransaction(sig, { commitment: "confirmed", maxSupportedTransactionVersion: 0 }).catch(() => null);
+      if (tx?.meta) {
+        const keys = tx.transaction.message.getAccountKeys({ accountKeysFromLookups: tx.meta.loadedAddresses ?? undefined });
+        const all = keys.staticAccountKeys.map((k) => k.toBase58()).concat((keys.accountKeysFromLookups?.writable ?? []).map(String), (keys.accountKeysFromLookups?.readonly ?? []).map(String));
+        const me = this.me.toBase58(), i = all.indexOf(me);
+        if (i < 0) return null;
+        const wsol = (l: typeof tx.meta.postTokenBalances) => BigInt(l?.find((b) => b.owner === me && b.mint === NATIVE_MINT.toBase58())?.uiTokenAmount.amount ?? "0");
+        const programs = new Set(tx.transaction.message.compiledInstructions.map((ix) => all[ix.programIdIndex]));
+        return {
+          delta: BigInt(tx.meta.postBalances[i]! - tx.meta.preBalances[i]!) + wsol(tx.meta.postTokenBalances) - wsol(tx.meta.preTokenBalances),
+          fee: BigInt(tx.meta.fee),
+          payer: i === 0,
+          programs,
+          ok: tx.meta.err == null,
+        };
+      }
+      await sleep(1500);
+    }
+    return null;
+  }
+
+  /** Wait until the RPC shows at least this many lamports (a fresh claim can take a few seconds to show). */
+  private async waitForLamports(min: bigint) {
+    for (let i = 0; i < 20; i++) {
+      if (BigInt(await this.c.conn.getBalance(this.me, "confirmed").catch(() => 0)) >= min) return;
+      await sleep(1500);
+    }
+    throw new Error(`the treasury doesn't show ${Number(min) / LAMPORTS_PER_SOL} SOL yet`);
+  }
+
+  /**
+   * Claims the ledger doesn't have, or has short: a run that stopped after claiming, or fees that
+   * arrived between reading and claiming. Measured from the treasury's own claim transactions.
+   */
+  private readonly checked = new Set<string>();
+  private async reconcileClaims(rewards: Rewards, now: number, r: TickResult) {
+    const since = rewards.startDay ? Date.parse(`${rewards.startDay}T00:00:00Z`) / 1000 : 0;
+    for (const s of await this.c.conn.getSignaturesForAddress(this.me, { limit: 50 }, "confirmed")) {
+      if (s.err || this.checked.has(s.signature) || (s.blockTime ?? 0) < since) continue;
+      const tx = await this.txMeta(s.signature);
+      if (!tx) continue;
+      this.checked.add(s.signature);
+      const stage = tx.programs.has(DAMM_V2_PROGRAM) ? "pool" : tx.programs.has(DBC_PROGRAM) ? "curve" : null;
+      if (!stage || !tx.payer || !tx.ok) continue;
+      const got = tx.delta + tx.fee;
+      const missing = got - BigInt(Math.round(rewards.claimedSolFor(s.signature) * LAMPORTS_PER_SOL));
+      if (missing < 1_000_000n) continue; // under 0.001 SOL: rounding, not a missed claim
+      this.book(rewards, { lamports: missing, stage, tx: s.signature }, now, r);
+      this.c.log?.(`treasury: booked ${(Number(missing) / LAMPORTS_PER_SOL).toFixed(4)} SOL the ledger was missing from claim ${s.signature.slice(0, 12)}…`);
+    }
+  }
+
+  /** Book a claim: 2.0/2.4 owed to the revenue wallet, 0.4/2.4 owed to buybacks; both paid right after. */
+  private book(rewards: Rewards, claim: { lamports: bigint; stage: "curve" | "pool"; tx: string | null }, now: number, r: TickResult) {
+    const { protocolBps, buybackBps } = REWARDS.tokenFee;
+    const protocol = (claim.lamports * BigInt(protocolBps)) / BigInt(protocolBps + buybackBps);
+    const buyback = claim.lamports - protocol;
+    rewards.recordTokenFeeClaim({ at: now, stage: claim.stage, claimedSol: Number(claim.lamports) / LAMPORTS_PER_SOL, protocolSol: Number(protocol) / LAMPORTS_PER_SOL, buybackSol: Number(buyback) / LAMPORTS_PER_SOL, claimTx: claim.tx, transferTx: null });
+    rewards.setOwedRevenue(rewards.owedRevenue() + protocol);
+    rewards.setOwedTokenBuyback(rewards.owedTokenBuyback() + buyback);
+    r.claimedSol += Number(claim.lamports) / LAMPORTS_PER_SOL;
+    r.protocolSol += Number(protocol) / LAMPORTS_PER_SOL;
   }
 
   /** Claims may arrive as wrapped SOL: unwrap it so all the treasury's SOL is in one place. */
@@ -232,26 +312,29 @@ export class Treasury {
 
   async tick(rewards: Rewards, now = Date.now()): Promise<TickResult> {
     const r: TickResult = { claimedSol: 0, protocolSol: 0, boughtTokens: 0, burnedTokens: 0, spentUsd: 0 };
-    const { protocolBps, buybackBps } = REWARDS.tokenFee;
     let px: number | null = null;
     const solUsd = async () => (px ??= await this.solUsd());
 
     await this.repairBuys(rewards, r).catch((e) => this.c.log?.(`treasury: repairing buys failed (${(e as Error).message.slice(0, 120)})`));
 
-    // 1. fees on $WEFT trades: claim, split, buy (plus any buyback a failed run left owed)
-    let owed = rewards.owedTokenBuyback();
-    for (const claim of await this.claimTokenFees()) {
-      const protocol = (claim.lamports * BigInt(protocolBps)) / BigInt(protocolBps + buybackBps);
-      const buyback = claim.lamports - protocol;
-      const transferTx = protocol > 0n ? await this.send([SystemProgram.transfer({ fromPubkey: this.me, toPubkey: this.c.revenueWallet, lamports: protocol })]) : null;
-      rewards.recordTokenFeeClaim({ at: now, stage: claim.stage, claimedSol: Number(claim.lamports) / LAMPORTS_PER_SOL, protocolSol: Number(protocol) / LAMPORTS_PER_SOL, buybackSol: Number(buyback) / LAMPORTS_PER_SOL, claimTx: claim.tx, transferTx });
-      r.claimedSol += Number(claim.lamports) / LAMPORTS_PER_SOL;
-      r.protocolSol += Number(protocol) / LAMPORTS_PER_SOL;
-      owed += buyback;
-      rewards.setOwedTokenBuyback(owed);
+    // 1. fees on $WEFT trades: book anything a run missed, claim and book what's new, then pay out:
+    //    Weft's share to the revenue wallet, the rest into a buy. Whatever fails stays owed for the next run.
+    await this.reconcileClaims(rewards, now, r).catch((e) => this.c.log?.(`treasury: checking past claims failed (${(e as Error).message.slice(0, 120)})`));
+    for (const claim of await this.claimTokenFees()) this.book(rewards, claim, now, r);
+    const revenue = rewards.owedRevenue();
+    if (revenue > 0n) {
+      try {
+        await this.waitForLamports(revenue + rewards.owedTokenBuyback());
+        await this.send([SystemProgram.transfer({ fromPubkey: this.me, toPubkey: this.c.revenueWallet, lamports: revenue })]);
+        rewards.setOwedRevenue(0n);
+      } catch (e) {
+        this.c.log?.(`treasury: sending ${(Number(revenue) / LAMPORTS_PER_SOL).toFixed(4)} SOL to the revenue wallet failed, retrying next run (${(e as Error).message.slice(0, 120)})`);
+      }
     }
+    const owed = rewards.owedTokenBuyback();
     if (owed > 0n) {
       try {
+        await this.waitForLamports(owed);
         await this.buyAndBurn(rewards, "SOL", owed, (Number(owed) / LAMPORTS_PER_SOL) * (await solUsd()), "token", now, r);
         rewards.setOwedTokenBuyback(0n);
       } catch (e) {
@@ -273,7 +356,7 @@ export class Treasury {
       if (slice >= MIN_BUY_USD) {
         const p = await solUsd();
         // never the SOL owed to token-fee buybacks
-        const spare = (await this.c.conn.getBalance(this.me)) - GAS_RESERVE_SOL * LAMPORTS_PER_SOL - Number(rewards.owedTokenBuyback());
+        const spare = (await this.c.conn.getBalance(this.me)) - GAS_RESERVE_SOL * LAMPORTS_PER_SOL - Number(rewards.owedTokenBuyback()) - Number(rewards.owedRevenue());
         const useSol = BigInt(Math.max(0, Math.min(spare, Math.floor((slice / p) * LAMPORTS_PER_SOL))));
         const spent = (Number(useSol) / LAMPORTS_PER_SOL) * p;
         if (spent >= MIN_BUY_USD) {
