@@ -10,7 +10,7 @@ export const brand = {
     "Write a market view in plain English. Weft turns it into rules you can read and trades them from your own wallet: perps, stocks, prediction markets and Solana tokens.",
   domain: "weft.fi",
   url: "https://weft.fi",
-  contractAddress: "PLACEHOLDER_CONTRACT_ADDRESS_SOLANA",
+  contractAddress: "HqmFi85adLD8BQA7en1HfajdAfzVFps5REgQaYuw6Ax8",
   chain: "Solana",
   /** Where $WEFT launches. Swap to "pump.fun" (+ curve "bonding curve") and the copy follows. */
   launchpad: "Meteora",
