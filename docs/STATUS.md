@@ -6,7 +6,7 @@ _Last updated by the build session. All numbers below were verified by running t
 
 | Step | State |
 |---|---|
-| All work committed | Done (4ea44ed). No git remote yet: nothing is pushed anywhere. |
+| All work committed and pushed | Done: private repo github.com/codiicode/weft (main) |
 | Typecheck + tests | Green: 6 workspaces typecheck, 398 tests pass (2 testnet-only skipped) |
 | Simulated data never trades | Server refuses live trades on simulated signals (only `model`); the drafter no longer reaches for `model` |
 | Off-site backup | Built (hourly on the volume, R2 copy when `R2_*` is set). R2 keys not set yet. |
