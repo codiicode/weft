@@ -729,10 +729,10 @@ const BANNERS = {
     ];
     for (const [x, y, t, a] of IDEAS) div(`“${t}”`, `position:absolute;left:${x}px;top:${y}px;padding:13px 20px;border-radius:12px;background:#151517;border:1px solid #232327;font-size:22px;color:#6a6964;white-space:nowrap;opacity:${a}`);
     // the one that gets traded
-    const pr = div(`<div class="txt" style="font-size:28px">“Long ETH if it breaks $2,600. Stop at 8%.”</div><div class="btn send">${SEND("#141414")}</div>`, "left:96px;top:560px;width:820px;box-shadow:0 0 0 1.5px rgba(245,165,36,0.55),0 0 70px rgba(245,165,36,0.16),0 30px 80px rgba(0,0,0,0.55)");
+    const pr = div(`<div class="txt" style="font-size:28px">“Long SOL 10x if it breaks $110.”</div><div class="btn send">${SEND("#141414")}</div>`, "left:96px;top:560px;width:820px;box-shadow:0 0 0 1.5px rgba(245,165,36,0.55),0 0 70px rgba(245,165,36,0.16),0 30px 80px rgba(0,0,0,0.55)");
     pr.classList.add("prompt");
-    tile(1090, 236, 450, 330, drawMiniRules([["WHEN", "ETH breaks $2,600"], ["THEN", "Long ETH, $500"], ["EXIT", "Stop at 8%"]]), "amberBlue", o);
-    tile(1090, 620, 450, 240, fillTile("ORDER FILLED", "Long ETH", "$500 at $2,604", ["From your own wallet"]), "green", o);
+    tile(1090, 300, 450, 262, drawMiniRules([["WHEN", "SOL breaks $110"], ["THEN", "Long SOL at 10×"]]), "amberBlue", o);
+    tile(1090, 620, 450, 240, fillTile("ORDER FILLED", "Long SOL", "10× at $110.20", ["From your own wallet"]), "green", o);
     const sv = el("svg", { width: 1600, height: 900, style: "position:absolute;inset:0;pointer-events:none" }, $b);
     const defs = el("defs", {}, sv);
     const gr = el("linearGradient", { id: "thr", x1: "0", y1: "0", x2: "1", y2: "0" }, defs);
@@ -740,11 +740,11 @@ const BANNERS = {
     const gl = el("filter", { id: "thg", x: "-20%", y: "-50%", width: "140%", height: "200%" }, defs);
     el("feGaussianBlur", { stdDeviation: "6" }, gl);
     for (const [w, op, f] of [[10, 0.35, "url(#thg)"], [3.5, 1, ""]]) {
-      el("path", { d: "M 916 597 C 1000 597 1000 400 1090 400", stroke: "url(#thr)", "stroke-width": w, fill: "none", "stroke-linecap": "round", opacity: op, ...(f ? { filter: f } : {}) }, sv);
-      el("path", { d: "M 1315 566 L 1315 620", stroke: "#93e3bc", "stroke-width": w, fill: "none", "stroke-linecap": "round", opacity: op, ...(f ? { filter: f } : {}) }, sv);
+      el("path", { d: "M 916 597 C 1000 597 1000 431 1090 431", stroke: "url(#thr)", "stroke-width": w, fill: "none", "stroke-linecap": "round", opacity: op, ...(f ? { filter: f } : {}) }, sv);
+      el("path", { d: "M 1315 562 L 1315 620", stroke: "#93e3bc", "stroke-width": w, fill: "none", "stroke-linecap": "round", opacity: op, ...(f ? { filter: f } : {}) }, sv);
     }
     el("circle", { cx: 916, cy: 597, r: 7, fill: "#f5a524" }, sv);
-    el("circle", { cx: 1315, cy: 593, r: 7, fill: "#93e3bc" }, sv);
+    el("circle", { cx: 1315, cy: 591, r: 7, fill: "#93e3bc" }, sv);
   },
 
   copy() {
