@@ -1,0 +1,64 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Weft X banner</title>
+<style>
+  @font-face { font-family: "Newsreader"; src: url("../../scripts/og/newsreader-latin.woff2") format("woff2"); font-weight: 200 800; }
+  @font-face { font-family: "Inst"; src: url("../../scripts/og/instrument-sans-latin.woff2") format("woff2"); font-weight: 400 700; }
+  html, body { margin: 0; background: #0c0c0d; }
+  #b { position: relative; width: 1500px; height: 500px; overflow: hidden; background: #0c0c0d; }
+  svg { position: absolute; inset: 0; overflow: visible; }
+  .tag { position: absolute; font-family: "Newsreader", serif; letter-spacing: -0.02em; color: #a3a29d; font-size: 40px; }
+  .url { position: absolute; font-family: "Inst", sans-serif; font-weight: 600; letter-spacing: -0.01em; color: #f4f3ef; font-size: 22px; }
+</style>
+</head>
+<body>
+<div id="b">
+  <svg id="s" width="1500" height="500">
+    <defs>
+      <filter id="glow" x="-150%" y="-150%" width="400%" height="400%"><feGaussianBlur stdDeviation="4" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter>
+      <filter id="bloom" x="-200%" y="-200%" width="500%" height="500%"><feGaussianBlur stdDeviation="12" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter>
+      <radialGradient id="halo" cx="0.5" cy="0.5" r="0.5"><stop offset="0" stop-color="#7c8cff" stop-opacity="0.16"/><stop offset="1" stop-color="#7c8cff" stop-opacity="0"/></radialGradient>
+      <radialGradient id="vig" cx="0.5" cy="0.5" r="0.75"><stop offset="0.6" stop-color="#000" stop-opacity="0"/><stop offset="1" stop-color="#000" stop-opacity="0.45"/></radialGradient>
+    </defs>
+    <g id="grid"></g>
+    <ellipse cx="1000" cy="230" rx="520" ry="300" fill="url(#halo)"/>
+    <g id="threads" fill="none" stroke-linecap="round"></g>
+    <circle cx="1000" cy="230" r="44" fill="none" stroke="#3ecf8e" stroke-width="1.5" opacity="0.35"/>
+    <circle cx="1000" cy="230" r="74" fill="none" stroke="#3ecf8e" stroke-width="1" opacity="0.14"/>
+    <circle cx="1000" cy="230" r="15" fill="#f4f3ef" filter="url(#bloom)"/>
+    <rect width="1500" height="500" fill="url(#vig)"/>
+  </svg>
+  <div class="tag" id="tag" style="left:1092px;top:272px">Trade the thesis.</div>
+  <div class="url" id="url" style="left:1094px;top:332px">weft.fi</div>
+</div>
+<script>
+const NS = "http://www.w3.org/2000/svg";
+const el = (t, a, p) => { const e = document.createElementNS(NS, t); for (const k in a) e.setAttribute(k, a[k]); p.appendChild(e); return e; };
+for (let x = 18; x < 1500; x += 36) el("line", { x1: x, y1: 0, x2: x, y2: 500, stroke: "#fff", "stroke-opacity": 0.025 }, document.getElementById("grid"));
+const K = { x: 1000, y: 230 };
+const T = document.getElementById("threads");
+// Five threads come in from the left, crossing over each other like a weave, and tie into the knot.
+const IN = [
+  ["#f5a524", 40, [150, 330]],
+  ["#f472b6", 135, [260, 70]],
+  ["#38bdf8", 230, [120, 400]],
+  ["#7c8cff", 330, [330, 120]],
+  ["#a78bfa", 440, [200, 300]],
+];
+IN.forEach(([c, y0, [cy1, cy2]]) => {
+  const d = `M -20 ${y0} C 240 ${y0}, 330 ${cy1}, 520 ${(cy1 + cy2) / 2} S 760 ${K.y}, ${K.x} ${K.y}`;
+  el("path", { d, stroke: c, "stroke-width": 3.2, opacity: 0.95 }, T);
+  // a signal travelling down each thread
+  const p = el("path", { d, stroke: "none" }, T), L = p.getTotalLength(), pt = p.getPointAtLength(L * (0.32 + 0.08 * ((y0 / 40) % 3)));
+  el("circle", { cx: pt.x, cy: pt.y, r: 4.5, fill: c, filter: "url(#glow)" }, T);
+});
+// One green thread leaves: the trade.
+el("path", { d: `M ${K.x} ${K.y} L 1520 ${K.y}`, stroke: "#3ecf8e", "stroke-width": 4.5 }, T);
+el("circle", { cx: 1300, cy: K.y, r: 5, fill: "#3ecf8e", filter: "url(#glow)" }, T);
+const q = new URLSearchParams(location.search);
+if (q.has("plain")) { document.getElementById("tag").remove(); document.getElementById("url").remove(); }
+</script>
+</body>
+</html>
