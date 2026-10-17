@@ -16,16 +16,16 @@ const r = brand.rewards;
 
 /** Where each day's buyback goes, as one bar split three ways. */
 const SPLIT = [
-  { share: r.traderShare, color: "var(--long)", title: "Back to traders", body: `Every day. Your share is the fees you paid that day, so trading only for the reward never pays.` },
+  { share: r.traderShare, color: "var(--long)", title: "Back to traders", body: `Shared out every day. Your share is the fees you paid that day, so trading only for the reward never pays.` },
   { share: r.creatorShare, color: "var(--signal)", title: "To creators", body: "Publish a strategy. When other people run it, you earn from the fees their runs pay." },
-  { share: r.burnShare, color: "var(--trigger)", title: "Burned", body: `Gone for good. There is no team allocation and nothing new is ever minted, so the supply only shrinks.` },
+  { share: r.burnShare, color: "var(--trigger)", title: "Burned", body: `Burned the moment it’s bought. There is no team allocation and nothing new is ever minted, so the supply only shrinks.` },
 ];
 
 const HOLD = [
   ["Half the fee", `Hold ${$T} and every trade costs ${brand.holderDiscount === 0.5 ? "half" : `${pct(1 - brand.holderDiscount)} of`} the fee.`],
   [`${r.holderBoost}× rewards`, `Holders get a bigger share of the daily rewards; ${r.bigHolderBoost}× for the largest holders.`],
   [`${brand.aiDrafts.holders} AI drafts a day`, `Instead of ${brand.aiDrafts.everyone}. Weft writes, rewrites and tests more strategies for you.`],
-  ["Claim daily", "Rewards for each day are ready the morning after (UTC). One click sends them to your wallet."],
+  ["Claim daily", "Each day’s rewards are ready right after midnight UTC. One click sends them to your wallet."],
 ];
 
 export function Token() {
@@ -45,15 +45,16 @@ export function Token() {
         </Reveal>
         <Reveal delay={120}>
           <p className="mt-6 max-w-[640px] text-[clamp(1.05rem,1.6vw,1.25rem)] leading-relaxed text-ink-2">
-            {pct(brand.buybackShare) === "50%" ? "Half" : pct(brand.buybackShare)} of every fee Weft earns buys {$T} on the open market, every day. Then it goes back
-            to the people who use Weft: the traders, the people who write the strategies, and the rest is burned.
+            Weft buys {$T} on the open market in small amounts about every ten minutes, around the clock: with{" "}
+            {pct(brand.buybackShare) === "50%" ? "half" : pct(brand.buybackShare)} of every fee it earns, and {brand.tokenFee.buybackBps / 100}% of every {$T} trade. Then it goes
+            back to the people who use Weft: the traders, the people who write the strategies, and the rest is burned.
           </p>
         </Reveal>
 
         <Reveal delay={200}>
           <div className="mt-14">
             <div className="flex items-baseline justify-between text-[13px] text-muted">
-              <span>Each day’s buyback</span>
+              <span>Every buyback</span>
               <span className="tnum">100%</span>
             </div>
             <div className="mt-3 flex h-3 gap-[3px] overflow-hidden rounded-full">
@@ -71,7 +72,7 @@ export function Token() {
               ))}
             </div>
             <p className="mt-8 text-[14.5px] text-ink-2">
-              In practice: pay $40 in fees today and about $10 of {$T} is yours to claim tomorrow, more if you hold {$T}.
+              In practice: about a quarter of the fees you pay comes back to you in {$T}, more if you hold it.
             </p>
           </div>
         </Reveal>
@@ -95,7 +96,7 @@ export function Token() {
             {[
               ["Fee on Hyperliquid", `${(brand.builderFeeBps / 100).toFixed(2)}% per trade`],
               ["Fee on Solana swaps", `${+(brand.swapFeeBps / 100).toFixed(2)}% per swap`],
-              ["Launch", `${brand.chain}, through ${brand.launchpad}. All of the supply on the curve, no team tokens`],
+              ["Launch", `${brand.chain}, through ${brand.launchpad}. All of the supply on the curve, no team tokens. Weft’s own buy at launch is burned`],
               [`Trading ${$T}`, `${brand.tokenFee.totalBps / 100}% fee: ${brand.tokenFee.protocolBps / 100}% to Weft, ${brand.tokenFee.buybackBps / 100}% buys back ${$T}, ${brand.tokenFee.meteoraBps / 100}% to Meteora`],
             ].map(([k, v]) => (
               <div key={k}>

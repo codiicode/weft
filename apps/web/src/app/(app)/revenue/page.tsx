@@ -118,14 +118,14 @@ export default function RevenuePage() {
                 <Card className="mt-4 overflow-hidden">
                   <ul className="divide-y divide-line text-[13.5px]">
                     {d.buybacks.events.map((ev) => (
-                      <li key={ev.tx} className="flex flex-wrap items-center justify-between gap-3 px-5 py-3">
+                      <li key={`${ev.at}-${ev.tx}`} className="flex flex-wrap items-center justify-between gap-3 px-5 py-3">
                         <span className="text-muted">{new Date(ev.at).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" })}</span>
                         <span className="tnum text-ink">
                           {tokens(ev.boughtTokens)} {$T} for {fmtUsd(ev.spentUsd, 2)}
                           {ev.burnedTokens ? <span className="text-muted"> · {tokens(ev.burnedTokens)} burned</span> : null}
                         </span>
                         <span className="flex gap-3 text-[12.5px]">
-                          <a className="text-ink underline decoration-line-2 underline-offset-4" href={`https://solscan.io/tx/${ev.tx}`} target="_blank" rel="noopener noreferrer">Buy ↗</a>
+                          {ev.tx && <a className="text-ink underline decoration-line-2 underline-offset-4" href={`https://solscan.io/tx/${ev.tx}`} target="_blank" rel="noopener noreferrer">Buy ↗</a>}
                           {ev.burnTx && <a className="text-ink underline decoration-line-2 underline-offset-4" href={`https://solscan.io/tx/${ev.burnTx}`} target="_blank" rel="noopener noreferrer">Burn ↗</a>}
                         </span>
                       </li>

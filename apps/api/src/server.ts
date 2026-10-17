@@ -1,7 +1,7 @@
 import { TradeTape } from "./lib/tape.ts";
 import { Backups } from "./lib/backup.ts";
 import { PrivyClient } from "@privy-io/node";
-import { Connection, Keypair } from "@solana/web3.js";
+import { Connection, Keypair, PublicKey } from "@solana/web3.js";
 import { JupiterSwapBuilder } from "@weft/execution";
 import type { Fill } from "@weft/engine";
 import { REWARDS, Rewards } from "./lib/rewards.ts";
@@ -241,18 +241,23 @@ engine.subscribe((e) => {
     rewards.record({ id: fill.id, ts: fill.ts, userId, deploymentId: e.deploymentId, creatorId: accounts.deploymentCreator(e.deploymentId), instrumentKey: fill.instrumentKey, feeUsd: fill.builderFeeUsd! });
   });
 });
-// The treasury (the fee wallet's key) buys each day's $WEFT and pays claims: off until the token
-// exists and WEFT_TREASURY_KEY is set.
+// The treasury (WEFT_TREASURY_KEY, a wallet of its own) claims the fees on $WEFT trades, splits
+// them 2% to the fee wallet / 0.4% to buybacks, buys and burns, and pays claims: off until the token
+// exists and its key is set.
 const treasury = (() => {
   if (!holderCfg.mint || !process.env.WEFT_TREASURY_KEY) return null;
   try {
     const keypair = Keypair.fromSecretKey(Uint8Array.from(JSON.parse(process.env.WEFT_TREASURY_KEY)));
     const key = process.env.JUPITER_API_KEY;
+    const revenue = process.env.WEFT_REVENUE_WALLET ? new PublicKey(process.env.WEFT_REVENUE_WALLET) : solCfg.feeWallet;
+    if (!revenue) throw new Error("WEFT_REVENUE_WALLET (or WEFT_SOL_FEE_WALLET) is required");
     return new Treasury({
       conn: new Connection(solCfg.rpcUrl, "confirmed"),
       keypair,
       mint: holderCfg.mint,
       decimals: Number(process.env.WEFT_TOKEN_DECIMALS ?? 6),
+      dbcPool: process.env.WEFT_DBC_POOL ? new PublicKey(process.env.WEFT_DBC_POOL) : null,
+      revenueWallet: revenue,
       jupiter: new JupiterSwapBuilder(key ? { apiKey: key, baseUrl: "https://api.jup.ag/swap/v1" } : {}),
       log: (m) => console.log(`  ${m}`),
     });
@@ -261,21 +266,32 @@ const treasury = (() => {
     return null;
   }
 })();
-// After each UTC midnight: close the day (shares by fees × holder boost), then buy and burn for it.
+// About every ten minutes (8 to 12, so the timing can't be predicted): close any ended day, then
+// claim, split, buy and burn. Never two runs at once.
 let rewardsRunning = false;
 const runRewards = async () => {
   if (rewardsRunning) return;
   rewardsRunning = true;
   try {
     for (const day of rewards.pendingDays()) await rewards.closeDay(day, async (u) => REWARDS.boost[(await holders.status(u)).tier]);
-    if (treasury) for (const d of rewards.unfundedDays()) await treasury.fund(rewards, d);
+    if (treasury) {
+      const r = await treasury.tick(rewards);
+      if (r.claimedSol || r.boughtTokens) console.log(`  treasury: claimed ${r.claimedSol.toFixed(4)} SOL (${r.protocolSol.toFixed(4)} to Weft), bought ${r.boughtTokens.toFixed(0)} WEFT for $${r.spentUsd.toFixed(2)}, burned ${r.burnedTokens.toFixed(0)}`);
+    }
   } finally {
     rewardsRunning = false;
   }
 };
-const rewardsTimer = setInterval(() => void runRewards().catch((e) => console.warn("rewards failed:", (e as Error).message)), 10 * 60_000);
-rewardsTimer.unref();
-setTimeout(() => void runRewards().catch((e) => console.warn("rewards failed:", (e as Error).message)), 30_000).unref();
+let rewardsTimer: NodeJS.Timeout | null = null;
+const scheduleRewards = (ms: number) => {
+  rewardsTimer = setTimeout(() => {
+    void runRewards()
+      .catch((e) => console.warn("rewards failed:", (e as Error).message.slice(0, 300)))
+      .finally(() => scheduleRewards(8 * 60_000 + Math.random() * 4 * 60_000));
+  }, ms);
+  rewardsTimer.unref();
+};
+scheduleRewards(30_000);
 console.log(`  rewards: ${rewards.enabled ? `from ${rewards.startDay}` : "ledger only (WEFT_REWARDS_START not set)"} · treasury ${treasury ? treasury.address.toBase58().slice(0, 8) + "…" : "off"}`);
 
 const app = createApp({
@@ -309,13 +325,8 @@ const app = createApp({
       token: holderCfg.mint
         ? { mint: holderCfg.mint, initialSupply: Number(process.env.WEFT_TOKEN_INITIAL_SUPPLY ?? 1_000_000_000), conn: new Connection(solCfg.rpcUrl, "confirmed") }
         : null,
-      buybackLog: () => {
-        try {
-          return JSON.parse(accounts.kvGet("buybacks") || "[]");
-        } catch {
-          return [];
-        }
-      },
+      // Buybacks run every ten minutes or so: shown per day.
+      buybackLog: () => rewards.stats().days.map((d) => ({ at: Date.parse(`${d.day}T00:00:00Z`), tx: "", spentUsd: d.spent, boughtTokens: d.bought, burnedTokens: d.burned })),
     }),
   onExitsChanged: () => nativeStops?.poke(500),
   telegram: telegram ?? undefined,
@@ -423,7 +434,7 @@ for (const sig of ["SIGINT", "SIGTERM"] as const) {
     tape?.stop();
     if (reconcileTimer) clearInterval(reconcileTimer);
     if (solanaReconcileTimer) clearInterval(solanaReconcileTimer);
-    clearInterval(rewardsTimer);
+    if (rewardsTimer) clearTimeout(rewardsTimer);
     nativeStops?.stop();
     backups?.stop();
     server.close();

@@ -8,40 +8,60 @@ const at = (day: string, h = 12) => Date.parse(`${day}T${String(h).padStart(2, "
 const make = (startDay: string | null = "2026-11-01") => new Rewards(join(mkdtempSync(join(tmpdir(), "rewards-")), "rewards.db"), { startDay });
 const fee = (r: Rewards, id: string, user: string, usd: number, day = "2026-11-01", creator: string | null = null) =>
   r.record({ id, ts: at(day), userId: user, deploymentId: `run-${user}`, creatorId: creator, instrumentKey: "hl:perp:ETH", feeUsd: usd });
+const buy = (r: Rewards, tokens: number, day = "2026-11-01", h = 13) =>
+  r.addBuy({ at: at(day, h), source: "token", spentUsd: tokens / 1000, boughtTokens: tokens, burnedTokens: tokens * REWARDS.burnShare, swapTx: "swap", burnTx: "burn" });
 
-describe("$WEFT daily rewards", () => {
-  it("splits half of the fees: 50% to traders by fees paid, 20% to creators, 30% burned", async () => {
+describe("$WEFT rewards", () => {
+  it("splits every buy: 30% burned, 50% into the day's traders' pot, 20% into its creators' pot", () => {
+    expect(Rewards.split(1000)).toEqual({ burn: 300, trader: 500, creator: 200 });
+  });
+
+  it("shares a day's pots out at close: traders by fees paid, creators by their strategies' fees", async () => {
     const r = make();
     fee(r, "f1", "alice", 30);
     fee(r, "f2", "bob", 10, "2026-11-01", "carol");
     fee(r, "f2", "bob", 10, "2026-11-01", "carol"); // the same fill twice counts once
+    buy(r, 6_000);
+    buy(r, 4_000, "2026-11-01", 20);
     const d = await r.closeDay("2026-11-01", async () => 1);
-    expect(d.feesUsd).toBe(40);
-    expect(d.buybackUsd).toBe(40 * REWARDS.buybackShare);
-    expect(d.traderPoolUsd).toBeCloseTo(10);
-    expect(d.creatorPoolUsd).toBeCloseTo(4);
-    expect(d.burnUsd).toBeCloseTo(6);
-    expect(r.summary("alice", at("2026-11-02")).history[0]).toMatchObject({ kind: "trade", share: 0.75, usd: 7.5, tokens: null });
-    expect(r.summary("carol", at("2026-11-02")).history[0]).toMatchObject({ kind: "create", share: 1, usd: 4 });
+    expect(d).toMatchObject({ feesUsd: 40, traders: 2, creators: 1, traderTokens: 5_000, creatorTokens: 2_000 });
+    expect(r.claimableTokens("alice")).toBeCloseTo(3_750);
+    expect(r.claimableTokens("bob")).toBeCloseTo(1_250);
+    expect(r.claimableTokens("carol")).toBeCloseTo(2_000);
   });
 
-  it("gives holders a bigger share, and sends a pool nobody earns to the burn", async () => {
+  it("gives holders a bigger share", async () => {
     const r = make();
     fee(r, "f1", "alice", 10);
     fee(r, "f2", "bob", 10);
-    const d = await r.closeDay("2026-11-01", async (u) => (u === "alice" ? 2 : 1));
-    expect(d.creatorPoolUsd).toBe(0);
-    expect(d.burnUsd).toBeCloseTo(10 - 5);
-    const share = (u: string) => r.summary(u, at("2026-11-02")).history[0]!.share;
-    expect(share("alice")).toBeCloseTo(2 / 3);
-    expect(share("bob")).toBeCloseTo(1 / 3);
+    buy(r, 3_000);
+    await r.closeDay("2026-11-01", async (u) => (u === "alice" ? 2 : 1));
+    expect(r.claimableTokens("alice")).toBeCloseTo(1_000);
+    expect(r.claimableTokens("bob")).toBeCloseTo(500);
   });
 
-  it("never rewards a creator for their own runs", async () => {
+  it("rolls a pot nobody earned into the next day, and never pays a creator for their own runs", async () => {
     const r = make();
     fee(r, "f1", "carol", 10, "2026-11-01", "carol");
-    const d = await r.closeDay("2026-11-01", async () => 1);
-    expect(d.creators).toBe(0);
+    buy(r, 1_000);
+    const d1 = await r.closeDay("2026-11-01", async () => 1);
+    expect(d1.creators).toBe(0);
+    expect(d1.creatorTokens).toBe(0);
+    fee(r, "f2", "dave", 5, "2026-11-02", "carol");
+    const d2 = await r.closeDay("2026-11-02", async () => 1);
+    expect(d2.creatorTokens).toBeCloseTo(200);
+    expect(r.claimableTokens("carol")).toBeCloseTo(500 + 200);
+  });
+
+  it("turns each closed day's strategy-fee buyback into a budget bought in slices over the next day", async () => {
+    const r = make();
+    fee(r, "f1", "alice", 288);
+    await r.closeDay("2026-11-01", async () => 1);
+    expect(r.budgetSlice()).toBeCloseTo((288 * REWARDS.buybackShare) / REWARDS.slicesPerDay);
+    r.spendBudget(144 - 0.5);
+    expect(r.budgetSlice()).toBeCloseTo(0.5);
+    r.spendBudget(0.5);
+    expect(r.budgetSlice()).toBe(0);
   });
 
   it("closes each ended day once, from the start day, and only when switched on", async () => {
@@ -52,41 +72,37 @@ describe("$WEFT daily rewards", () => {
     expect(make(null).pendingDays(at("2026-11-03"))).toEqual([]);
   });
 
-  it("turns shares into tokens when the day is funded, and pays a claim exactly once", async () => {
+  it("pays a claim exactly once, and releases one that failed to send", async () => {
     const r = make();
     fee(r, "f1", "alice", 30);
     fee(r, "f2", "bob", 10);
+    buy(r, 20_000);
     await r.closeDay("2026-11-01", async () => 1);
-    expect(r.claimableTokens("alice")).toBe(0);
-    r.fundDay("2026-11-01", { spentUsd: 20, priceUsd: 0.001, traderTokens: 10_000, creatorTokens: 0, burnedTokens: 10_000, buyTx: "buy", burnTx: "burn" });
-    expect(r.claimableTokens("alice")).toBeCloseTo(7_500);
     const paid: number[] = [];
-    const [a, b] = await Promise.all([
-      r.claim("alice", async (n) => (paid.push(n), "tx1")),
-      r.claim("alice", async (n) => (paid.push(n), "tx2")),
-    ]);
+    const [a, b] = await Promise.all([r.claim("alice", async (n) => (paid.push(n), "tx1")), r.claim("alice", async (n) => (paid.push(n), "tx2"))]);
     expect([a, b].filter(Boolean)).toHaveLength(1);
-    expect(paid).toHaveLength(1);
-    expect(paid[0]).toBeCloseTo(7_500);
+    expect(paid).toEqual([7_500]);
     expect(r.claimableTokens("alice")).toBe(0);
+    await expect(r.claim("bob", async () => { throw new Error("rpc down"); })).rejects.toThrow("rpc down");
+    expect(r.claimableTokens("bob")).toBeCloseTo(2_500);
   });
 
-  it("releases a claim that failed to send", async () => {
-    const r = make();
-    fee(r, "f1", "alice", 10);
-    await r.closeDay("2026-11-01", async () => 1);
-    r.fundDay("2026-11-01", { spentUsd: 5, priceUsd: 0.001, traderTokens: 1_000, creatorTokens: 0, burnedTokens: 0, buyTx: null, burnTx: null });
-    await expect(r.claim("alice", async () => { throw new Error("rpc down"); })).rejects.toThrow("rpc down");
-    expect(r.claimableTokens("alice")).toBeCloseTo(1_000);
-  });
-
-  it("estimates today's reward from the fees so far", () => {
+  it("estimates today's reward from the fees and the pots so far", () => {
     const r = make();
     fee(r, "f1", "alice", 30, "2026-11-05");
     fee(r, "f2", "bob", 10, "2026-11-05", "carol");
+    buy(r, 2_000, "2026-11-05");
     const s = r.summary("alice", at("2026-11-05", 18));
     expect(s.today.feesPaidUsd).toBe(30);
-    expect(s.today.estTradeUsd).toBeCloseTo(20 * 0.5 * 0.75);
-    expect(r.summary("carol", at("2026-11-05", 18)).today.estCreateUsd).toBeCloseTo(4);
+    expect(s.today.estTradeTokens).toBeCloseTo(1_000 * 0.75);
+    expect(r.summary("carol", at("2026-11-05", 18)).today.estCreateTokens).toBeCloseTo(400);
+    expect(s.priceUsd).toBeCloseTo(0.001);
+  });
+
+  it("remembers a token-fee buyback that has to be retried", () => {
+    const r = make();
+    expect(r.owedTokenBuyback()).toBe(0n);
+    r.setOwedTokenBuyback(12_345n);
+    expect(r.owedTokenBuyback()).toBe(12_345n);
   });
 });

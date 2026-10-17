@@ -8,6 +8,7 @@ import { brand, $T } from "@/config/brand";
 
 const tokens = (n: number) => (n >= 1e6 ? `${(n / 1e6).toFixed(2)}M` : n >= 1e3 ? `${(n / 1e3).toFixed(1)}K` : n.toLocaleString("en-US", { maximumFractionDigits: 2 }));
 const pct = (x: number) => `${Math.round(x * 100)}%`;
+const REWARDS_TOKEN_FEE = { buybackBps: brand.tokenFee.buybackBps };
 const dayLabel = (d: string) => new Date(`${d}T00:00:00Z`).toLocaleDateString("en-GB", { day: "numeric", month: "short", timeZone: "UTC" });
 
 function Stat({ label, value, sub, action }: { label: string; value: string; sub?: string; action?: React.ReactNode }) {
@@ -65,8 +66,16 @@ export default function RewardsPage() {
                 </Btn>
               }
             />
-            <Stat label="Today so far" value={m ? fmtUsd(m.today.feesPaidUsd, 2) : "—"} sub={m && m.today.feesPaidUsd > 0 ? `in fees · about ${fmtUsd(m.today.estTradeUsd * boost, 2)} back in ${$T} tomorrow` : "in fees paid on live trades"} />
-            <Stat label="From your strategies" value={m ? fmtUsd(m.today.creatorFeesUsd, 2) : "—"} sub={m && m.today.creatorFeesUsd > 0 ? `paid by other people’s runs today · about ${fmtUsd(m.today.estCreateUsd, 2)} to you` : "Publish a strategy; you earn when others run it"} />
+            <Stat
+              label="Today so far"
+              value={m ? fmtUsd(m.today.feesPaidUsd, 2) : "—"}
+              sub={m && m.today.feesPaidUsd > 0 ? `in fees · your share of today’s pot so far: ${tokens(m.today.estTradeTokens * boost)} ${$T}${m.priceUsd ? ` (${fmtUsd(m.today.estTradeTokens * boost * m.priceUsd, 2)})` : ""}` : "in fees paid on live trades"}
+            />
+            <Stat
+              label="From your strategies"
+              value={m ? fmtUsd(m.today.creatorFeesUsd, 2) : "—"}
+              sub={m && m.today.creatorFeesUsd > 0 ? `paid by other people’s runs today · your share so far: ${tokens(m.today.estCreateTokens)} ${$T}` : "Publish a strategy; you earn when others run it"}
+            />
             <Stat
               label="Your boost"
               value={`${boost}×`}
@@ -110,14 +119,14 @@ export default function RewardsPage() {
                       <td className="px-5 py-2.5 text-ink-2">{dayLabel(r.day)}</td>
                       <td className="px-3 py-2.5 text-ink-2">{r.kind === "trade" ? "Your trades" : "Your strategies"}</td>
                       <td className="tnum px-3 py-2.5 text-right text-ink-2">{fmtUsd(r.basisUsd, 2)}</td>
-                      <td className="tnum px-3 py-2.5 text-right text-ink">{r.tokens != null ? `${tokens(r.tokens)} ${$T}` : `≈ ${fmtUsd(r.usd, 2)}`}</td>
+                      <td className="tnum px-3 py-2.5 text-right text-ink">{tokens(r.tokens)} {$T}</td>
                       <td className="px-5 py-2.5 text-right text-[12.5px]">
                         {r.claimTx && !r.claimTx.startsWith("pending") ? (
                           <a className="text-ink underline decoration-line-2 underline-offset-4" href={`https://solscan.io/tx/${r.claimTx}`} target="_blank" rel="noopener noreferrer">Claimed ↗</a>
-                        ) : r.tokens != null ? (
+                        ) : r.tokens > 0 ? (
                           <span className="text-long">Ready</span>
                         ) : (
-                          <span className="text-muted">Buying {$T}</span>
+                          <span className="text-muted">—</span>
                         )}
                       </td>
                     </tr>
@@ -143,17 +152,18 @@ export default function RewardsPage() {
             ))}
           </div>
           <p className="mt-3 text-[12.5px] leading-relaxed text-faint">
-            Each day closes at midnight UTC. {$T} for it is bought on the open market with that day’s fees and is ready to claim once the buy has gone through. Holders also pay half the fee and get {p?.aiDailyLimit.holders ?? brand.aiDrafts.holders} AI drafts a day instead of {p?.aiDailyLimit.everyone ?? brand.aiDrafts.everyone}.
+            {$T} is bought in small amounts about every ten minutes, all day: the {(REWARDS_TOKEN_FEE.buybackBps / 100).toFixed(1)}% buyback on every {$T} trade, and half of Weft’s strategy fees from the day before. Each day’s pots are shared out at midnight UTC and can be claimed right after. Holders also pay half the fee and get {p?.aiDailyLimit.holders ?? brand.aiDrafts.holders} AI drafts a day instead of {p?.aiDailyLimit.everyone ?? brand.aiDrafts.everyone}.
           </p>
         </section>
 
-        {p?.stats && p.stats.daysClosed > 0 && (
+        {p?.stats && p.stats.buys > 0 && (
           <section>
             <h2 className="mb-3 text-[15px] font-semibold tracking-[-0.015em] text-ink">Everyone</h2>
-            <div className="grid gap-px overflow-hidden rounded-[12px] border border-line bg-line sm:grid-cols-3">
-              <Stat label="Rewards so far" value={fmtUsd(p.stats.rewardsUsd, 2)} sub={p.stats.rewardTokens ? `${tokens(p.stats.rewardTokens)} ${$T}` : undefined} />
-              <Stat label="Burned" value={p.stats.burnedTokens ? `${tokens(p.stats.burnedTokens)} ${$T}` : "—"} />
-              <Stat label="Days paid out" value={String(p.stats.daysClosed)} />
+            <div className="grid gap-px overflow-hidden rounded-[12px] border border-line bg-line sm:grid-cols-2 lg:grid-cols-4">
+              <Stat label="Bought back" value={`${tokens(p.stats.boughtTokens)} ${$T}`} sub={`for ${fmtUsd(p.stats.spentUsd, 2)} in ${p.stats.buys.toLocaleString()} buys`} />
+              <Stat label="Burned" value={`${tokens(p.stats.burnedTokens)} ${$T}`} />
+              <Stat label="Shared out" value={`${tokens(p.stats.sharedTokens)} ${$T}`} sub={`${p.stats.daysClosed} days`} />
+              <Stat label="Today’s pot so far" value={`${tokens(p.stats.todayPotTokens)} ${$T}`} sub={p.stats.lastBuyAt ? `last buy ${Math.max(1, Math.round((Date.now() - p.stats.lastBuyAt) / 60_000))} min ago` : undefined} />
             </div>
           </section>
         )}

@@ -15,7 +15,8 @@ import {
 
 /**
  * $WEFT on Meteora's Dynamic Bonding Curve (decided 2026-10-17): priced in SOL, the whole supply on
- * the curve (no team allocation, no vesting, no first buy by Weft), and once the curve holds
+ * the curve (no team allocation, no vesting). Weft makes a dev buy in the creating transaction and
+ * burns all of it (decided 2026-10-17): buying pressure and a smaller supply, no team tokens. Once the curve holds
  * `migrationQuoteThreshold` SOL it graduates to a DAMM v2 pool whose liquidity is locked for good.
  *
  * Trading fee (decided 2026-10-17): 3% on every $WEFT trade, on the curve and in the graduated pool.
@@ -48,12 +49,18 @@ export interface CurveOptions {
   migratedPoolFeeBps?: number;
   /** Start at LAUNCH_FEE and fall to curveFeeBps over its first minute (default true). */
   launchFee?: boolean;
+  /**
+   * The swap made in the same transaction as the pool (Weft's dev buy, burned right after) pays the
+   * minimum fee instead of the launch fee. Only that one swap can: it has to be in the creating
+   * transaction. Default true.
+   */
+  firstSwapMinFee?: boolean;
 }
 
 /** The DAMM v2 config the graduated pool uses: a custom fee tier, so 3% carries on after graduation. */
 export const MIGRATION_FEE_OPTION = MigrationFeeOption.Customizable;
 
-export function weftCurve({ migrationQuoteThreshold, curveFeeBps = TOKEN_FEE.totalBps, migratedPoolFeeBps = TOKEN_FEE.totalBps, launchFee = true }: CurveOptions): ConfigParameters {
+export function weftCurve({ migrationQuoteThreshold, curveFeeBps = TOKEN_FEE.totalBps, migratedPoolFeeBps = TOKEN_FEE.totalBps, launchFee = true, firstSwapMinFee = true }: CurveOptions): ConfigParameters {
   return buildCurve({
     token: {
       tokenType: TokenType.SPLToken,
@@ -76,7 +83,7 @@ export function weftCurve({ migrationQuoteThreshold, curveFeeBps = TOKEN_FEE.tot
       collectFeeMode: CollectFeeMode.QuoteToken, // fees in SOL
       creatorTradingFeePercentage: 0, // Weft is both partner and creator: everything to the partner side
       poolCreationFee: 0,
-      enableFirstSwapWithMinFee: false,
+      enableFirstSwapWithMinFee: firstSwapMinFee,
     },
     migration: {
       migrationOption: MigrationOption.MET_DAMM_V2,

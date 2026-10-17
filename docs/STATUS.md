@@ -101,24 +101,42 @@ and Solana wallets linked to their Privy account. Not built yet: the buyback job
 - Launch wallet: `jaoKYAcEXGVwEVwT6YRwqogvRiXGeEYbtaU6hhAbsu1`. The key is in `secrets/weft-launch.json`. It is unfunded; it creates the config and the pool and is the fee claimer.
 - Still open: mainnet script (create config + pool with the launch wallet), the buyback job, and revoking the metadata authority after launch.
 
-### $WEFT rewards (decided 2026-10-17, built, off until launch)
+### $WEFT money flow and rewards (decided 2026-10-17, built, off until launch)
 
-Code: `apps/api/src/lib/rewards.ts` and `apps/api/src/token/treasury.ts`; web: `/rewards` and the landing token section.
+Code: `apps/api/src/lib/rewards.ts`, `apps/api/src/token/treasury.ts`, `apps/api/scripts/launch.ts`. Web: `/rewards` and the landing token section.
 
-- Half of Weft's fees buy $WEFT every day. Of what is bought:
-  - 50% goes to traders, split by fees paid that day × holder boost (1×, 1.5× for holders, 2× for big holders);
-  - 20% goes to creators, split by fees paid by other people's runs of their published strategies (or forks); own runs don't count;
-  - 30% is burned.
-  - A pool nobody qualifies for is burned.
-- Rewards are based on fees, not volume, so wash trading never pays.
-- Every live fill's Weft fee is already recorded per user and creator (`rewards.db`, `fee_ledger`). Engine fills carry `builderFeeUsd`.
-- Each UTC day closes after midnight, from `WEFT_REWARDS_START` (YYYY-MM-DD, set at launch). The treasury then buys and burns, and users claim to their Weft Solana wallet.
-- Holders also get 100 AI drafts a day instead of 30.
-- To switch on at launch, set:
-  - `WEFT_TOKEN_MINT`, `WEFT_HOLDER_MIN`, `WEFT_BIG_HOLDER_MIN` (optional, default 10× min);
-  - `WEFT_REWARDS_START`;
-  - `WEFT_TREASURY_KEY`: the fee wallet's secret key as a JSON array. It buys with the fee wallet's USDC/WSOL and pays claims.
-- Hyperliquid builder fees (USDC on HL) must be moved to the fee wallet to be spent. Until then, a day buys what the wallet holds and logs the shortfall.
+**Wallets** (keys only in `secrets/`)
+
+| Wallet | Address | Role |
+|---|---|---|
+| Launch | `jaoKYAcEXGVwEVwT6YRwqogvRiXGeEYbtaU6hhAbsu1` | Creates config, pool and token; makes the dev buy (1 SOL) and burns it |
+| Treasury | `H4SijuwZe9G3cbLQeZJ15ydEimGpmKCtgxuk9avXZBRG` | The pool's fee claimer. Its key goes on the server (`WEFT_TREASURY_KEY`). Keeps a 0.05 SOL gas reserve |
+| Fee wallet (revenue) | `JnPhZQWCdUsunjHj5RzdLnq1scyqAZk7v4dfX3gR3VQ` | Solana swap fees plus 2/2.4 of every $WEFT fee claim. Nothing automatic happens here |
+
+**Every 8–12 minutes the server:**
+1. Closes any ended UTC day.
+2. Claims the 2.4% from $WEFT trades (on the curve; after graduation from the locked DAMM v2 position) and splits each claim:
+   - 2.0/2.4 to the fee wallet;
+   - 0.4/2.4 buys $WEFT straight away (Jupiter, or the curve directly).
+3. Buys a 1/144 slice of each closed day's strategy-fee buyback, which is 50% of Weft's fees, from the treasury's USDC/SOL.
+   - For now someone moves half of the fee wallet and of the Hyperliquid builder fees to the treasury by hand.
+4. Burns 30% of every buy. 50% goes to the day's traders' pot and 20% to the creators' pot.
+   - At midnight the pots are shared out: traders by fees × holder boost (1/1.5/2×), creators by fees from other people's runs of their strategies.
+   - Pots nobody earns roll over to the next day. Claims are possible right after midnight.
+
+Holders also pay half the fee and get 100 AI drafts a day instead of 30.
+
+**Verified on devnet (2026-10-17, mint `A8bBp1fk…`)**
+- The launch script created config and pool with the treasury as fee claimer.
+- The dev buy in the same transaction paid the minimum fee (3%), not 30%. All of it was burned.
+- A treasury run claimed 0.00024 SOL and sent exactly 83.3% to the revenue wallet. The rest bought 149,779 WEFT on the curve; 30% was burned and 70% went into the pot.
+- **Not yet verified:** claiming from the locked LP after graduation (needs ~0.1 devnet SOL; the faucet was down).
+
+**Launch:**
+1. `node scripts/launch.ts --network mainnet` shows the plan; add `--send` to launch.
+2. Set on Railway: `WEFT_TOKEN_MINT`, `WEFT_DBC_POOL`, `WEFT_HOLDER_MIN`, `WEFT_REWARDS_START`, `WEFT_TREASURY_KEY`.
+   - `WEFT_REVENUE_WALLET` defaults to `WEFT_SOL_FEE_WALLET`.
+3. Put the contract address on the site, then revoke the metadata authority.
 
 ## Hyperliquid live on mainnet (since 2026-10-16)
 

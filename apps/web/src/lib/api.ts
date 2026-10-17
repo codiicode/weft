@@ -228,45 +228,39 @@ export interface RewardRow {
   kind: "trade" | "create";
   basisUsd: number;
   share: number;
-  usd: number;
-  tokens: number | null;
+  tokens: number;
   claimedAt: number | null;
   claimTx: string | null;
-}
-export interface RewardDay {
-  day: string;
-  feesUsd: number;
-  buybackUsd: number;
-  traderPoolUsd: number;
-  creatorPoolUsd: number;
-  burnUsd: number;
-  traders: number;
-  creators: number;
-  fundedAt: number | null;
-  traderTokens: number | null;
-  creatorTokens: number | null;
-  burnedTokens: number | null;
-  buyTx: string | null;
-  burnTx: string | null;
 }
 export interface RewardsProgram {
   enabled: boolean;
   startDay: string | null;
   claims: boolean;
-  config: { buybackShare: number; traderShare: number; creatorShare: number; burnShare: number; boost: readonly number[] };
+  config: { buybackShare: number; traderShare: number; creatorShare: number; burnShare: number; boost: readonly number[]; tokenFee: { protocolBps: number; buybackBps: number } };
   holders: { minAmount: number; bigAmount: number } | null;
   aiDailyLimit: { everyone: number; holders: number };
-  stats: { daysClosed: number; feesUsd: number; rewardsUsd: number; rewardTokens: number; burnedTokens: number; days: RewardDay[] } | null;
+  stats: {
+    buys: number;
+    spentUsd: number;
+    boughtTokens: number;
+    burnedTokens: number;
+    lastBuyAt: number | null;
+    sharedTokens: number;
+    daysClosed: number;
+    todayPotTokens: number;
+    budgetLeftUsd: number;
+    tokenFees: { claims: number; claimedSol: number; protocolSol: number; buybackSol: number; lastClaimAt: number | null };
+  } | null;
 }
 export interface MyRewards {
   enabled: boolean;
   claims: boolean;
   wallet: string | null;
   holder: { tier: 0 | 1 | 2; holds: number; minAmount: number; bigAmount: number; boost: number } | null;
-  today: { day: string; feesPaidUsd: number; creatorFeesUsd: number; estTradeUsd: number; estCreateUsd: number };
+  today: { day: string; feesPaidUsd: number; creatorFeesUsd: number; traderPotTokens: number; creatorPotTokens: number; estTradeTokens: number; estCreateTokens: number };
+  priceUsd: number | null;
   claimableTokens: number;
   earnedTokens: number;
-  earnedUsd: number;
   history: RewardRow[];
 }
 
