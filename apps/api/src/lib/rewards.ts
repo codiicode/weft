@@ -374,6 +374,19 @@ export class Rewards {
     };
   }
 
+  /** Every buy, newest first (for the public list of buybacks and burns). */
+  buyList(limit = 5000): Buy[] {
+    return (this.db.prepare("SELECT at, source, spent_usd, bought_tokens, burned_tokens, swap_tx, burn_tx FROM buys ORDER BY at DESC LIMIT ?").all(limit) as Record<string, unknown>[]).map((r) => ({
+      at: Number(r.at),
+      source: r.source as Buy["source"],
+      spentUsd: Number(r.spent_usd),
+      boughtTokens: Number(r.bought_tokens),
+      burnedTokens: Number(r.burned_tokens),
+      swapTx: (r.swap_tx as string | null) ?? null,
+      burnTx: (r.burn_tx as string | null) ?? null,
+    }));
+  }
+
   /** USD per token at the most recent buy. */
   lastPrice(): number | null {
     const r = this.db.prepare("SELECT spent_usd, bought_tokens FROM buys WHERE bought_tokens > 0 ORDER BY at DESC LIMIT 1").get() as { spent_usd: number; bought_tokens: number } | undefined;

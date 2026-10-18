@@ -1,12 +1,14 @@
-import { Connection, PublicKey } from "@solana/web3.js";
+import { Connection, PublicKey, type ParsedTransactionWithMeta } from "@solana/web3.js";
 import { associatedTokenAddress, USDC_MINT, WSOL_MINT, type FetchLike } from "@weft/execution";
 import type { Engine } from "@weft/engine";
 
 /**
  * What Weft has earned, for the public revenue page:
  *  - product fees: Hyperliquid builder fees (accrued on the venue as builder rewards, claimable by
- *    the builder wallet) and Solana platform fees (the fee wallet's WSOL/USDC accounts). Half buys
- *    back $WEFT, half is Weft's.
+ *    the builder wallet) and Solana platform fees: what users' swaps paid into the fee wallet's
+ *    WSOL/USDC accounts, counted from the chain. Not the accounts' balances: the fee wallet is also
+ *    where Weft's share of the $WEFT fees lands, and money Weft moves or swaps there itself isn't new
+ *    revenue. Half buys back $WEFT, half is Weft's.
  *  - fees on $WEFT trades: 2.4% of each trade claimed by the treasury (Meteora keeps 0.6%), split
  *    2.0 to Weft and 0.4 to buybacks on every claim. Counted in SOL at today's price.
  */
@@ -16,6 +18,8 @@ export const BUYBACK_SHARE = 0.5;
 /** One buyback, as the buyback job records it (spent fees → bought tokens → burned some or all). */
 export interface BuybackEvent {
   at: number;
+  /** "token": from fees on $WEFT trades; "fees": from Weft's strategy fees (the default). */
+  source?: "token" | "fees";
   /** Swap transaction (Solana). */
   tx: string;
   spentUsd: number;
@@ -34,9 +38,21 @@ export interface Buybacks {
   burnedTokens: number;
   supply: number | null;
   initialSupply: number | null;
-  /** Half of revenue, minus what has been spent on buybacks. */
+  /**
+   * Owed to buybacks and not bought yet: the token-fee share waiting in the treasury, plus the half
+   * of product fees not spent on buybacks so far.
+   */
   setAsideUsd: number;
+  /** Tokens burned outside the buyback job, e.g. Weft's dev buy at launch. */
+  launchBurn: LaunchBurn | null;
   events: BuybackEvent[];
+}
+
+/** A burn that isn't a buyback: Weft's dev buy at launch, burned in full. */
+export interface LaunchBurn {
+  at: number;
+  tx: string;
+  tokens: number;
 }
 
 /** Fees on $WEFT trades, as the treasury claimed and split them (Rewards.stats().tokenFees). */
@@ -75,6 +91,9 @@ export async function earnings(o: {
   /** Fees on $WEFT trades claimed so far, and the treasury that claims them. */
   tokenFees?: (() => TokenFees) | null;
   treasury?: PublicKey | null;
+  /** SOL the treasury holds for token-fee buybacks it hasn't made yet. */
+  owedBuybackSol?: () => number;
+  launchBurn?: LaunchBurn | null;
   fetch?: FetchLike;
 }): Promise<Earnings> {
   const f = o.fetch ?? (globalThis.fetch as unknown as FetchLike);
@@ -108,13 +127,14 @@ export async function earnings(o: {
   let solana: Earnings["solana"] = null;
   if (o.solana) {
     const { conn, feeWallet } = o.solana;
-    const bal = async (mint: PublicKey) => {
-      const r = await conn.getTokenAccountBalance(associatedTokenAddress(feeWallet, mint)).catch(() => null);
-      return Number(r?.value.uiAmountString ?? 0);
-    };
-    const [wsol, usdc, lamports] = await Promise.all([bal(WSOL_MINT), bal(USDC_MINT), conn.getBalance(feeWallet).catch(() => 0)]);
-    // Product fees arrive as WSOL and USDC; the wallet's own SOL is its gas float plus Weft's share of
-    // the $WEFT fees, which are counted from the treasury's claims below.
+    // Product fees arrive as WSOL and USDC from users' swaps; transactions the fee wallet or the
+    // treasury sent themselves (moving or swapping Weft's own money) don't count.
+    const own = [feeWallet.toBase58(), ...(o.treasury ? [o.treasury.toBase58()] : [])];
+    const [wsol, usdc, lamports] = await Promise.all([
+      feesInto(conn, feeWallet, WSOL_MINT, own),
+      feesInto(conn, feeWallet, USDC_MINT, own),
+      conn.getBalance(feeWallet).catch(() => 0),
+    ]);
     solana = { feeWallet: feeWallet.toBase58(), wsol, usdc, sol: lamports / 1e9, solUsd, usd: usdc + (solUsd != null ? wsol * solUsd : 0) };
   }
 
@@ -148,8 +168,46 @@ export async function earnings(o: {
     burnedTokens: o.token && supply != null ? Math.max(0, o.token.initialSupply - supply) : events.reduce((n, e) => n + (e.burnedTokens ?? 0), 0),
     supply,
     initialSupply: o.token?.initialSupply ?? null,
-    setAsideUsd: Math.max(0, buybackUsd - spentUsd),
+    setAsideUsd:
+      (o.owedBuybackSol?.() ?? 0) * px + Math.max(0, productUsd * BUYBACK_SHARE - events.filter((e) => (e.source ?? "fees") === "fees").reduce((n, e) => n + e.spentUsd, 0)),
+    launchBurn: o.launchBurn ?? null,
     events: [...events].sort((a, b) => b.at - a.at),
   };
   return { hyperliquid, solana, token, productUsd, recordedUsd, totalUsd, buybackUsd, weftUsd, buybacks };
+}
+
+/**
+ * Everything users' transactions have paid into `owner`'s token account for `mint`: the sum of its
+ * increases, skipping transactions paid for by `exclude` (Weft's own wallets). Read from the chain
+ * once, then only the new transactions on each call.
+ */
+const feeScans = new Map<string, { newest: string | null; total: number }>();
+async function feesInto(conn: Connection, owner: PublicKey, mint: PublicKey, exclude: string[]): Promise<number> {
+  const ata = associatedTokenAddress(owner, mint);
+  const key = ata.toBase58();
+  const scan = feeScans.get(key) ?? { newest: null, total: 0 };
+  const fresh: string[] = [];
+  let before: string | undefined;
+  for (;;) {
+    const page = await conn.getSignaturesForAddress(ata, { before, until: scan.newest ?? undefined, limit: 1000 });
+    fresh.push(...page.filter((x) => !x.err).map((x) => x.signature));
+    if (page.length < 1000) break;
+    before = page.at(-1)!.signature;
+  }
+  if (!fresh.length) return scan.total;
+  let total = scan.total;
+  for (let i = 0; i < fresh.length; i += 100) {
+    const txs = await conn.getParsedTransactions(fresh.slice(i, i + 100), { maxSupportedTransactionVersion: 1 });
+    for (const tx of txs) total += received(tx, owner.toBase58(), mint.toBase58(), exclude);
+  }
+  feeScans.set(key, { newest: fresh[0]!, total });
+  return total;
+}
+
+/** What one transaction added to `owner`'s `mint` balance, unless one of `exclude` paid for it. */
+export function received(tx: ParsedTransactionWithMeta | null, owner: string, mint: string, exclude: string[]): number {
+  if (!tx?.meta || exclude.includes(tx.transaction.message.accountKeys[0]?.pubkey.toBase58() ?? "")) return 0;
+  const amt = (list: NonNullable<ParsedTransactionWithMeta["meta"]>["preTokenBalances"]) =>
+    Number(list?.find((b) => b.owner === owner && b.mint === mint)?.uiTokenAmount.uiAmountString ?? 0);
+  return Math.max(0, amt(tx.meta.postTokenBalances) - amt(tx.meta.preTokenBalances));
 }

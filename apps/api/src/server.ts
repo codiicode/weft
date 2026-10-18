@@ -42,6 +42,14 @@ import { claudePostMatcher } from "./ai/post-matcher.ts";
 import { HeliusWebhook } from "./live/helius-webhook.ts";
 import { createTopTraders } from "./lib/traders.ts";
 
+/** Weft's dev buy at launch, burned in full in the creating transaction (on-chain, 2026-10-17). */
+const WEFT_LAUNCH_BURN = {
+  mint: "HqmFi85adLD8BQA7en1HfajdAfzVFps5REgQaYuw6Ax8",
+  at: Date.parse("2026-10-17T17:58:17Z"),
+  tx: "3LyNget6sM9cCDnLq7HZ5oLaDYFcjz9jS3kHskJkSEaVfMYUDppZ65zJmZRtMQ3GuP4VZDP1zo18VfC6xVbYTAmK",
+  tokens: 35_308_838.390007,
+};
+
 const PORT = Number(process.env.PORT ?? 8787);
 const DATA_DIR = process.env.WEFT_DATA_DIR ?? fileURLToPath(new URL("../.data/", import.meta.url));
 mkdirSync(DATA_DIR, { recursive: true });
@@ -451,10 +459,12 @@ const app = createApp({
       token: holderCfg.mint
         ? { mint: holderCfg.mint, initialSupply: Number(process.env.WEFT_TOKEN_INITIAL_SUPPLY ?? 1_000_000_000), conn: new Connection(solCfg.rpcUrl, "confirmed") }
         : null,
-      // Buybacks run every ten minutes or so: shown per day.
-      buybackLog: () => rewards.stats().days.map((d) => ({ at: Date.parse(`${d.day}T00:00:00Z`), tx: "", spentUsd: d.spent, boughtTokens: d.bought, burnedTokens: d.burned })),
+      // Every buyback with its swap and burn (the page groups them by day).
+      buybackLog: () => rewards.buyList().map((x) => ({ at: x.at, source: x.source, tx: x.swapTx ?? "", spentUsd: x.spentUsd, boughtTokens: x.boughtTokens, burnTx: x.burnTx, burnedTokens: x.burnedTokens })),
       tokenFees: holderCfg.mint ? () => rewards.stats().tokenFees : null,
       treasury: treasury?.address ?? null,
+      owedBuybackSol: () => Number(rewards.owedTokenBuyback()) / 1e9,
+      launchBurn: holderCfg.mint?.toBase58() === WEFT_LAUNCH_BURN.mint ? WEFT_LAUNCH_BURN : null,
     }),
   onExitsChanged: () => nativeStops?.poke(500),
   telegram: telegram ?? undefined,

@@ -286,7 +286,8 @@ export interface Earnings {
     supply: number | null;
     initialSupply: number | null;
     setAsideUsd: number;
-    events: { at: number; tx: string; spentUsd: number; boughtTokens: number; burnTx?: string | null; burnedTokens?: number }[];
+    launchBurn: { at: number; tx: string; tokens: number } | null;
+    events: { at: number; source?: "token" | "fees"; tx: string; spentUsd: number; boughtTokens: number; burnTx?: string | null; burnedTokens?: number }[];
   };
 }
 
