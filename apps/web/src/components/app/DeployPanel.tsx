@@ -112,13 +112,14 @@ function orderNow(s: Strategy | undefined): string | null {
   if (!s) return null;
   const opens = s.actions.filter((a) => a.type === "open");
   if (opens.length !== 1) return null;
-  const open = opens[0] as { on: string[]; side?: string; instrument: Parameters<typeof instrumentLabel>[0] };
+  const open = opens[0] as { on: string[]; side?: string; leverage?: number; instrument: Parameters<typeof instrumentLabel>[0] };
   const immediate = open.on.every((id) => {
     const w = s.triggers.find((t) => t.id === id)?.when as { op?: string; right?: { value?: unknown } } | undefined;
     return w?.op === "gt" && w.right?.value === 0;
   });
   if (!immediate) return null;
-  return `${open.side === "short" ? "Short" : "Buy"} ${instrumentLabel(open.instrument)}`;
+  const perpLike = open.instrument.kind === "perp" || open.instrument.kind === "synth";
+  return `${open.side === "short" ? "Short" : perpLike ? "Long" : "Buy"} ${instrumentLabel(open.instrument)}${perpLike && (open.leverage ?? 1) > 1 ? ` ${open.leverage}×` : ""}`;
 }
 
 export type RunMode = "live" | "practice" | "alerts";
@@ -131,18 +132,21 @@ export function DeployPanel({ strategy, strategyId, compact = false, initialMode
   const signedIn = auth.enabled && auth.authenticated;
   const venues = useTradingVenues();
   const onSolana = tradesSolana(strategy);
-  const live = useApi(signedIn && !onSolana ? () => api.liveStatus() : null, [signedIn, onSolana]);
+  // Papertrade-only strategies trade from the Papertrade account (same wallet, its own balance).
+  const onPapertrade = Boolean(strategy?.actions.some((a) => a.type === "open" && a.instrument.kind === "synth") && strategy.actions.every((a) => a.type !== "open" || a.instrument.kind === "synth"));
+  const live = useApi(signedIn && !onSolana && !onPapertrade ? () => api.liveStatus() : null, [signedIn, onSolana, onPapertrade]);
   const sol = useApi(signedIn && onSolana ? () => api.solanaStatus() : null, [signedIn, onSolana]);
-  const ready = onSolana ? !!sol.data?.ready : !!live.data?.ready;
+  const pt = useApi(signedIn && onPapertrade ? () => api.papertradeAccount() : null, [signedIn, onPapertrade]);
+  const ready = onSolana ? !!sol.data?.ready : onPapertrade ? !!pt.data?.registered : !!live.data?.ready;
   // An account that only lacks an approval (e.g. Weft's fee was just switched on) is set up: a
   // Weft wallet approves in the background right here, an own wallet gets a clear one-step ask.
   // The approvals sign themselves in the background (WalletAutopilot); the button is the fallback.
-  const hl = useHlApprove(onSolana ? null : live.data, live.refresh, false);
-  const loadingStatus = onSolana ? sol.loading && !sol.data : live.loading && !live.data;
+  const hl = useHlApprove(onSolana || onPapertrade ? null : live.data, live.refresh, false);
+  const loadingStatus = onSolana ? sol.loading && !sol.data : onPapertrade ? pt.loading && !pt.data : live.loading && !live.data;
   // No cap unless the server sets one: people trade whatever amount they choose.
-  const cap = (onSolana ? sol.data?.maxAllocationUsd : live.data?.config.maxAllocationUsd) ?? null;
-  const testnet = !onSolana && live.data?.config.network === "testnet";
-  const available = onSolana ? null : hlFreeUsd(live.data?.venue);
+  const cap = (onSolana ? sol.data?.maxAllocationUsd : onPapertrade ? null : live.data?.config.maxAllocationUsd) ?? null;
+  const testnet = !onSolana && !onPapertrade && live.data?.config.network === "testnet";
+  const available = onSolana ? null : onPapertrade ? (pt.data?.availableUsd ?? null) : hlFreeUsd(live.data?.venue);
   const solBalance = sol.data?.balances?.sol ?? null;
   const walletUsd = sol.data?.balances?.usd ?? null;
   // Stated amounts need no budget: it's the amount itself plus room for fees and price moves.
@@ -287,13 +291,15 @@ export function DeployPanel({ strategy, strategyId, compact = false, initialMode
           </div>
         ) : !ready ? (
           <div className="mt-3 rounded-[10px] bg-paper-2 p-4">
-            <p className="text-[13.5px] font-medium text-ink">{onSolana ? "Set up your Solana trading wallet" : "Set up your Hyperliquid wallet"}</p>
+            <p className="text-[13.5px] font-medium text-ink">{onSolana ? "Set up your Solana trading wallet" : onPapertrade ? "Set up Papertrade" : "Set up your Hyperliquid wallet"}</p>
             <p className="mt-1 text-[13px] leading-relaxed text-muted">
               {onSolana
                 ? "Create your wallet, allow Weft to swap from it, and add some SOL. About a minute."
-                : "Weft makes you a wallet. Send it USDC and you’re ready to trade. About a minute."}
+                : onPapertrade
+                  ? "Deposit from your Hyperliquid account, then connect Papertrade with one signature."
+                  : "Weft makes you a wallet. Send it USDC and you’re ready to trade. About a minute."}
             </p>
-            <Link href={onSolana ? "/wallets?venue=solana" : "/wallets"} className="mt-3 inline-flex h-9 items-center rounded-[10px] bg-ink px-3.5 text-[14px] font-medium text-paper hover:bg-ink/85">
+            <Link href={onSolana ? "/wallets?venue=solana" : onPapertrade ? "/wallets?venue=papertrade" : "/wallets"} className="mt-3 inline-flex h-9 items-center rounded-[10px] bg-ink px-3.5 text-[14px] font-medium text-paper hover:bg-ink/85">
               Set up trading
             </Link>
           </div>
@@ -304,7 +310,9 @@ export function DeployPanel({ strategy, strategyId, compact = false, initialMode
                 ? "A real deposit into Meteora from your own Solana wallet, paid in SOL. The position account holds about 0.06 SOL, which comes back when it closes."
                 : onSolana
                   ? "Real swaps through Jupiter, from your own Solana wallet."
-                  : <>Real orders on Hyperliquid{testnet ? " testnet (test funds)" : ""}, from your own account.</>}
+                  : onPapertrade
+                    ? "Real positions on Papertrade, from your own Papertrade account."
+                    : <>Real orders on Hyperliquid{testnet ? " testnet (test funds)" : ""}, from your own account.</>}
               {solBalance != null && (
                 <>
                   {" "}
