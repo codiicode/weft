@@ -5,6 +5,7 @@ import { SolanaSetup } from "@/components/app/SolanaSetup";
 import { HyperliquidWallet } from "@/components/app/HyperliquidWallet";
 import { HyperliquidWithdraw } from "@/components/app/Withdraw";
 import { PapertradeSetup } from "@/components/app/PapertradeSetup";
+import { useTradingVenues } from "@/lib/trading";
 import { usePrivy, useWallets } from "@privy-io/react-auth";
 import { api, ApiError, type LiveStatus } from "@/lib/api";
 import { useAuth, shortAddress } from "@/lib/auth";
@@ -267,7 +268,9 @@ function Live() {
   const auth = useAuth();
   const router = useRouter();
   const venue = useSearchParams().get("venue");
-  const tab = venue === "solana" ? "solana" : venue === "papertrade" ? "papertrade" : "hyperliquid";
+  // Papertrade shows once live trading there is on (practice needs no wallet).
+  const ptOn = Boolean(useTradingVenues()?.papertrade);
+  const tab = venue === "solana" ? "solana" : venue === "papertrade" && ptOn ? "papertrade" : "hyperliquid";
   return (
     <>
       <PageHeader title="Wallets" sub="Weft trades from wallets you own. It can place trades for you, but it can never withdraw." />
@@ -285,7 +288,7 @@ function Live() {
                   ["solana", "Solana", "Tokens"],
                   ["papertrade", "Papertrade", "BTC and ETH to 1000×"],
                 ] as const
-              ).map(([id, label, sub]) => (
+              ).filter(([id]) => id !== "papertrade" || ptOn).map(([id, label, sub]) => (
                 <button
                   key={id}
                   role="tab"
