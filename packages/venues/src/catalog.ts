@@ -1,4 +1,5 @@
 import { polymarketListings } from "./polymarket.ts";
+import { dlmmInstrument, feePerDay } from "./meteora.ts";
 import { instrumentKey, type Instrument } from "@weft/strategy";
 import type { Catalog, CatalogQuery, MarketListing, Product } from "./types.ts";
 import type { VenueMarketData } from "./market-data.ts";
@@ -16,6 +17,7 @@ import { mapLimit, matchesSearch, pctChange } from "./util.ts";
  *  predictions  HIP-4 outcome markets + Jupiter Prediction (Polymarket/Kalshi-backed) markets
  *  tokens       trending / searched Solana tokens (Jupiter Tokens v2)
  *  options      Deribit BTC/ETH/SOL options: 2 nearest expiries + first weekly and monthly, strikes within ±20% of spot
+ *  pools        Meteora DLMM liquidity pools on Solana (search by pair, symbol or mint)
  */
 export class VenueCatalog implements Catalog {
   private readonly md: VenueMarketData;
@@ -43,6 +45,9 @@ export class VenueCatalog implements Catalog {
       case "options":
         rows = await this.options();
         break;
+      case "pools":
+        rows = await this.pools(q.search);
+        break;
     }
     const filtered = rows.filter((r) =>
       r._searched ||
@@ -57,6 +62,25 @@ export class VenueCatalog implements Catalog {
     );
     filtered.sort((a, b) => (b._rank ?? b.volume24hUsd ?? 0) - (a._rank ?? a.volume24hUsd ?? 0));
     return filtered.slice(0, limit).map(({ _rank, _searched, ...r }) => r);
+  }
+
+  /** Meteora DLMM pools for a pair, symbol or mint; the busiest SOL and USDC pools without a search. */
+  private async pools(search?: string): Promise<(MarketListing & { _rank?: number; _searched?: boolean })[]> {
+    const found = await this.md.meteora.search(search?.trim() || "SOL", 30).catch(() => []);
+    return found.map((p) => ({
+      product: "pools" as const,
+      instrument: dlmmInstrument(p),
+      instrumentKey: `meteora:lp:${p.address}`,
+      label: p.name || `${p.baseSymbol}-${p.quoteSymbol}`,
+      name: `Meteora DLMM · bin step ${p.binStep ?? "?"} · base fee ${p.baseFeePct ?? "?"}%`,
+      price: p.price,
+      volume24hUsd: p.volume24hUsd,
+      liquidityUsd: p.tvlUsd,
+      meta: { feesPerDayPct: Math.round(feePerDay(p) * 1e6) / 1e4, fees24hUsd: Math.round(p.lpFees24hUsd), quote: p.quoteSymbol },
+      venue: "meteora",
+      _rank: p.volume24hUsd,
+      _searched: true,
+    }));
   }
 
   /** One listing by instrument key, looking in the products it could belong to. */

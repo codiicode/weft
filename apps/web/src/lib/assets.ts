@@ -19,6 +19,8 @@ export function instrumentIcon(i: Instrument, meta?: Record<string, unknown> | n
       return { symbol: i.underlying, src };
     case "outcome":
       return { symbol: "OUTCOME", src: src ?? "/coins/OUTCOME.svg" };
+    case "lp":
+      return { symbol: i.symbol.split("-")[0]!, src, alt: [tokenLogo(i.baseMint)] };
     default:
       return { symbol: "?", src };
   }
@@ -29,7 +31,7 @@ export function strategyIcons(s: Strategy): IconRef[] {
   const seen = new Set<string>();
   const out: IconRef[] = [];
   for (const a of s.actions) {
-    const inst = a.type === "open" ? a.instrument : a.type === "options" ? a.legs[0]!.instrument : null;
+    const inst = a.type === "open" ? a.instrument : a.type === "options" ? a.legs[0]!.instrument : a.type === "liquidity" ? a.pool : null;
     if (!inst) continue;
     const ref = instrumentIcon(inst);
     const k = `${ref.dex ?? ""}:${ref.symbol}`;
@@ -43,7 +45,11 @@ export function strategyInstruments(s: Strategy): Instrument[] {
   const seen = new Set<string>();
   const out: Instrument[] = [];
   for (const a of s.actions) {
-    const inst = a.type === "open" ? a.instrument : a.type === "options" ? a.legs[0]!.instrument : null;
+    const inst: Instrument | null =
+      a.type === "open" ? a.instrument : a.type === "options" ? a.legs[0]!.instrument
+      // a pool is charted as its base token
+      : a.type === "liquidity" ? { kind: "token", chain: "solana", mint: a.pool.baseMint, symbol: a.pool.symbol.split("-")[0], quote: "USDC", route: "auto", assetClass: "crypto" }
+      : null;
     if (!inst) continue;
     const k = JSON.stringify(inst);
     if (!seen.has(k)) seen.add(k), out.push(inst);

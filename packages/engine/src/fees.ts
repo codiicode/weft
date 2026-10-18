@@ -75,6 +75,9 @@ export function computeFee(
       const platform = bps(fees.solana.platformBps);
       return { feeUsd: platform + fees.solana.networkFeeUsd, builderFeeUsd: platform };
     }
+    case "lp":
+      // Practice only for now: depositing and withdrawing carry no Weft fee.
+      return { feeUsd: 0, builderFeeUsd: 0 };
     case "option": {
       const o = fees.options;
       const raw = o.perContractUsd != null ? qty * o.perContractUsd : (qty * instrument.strike * o.notionalBps) / 10_000;

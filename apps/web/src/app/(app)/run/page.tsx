@@ -95,6 +95,7 @@ const REASON: Record<string, string> = {
   close_action: "rule",
   kill: "stopped",
   liquidation: "liquidated",
+  out_of_range: "out of range",
 };
 
 /** Real money notice, plus the owner's choice to show this run's return on the leaderboard. */
@@ -164,6 +165,10 @@ function HoldToKill({ onKill }: { onKill: () => void }) {
     </button>
   );
 }
+
+/** "SOL-USDC pool" for a liquidity fill's instrument key. */
+const lpName = (st: { actions: { type: string; pool?: { pool: string; symbol: string } }[] }, key: string) =>
+  `${st.actions.find((a) => a.type === "liquidity" && key.endsWith(a.pool!.pool))?.pool?.symbol ?? "Liquidity"} pool`;
 
 function Run() {
   const id = useSearchParams().get("id") ?? "";
@@ -452,20 +457,43 @@ function Run() {
                               </span>
                               {/* on a phone, size and prices go under the market */}
                               <div className="tnum mt-0.5 whitespace-nowrap text-[12px] font-normal text-muted sm:hidden">
-                                {fmtUsd(p.sizeUsd, 0)} · {fmtPrice(p.entryPrice)} → {fmtPrice(p.markPrice)}
+                                {p.lp ? `${fmtUsd(p.qty * p.markPrice, 0)} · ${fmtPrice(p.lp.lower)}–${fmtPrice(p.lp.upper)}` : `${fmtUsd(p.sizeUsd, 0)} · ${fmtPrice(p.entryPrice)} → ${fmtPrice(p.markPrice)}`}
                               </div>
                             </td>
-                            <td className={`px-3 py-3 ${p.side === "long" ? "text-long" : "text-short"}`}>
-                              {p.side === "long" ? "Long" : "Short"}
-                              {p.leverage > 1 ? <span className="text-muted"> {p.leverage}×</span> : null}
-                            </td>
-                            <td className="tnum hidden px-3 py-3 text-right sm:table-cell">{fmtUsd(p.sizeUsd, 2)}</td>
-                            <td className="tnum hidden px-3 py-3 text-right text-ink-2 sm:table-cell">{fmtPrice(p.entryPrice)}</td>
-                            <td className="tnum hidden px-3 py-3 text-right sm:table-cell">{fmtPrice(p.markPrice)}</td>
-                            <td className="tnum hidden px-3 py-3 text-right text-ink-2 sm:table-cell">{p.liquidationPrice ? fmtPrice(p.liquidationPrice) : "—"}</td>
-                            <td className={`tnum whitespace-nowrap px-3 py-3 text-right ${p.unrealizedPnlUsd >= 0 ? "text-long" : "text-short"}`}>
-                              {fmtUsd(p.unrealizedPnlUsd, 2)} <span className="block text-[12px] opacity-80 sm:inline">{fmtPct(p.unrealizedPnlPct)}</span>
-                            </td>
+                            {p.lp ? (
+                              // A liquidity position: the pool's price, its range, and the fees it has earned.
+                              <>
+                                <td className={`px-3 py-3 ${p.lp.outSince == null ? "text-long" : "text-trigger"}`}>
+                                  {p.lp.outSince == null ? "In range" : "Out of range"}
+                                  <span className="block text-[12px] text-muted">{fmtPrice(p.lp.lower)}–{fmtPrice(p.lp.upper)}</span>
+                                </td>
+                                <td className="tnum hidden px-3 py-3 text-right sm:table-cell">
+                                  {fmtUsd(p.qty * p.markPrice, 2)}
+                                  <span className="block text-[12px] text-muted">{Math.round(p.lp.baseShare * 100)}% {p.instrument.kind === "lp" ? p.instrument.symbol.split("-")[0] : ""}</span>
+                                </td>
+                                <td className="tnum hidden px-3 py-3 text-right text-ink-2 sm:table-cell">{fmtPrice(p.lp.entryPoolPrice)}</td>
+                                <td className="tnum hidden px-3 py-3 text-right sm:table-cell">{fmtPrice(p.lp.poolPrice)}</td>
+                                <td className="tnum hidden px-3 py-3 text-right text-ink-2 sm:table-cell">—</td>
+                                <td className={`tnum whitespace-nowrap px-3 py-3 text-right ${p.unrealizedPnlUsd >= 0 ? "text-long" : "text-short"}`}>
+                                  {fmtUsd(p.unrealizedPnlUsd, 2)} <span className="block text-[12px] opacity-80 sm:inline">{fmtPct(p.unrealizedPnlPct)}</span>
+                                  <span className="block text-[12px] text-muted">fees {fmtUsd(p.lp.feesUsd, 2)}</span>
+                                </td>
+                              </>
+                            ) : (
+                              <>
+                                <td className={`px-3 py-3 ${p.side === "long" ? "text-long" : "text-short"}`}>
+                                  {p.side === "long" ? "Long" : "Short"}
+                                  {p.leverage > 1 ? <span className="text-muted"> {p.leverage}×</span> : null}
+                                </td>
+                                <td className="tnum hidden px-3 py-3 text-right sm:table-cell">{fmtUsd(p.sizeUsd, 2)}</td>
+                                <td className="tnum hidden px-3 py-3 text-right text-ink-2 sm:table-cell">{fmtPrice(p.entryPrice)}</td>
+                                <td className="tnum hidden px-3 py-3 text-right sm:table-cell">{fmtPrice(p.markPrice)}</td>
+                                <td className="tnum hidden px-3 py-3 text-right text-ink-2 sm:table-cell">{p.liquidationPrice ? fmtPrice(p.liquidationPrice) : "—"}</td>
+                                <td className={`tnum whitespace-nowrap px-3 py-3 text-right ${p.unrealizedPnlUsd >= 0 ? "text-long" : "text-short"}`}>
+                                  {fmtUsd(p.unrealizedPnlUsd, 2)} <span className="block text-[12px] opacity-80 sm:inline">{fmtPct(p.unrealizedPnlPct)}</span>
+                                </td>
+                              </>
+                            )}
                             {canAct && (
                               <td className="py-3 pl-2 pr-4 text-right sm:px-5">
                                 <SellButton deploymentId={d.id} positionId={p.id} label={instrumentLabel(p.instrument)} onDone={refreshAll} />
@@ -494,9 +522,9 @@ function Run() {
                         {fillList.map((f) => (
                           <tr key={f.id} className="border-b border-line last:border-0">
                             <td className="tnum py-2.5 pl-4 pr-3 text-muted sm:pl-5">{new Date(f.ts).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}</td>
-                            <td className={`px-3 py-2.5 ${f.side === "buy" ? "text-long" : "text-short"}`}>{f.side === "buy" ? "Buy" : "Sell"}</td>
-                            <td className="px-3 py-2.5 text-ink">{f.instrumentKey.split(":").slice(-1)[0]?.slice(0, 18)}</td>
-                            <td className="tnum px-3 py-2.5 text-right">{fmtPrice(f.price)}</td>
+                            <td className={`px-3 py-2.5 ${f.side === "buy" ? "text-long" : "text-short"}`}>{f.instrumentKey.startsWith("meteora:lp:") ? (f.side === "buy" ? "Deposit" : "Withdraw") : f.side === "buy" ? "Buy" : "Sell"}</td>
+                            <td className="px-3 py-2.5 text-ink">{f.instrumentKey.startsWith("meteora:lp:") ? lpName(d.strategy, f.instrumentKey) : f.instrumentKey.split(":").slice(-1)[0]?.slice(0, 18)}</td>
+                            <td className="tnum px-3 py-2.5 text-right">{f.instrumentKey.startsWith("meteora:lp:") ? fmtUsd(f.qty * f.price, 2) : fmtPrice(f.price)}</td>
                             <td className="hidden px-3 py-2.5 text-muted sm:table-cell">{REASON[f.reason] ?? f.reason.replaceAll("_", " ")}</td>
                             <td className={`tnum whitespace-nowrap py-2.5 pl-3 pr-4 text-right sm:pr-5 ${f.realizedPnlUsd == null ? "text-muted" : f.realizedPnlUsd >= 0 ? "text-long" : "text-short"}`}>
                               {f.realizedPnlUsd == null ? `fee ${fmtUsd(f.feeUsd, 2)}` : fmtUsd(f.realizedPnlUsd, 2)}

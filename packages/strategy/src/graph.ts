@@ -68,6 +68,11 @@ export function toGraph(s: Strategy): GraphView {
       case "notify":
         nodes.push({ id: a.id, kind: "action", side: "notify", title: a.label ?? "Notify", subtitle: a.channel });
         break;
+      case "liquidity": {
+        const r = "lowerPct" in a.range ? `−${a.range.lowerPct}% to +${a.range.upperPct}%` : `${a.range.lower} to ${a.range.upper}`;
+        nodes.push({ id: a.id, kind: "action", side: "long", title: a.label ?? `${a.pool.symbol} liquidity`, subtitle: `range ${r}` });
+        break;
+      }
       case "copy": {
         const who = a.leader.venue === "solana" ? a.leader.wallet : a.leader.trader;
         nodes.push({ id: a.id, kind: "action", side: "long", title: a.label ?? `Copy ${who.slice(0, 4)}…${who.slice(-4)}`, subtitle: a.leader.venue === "solana" ? "every token it buys" : "every position it opens" });

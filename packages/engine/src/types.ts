@@ -61,6 +61,32 @@ export interface Position {
   liquidationPrice?: number;
   /** Optional (additive): engine bookkeeping for funding accrual. Not for display. */
   fundingState?: PositionFundingState;
+  /**
+   * Optional (additive): set on liquidity positions. The position is booked in $1 units (qty = USD
+   * put in, entry 1, mark = what a unit is worth now); this is the pool side of it.
+   */
+  lp?: LpState;
+}
+
+/** A liquidity position's pool side (additive, optional). */
+export interface LpState {
+  /** Pool price (base in quote) when it opened, and now. */
+  entryPoolPrice: number;
+  poolPrice: number;
+  lower: number;
+  upper: number;
+  /** USD price of the quote token when it opened (the position's value moves with it too). */
+  entryQuoteUsd: number;
+  /** Fees earned so far, USD. Practice: estimated from the pool's fees per day over its TVL. */
+  feesUsd: number;
+  /** Fees accrued up to this time (ms). */
+  accruedAt: number;
+  /** Since when the price has been outside the range (ms), null while inside. */
+  outSince: number | null;
+  /** Close after this many minutes outside the range. */
+  outOfRangeMinutes?: number;
+  /** Share of the value in the base token now, 0–1. */
+  baseShare: number;
 }
 
 /** Funding accrual bookkeeping (additive, optional). */
@@ -97,7 +123,9 @@ export type FillReason =
   /** Tokens left the wallet outside Weft (sold or moved by hand): booked at the mark, no order sent. */
   | "outside"
   /** Paper perps: the mark crossed the estimated liquidation price; filled at that price. */
-  | "liquidation";
+  | "liquidation"
+  /** Liquidity: the price stayed outside the range for longer than the strategy allows. */
+  | "out_of_range";
 
 export interface Fill {
   id: string;

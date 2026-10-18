@@ -1,8 +1,8 @@
 import type { Strategy, Trigger } from "./strategy.ts";
-import type { Action, OpenAction, OptionsAction, OrderSpec, Exits, Size } from "./actions.ts";
+import type { Action, LiquidityAction, LpRange, OpenAction, OptionsAction, OrderSpec, Exits, Size } from "./actions.ts";
 import { DEFAULT_MAX_AGE, type SignalKind } from "./signals.ts";
 import { evalExpr, type ExprContext, type Tri } from "./expr.ts";
-import { instrumentKey, type TradableInstrument, type OptionInstrument } from "./instruments.ts";
+import { instrumentKey, type LpInstrument, type TradableInstrument, type OptionInstrument } from "./instruments.ts";
 
 /**
  * The evaluator is a pure function: (strategy, market snapshot, previous state)
@@ -93,13 +93,16 @@ interface IntentBase {
 
 export interface OpenIntent extends IntentBase {
   type: "open";
-  instrument: TradableInstrument;
+  /** An `lp` instrument comes from a `liquidity` action and carries `lp`. */
+  instrument: TradableInstrument | LpInstrument;
   instrumentKey: string;
   side: "long" | "short";
   size: ResolvedSize;
   leverage: number;
   order: OrderSpec;
   exits: Exits;
+  /** Liquidity actions: where the range sits and when to leave it. */
+  lp?: { range: LpRange; shape: LiquidityAction["shape"]; outOfRangeMinutes?: number };
 }
 
 export interface OptionsIntent extends IntentBase {
@@ -248,7 +251,7 @@ function buildIntents(s: Strategy, input: EvalInput, state: EvalState, fired: st
 }
 
 function eligible(a: Action, fires: number, positions: OpenPosition[]): boolean {
-  if (a.type !== "open" && a.type !== "options") return true;
+  if (a.type !== "open" && a.type !== "options" && a.type !== "liquidity") return true;
   if (a.reentry === "never") return fires === 0;
   return !positions.some((p) => p.actionId === a.id);
 }
@@ -265,7 +268,24 @@ function toIntent(a: Action, base: IntentBase, equityUsd: number, defaultSlippag
       return { ...base, type: "notify", channel: a.channel, message: a.message };
     case "copy":
       throw new Error("copy actions don't become intents from triggers");
+    case "liquidity":
+      return liquidityIntent(a, base, equityUsd, defaultSlippage);
   }
+}
+
+function liquidityIntent(a: LiquidityAction, base: IntentBase, equityUsd: number, defaultSlippage: number): OpenIntent {
+  return {
+    ...base,
+    type: "open",
+    instrument: a.pool,
+    instrumentKey: instrumentKey(a.pool),
+    side: "long",
+    size: resolveSize(a.size, equityUsd),
+    leverage: 1,
+    order: { type: "market", maxSlippageBps: defaultSlippage },
+    exits: a.exits,
+    lp: { range: a.range, shape: a.shape, ...(a.outOfRangeMinutes != null ? { outOfRangeMinutes: a.outOfRangeMinutes } : {}) },
+  };
 }
 
 function openIntent(a: OpenAction, base: IntentBase, equityUsd: number, defaultSlippage: number): OpenIntent {

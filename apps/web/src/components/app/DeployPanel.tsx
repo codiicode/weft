@@ -87,6 +87,7 @@ export function liveBlocker(s: Strategy | undefined, venues: Venues | null = nul
   if (doc.includes("ExampLeMint") || /"venue":"hyperliquid","market":"[^"]*[a-z][^"]*"/.test(doc))
     return "This example still points at a sample market. Make a copy and pick a real market first.";
   for (const a of s.actions) {
+    if (a.type === "liquidity") return "Liquidity strategies run as practice for now. Live deposits to Meteora are coming.";
     if (a.type === "options") return "Options can’t be traded live yet.";
     if (a.type !== "open") continue;
     if (a.order.type === "limit") return "Limit orders can’t be traded live yet. Use a market order with a slippage limit.";

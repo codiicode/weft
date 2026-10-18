@@ -5,7 +5,7 @@
 import type { Instrument, Signal, SignalKind, SignalSnapshot } from "@weft/strategy";
 
 /** The five products Weft offers. */
-export type Product = "perps" | "stocks" | "predictions" | "tokens" | "options";
+export type Product = "perps" | "stocks" | "predictions" | "tokens" | "options" | "pools";
 
 /** A price for an instrument, optionally size-aware (quote with price impact). */
 export interface Quote {
@@ -20,6 +20,11 @@ export interface Quote {
   /** ms since epoch, when the venue/provider observed it */
   ts: number;
   source: string;
+  /**
+   * Liquidity pools only: `price` is the base token in the quote token (not USD); this says what
+   * the quote token is worth and how much the pool pays its liquidity per day.
+   */
+  lp?: { quoteUsd: number; feePerDay: number; tvlUsd: number };
 }
 
 export interface QuoteRequest {

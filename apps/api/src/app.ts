@@ -657,6 +657,9 @@ export function createApp(deps: AppDeps) {
       if (body.allocationUsd > left + 1e-9)
         return c.json({ error: left <= 0 ? `All $${practiceBudget.toLocaleString("en-US")} of your practice money is in use. Stop a practice run to free some up.` : `You have $${Math.floor(left).toLocaleString("en-US")} of practice money left.` }, 409);
     }
+    // Liquidity runs as practice for now: live Meteora deposits come next.
+    if (body.mode === "live" && !body.alertsOnly && strategy.actions.some((a) => a.type === "liquidity"))
+      return c.json({ error: "Liquidity strategies run as practice for now. Live deposits to Meteora are coming." }, 409);
     // Real money never rides on made-up data: signals Weft only simulates (no live feed yet) can run
     // as alerts, not trades.
     if (body.mode === "live" && !body.alertsOnly) {

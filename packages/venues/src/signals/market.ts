@@ -93,6 +93,11 @@ export async function priceFields(md: VenueMarketData, i: Instrument, now: numbe
       const q = await md.getQuote(i);
       return { price: q.price, change_5m_pct: null, change_1h_pct: null, change_24h_pct: null, volume_24h_usd: null };
     }
+    case "lp": {
+      // the pool's own price (base in quote) and 24h volume
+      const p = await md.meteora.pool(i.pool);
+      return { price: p.price, change_5m_pct: null, change_1h_pct: null, change_24h_pct: null, volume_24h_usd: p.volume24hUsd };
+    }
   }
 }
 

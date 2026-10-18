@@ -318,6 +318,8 @@ export class VenueHistory implements HistoryProvider {
         return this.md ? null : "Prediction-market history needs market data";
       case "option":
         return "Options price history isn't available yet";
+      case "lp":
+        return "Pool price history isn't available yet";
     }
   }
 

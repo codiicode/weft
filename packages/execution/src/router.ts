@@ -25,6 +25,8 @@ export class RoutingExecutor implements Executor {
         return this.routes.solana ?? null;
       case "option":
         return null; // TODO: options venues (Derive / Deribit / HL options)
+      case "lp":
+        return null; // liquidity runs as practice for now; live Meteora deposits come next
     }
   }
 

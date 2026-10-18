@@ -18,6 +18,7 @@ import { normalizeYesNo, predictionBook, predictionPrice, swapFill } from "./jup
 import { deribitBookUsd, deriveName, parseDeribitName, parseDeriveTicker } from "./options.ts";
 import { num } from "./util.ts";
 import { polymarketOutcome } from "./polymarket.ts";
+import { MeteoraDlmm, feePerDay } from "./meteora.ts";
 
 /** A quote that also says whether the visible book could absorb the full size. */
 export interface VenueQuote extends Quote {
@@ -146,6 +147,7 @@ export class VenueMarketData implements MarketData {
         return { book: deribitBookUsd(await this.ctx.deribit.orderBook(name), parsed.linear), source: "deribit:get_order_book" };
       }
       case "token":
+      case "lp":
         return null;
     }
   }
@@ -166,7 +168,23 @@ export class VenueMarketData implements MarketData {
         return i.venue === "hyperliquid" ? this.hlOutcomeQuote(i, req) : i.venue === "polymarket" ? this.pmOutcomeQuote(i) : this.jupOutcomeQuote(i, req);
       case "option":
         return this.optionQuote(i, req);
+      case "lp":
+        return this.lpQuote(i.pool);
     }
+  }
+
+  /** Meteora DLMM pools (search and quotes). */
+  get meteora(): MeteoraDlmm {
+    return (this._meteora ??= new MeteoraDlmm(this.ctx.http));
+  }
+  private _meteora: MeteoraDlmm | undefined;
+
+  /** A pool's price (base in quote), what the quote token is worth, and its fee rate. */
+  private async lpQuote(pool: string): Promise<VenueQuote> {
+    const p = await this.meteora.pool(pool);
+    const quoteUsd = p.quoteUsd ?? (p.baseUsd != null ? p.baseUsd / p.price : null);
+    if (quoteUsd == null) throw new Error(`meteora: no USD price for ${p.quoteSymbol}`);
+    return { instrumentKey: `meteora:lp:${pool}`, price: p.price, ts: this.ctx.now(), source: "meteora:dlmm", lp: { quoteUsd, feePerDay: feePerDay(p), tvlUsd: p.tvlUsd } } as VenueQuote;
   }
 
   async getQuotes(instruments: Instrument[]): Promise<Map<string, Quote>> {

@@ -22,6 +22,7 @@ import type { DeploymentRuntime, StoreBatch } from "./store.ts";
 import { errMsg, withTimeout, type Executor } from "./executor.ts";
 import { dirOf, exitReason, exposureOf, groupExitReason, groupUnitValue, marginOf, markPosition, unrealizedOf } from "./positions.ts";
 import { computeFee, type FeeSchedule } from "./fees.ts";
+import { lpBaseShare, lpValueRatio, resolveRange } from "./lp.ts";
 import { DEFAULT_MAINTENANCE_MARGIN, fundingPayment, HOUR_MS, liquidationCrossed, liquidationPrice, maintenanceMarginRate, needsLiquidationPrice } from "./perps.ts";
 
 /** Everything a tick needs from the outside world. Injected; the tick itself does no I/O. */
@@ -196,7 +197,9 @@ export class Session {
     const fundingNote = funding != null && Math.abs(funding) >= 0.005 ? `, funding ${fmtUsd(-funding)} (booked while open)` : "";
     this.emit(
       "fill",
-      `${prefix}${fill.side === "buy" ? "Bought" : "Sold"} ${fmtQty(res.qty)} ${instrumentLabel(p.instrument)} @ ${fmtPx(res.price)} (${reason.replace("_", " ")}), P&L ${fmtUsd(net)}${fundingNote}`,
+      p.lp && p.instrument.kind === "lp"
+        ? `${prefix}Withdrew ${fmtUsd(res.qty * res.price)} from the ${p.instrument.symbol} pool (${reason.replace(/_/g, " ")}), P&L ${fmtUsd(net)}, fees earned ${fmtUsd(p.lp.feesUsd * share)}`
+        : `${prefix}${fill.side === "buy" ? "Bought" : "Sold"} ${fmtQty(res.qty)} ${instrumentLabel(p.instrument)} @ ${fmtPx(res.price)} (${reason.replace("_", " ")}), P&L ${fmtUsd(net)}${fundingNote}`,
       { fill }
     );
     if (full || p.qty - res.qty <= p.qty * 1e-9) {
@@ -223,6 +226,9 @@ export class Session {
     group?: Position["group"];
     /** Perps: venue max leverage, for the liquidation estimate (null/undefined → default maintenance). */
     maxLeverage?: number | null;
+    /** Liquidity: the pool side of the position, and the fill message to show. */
+    lp?: Position["lp"];
+    message?: string;
   }): Position {
     const { res } = args;
     const key = instrumentKey(args.instrument);
@@ -246,6 +252,7 @@ export class Session {
       unrealizedPnlPct: 0,
       peakPrice: res.price,
       ...(args.group ? { group: args.group } : {}),
+      ...(args.lp ? { lp: args.lp } : {}),
     };
     if (this.deps.perpRealism && args.instrument.kind === "perp") {
       p.fundingPaidUsd = 0;
@@ -279,7 +286,7 @@ export class Session {
     this.forceSample = true;
     this.emit(
       "fill",
-      `${fill.side === "buy" ? "Bought" : "Sold"} ${fmtQty(res.qty)} ${instrumentLabel(args.instrument)} @ ${fmtPx(res.price)}${args.leverage > 1 ? ` (${args.leverage}×)` : ""}, fee ${fmtUsd(res.feeUsd)}`,
+      args.message ?? `${fill.side === "buy" ? "Bought" : "Sold"} ${fmtQty(res.qty)} ${instrumentLabel(args.instrument)} @ ${fmtPx(res.price)}${args.leverage > 1 ? ` (${args.leverage}×)` : ""}, fee ${fmtUsd(res.feeUsd)}`,
       { fill }
     );
     return p;
@@ -540,6 +547,10 @@ export async function markAll(s: Session): Promise<void> {
   for (const p of ps) {
     const q = quotes.get(p.instrumentKey);
     if (!q || !(q.price > 0)) continue;
+    if (p.lp) {
+      if (markLiquidity(s, p, q)) s.markTouched(p);
+      continue;
+    }
     markPosition(p, q.price, s.now);
     s.markTouched(p);
   }
@@ -589,7 +600,8 @@ async function runExits(s: Session): Promise<void> {
       s.liquidate(p);
       continue;
     }
-    const reason = exitReason(p, s.now);
+    const outTooLong = p.lp?.outOfRangeMinutes != null && p.lp.outSince != null && s.now - p.lp.outSince >= p.lp.outOfRangeMinutes * 60_000;
+    const reason = exitReason(p, s.now) ?? (outTooLong ? "out_of_range" : null);
     if (reason) await s.closePosition(p, 1, reason, `${p.id}:${reason}`);
   }
   for (const legs of groups(ps).values()) {
@@ -838,6 +850,7 @@ async function execute(s: Session, intent: Intent, usdPrices: Record<string, num
 }
 
 async function executeOpen(s: Session, i: OpenIntent, usdPrices: Record<string, number>): Promise<void> {
+  if (i.instrument.kind === "lp") return executeLiquidity(s, i, i.instrument, usdPrices);
   let usd = intentUsd(i, usdPrices);
   if (usd == null || !(usd > 0)) return retryLater(s, i, "cannot size order: no USD price");
   // A share of the budget ("all of it", "half") leaves room for the fee instead of waiting for cash
@@ -885,6 +898,76 @@ async function executeOpen(s: Session, i: OpenIntent, usdPrices: Record<string, 
   if (res.status !== "filled") return reject(s, i, res.reason, res.status === "pending");
   const maxLeverage = s.deps.perpRealism && i.instrument.kind === "perp" && needsLiquidationPrice({ instrument: i.instrument, side: i.side, leverage: i.leverage }) ? await maxLeverageOf(s, i.instrument) : null;
   s.bookOpen({ instrument: i.instrument, side: i.side, leverage: i.leverage, actionId: i.actionId, intentKey: i.key, exits: i.exits, res, maxLeverage });
+}
+
+/** Deposit into a pool: read its price, fix the range around it, and book the position in $1 units. */
+async function executeLiquidity(s: Session, i: OpenIntent, pool: Extract<Instrument, { kind: "lp" }>, usdPrices: Record<string, number>): Promise<void> {
+  let usd = intentUsd(i, usdPrices);
+  if (usd == null || !(usd > 0)) return retryLater(s, i, "cannot size the deposit");
+  if (!i.size.fixed && s.rt.cashUsd < usd * 1.01) usd = Math.min(usd, s.rt.cashUsd / 1.01);
+  if (s.rt.cashUsd < usd * 1.01 || usd < 1) return retryLater(s, i, `insufficient cash: need ${fmtUsd(usd)}, have ${fmtUsd(s.rt.cashUsd)}`);
+  let q: Quote;
+  try {
+    q = await withTimeout(s.deps.marketData.getQuote(pool), s.deps.quoteTimeoutMs);
+  } catch (e) {
+    return retryLater(s, i, `couldn’t read the ${pool.symbol} pool: ${errMsg(e)}`);
+  }
+  if (!(q.price > 0) || !q.lp) return retryLater(s, i, `no price for the ${pool.symbol} pool`);
+  const { lower, upper } = resolveRange(i.lp!.range, q.price);
+  if (!(lower > 0 && upper > lower)) return reject(s, i, `the range ${fmtPx(lower)}–${fmtPx(upper)} isn’t valid`);
+  let res;
+  try {
+    res = await s.deps.executor.execute(
+      { clientId: i.key, instrument: pool, instrumentKey: i.instrumentKey, side: "buy", phase: "open", notionalUsd: usd, order: i.order, deploymentId: s.deployment.id, leverage: 1 },
+      s.now
+    );
+  } catch (e) {
+    res = { status: "rejected" as const, reason: errMsg(e) };
+  }
+  if (res.status !== "filled") return reject(s, i, res.reason, res.status === "pending");
+  const inRange = q.price >= lower && q.price <= upper;
+  s.bookOpen({
+    instrument: pool,
+    side: "long",
+    leverage: 1,
+    actionId: i.actionId,
+    intentKey: i.key,
+    exits: i.exits,
+    res: { ...res, price: 1, markPrice: 1 },
+    lp: {
+      entryPoolPrice: q.price,
+      poolPrice: q.price,
+      lower,
+      upper,
+      entryQuoteUsd: q.lp.quoteUsd,
+      feesUsd: 0,
+      accruedAt: s.now,
+      outSince: inRange ? null : s.now,
+      ...(i.lp!.outOfRangeMinutes != null ? { outOfRangeMinutes: i.lp!.outOfRangeMinutes } : {}),
+      baseShare: lpBaseShare(q.price, lower, upper),
+    },
+    message: `Added ${fmtUsd(res.qty)} of liquidity to the ${pool.symbol} pool between ${fmtPx(lower)} and ${fmtPx(upper)} ${pool.quoteSymbol} (price ${fmtPx(q.price)})`,
+  });
+}
+
+/**
+ * A liquidity position's mark: its value over what went in, at the pool's price and the quote
+ * token's USD price, plus fees. Practice fees accrue at the pool's fees-per-day over TVL on the
+ * position's value, only while the price is in range (conservative: a narrow range really earns more).
+ */
+function markLiquidity(s: Session, p: Position, q: Quote): boolean {
+  const lp = p.lp;
+  if (!lp || !q.lp || !(q.price > 0) || !(q.lp.quoteUsd > 0)) return false;
+  const ratio = lpValueRatio(lp.entryPoolPrice, q.price, lp.lower, lp.upper) * (q.lp.quoteUsd / lp.entryQuoteUsd);
+  const inRange = q.price >= lp.lower && q.price <= lp.upper;
+  const days = Math.max(0, s.now - lp.accruedAt) / 86_400_000;
+  if (inRange && days > 0) lp.feesUsd += p.qty * ratio * q.lp.feePerDay * days;
+  lp.accruedAt = s.now;
+  lp.poolPrice = q.price;
+  lp.baseShare = lpBaseShare(q.price, lp.lower, lp.upper);
+  lp.outSince = inRange ? null : (lp.outSince ?? s.now);
+  markPosition(p, ratio + lp.feesUsd / p.qty, s.now);
+  return true;
 }
 
 async function executeOptions(s: Session, i: OptionsIntent, usdPrices: Record<string, number>): Promise<void> {
@@ -1005,6 +1088,11 @@ function sizeText(size: { usd?: number | null; native?: number | null }, quote?:
 function describeIntent(s: Session, i: Intent): string {
   switch (i.type) {
     case "open": {
+      if (i.instrument.kind === "lp") {
+        const r = i.lp?.range;
+        const where = !r ? "" : "lowerPct" in r ? ` from −${r.lowerPct}% to +${r.upperPct}% around the price` : ` between ${r.lower} and ${r.upper} ${i.instrument.quoteSymbol}`;
+        return `Add ${sizeText(i.size)} of liquidity to the ${i.instrument.symbol} pool${where}`;
+      }
       const longOnly = i.instrument.kind === "token" || i.instrument.kind === "outcome" || i.instrument.kind === "spot";
       const verb = longOnly ? "Buy" : i.side === "long" ? "Go long" : "Go short";
       const quote = i.instrument.kind === "token" ? i.instrument.quote : undefined;

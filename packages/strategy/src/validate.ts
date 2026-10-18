@@ -105,7 +105,7 @@ export function semanticIssues(s: Strategy): Issue[] {
   // ---- actions ----
   const opened = new Set<string>();
   for (const a of s.actions) {
-    if (a.type === "open") opened.add(instrumentKey(a.instrument));
+    if (a.type === "open" || a.type === "liquidity") opened.add(instrumentKey(a.type === "open" ? a.instrument : a.pool));
     if (a.type === "options") a.legs.forEach((l) => opened.add(instrumentKey(l.instrument)));
   }
   s.actions.forEach((a, ai) => {
@@ -147,6 +147,19 @@ export function semanticIssues(s: Strategy): Issue[] {
       if (venues.size > 1) err(`${p}.legs`, "all legs must trade on the same venue");
     }
 
+    if (a.type === "liquidity") {
+      if (a.size.unit === "native") err(`${p}.size`, "give the amount in USD or as a share of the budget");
+      if (a.size.unit === "pct_equity" && a.size.value > s.risk.maxPositionPct)
+        err(`${p}.size`, `${a.size.value}% exceeds maxPositionPct (${s.risk.maxPositionPct}%)`);
+      if ("lower" in a.range && a.range.lower >= a.range.upper) err(`${p}.range`, "the lower price must be below the upper price");
+      // Exits are on the position's value; a price to leave at is a trigger with a close action.
+      for (const k of ["takeProfit", "stopLoss"] as const) {
+        const l = a.exits[k];
+        if (l && !("pct" in l || "positionPct" in l)) err(`${p}.exits.${k}`, "liquidity exits are a % gain or loss on the position; to leave at a price, use a trigger and a close action");
+      }
+      if (a.exits.trailingStopPct != null) err(`${p}.exits.trailingStopPct`, "liquidity positions have no trailing stop");
+    }
+
     if (a.type === "copy") {
       if (a.leverage != null && a.leverage > s.risk.maxLeverage) err(`${p}.leverage`, `leverage ${a.leverage}× exceeds the strategy max of ${s.risk.maxLeverage}×`);
       if (a.leader.venue === "solana" && a.leverage != null && a.leverage > 1) err(`${p}.leverage`, "leverage only applies to Hyperliquid copies");
@@ -166,7 +179,7 @@ export function semanticIssues(s: Strategy): Issue[] {
   // ---- graph hygiene ----
   s.signals.forEach((x, i) => !usedSignals.has(x.id) && warn(`signals[${i}]`, `signal "${x.id}" is not used by any trigger`));
   s.triggers.forEach((x, i) => !usedTriggers.has(x.id) && warn(`triggers[${i}]`, `trigger "${x.id}" does not drive any action`));
-  if (!s.actions.some((a) => a.type === "close") && s.actions.some((a) => a.type === "open" || a.type === "options"))
+  if (!s.actions.some((a) => a.type === "close") && s.actions.some((a) => a.type === "open" || a.type === "options" || a.type === "liquidity"))
     warn("actions", "no close action: positions only exit via their own TP/SL/time exits");
   s.signals.forEach((x, i) => {
     if (x.kind === "calendar" && x.params.event === "custom" && !x.params.at) err(`signals[${i}].params.at`, "custom calendar events need `at`");

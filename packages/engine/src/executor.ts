@@ -58,6 +58,7 @@ export const DEFAULT_SLIPPAGE_BPS: Record<Instrument["kind"], number> = {
   token: 30,
   outcome: 50,
   option: 50,
+  lp: 0,
 };
 
 export interface PaperExecutorOptions {
@@ -90,6 +91,14 @@ export class PaperExecutor implements Executor {
   }
 
   async execute(req: OrderRequest, _now: number): Promise<ExecutionResult> {
+    // Liquidity, booked in $1 units: depositing fills at 1, withdrawing at what a unit is worth now
+    // (the engine's mark, which it keeps from the pool's price and fees).
+    if (req.instrument.kind === "lp") {
+      const qty = req.qty ?? req.notionalUsd;
+      const price = req.phase === "open" ? 1 : req.fallbackPrice;
+      if (!(qty! > 0) || !(price! > 0)) return { status: "rejected", reason: "nothing to deposit or withdraw" };
+      return { status: "filled", qty: qty!, price: price!, markPrice: price!, feeUsd: 0, builderFeeUsd: 0, slippageBps: 0 };
+    }
     const sizeHint = req.notionalUsd ?? (req.qty != null && req.fallbackPrice != null ? req.qty * req.fallbackPrice : undefined);
     let quote: Quote | null = null;
     try {

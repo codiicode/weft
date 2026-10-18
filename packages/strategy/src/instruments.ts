@@ -66,12 +66,27 @@ export const OptionInstrument = z.object({
   right: z.enum(["call", "put"]),
 });
 
+/**
+ * A liquidity pool to provide liquidity to (a `liquidity` action, never an `open`). Meteora DLMM on
+ * Solana: prices are the base token in the quote token (SOL-USDC: USDC per SOL).
+ */
+export const LpInstrument = z.object({
+  kind: z.literal("lp"),
+  venue: z.literal("meteora"),
+  pool: SolanaMint.describe("The DLMM pool (pair) address, copied exactly from the search"),
+  symbol: z.string().min(1).describe("Pair name for display, e.g. SOL-USDC"),
+  baseMint: SolanaMint,
+  quoteMint: SolanaMint,
+  quoteSymbol: z.string().min(1).describe("e.g. USDC or SOL"),
+});
+
 export const Instrument = z.discriminatedUnion("kind", [
   PerpInstrument,
   SpotInstrument,
   TokenInstrument,
   OutcomeInstrument,
   OptionInstrument,
+  LpInstrument,
 ]);
 
 /** Instruments a plain `open` action may trade (options go through multi-leg `options` actions). */
@@ -87,6 +102,7 @@ export type SpotInstrument = z.infer<typeof SpotInstrument>;
 export type TokenInstrument = z.infer<typeof TokenInstrument>;
 export type OutcomeInstrument = z.infer<typeof OutcomeInstrument>;
 export type OptionInstrument = z.infer<typeof OptionInstrument>;
+export type LpInstrument = z.infer<typeof LpInstrument>;
 export type Instrument = z.infer<typeof Instrument>;
 export type TradableInstrument = z.infer<typeof TradableInstrument>;
 
@@ -103,6 +119,8 @@ export function instrumentKey(i: Instrument): string {
       return `${i.venue === "hyperliquid" ? "hl" : i.venue === "polymarket" ? "pm" : "jup"}:outcome:${i.market}:${i.outcome}`;
     case "option":
       return `${i.venue}:option:${i.underlying}-${i.expiry}-${i.strike}-${i.right === "call" ? "C" : "P"}`;
+    case "lp":
+      return `meteora:lp:${i.pool}`;
   }
 }
 
@@ -119,6 +137,8 @@ export function instrumentLabel(i: Instrument): string {
       return `${i.outcome} · ${i.question ?? i.market}`;
     case "option":
       return `${i.underlying} ${i.expiry} ${i.strike}${i.right === "call" ? "C" : "P"}`;
+    case "lp":
+      return `${i.symbol} liquidity`;
   }
 }
 

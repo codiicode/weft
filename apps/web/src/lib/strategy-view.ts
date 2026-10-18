@@ -262,6 +262,8 @@ export function strategyToSpec(s: Strategy, live: LiveOverlay = {}): { spec: Gra
       });
     } else if (a.type === "copy") {
       nodes.push({ id: a.id, kind: "action", side: "buy", asset: a.label ?? copyWho(a), venue: a.leader.venue === "solana" ? "Solana" : "Hyperliquid", alloc: sizeLabel(a.size) });
+    } else if (a.type === "liquidity") {
+      nodes.push({ id: a.id, kind: "action", side: "buy", asset: a.label ?? `${a.pool.symbol} liquidity`, venue: "Meteora", alloc: sizeLabel(a.size), tp: levelLabel(a.exits.takeProfit, "+", "tp"), sl: levelLabel(a.exits.stopLoss, "−", "sl"), pnl: pos ? pos.unrealizedPnlPct : undefined });
     } else {
       nodes.push({ id: a.id, kind: "exit", title: a.label ?? `Alert · ${a.channel}`, detail: a.message });
     }
@@ -538,6 +540,12 @@ export function describeStrategy(s: Strategy): { watches: string[]; watchKinds: 
           return { text: `${a.fraction < 1 ? `Close ${Math.round(a.fraction * 100)}% of` : "Close"} ${what}`, tone: "exit", icon: a.target === "all" ? undefined : instrumentIcon(a.target.instrument) };
         }
         if (a.type === "copy") return { text: copyText(a), tone: "long" };
+        if (a.type === "liquidity") {
+          const r = a.range;
+          const where = "lowerPct" in r ? `from ${r.lowerPct}% below to ${r.upperPct}% above the price` : `between ${r.lower.toLocaleString("en-US")} and ${r.upper.toLocaleString("en-US")} ${a.pool.quoteSymbol}`;
+          const ex = [exitPhrase(a.exits, ["+", "−"]), a.outOfRangeMinutes != null ? `withdraw if the price stays outside the range for ${a.outOfRangeMinutes >= 60 && a.outOfRangeMinutes % 60 === 0 ? `${a.outOfRangeMinutes / 60} h` : `${a.outOfRangeMinutes} min`}` : ""].filter(Boolean).join("; ");
+          return { text: `Provide ${sizePhrase(a)} of liquidity to the ${a.pool.symbol} pool on Meteora, ${where}${ex ? `; ${ex}` : ""}`, tone: "long", icon: instrumentIcon(a.pool) };
+        }
         return { text: `Send an alert: “${a.message}”`, tone: "alert" };
       });
     // "price > 0" is how a "do it now" order is written: say so instead of showing the comparison.

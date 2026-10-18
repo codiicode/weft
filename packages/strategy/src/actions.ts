@@ -1,7 +1,7 @@
 import { z } from "zod";
 import { Id } from "./signals.ts";
 import { SolanaMint } from "./instruments.ts";
-import { Instrument, OptionInstrument, TradableInstrument } from "./instruments.ts";
+import { Instrument, LpInstrument, OptionInstrument, TradableInstrument } from "./instruments.ts";
 
 /**
  * Actions: what happens when a trigger fires. Every action names the
@@ -143,5 +143,32 @@ export const CopyAction = z.object({
 });
 export type CopyAction = z.infer<typeof CopyAction>;
 
-export const Action = z.discriminatedUnion("type", [OpenAction, OptionsAction, CloseAction, NotifyAction, CopyAction]);
+/** Where a liquidity position's range sits: percent below/above the price when it opens, or fixed prices. */
+export const LpRange = z.union([
+  z.object({ lowerPct: z.number().positive().max(99), upperPct: z.number().positive().max(1000) }).describe("Percent below and above the pool price at the moment it opens"),
+  z.object({ lower: z.number().positive(), upper: z.number().positive() }).describe("Fixed prices, in the pool's quote token"),
+]);
+export type LpRange = z.infer<typeof LpRange>;
+
+/**
+ * Provide liquidity to a pool when a trigger fires: deposit `size` into `pool`, spread evenly over
+ * `range` (DLMM "spot" shape). It earns the pool's trading fees while the price is in range. Exits
+ * work on the position's value (pct / positionPct levels: % gain or loss on what went in) and time;
+ * `outOfRangeMinutes` closes it once the price has been outside the range that long. Closing
+ * withdraws everything and settles to the quote token.
+ */
+export const LiquidityAction = z.object({
+  ...base,
+  type: z.literal("liquidity"),
+  pool: LpInstrument,
+  size: Size.describe("usd or pct_equity: what goes into the pool"),
+  range: LpRange,
+  shape: z.enum(["spot"]).default("spot").describe("How liquidity spreads over the range; spot = evenly"),
+  exits: Exits.prefault({}),
+  outOfRangeMinutes: z.number().positive().max(100_000).optional().describe("Close once the price has been outside the range this long"),
+  reentry: z.enum(["never", "after_close"]).default("never"),
+});
+export type LiquidityAction = z.infer<typeof LiquidityAction>;
+
+export const Action = z.discriminatedUnion("type", [OpenAction, OptionsAction, CloseAction, NotifyAction, CopyAction, LiquidityAction]);
 export type Action = z.infer<typeof Action>;
