@@ -1,0 +1,296 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Weft Yield v1</title>
+<style>
+  @font-face { font-family: "Newsreader"; src: url("../../scripts/og/newsreader-latin.woff2") format("woff2"); font-weight: 200 800; }
+  @font-face { font-family: "Inst"; src: url("../../scripts/og/instrument-sans-latin.woff2") format("woff2"); font-weight: 400 700; }
+  html, body { margin: 0; background: #0c0c0d; }
+  #stage { position: relative; width: 1920px; height: 1080px; overflow: hidden; background: #0c0c0d; color: #f4f3ef; font-family: "Inst", sans-serif; -webkit-font-smoothing: antialiased; }
+  .serif { font-family: "Newsreader", serif; font-weight: 400; letter-spacing: -0.02em; }
+  .center { position: absolute; left: 0; right: 0; text-align: center; }
+  .m { display: inline-block; overflow: hidden; vertical-align: top; padding: 0.04em 0.06em 0.18em; margin: -0.04em -0.06em -0.18em; }
+  .m > span { display: inline-block; transform: translateY(140%); }
+  .tile { position: absolute; left: 0; top: 0; width: 410px; height: 150px; box-sizing: border-box; padding: 20px 22px; border-radius: 18px; background: linear-gradient(180deg, #19191c, #131315); border: 1.5px solid #29292e; box-shadow: inset 0 1px 0 rgba(255,255,255,0.05), 0 30px 80px rgba(0,0,0,0.45); opacity: 0; will-change: transform; transform-origin: 0 0; }
+  .tile .logos { display: flex; align-items: center; }
+  .tile .logos > * { margin-right: -8px; }
+  .tile .label { margin-top: 14px; font-size: 22px; line-height: 1.25; font-weight: 600; letter-spacing: -0.015em; }
+  .tile .bar { position: absolute; left: 22px; right: 22px; bottom: 0; height: 3px; border-radius: 3px 3px 0 0; }
+  .chip { width: 44px; height: 44px; border-radius: 50%; display: grid; place-items: center; flex: none; overflow: hidden; box-shadow: 0 0 0 3px #161618; }
+  .chip img { width: 100%; height: 100%; object-fit: cover; display: block; }
+  .chip.pad img { width: 64%; height: 64%; object-fit: contain; }
+  .pt { white-space: nowrap; height: 44px; padding: 0 14px; border-radius: 22px; background: #f3ebd6; color: #15120a; display: grid; place-items: center; font-family: "Helvetica Neue", Helvetica, Arial, sans-serif; font-size: 17px; letter-spacing: -0.03em; box-shadow: 0 0 0 3px #161618; flex: none; }
+  .pt i { font-style: normal; color: #881e20; }
+  svg { overflow: visible; }
+  .card { position: absolute; box-sizing: border-box; border-radius: 22px; background: linear-gradient(180deg, #18181b, #121214); border: 1.5px solid #29292e; box-shadow: inset 0 1px 0 rgba(255,255,255,0.05), 0 40px 100px rgba(0,0,0,0.5); }
+  .row { position: absolute; left: 0; width: 1240px; height: 104px; box-sizing: border-box; padding: 0 34px; display: flex; align-items: center; border-radius: 18px; background: linear-gradient(180deg, #19191c, #131315); border: 1.5px solid #29292e; will-change: transform; }
+  .row .proto { width: 330px; margin-left: 22px; }
+  .row .pname { font-size: 30px; font-weight: 600; letter-spacing: -0.02em; }
+  .row .pmeta { font-size: 19px; color: #77766f; margin-top: 4px; }
+  .row .track { position: relative; flex: 1; height: 10px; border-radius: 5px; background: #1f1f23; margin: 0 40px 0 10px; }
+  .row .fill { position: absolute; left: 0; top: 0; bottom: 0; border-radius: 5px; }
+  .row .rate { width: 150px; text-align: right; font-size: 44px; font-weight: 600; letter-spacing: -0.03em; font-variant-numeric: tabular-nums; }
+  .row .best { position: absolute; right: -210px; font-size: 22px; letter-spacing: 0.16em; color: #3ecf8e; }
+  .ledger { display: flex; justify-content: space-between; align-items: baseline; padding: 22px 0; border-bottom: 1.5px solid #232327; font-size: 30px; }
+  .ledger .k { color: #8a8983; }
+  .ledger .v { font-weight: 600; letter-spacing: -0.02em; font-variant-numeric: tabular-nums; }
+  .caret { display: inline-block; width: 3px; height: 1.05em; background: #f4f3ef; vertical-align: -0.15em; margin-left: 4px; }
+</style>
+</head>
+<body>
+<div id="stage">
+  <svg width="0" height="0" style="position:absolute"><defs>
+    <filter id="glow" x="-150%" y="-150%" width="400%" height="400%"><feGaussianBlur stdDeviation="5" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter>
+    <filter id="bloom" x="-100%" y="-100%" width="300%" height="300%"><feGaussianBlur stdDeviation="14" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter>
+  </defs></svg>
+  <svg id="grid" width="1920" height="1080" style="position:absolute;inset:0"></svg>
+  <div id="glowBg" style="position:absolute;inset:0"></div>
+
+  <div id="intro">
+    <div class="center serif" id="i1" style="top:380px;font-size:104px"></div>
+    <div class="center serif" id="i2" style="top:520px;font-size:104px;color:#77766f"></div>
+  </div>
+
+  <div id="prompt" class="card" style="left:360px;top:420px;width:1200px;height:200px;padding:40px 48px;opacity:0">
+    <div style="font-size:20px;letter-spacing:0.16em;color:#77766f">YOUR IDEA</div>
+    <div id="ptext" style="margin-top:22px;font-size:46px;letter-spacing:-0.02em"></div>
+  </div>
+
+  <div id="boardHead" style="position:absolute;left:340px;right:340px;top:150px;display:flex;justify-content:space-between;align-items:baseline;opacity:0">
+    <div style="font-size:19px;letter-spacing:0.18em;color:#77766f">USDC LENDING RATES ON SOLANA · TODAY</div>
+    <div id="scan" style="font-size:19px;letter-spacing:0.18em;color:#77766f"></div>
+  </div>
+  <div id="board" style="position:absolute;left:340px;top:220px;width:1240px;height:640px"></div>
+
+  <div id="dep" class="card" style="left:1000px;top:250px;width:640px;height:580px;padding:44px 48px;opacity:0">
+    <div style="font-size:19px;letter-spacing:0.18em;color:#77766f">FIRST LIVE TEST · ON CHAIN</div>
+    <div id="depRows" style="margin-top:20px"></div>
+    <div id="depNote" style="margin-top:34px;font-size:26px;line-height:1.4;color:#a3a29d"></div>
+  </div>
+
+  <div id="title" style="position:absolute;inset:0;opacity:0">
+    <div class="center" id="tName" style="top:360px;font-size:150px;font-weight:600;letter-spacing:-0.045em"></div>
+    <div class="center serif" id="tSub" style="top:570px;font-size:58px;color:#a3a29d"></div>
+  </div>
+
+  <div id="end" style="position:absolute;inset:0;opacity:0">
+    <svg width="1920" height="1080" style="position:absolute;inset:0">
+      <g id="threads" fill="none" stroke-linecap="round"></g>
+      <circle id="knotRing" cx="960" cy="400" r="0" fill="none" stroke="#3ecf8e" stroke-width="2"/>
+      <circle id="knot" cx="960" cy="400" r="0" fill="#f4f3ef" filter="url(#bloom)"/>
+    </svg>
+    <div class="center" id="wordmark" style="top:500px;font-size:150px;font-weight:600;letter-spacing:-0.045em"></div>
+    <div class="center serif" id="tagline" style="top:700px;font-size:60px;color:#a3a29d"></div>
+    <div class="center" id="endUrl" style="top:850px;font-size:42px;font-weight:600;letter-spacing:-0.015em"></div>
+  </div>
+
+  <div id="flash" style="position:absolute;inset:0;opacity:0;background:#f4f3ef;pointer-events:none"></div>
+  <div style="position:absolute;inset:0;background:radial-gradient(ellipse 78% 78% at 50% 50%,transparent 58%,rgba(0,0,0,0.42) 100%);pointer-events:none"></div>
+  <div id="grain" style="position:absolute;inset:0;background-size:256px 256px;pointer-events:none"></div>
+</div>
+
+<script>
+const $ = (id) => document.getElementById(id);
+const clamp = (x, a = 0, b = 1) => Math.min(b, Math.max(a, x));
+const seg = (t, a, b) => clamp((t - a) / (b - a));
+const eo = (x) => 1 - Math.pow(1 - x, 3);
+const eio = (x) => (x < 0.5 ? 4 * x * x * x : 1 - Math.pow(-2 * x + 2, 3) / 2);
+const eox = (x) => (x >= 1 ? 1 : 1 - Math.pow(2, -10 * x));
+const eix = (x) => (x <= 0 ? 0 : Math.pow(2, 10 * x - 10));
+const back = (x) => 1 + 2.2 * Math.pow(x - 1, 3) + 1.2 * Math.pow(x - 1, 2);
+const lerp = (a, b, x) => a + (b - a) * x;
+const NS = "http://www.w3.org/2000/svg";
+const el = (tag, attrs = {}, parent) => { const e = document.createElementNS(NS, tag); for (const k in attrs) e.setAttribute(k, attrs[k]); if (parent) parent.appendChild(e); return e; };
+const div = (html, style = "", parent) => { const d = document.createElement("div"); d.innerHTML = html; d.style.cssText = style; if (parent) parent.appendChild(d); return d; };
+const hash = (a, b) => { let h = (a * 374761393 + b * 668265263) >>> 0; h = Math.imul(h ^ (h >>> 13), 1274126177) >>> 0; return ((h ^ (h >>> 16)) >>> 0) / 4294967296 * 2 - 1; };
+const srnd = (s) => () => ((s = (Math.imul(s, 1103515245) + 12345) >>> 0) / 4294967296);
+function maskWords(target, text) { target.innerHTML = text.split(" ").map((w) => `<span class="m"><span>${w}</span></span>`).join(" "); return [...target.querySelectorAll(".m > span")]; }
+function maskChars(target, text) { target.innerHTML = [...text].map((w) => `<span class="m"><span>${w}</span></span>`).join(""); return [...target.querySelectorAll(".m > span")]; }
+function reveal(ws, t, t0, st = 0.05, d = 0.8, out = null) {
+  ws.forEach((w, i) => {
+    let y = (1 - eox(seg(t, t0 + i * st, t0 + i * st + d))) * 140;
+    if (out != null) y -= eix(seg(t, out + i * st * 0.6, out + i * st * 0.6 + 0.45)) * 140;
+    w.style.transform = `translateY(${y.toFixed(2)}%)`;
+  });
+}
+
+// Cascade Breathe, like the launch video: 130.01 BPM, downbeat 0.044 s; the film starts on the track's
+// bar 1, so its drop (track bar 9) lands on film bar 8, where the best rate is picked.
+const BAR = 240 / 130.01, B0 = 0.044;
+const b = (n) => B0 + n * BAR;
+const DURATION = b(14.4);
+
+/* ---------- finish ---------- */
+for (let x = 24; x < 1920; x += 48) el("line", { x1: x, y1: 0, x2: x, y2: 1080, stroke: "#fff", "stroke-opacity": 0.022 }, $("grid"));
+const GRAIN = Array.from({ length: 8 }, (_, k) => {
+  const c = document.createElement("canvas"); c.width = c.height = 256;
+  const x = c.getContext("2d"), im = x.createImageData(256, 256), r = srnd(101 + k * 7919);
+  for (let i = 0; i < im.data.length; i += 4) { const v = r(); const w = v > 0.5; im.data[i] = im.data[i + 1] = im.data[i + 2] = w ? 255 : 0; im.data[i + 3] = Math.abs(v - 0.5) * 2 * (w ? 11 : 22); }
+  x.putImageData(im, 0, 0); return `url(${c.toDataURL()})`;
+});
+
+
+/* ---------- data: the rates Weft's AI compared on 18 Oct 2026, and the first live deposit ---------- */
+const COIN = (s) => `../../apps/web/public/coins/${s}.svg`;
+const ROWS = [
+  // in the order they come in; `rank` is where each sorts to by rate
+  { name: "Kamino", meta: "SOL/BTC market · $132M", rate: 4.30, rank: 4, logo: null },
+  { name: "Kamino", meta: "Huma market · $27M", rate: 5.00, rank: 3, logo: null },
+  { name: "Jupiter Lend", meta: "Earn · $482M", rate: 6.10, rank: 0, logo: "JUP" },
+  { name: "Kamino", meta: "OnRe market · $73M", rate: 5.76, rank: 1, logo: null },
+  { name: "Kamino", meta: "sUSDai market · $8M", rate: 5.52, rank: 2, logo: null },
+];
+const RH = 104, RG = 22, MAXR = 6.6;
+const rowsEl = ROWS.map((r, i) => {
+  const chip = `<div class="chip" style="width:52px;height:52px"><img src="${COIN("USDC")}"></div>`;
+  const plogo = r.logo ? `<div class="chip" style="width:52px;height:52px;margin-left:-14px"><img src="${COIN(r.logo)}"></div>` : `<div class="chip" style="width:52px;height:52px;margin-left:-14px;background:#232327;color:#cfcdc6;font-weight:600;font-size:22px">K</div>`;
+  const e = div(`<div style="display:flex;align-items:center">${chip}${plogo}</div><div class="proto"><div class="pname">${r.name}</div><div class="pmeta">${r.meta}</div></div><div class="track"><div class="fill"></div></div><div class="rate">0.00%</div><div class="best">BEST RATE</div>`, "", $("board"));
+  e.className = "row";
+  return { e, fill: e.querySelector(".fill"), rateEl: e.querySelector(".rate"), best: e.querySelector(".best"), ...r, i };
+});
+const PROMPT = "lend 500 USDC wherever the rate is best";
+
+/* ---------- timing ---------- */
+const T_PROMPT = b(2.15), T_TYPE = b(2.5), T_PROMPT_OUT = b(4.0);
+const T_ROWS = b(4.2), ROW_STEP = 0.5 * BAR;
+const T_SORT = b(6.9), T_DROP = b(8);
+const T_DEP = b(9.0), T_TITLE = b(10.9), T_TITLE_OUT = b(12.2);
+
+/* ---------- intro ---------- */
+const I1 = maskWords($("i1"), "Your USDC is sitting still.");
+const I2 = maskWords($("i2"), "Weft finds it the best rate.");
+function drawIntro(t) {
+  reveal(I1, t, 0.15, 0.06, 0.85, b(2) - 0.45);
+  reveal(I2, t, b(0.85), 0.06, 0.85, b(2) - 0.4);
+}
+
+/* ---------- the prompt ---------- */
+function drawPrompt(t) {
+  const inK = eox(seg(t, T_PROMPT, T_PROMPT + 0.5)), outK = eio(seg(t, T_PROMPT_OUT, T_PROMPT_OUT + 0.45));
+  const p = $("prompt");
+  p.style.opacity = (inK * (1 - outK)).toFixed(3);
+  p.style.transform = `translateY(${((1 - inK) * 40 - outK * 260).toFixed(1)}px) scale(${(1 - outK * 0.1).toFixed(3)})`;
+  const n = Math.floor(clamp((t - T_TYPE) / (b(3.55) - T_TYPE)) * PROMPT.length);
+  const blink = t < b(3.6) || Math.floor(t * 2.2) % 2 === 0;
+  $("ptext").innerHTML = `${PROMPT.slice(0, n)}<span class="caret" style="opacity:${blink ? 1 : 0}"></span>`;
+}
+
+/* ---------- the rate board ---------- */
+function drawBoard(t) {
+  const show = seg(t, T_ROWS - 0.2, T_ROWS + 0.3), leave = eio(seg(t, T_DEP - 0.35, T_DEP + 0.45));
+  $("boardHead").style.opacity = (show * (1 - seg(t, T_DEP - 0.5, T_DEP))).toFixed(3);
+  const scanned = rowsEl.filter((r) => t >= T_ROWS + r.i * ROW_STEP + 0.3).length;
+  $("scan").textContent = t < T_SORT ? `COMPARING ${scanned} OF 5` : t < T_DROP ? "SORTING BY RATE" : "PICKED";
+  const sortK = eio(seg(t, T_SORT, T_SORT + 0.9));
+  rowsEl.forEach((r) => {
+    const t0 = T_ROWS + r.i * ROW_STEP;
+    const k = eox(seg(t, t0, t0 + 0.55));
+    const grow = eio(seg(t, t0 + 0.1, t0 + 0.1 + 0.8));
+    const y = lerp(r.i, r.rank, sortK) * (RH + RG);
+    // after the drop: the winner stays, the rest step back; then the board slides left and shrinks
+    const won = r.rank === 0, dropK = eox(seg(t, T_DROP, T_DROP + 0.5));
+    const dim = won ? 1 : 1 - dropK * 0.62;
+    const lx = -leave * 230, ls = 1 - leave * 0.36;
+    const wy = won ? lerp(y, 1.9 * (RH + RG), leave) : y;
+    const gone = eio(seg(t, T_TITLE - 0.4, T_TITLE + 0.2));
+    r.e.style.opacity = (k * dim * (won ? 1 - gone : 1 - leave)).toFixed(3);
+    r.e.style.transform = `translate(${(lx + (1 - k) * 0).toFixed(1)}px, ${(wy + (1 - k) * 34).toFixed(1)}px) scale(${ls.toFixed(4)})`;
+    r.e.style.transformOrigin = "0 50%";
+    r.fill.style.width = `${((r.rate / MAXR) * 100 * grow).toFixed(2)}%`;
+    const c = won && t >= T_DROP ? "#3ecf8e" : "#55545a";
+    r.fill.style.background = c;
+    r.fill.style.boxShadow = won && t >= T_DROP ? `0 0 ${Math.round(18 + 22 * Math.exp(-(t - T_DROP) * 3))}px #3ecf8e88` : "none";
+    r.rateEl.textContent = `${(r.rate * grow).toFixed(2)}%`;
+    r.rateEl.style.color = won && t >= T_DROP ? "#3ecf8e" : "#f4f3ef";
+    r.e.style.borderColor = won && t >= T_DROP ? "#3ecf8e" : "#29292e";
+    r.best.style.opacity = won ? (eox(seg(t, T_DROP + 0.15, T_DROP + 0.6)) * (1 - leave)).toFixed(3) : 0;
+    r.best.style.transform = `translateX(${((1 - eox(seg(t, T_DROP + 0.15, T_DROP + 0.6))) * -20).toFixed(1)}px)`;
+  });
+}
+
+/* ---------- the deposit, as it happened ---------- */
+const DEP = [
+  ["Lent", "4.898369 USDC"],
+  ["Got back", "4.598780 jlUSDC"],
+  ["Rate", "6.10% a year"],
+  ["Withdrawn", "4.898367 USDC"],
+];
+const depEls = DEP.map(([k, v]) => div(`<span class="k">${k}</span><span class="v">${v}</span>`, "", $("depRows")));
+depEls.forEach((e) => (e.className = "ledger"));
+const depNote = maskWords($("depNote"), "From the user’s own wallet, to Jupiter Lend and back. Weft never holds it.");
+function drawDep(t) {
+  const k = eox(seg(t, T_DEP, T_DEP + 0.6)), out = eio(seg(t, T_TITLE - 0.4, T_TITLE + 0.2));
+  $("dep").style.opacity = (k * (1 - out)).toFixed(3);
+  $("dep").style.transform = `translateX(${((1 - k) * 80 - out * 60).toFixed(1)}px)`;
+  depEls.forEach((e, i) => {
+    const a = eox(seg(t, T_DEP + 0.3 + i * 0.32, T_DEP + 0.8 + i * 0.32));
+    e.style.opacity = a.toFixed(3);
+    e.style.transform = `translateY(${((1 - a) * 18).toFixed(1)}px)`;
+    e.querySelector(".v").style.color = i === 2 ? "#3ecf8e" : "#f4f3ef";
+  });
+  reveal(depNote, t, T_DEP + 1.7, 0.04, 0.7);
+}
+
+/* ---------- the name ---------- */
+const TN = maskWords($("tName"), "Weft Yield");
+const TS = maskWords($("tSub"), "v1: lending on Kamino and Jupiter Lend");
+function drawTitle(t) {
+  $("title").style.opacity = t > T_TITLE - 0.1 && t < T_TITLE_OUT + 0.8 ? 1 : 0;
+  reveal(TN, t, T_TITLE, 0.04, 0.85, T_TITLE_OUT);
+  reveal(TS, t, T_TITLE + 0.45, 0.05, 0.85, T_TITLE_OUT + 0.05);
+}
+const END = b(12.4);
+const KNOT = { x: 960, y: 400 };
+const THREAD_C = ["#f5a524", "#f472b6", "#38bdf8", "#7c8cff", "#a78bfa", "#93e3bc"];
+const threadEls = [
+  `M -40 230 C 400 230 640 ${KNOT.y} ${KNOT.x} ${KNOT.y}`, `M -40 315 C 420 315 660 ${KNOT.y} ${KNOT.x} ${KNOT.y}`, `M -40 ${KNOT.y} L ${KNOT.x} ${KNOT.y}`,
+  `M -40 485 C 420 485 660 ${KNOT.y} ${KNOT.x} ${KNOT.y}`, `M -40 570 C 400 570 640 ${KNOT.y} ${KNOT.x} ${KNOT.y}`, `M ${KNOT.x} ${KNOT.y} L 1980 ${KNOT.y}`,
+].map((d, i) => el("path", { d, stroke: THREAD_C[i], "stroke-width": i === 5 ? 5 : 3.5, opacity: 0.95 }, $("threads")));
+const threadLen = threadEls.map((p) => p.getTotalLength());
+const heads = THREAD_C.map((c, i) => el("circle", { r: i === 5 ? 6 : 4.5, fill: c, filter: "url(#glow)", opacity: 0 }, $("threads")));
+const wm = maskChars($("wordmark"), "weft");
+const tag = maskWords($("tagline"), "Yield, v1.");
+const url = maskWords($("endUrl"), "weft.fi");
+function drawEnd(t) {
+  if (t < END - 0.05) return void ($("end").style.opacity = 0);
+  const l = t - END;
+  $("end").style.opacity = Math.min(1, l / 0.2 + 0.25);
+  threadEls.forEach((p, i) => {
+    const start = i < 5 ? 0.05 + i * 0.07 : 0.95;
+    const pr = eio(seg(l, start, start + 0.9));
+    p.style.strokeDasharray = threadLen[i]; p.style.strokeDashoffset = threadLen[i] * (1 - pr);
+    const h = heads[i];
+    if (pr > 0 && pr < 1) { const pt = p.getPointAtLength(threadLen[i] * pr); h.setAttribute("cx", pt.x); h.setAttribute("cy", pt.y); h.setAttribute("opacity", 1); } else h.setAttribute("opacity", 0);
+  });
+  const k = seg(l, 0.9, 1.3);
+  $("knot").setAttribute("r", Math.max(0, 22 * back(k) * (k > 0 ? 1 : 0)));
+  const ring = seg(l, 0.95, 2.0); $("knotRing").setAttribute("r", 22 + 110 * eox(ring)); $("knotRing").setAttribute("opacity", ring > 0 ? (1 - ring) * 0.8 : 0);
+  reveal(wm, l, 1.2, 0.05, 0.9);
+  reveal(tag, l, 1.6, 0.06, 0.9);
+  reveal(url, l, 2.2, 0.06, 0.9);
+}
+
+
+async function renderAt(t) {
+  drawIntro(t); drawPrompt(t); drawBoard(t); drawDep(t); drawTitle(t); drawEnd(t);
+  const fl = t >= T_DROP ? Math.exp(-(t - T_DROP) * 7) * 0.12 : 0;
+  $("flash").style.opacity = fl.toFixed(3);
+  const gx = 50 + 20 * Math.sin(t * 0.21), gy = 40 + 15 * Math.cos(t * 0.17);
+  const green = t >= T_DROP ? 0.035 * Math.min(1, (t - T_DROP) * 2) : 0;
+  $("glowBg").style.background = `radial-gradient(1100px 700px at ${gx}% ${gy}%, rgba(62,207,142,${(0.03 + green).toFixed(3)}), transparent 70%)`;
+  const fk = Math.floor(t * 24);
+  $("grain").style.backgroundImage = GRAIN[fk % 8];
+  $("grain").style.backgroundPosition = `${(hash(fk, 1) * 128).toFixed(0)}px ${(hash(fk, 2) * 128).toFixed(0)}px`;
+}
+window.DURATION = DURATION;
+window.renderAt = renderAt;
+window.ready = document.fonts.ready.then(() => Promise.all([document.fonts.load("600 40px Inst"), document.fonts.load("400 40px Newsreader"), ...[...document.images].map((im) => (im.complete ? null : new Promise((r) => (im.onload = im.onerror = r))))]));
+if (!navigator.webdriver) {
+  const q = new URLSearchParams(location.search);
+  if (q.has("t")) window.ready.then(() => renderAt(Number(q.get("t"))));
+  else { const t0 = performance.now(); const loop = async () => { await renderAt(((performance.now() - t0) / 1000) % DURATION); requestAnimationFrame(loop); }; window.ready.then(loop); }
+}
+</script>
+</body>
+</html>
