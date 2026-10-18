@@ -1,0 +1,305 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Weft portfolio</title>
+<style>
+  @font-face { font-family: "Newsreader"; src: url("../../scripts/og/newsreader-latin.woff2") format("woff2"); font-weight: 200 800; }
+  @font-face { font-family: "Inst"; src: url("../../scripts/og/instrument-sans-latin.woff2") format("woff2"); font-weight: 400 700; }
+  html, body { margin: 0; background: #0c0c0d; }
+  #stage { position: relative; width: 1920px; height: 1080px; overflow: hidden; background: #0c0c0d; color: #f4f3ef; font-family: "Inst", sans-serif; -webkit-font-smoothing: antialiased; }
+  .serif { font-family: "Newsreader", serif; font-weight: 400; letter-spacing: -0.02em; }
+  .center { position: absolute; left: 0; right: 0; text-align: center; }
+  .m { display: inline-block; overflow: hidden; vertical-align: top; padding: 0.04em 0.06em 0.18em; margin: -0.04em -0.06em -0.18em; }
+  .m > span { display: inline-block; transform: translateY(140%); }
+  .tile { position: absolute; left: 0; top: 0; width: 410px; height: 150px; box-sizing: border-box; padding: 20px 22px; border-radius: 18px; background: linear-gradient(180deg, #19191c, #131315); border: 1.5px solid #29292e; box-shadow: inset 0 1px 0 rgba(255,255,255,0.05), 0 30px 80px rgba(0,0,0,0.45); opacity: 0; will-change: transform; transform-origin: 0 0; }
+  .tile .logos { display: flex; align-items: center; }
+  .tile .logos > * { margin-right: -8px; }
+  .tile .label { margin-top: 14px; font-size: 22px; line-height: 1.25; font-weight: 600; letter-spacing: -0.015em; }
+  .tile .bar { position: absolute; left: 22px; right: 22px; bottom: 0; height: 3px; border-radius: 3px 3px 0 0; }
+  .chip { width: 44px; height: 44px; border-radius: 50%; display: grid; place-items: center; flex: none; overflow: hidden; box-shadow: 0 0 0 3px #161618; }
+  .chip img { width: 100%; height: 100%; object-fit: cover; display: block; }
+  .chip.pad img { width: 64%; height: 64%; object-fit: contain; }
+  .pt { white-space: nowrap; height: 44px; padding: 0 14px; border-radius: 22px; background: #f3ebd6; color: #15120a; display: grid; place-items: center; font-family: "Helvetica Neue", Helvetica, Arial, sans-serif; font-size: 17px; letter-spacing: -0.03em; box-shadow: 0 0 0 3px #161618; flex: none; }
+  .pt i { font-style: normal; color: #881e20; }
+  svg { overflow: visible; }
+  .card { position: absolute; box-sizing: border-box; border-radius: 22px; background: linear-gradient(180deg, #18181b, #121214); border: 1.5px solid #29292e; box-shadow: inset 0 1px 0 rgba(255,255,255,0.05), 0 40px 100px rgba(0,0,0,0.5); }
+  .row { position: absolute; left: 0; width: 1240px; height: 104px; box-sizing: border-box; padding: 0 34px; display: flex; align-items: center; border-radius: 18px; background: linear-gradient(180deg, #19191c, #131315); border: 1.5px solid #29292e; will-change: transform; }
+  .row .proto { width: 330px; margin-left: 22px; }
+  .row .pname { font-size: 30px; font-weight: 600; letter-spacing: -0.02em; }
+  .row .pmeta { font-size: 19px; color: #77766f; margin-top: 4px; }
+  .row .track { position: relative; flex: 1; height: 10px; border-radius: 5px; background: #1f1f23; margin: 0 40px 0 10px; }
+  .row .fill { position: absolute; left: 0; top: 0; bottom: 0; border-radius: 5px; }
+  .row .rate { width: 150px; text-align: right; font-size: 44px; font-weight: 600; letter-spacing: -0.03em; font-variant-numeric: tabular-nums; }
+  .row .best { position: absolute; right: -210px; font-size: 22px; letter-spacing: 0.16em; color: #3ecf8e; }
+  .ledger { display: flex; justify-content: space-between; align-items: baseline; padding: 22px 0; border-bottom: 1.5px solid #232327; font-size: 30px; }
+  .ledger .k { color: #8a8983; }
+  .ledger .v { font-weight: 600; letter-spacing: -0.02em; font-variant-numeric: tabular-nums; }
+  .caret { display: inline-block; width: 3px; height: 1.05em; background: #f4f3ef; vertical-align: -0.15em; margin-left: 4px; }
+  .prompt { position: absolute; left: 110px; top: 118px; width: 900px; height: 92px; box-sizing: border-box; padding: 0 30px; display: flex; align-items: center; border-radius: 18px; background: linear-gradient(180deg, #18181b, #121214); border: 1.5px solid #2c2c31; box-shadow: inset 0 1px 0 rgba(255,255,255,0.05), 0 30px 80px rgba(0,0,0,0.45); }
+  .prompt .lbl { font-size: 17px; letter-spacing: 0.16em; color: #77766f; width: 120px; flex: none; }
+  .prompt .txt { font-size: 34px; letter-spacing: -0.02em; white-space: nowrap; }
+  .tk { position: absolute; left: 110px; width: 900px; height: 66px; box-sizing: border-box; padding: 0 22px 0 16px; display: flex; align-items: center; border-radius: 14px; background: linear-gradient(180deg, #19191c, #131315); border: 1.5px solid #29292e; will-change: transform; }
+  .tk .mono { width: 40px; height: 40px; border-radius: 50%; display: grid; place-items: center; flex: none; overflow: hidden; font-size: 13px; font-weight: 700; letter-spacing: -0.02em; color: #0c0c0d; }
+  .tk .mono img { width: 100%; height: 100%; object-fit: cover; }
+  .tk .nm { margin-left: 16px; width: 290px; }
+  .tk .n1 { font-size: 24px; font-weight: 600; letter-spacing: -0.02em; }
+  .tk .n2 { font-size: 15px; color: #77766f; margin-top: 2px; }
+  .tk .fill { flex: 1; font-size: 18px; color: #a3a29d; font-variant-numeric: tabular-nums; }
+  .tk .amt { width: 110px; text-align: right; font-size: 26px; font-weight: 600; letter-spacing: -0.02em; font-variant-numeric: tabular-nums; }
+  .tk .edge { position: absolute; left: 0; top: 14px; bottom: 14px; width: 3px; border-radius: 0 3px 3px 0; }
+  .caret { display: inline-block; width: 3px; height: 1.05em; background: #f4f3ef; vertical-align: -0.15em; margin-left: 3px; }
+  .leg { display: flex; flex-direction: column; align-items: flex-start; gap: 6px; font-size: 19px; color: #a3a29d; }
+  .leg b { color: #f4f3ef; font-weight: 600; font-size: 26px; font-variant-numeric: tabular-nums; padding-left: 34px; }
+  .leg i { display: inline-block; width: 22px; height: 4px; border-radius: 2px; margin-right: 12px; vertical-align: middle; }
+</style>
+</head>
+<body>
+<div id="stage">
+  <svg width="0" height="0" style="position:absolute"><defs>
+    <filter id="glow" x="-150%" y="-150%" width="400%" height="400%"><feGaussianBlur stdDeviation="5" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter>
+    <filter id="bloom" x="-100%" y="-100%" width="300%" height="300%"><feGaussianBlur stdDeviation="14" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter>
+  </defs></svg>
+  <svg id="grid" width="1920" height="1080" style="position:absolute;inset:0"></svg>
+  <div id="glowBg" style="position:absolute;inset:0"></div>
+
+  <div id="intro">
+    <div class="center serif" id="i1" style="top:380px;font-size:104px"></div>
+    <div class="center serif" id="i2" style="top:520px;font-size:104px;color:#77766f"></div>
+  </div>
+
+  <div id="desk" style="position:absolute;inset:0;opacity:0">
+    <div class="prompt"><div class="lbl">YOU SAY</div><div class="txt" id="ptxt"></div></div>
+    <div id="tickets"></div>
+    <svg id="donut" width="1920" height="1080" style="position:absolute;inset:0"></svg>
+    <div style="position:absolute;left:1180px;width:480px;top:430px;text-align:center">
+      <div style="font-size:18px;letter-spacing:0.18em;color:#77766f">PORTFOLIO</div>
+      <div id="total" style="margin-top:10px;font-size:84px;font-weight:600;letter-spacing:-0.04em;font-variant-numeric:tabular-nums">$0</div>
+      <div id="count" style="margin-top:6px;font-size:22px;color:#a3a29d">0 assets</div>
+    </div>
+    <div id="legend" style="position:absolute;left:1120px;width:600px;top:850px;display:flex;justify-content:space-between"></div>
+    <div id="fine" style="position:absolute;left:110px;bottom:52px;font-size:17px;color:#5d5c57;letter-spacing:0.01em"></div>
+  </div>
+
+  <div id="title" style="position:absolute;inset:0;opacity:0">
+    <div class="center" id="tLine" style="top:430px;font-size:98px;font-weight:600;letter-spacing:-0.045em"></div>
+    <div class="center serif" id="tSub" style="top:590px;font-size:56px;color:#a3a29d"></div>
+  </div>
+
+  <div id="end" style="position:absolute;inset:0;opacity:0">
+    <svg width="1920" height="1080" style="position:absolute;inset:0">
+      <g id="threads" fill="none" stroke-linecap="round"></g>
+      <circle id="knotRing" cx="960" cy="400" r="0" fill="none" stroke="#a78bfa" stroke-width="2"/>
+      <circle id="knot" cx="960" cy="400" r="0" fill="#f4f3ef" filter="url(#bloom)"/>
+    </svg>
+    <div class="center" id="wordmark" style="top:500px;font-size:150px;font-weight:600;letter-spacing:-0.045em"></div>
+    <div class="center serif" id="tagline" style="top:700px;font-size:60px;color:#a3a29d"></div>
+    <div class="center" id="endUrl" style="top:850px;font-size:42px;font-weight:600;letter-spacing:-0.015em"></div>
+  </div>
+
+  <div id="flash" style="position:absolute;inset:0;opacity:0;background:#f4f3ef;pointer-events:none"></div>
+  <div style="position:absolute;inset:0;background:radial-gradient(ellipse 78% 78% at 50% 50%,transparent 58%,rgba(0,0,0,0.42) 100%);pointer-events:none"></div>
+  <div id="grain" style="position:absolute;inset:0;background-size:256px 256px;pointer-events:none"></div>
+</div>
+
+<script>
+const $ = (id) => document.getElementById(id);
+const clamp = (x, a = 0, b = 1) => Math.min(b, Math.max(a, x));
+const seg = (t, a, b) => clamp((t - a) / (b - a));
+const eo = (x) => 1 - Math.pow(1 - x, 3);
+const eio = (x) => (x < 0.5 ? 4 * x * x * x : 1 - Math.pow(-2 * x + 2, 3) / 2);
+const eox = (x) => (x >= 1 ? 1 : 1 - Math.pow(2, -10 * x));
+const eix = (x) => (x <= 0 ? 0 : Math.pow(2, 10 * x - 10));
+const back = (x) => 1 + 2.2 * Math.pow(x - 1, 3) + 1.2 * Math.pow(x - 1, 2);
+const lerp = (a, b, x) => a + (b - a) * x;
+const NS = "http://www.w3.org/2000/svg";
+const el = (tag, attrs = {}, parent) => { const e = document.createElementNS(NS, tag); for (const k in attrs) e.setAttribute(k, attrs[k]); if (parent) parent.appendChild(e); return e; };
+const div = (html, style = "", parent) => { const d = document.createElement("div"); d.innerHTML = html; d.style.cssText = style; if (parent) parent.appendChild(d); return d; };
+const hash = (a, b) => { let h = (a * 374761393 + b * 668265263) >>> 0; h = Math.imul(h ^ (h >>> 13), 1274126177) >>> 0; return ((h ^ (h >>> 16)) >>> 0) / 4294967296 * 2 - 1; };
+const srnd = (s) => () => ((s = (Math.imul(s, 1103515245) + 12345) >>> 0) / 4294967296);
+function maskWords(target, text) { target.innerHTML = text.split(" ").map((w) => `<span class="m"><span>${w}</span></span>`).join(" "); return [...target.querySelectorAll(".m > span")]; }
+function maskChars(target, text) { target.innerHTML = [...text].map((w) => `<span class="m"><span>${w}</span></span>`).join(""); return [...target.querySelectorAll(".m > span")]; }
+function reveal(ws, t, t0, st = 0.05, d = 0.8, out = null) {
+  ws.forEach((w, i) => {
+    let y = (1 - eox(seg(t, t0 + i * st, t0 + i * st + d))) * 140;
+    if (out != null) y -= eix(seg(t, out + i * st * 0.6, out + i * st * 0.6 + 0.45)) * 140;
+    w.style.transform = `translateY(${y.toFixed(2)}%)`;
+  });
+}
+
+// Cascade Breathe, like the launch video: 130.01 BPM, downbeat 0.044 s; the film starts on the track's
+// bar 1, so its drop (track bar 9) lands on film bar 8, where the buying speeds up.
+const BAR = 240 / 130.01, B0 = 0.044;
+const b = (n) => B0 + n * BAR;
+const DURATION = b(14.4);
+
+/* ---------- finish ---------- */
+for (let x = 24; x < 1920; x += 48) el("line", { x1: x, y1: 0, x2: x, y2: 1080, stroke: "#fff", "stroke-opacity": 0.022 }, $("grid"));
+const GRAIN = Array.from({ length: 8 }, (_, k) => {
+  const c = document.createElement("canvas"); c.width = c.height = 256;
+  const x = c.getContext("2d"), im = x.createImageData(256, 256), r = srnd(101 + k * 7919);
+  for (let i = 0; i < im.data.length; i += 4) { const v = r(); const w = v > 0.5; im.data[i] = im.data[i + 1] = im.data[i + 2] = w ? 255 : 0; im.data[i + 3] = Math.abs(v - 0.5) * 2 * (w ? 11 : 22); }
+  x.putImageData(im, 0, 0); return `url(${c.toDataURL()})`;
+});
+
+
+
+/* ---------- the portfolio: real markets Weft trades, priced on 19 Oct 2026 ---------- */
+const COIN = (s) => `../../apps/web/public/coins/${s}.svg`;
+const CLS = { Stocks: "#38bdf8", Commodities: "#f5a524", Crypto: "#a78bfa", Yield: "#3ecf8e" };
+const ITEMS = [
+  { say: "buy $150 of NVIDIA", name: "NVIDIA", sub: "NVDA · Hyperliquid", cls: "Stocks", usd: 150, px: 211.97, unit: "NVDA", logo: "NVDA" },
+  { say: "put $150 in gold", name: "Gold", sub: "GOLD · Hyperliquid", cls: "Commodities", usd: 150, px: 4151.25, unit: "oz", logo: "GOLD" },
+  { say: "$100 of Coca-Cola", name: "Coca-Cola", sub: "KOx · tokenized share on Solana", cls: "Stocks", usd: 100, px: 93.92, unit: "KOx", mono: "KO" },
+  { say: "$150 of bitcoin", name: "Bitcoin", sub: "BTC · Hyperliquid", cls: "Crypto", usd: 150, px: 81131.5, unit: "BTC", logo: "BTC" },
+  { say: "buy $100 of oil", name: "Crude oil", sub: "WTI · Hyperliquid", cls: "Commodities", usd: 100, px: 98.93, unit: "bbl", mono: "OIL" },
+  { say: "$100 of the S&P 500", name: "S&P 500", sub: "SP500 · Hyperliquid", cls: "Stocks", usd: 100, px: 7622.05, unit: "", logo: "SP500" },
+  { say: "$50 of McDonald’s", name: "McDonald’s", sub: "MCDx · tokenized share on Solana", cls: "Stocks", usd: 50, px: 243.0, unit: "MCDx", mono: "MCD" },
+  { say: "$50 of uranium miners", name: "Uranium miners", sub: "URNM · Hyperliquid", cls: "Commodities", usd: 50, px: 42.75, unit: "URNM", mono: "U" },
+  { say: "lend $150 USDC at the best rate", name: "USDC, lent", sub: "Jupiter Lend · 6.1% a year", cls: "Yield", usd: 150, px: null, unit: "", logo: "USDC" },
+];
+const TH = 66, TG = 10, TY0 = 246;
+const fmtQty = (q) => (q >= 1 ? q.toFixed(3) : q >= 0.01 ? q.toFixed(4) : q.toFixed(6));
+const tickets = ITEMS.map((it, i) => {
+  const c = CLS[it.cls];
+  const mono = it.logo ? `<div class="mono"><img src="${COIN(it.logo)}"></div>` : `<div class="mono" style="background:${c}">${it.mono}</div>`;
+  const fill = it.px ? `${fmtQty(it.usd / it.px)}${it.unit ? " " + it.unit : ""} @ $${it.px.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` : "deposited, earning";
+  const e = div(`<div class="edge" style="background:${c}"></div>${mono}<div class="nm"><div class="n1">${it.name}</div><div class="n2">${it.sub}</div></div><div class="fill">${fill}</div><div class="amt">$${it.usd}</div>`, "", $("tickets"));
+  e.className = "tk";
+  return { e, ...it, c, y: TY0 + i * (TH + TG) };
+});
+const TOTAL = ITEMS.reduce((n, x) => n + x.usd, 0);
+
+/* ---------- timing: six orders a bar apart, then from the drop three more on the half bar ---------- */
+const SLOT = ITEMS.map((_, i) => (i < 6 ? { t0: b(2) + i * BAR, d: BAR } : { t0: b(8) + (i - 6) * 0.5 * BAR, d: 0.5 * BAR }));
+const landAt = (i) => SLOT[i].t0 + SLOT[i].d * 0.8;
+const T_DESK = b(1.85), T_DONE = landAt(ITEMS.length - 1), T_OUT = b(10.4), T_TITLE = b(10.6), T_TITLE_OUT = b(12.2);
+
+/* ---------- intro ---------- */
+const I1 = maskWords($("i1"), "Stocks, gold, oil, bitcoin.");
+const I2 = maskWords($("i2"), "One agent. Plain words.");
+function drawIntro(t) {
+  reveal(I1, t, 0.15, 0.06, 0.85, b(1.85) - 0.45);
+  reveal(I2, t, b(0.85), 0.06, 0.85, b(1.85) - 0.4);
+}
+
+/* ---------- the desk: what you say, what got bought, the portfolio ---------- */
+const CX = 1420, CY = 520, R = 270, RW = 34;
+el("circle", { cx: CX, cy: CY, r: R, fill: "none", stroke: "#1d1d21", "stroke-width": RW }, $("donut"));
+const arcs = ITEMS.map((it) => el("circle", { cx: CX, cy: CY, r: R, fill: "none", stroke: CLS[it.cls], "stroke-width": RW, transform: `rotate(-90 ${CX} ${CY})`, "stroke-dasharray": `0 ${2 * Math.PI * R}` }, $("donut")));
+const legend = Object.entries(CLS).map(([k, c]) => {
+  const d = div(`<span><i style="background:${c}"></i>${k}</span><b>$0</b>`, "", $("legend"));
+  d.className = "leg";
+  return { k, d, b: d.querySelector("b") };
+});
+$("fine").textContent = "Example portfolio, each line its own strategy. Prices from 19 Oct 2026. Hyperliquid markets are 1× perps.";
+function drawDesk(t) {
+  const on = eox(seg(t, T_DESK, T_DESK + 0.5)), off = eio(seg(t, T_OUT, T_OUT + 0.5));
+  $("desk").style.opacity = (on * (1 - off)).toFixed(3);
+  $("desk").style.transform = `scale(${(1 - off * 0.05).toFixed(4)})`;
+  // the prompt: the current order's words type in, then submit
+  let cur = -1;
+  ITEMS.forEach((_, i) => { if (t >= SLOT[i].t0) cur = i; });
+  if (cur >= 0) {
+    const { t0, d } = SLOT[cur], say = ITEMS[cur].say;
+    const typeEnd = t0 + d * (cur < 6 ? 0.5 : 0.42);
+    const n = Math.floor(clamp((t - t0) / (typeEnd - t0)) * say.length);
+    const sent = t >= typeEnd + d * 0.08;
+    $("ptxt").innerHTML = sent && t < landAt(cur) + 0.05 && cur === ITEMS.length - 1 && t > T_DONE ? "" : `${sent ? `<span style="color:#77766f">${say}</span>` : say.slice(0, n)}${sent ? "" : '<span class="caret"></span>'}`;
+  } else $("ptxt").innerHTML = '<span class="caret"></span>';
+  // tickets drop from the prompt into the list
+  let filled = 0, count = 0;
+  const byCls = Object.fromEntries(Object.keys(CLS).map((k) => [k, 0]));
+  tickets.forEach((tk, i) => {
+    const { t0, d } = SLOT[i];
+    const go = t0 + d * (i < 6 ? 0.58 : 0.5), land = landAt(i);
+    if (t < go) { tk.e.style.opacity = 0; arcs[i].setAttribute("stroke-dasharray", `0 ${2 * Math.PI * R}`); return; }
+    const k = eio(seg(t, go, land));
+    const y = lerp(118 + 13, tk.y, k);
+    tk.e.style.opacity = Math.min(1, k * 3).toFixed(3);
+    tk.e.style.transform = `translateY(${y.toFixed(1)}px) scale(${lerp(0.97, 1, k).toFixed(4)})`;
+    const glow = t >= land ? Math.exp(-(t - land) * 4) : 0;
+    tk.e.style.borderColor = glow > 0.05 ? tk.c : "#29292e";
+    tk.e.style.boxShadow = `0 0 ${Math.round(34 * glow)}px ${tk.c}${Math.round(glow * 90).toString(16).padStart(2, "0")}`;
+    const part = eio(seg(t, land - 0.1, land + 0.45));
+    filled += tk.usd * part;
+    if (t >= land) count++;
+    byCls[tk.cls] += tk.usd * part;
+    // the ring: each order adds its share, in the order bought
+    const C = 2 * Math.PI * R, before = ITEMS.slice(0, i).reduce((n, x) => n + x.usd, 0);
+    const len = (tk.usd / TOTAL) * C * part, gap = len > 6 ? 5 : 0;
+    arcs[i].setAttribute("stroke-dasharray", `${Math.max(0, len - gap)} ${C}`);
+    arcs[i].setAttribute("stroke-dashoffset", `${-(before / TOTAL) * C}`);
+  });
+  $("total").textContent = `$${Math.round(filled).toLocaleString("en-US")}`;
+  $("count").textContent = `${count} ${count === 1 ? "asset" : "assets"}${count >= 9 ? " · 4 kinds · 3 venues" : ""}`;
+  legend.forEach((l) => (l.b.textContent = `$${Math.round(byCls[l.k])}`));
+}
+
+/* ---------- the line ---------- */
+const TL = maskWords($("tLine"), "Stocks. Commodities. Crypto. Yield.");
+const TS = maskWords($("tSub"), "Say what you want. Weft places it.");
+function drawTitle(t) {
+  $("title").style.opacity = t > T_TITLE - 0.1 && t < T_TITLE_OUT + 0.8 ? 1 : 0;
+  TL.forEach((w, i) => {
+    const a = T_TITLE + i * 0.25 * BAR;
+    let y = (1 - eox(seg(t, a, a + 0.6))) * 140 - eix(seg(t, T_TITLE_OUT + i * 0.03, T_TITLE_OUT + i * 0.03 + 0.45)) * 140;
+    w.style.transform = `translateY(${y.toFixed(2)}%)`;
+  });
+  reveal(TS, t, T_TITLE + BAR, 0.05, 0.85, T_TITLE_OUT + 0.05);
+}
+const END = b(12.4);
+const KNOT = { x: 960, y: 400 };
+const THREAD_C = ["#f5a524", "#f472b6", "#38bdf8", "#7c8cff", "#a78bfa", "#93e3bc"];
+const threadEls = [
+  `M -40 230 C 400 230 640 ${KNOT.y} ${KNOT.x} ${KNOT.y}`, `M -40 315 C 420 315 660 ${KNOT.y} ${KNOT.x} ${KNOT.y}`, `M -40 ${KNOT.y} L ${KNOT.x} ${KNOT.y}`,
+  `M -40 485 C 420 485 660 ${KNOT.y} ${KNOT.x} ${KNOT.y}`, `M -40 570 C 400 570 640 ${KNOT.y} ${KNOT.x} ${KNOT.y}`, `M ${KNOT.x} ${KNOT.y} L 1980 ${KNOT.y}`,
+].map((d, i) => el("path", { d, stroke: THREAD_C[i], "stroke-width": i === 5 ? 5 : 3.5, opacity: 0.95 }, $("threads")));
+const threadLen = threadEls.map((p) => p.getTotalLength());
+const heads = THREAD_C.map((c, i) => el("circle", { r: i === 5 ? 6 : 4.5, fill: c, filter: "url(#glow)", opacity: 0 }, $("threads")));
+const wm = maskChars($("wordmark"), "weft");
+const tag = maskWords($("tagline"), "Name it. Weft buys it.");
+const url = maskWords($("endUrl"), "weft.fi");
+function drawEnd(t) {
+  if (t < END - 0.05) return void ($("end").style.opacity = 0);
+  const l = t - END;
+  $("end").style.opacity = Math.min(1, l / 0.2 + 0.25);
+  threadEls.forEach((p, i) => {
+    const start = i < 5 ? 0.05 + i * 0.07 : 0.95;
+    const pr = eio(seg(l, start, start + 0.9));
+    p.style.strokeDasharray = threadLen[i]; p.style.strokeDashoffset = threadLen[i] * (1 - pr);
+    const h = heads[i];
+    if (pr > 0 && pr < 1) { const pt = p.getPointAtLength(threadLen[i] * pr); h.setAttribute("cx", pt.x); h.setAttribute("cy", pt.y); h.setAttribute("opacity", 1); } else h.setAttribute("opacity", 0);
+  });
+  const k = seg(l, 0.9, 1.3);
+  $("knot").setAttribute("r", Math.max(0, 22 * back(k) * (k > 0 ? 1 : 0)));
+  const ring = seg(l, 0.95, 2.0); $("knotRing").setAttribute("r", 22 + 110 * eox(ring)); $("knotRing").setAttribute("opacity", ring > 0 ? (1 - ring) * 0.8 : 0);
+  reveal(wm, l, 1.2, 0.05, 0.9);
+  reveal(tag, l, 1.6, 0.06, 0.9);
+  reveal(url, l, 2.2, 0.06, 0.9);
+}
+
+
+
+async function renderAt(t) {
+  drawIntro(t); drawDesk(t); drawTitle(t); drawEnd(t);
+  const fl = t >= b(8) ? Math.exp(-(t - b(8)) * 7) * 0.11 : 0, fl2 = t >= T_DONE ? Math.exp(-(t - T_DONE) * 6) * 0.07 : 0;
+  $("flash").style.opacity = (fl + fl2).toFixed(3);
+  const gx = 50 + 20 * Math.sin(t * 0.21), gy = 40 + 15 * Math.cos(t * 0.17);
+  $("glowBg").style.background = `radial-gradient(1100px 700px at ${gx}% ${gy}%, rgba(56,189,248,0.05), transparent 70%)`;
+  const fk = Math.floor(t * 24);
+  $("grain").style.backgroundImage = GRAIN[fk % 8];
+  $("grain").style.backgroundPosition = `${(hash(fk, 1) * 128).toFixed(0)}px ${(hash(fk, 2) * 128).toFixed(0)}px`;
+}
+window.DURATION = DURATION;
+window.renderAt = renderAt;
+window.LAND = ITEMS.map((_, i) => landAt(i));
+window.ready = document.fonts.ready.then(() => Promise.all([document.fonts.load("600 40px Inst"), document.fonts.load("400 40px Newsreader"), ...[...document.images].map((im) => (im.complete ? null : new Promise((r) => (im.onload = im.onerror = r))))]));
+if (!navigator.webdriver) {
+  const q = new URLSearchParams(location.search);
+  if (q.has("t")) window.ready.then(() => renderAt(Number(q.get("t"))));
+  else { const t0 = performance.now(); const loop = async () => { await renderAt(((performance.now() - t0) / 1000) % DURATION); requestAnimationFrame(loop); }; window.ready.then(loop); }
+}
+</script>
+</body>
+</html>
