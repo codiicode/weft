@@ -35,7 +35,7 @@ import { DEFAULT_X_PREFS, XBot, type XPrefs } from "./social/xbot.ts";
 import { fomoLookup } from "./lib/fomo.ts";
 import { claudeTradeIntent } from "./ai/trade-intent.ts";
 import { claudeCallClassifier, xCallFeed } from "./social/x-calls.ts";
-import { setTraderLookup } from "./ai/generate.ts";
+import { setTraderLookup, setYieldSearch } from "./ai/generate.ts";
 import { FastExits } from "./live/fast-exits.ts";
 import { RiftFunding } from "./live/rift.ts";
 import { PapertradeAccounts } from "./live/papertrade.ts";
@@ -381,6 +381,9 @@ const scheduleRewards = (ms: number) => {
 };
 scheduleRewards(30_000);
 console.log(`  rewards: ${rewards.enabled ? `from ${rewards.startDay}` : "ledger only (WEFT_REWARDS_START not set)"} · treasury ${treasury ? treasury.address.toBase58().slice(0, 8) + "…" : "off"}`);
+
+// DeFi yields (DefiLlama) in the AI's market search, for yield signals.
+setYieldSearch((q, limit) => venues.yields.search(q, limit));
 
 // Fomo traders by username (fomoapi.io): the AI can copy or fade "frank on Fomo". Off without FOMOAPI_KEY.
 if (process.env.FOMOAPI_KEY) {

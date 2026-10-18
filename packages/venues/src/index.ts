@@ -4,6 +4,7 @@
  * and token safety facts. Read-only: nothing here signs or sends orders.
  */
 import type { Catalog, SignalProvider } from "./types.ts";
+import { Yields } from "./signals/yields.ts";
 import { createContext, type VenueContext, type VenueOptions } from "./context.ts";
 import { VenueMarketData } from "./market-data.ts";
 import { VenueCatalog } from "./catalog.ts";
@@ -32,6 +33,7 @@ export { walkBook, bookTop, depthWithin, type Book, type Level } from "./book.ts
 export { classifyHip3 } from "./hyperliquid/classify.ts";
 export { USDC_MINT, WSOL_MINT } from "./jupiter/client.ts";
 export { calendarFields } from "./signals/calendar.ts";
+export { Yields, type YieldPool } from "./signals/yields.ts";
 export {
   VenueHistory,
   INTERVAL_MS,
@@ -66,6 +68,8 @@ export interface Venues {
   history: VenueHistory;
   /** Shared clients + HTTP cache (stats, clearCache). */
   ctx: VenueContext;
+  /** DeFi yields (DefiLlama): pools to search, for yield signals. */
+  yields: Yields;
   /** Leaders' trades for copy trading: a Solana wallet's token buys and sells (needs Helius), a Hyperliquid account's positions. */
   copyFeeds: CopyFeeds;
 }
@@ -91,6 +95,7 @@ export function createVenues(opts: VenueOptions = {}): Venues {
     tokenFacts: new VenueTokenFactsProvider(marketData),
     history: new VenueHistory(ctx.http, marketData, { hyperliquidUrl: opts.hyperliquidUrl, dexscreenerUrl: opts.dexscreenerUrl, now: ctx.now }),
     ctx,
+    yields: new Yields(ctx.http),
     copyFeeds: {
       ...(ctx.helius ? { solanaWallet: (a: string) => ctx.helius!.trades(a) } : {}),
       hyperliquidTrader: (a: string) => traderState(ctx.hl, a),

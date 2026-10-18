@@ -162,6 +162,25 @@ export const SIGNAL_KINDS = {
       change_5d: "number",
     },
   },
+  yield: {
+    description:
+      "A DeFi yield: one lending market, vault, staking pool or liquidity pool on any chain (Aave, Morpho, Pendle, Kamino, Jito, Marginfi, …) and its APY in percent (base + rewards), deposits in USD and recent changes. Read-only: it can drive alerts or trades elsewhere, not a deposit into the pool. Updates every few minutes to hourly.",
+    params: z.object({
+      pool: z.string().min(8).max(80).describe("The pool id from a search of product \"yields\""),
+      project: z.string().max(60).optional().describe("For display, e.g. kamino-lend"),
+      chain: z.string().max(40).optional(),
+      symbol: z.string().max(60).optional(),
+    }),
+    fields: {
+      apy: "number",
+      apy_base: "number",
+      apy_reward: "number",
+      tvl_usd: "number",
+      apy_change_1d: "number",
+      apy_change_7d: "number",
+      apy_mean_30d: "number",
+    },
+  },
   wallet: {
     description:
       "A Solana wallet's trading, for following smart money, insiders or a dev wallet: its buys and sells in the last hour (of one token, or of any token when mint is omitted), SOL spent and received, minutes since its last buy or sell, and how much of the token it still holds.",
@@ -251,6 +270,7 @@ export const Signal = z.discriminatedUnion("kind", [
   z.object({ ...base, kind: z.literal("model"), params: SIGNAL_KINDS.model.params }),
   z.object({ ...base, kind: z.literal("calendar"), params: SIGNAL_KINDS.calendar.params }),
   z.object({ ...base, kind: z.literal("macro"), params: SIGNAL_KINDS.macro.params }),
+  z.object({ ...base, kind: z.literal("yield"), params: SIGNAL_KINDS.yield.params }),
   z.object({ ...base, kind: z.literal("wallet"), params: SIGNAL_KINDS.wallet.params }),
   z.object({ ...base, kind: z.literal("trader"), params: SIGNAL_KINDS.trader.params }),
   z.object({ ...base, kind: z.literal("sports"), params: SIGNAL_KINDS.sports.params }),
@@ -272,6 +292,7 @@ export const DEFAULT_MAX_AGE: Record<SignalKind, number> = {
   model: 3_600,
   calendar: 3_600,
   macro: 3_600,
+  yield: 600,
   wallet: 300,
   trader: 120,
   sports: 3_600,

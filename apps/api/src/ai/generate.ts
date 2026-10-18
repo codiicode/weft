@@ -29,7 +29,7 @@ const tools: Anthropic.Beta.BetaTool[] = [
     input_schema: {
       type: "object",
       properties: {
-        product: { type: "string", enum: PRODUCTS, description: "perps | stocks (HIP-3 perps + tokenized stocks) | predictions (Hyperliquid, tradable; Polymarket, watch-only odds) | tokens (Solana) | options | pools (Meteora liquidity pools: search a pair like SOL-USDC) | papertrade (synthetic BTC/ETH perps up to 1000×)" },
+        product: { type: "string", enum: [...PRODUCTS, "yields"], description: "perps | stocks (HIP-3 perps + tokenized stocks) | predictions (Hyperliquid, tradable; Polymarket, watch-only odds) | tokens (Solana) | options | pools (Meteora liquidity pools: search a pair like SOL-USDC) | papertrade (synthetic BTC/ETH perps up to 1000×) | yields (DeFi APYs on every chain, for yield signals: \"kamino usdc\", \"aave base usdc\", \"jitosol\")" },
         query: { type: "string", description: "Symbol, name or keywords, e.g. PUMP, NVDA, wheat, fed cut, ETH" },
         limit: { type: "integer", description: "Max results (default 8)" },
       },
@@ -85,7 +85,19 @@ function hasCredentials(): boolean {
   return Boolean(process.env.ANTHROPIC_API_KEY || process.env.ANTHROPIC_AUTH_TOKEN || process.env.ANTHROPIC_PROFILE);
 }
 
+/** DeFi yield pools by search (set once at boot). */
+type YieldSearch = (q: string, limit: number) => Promise<{ pool: string; project: string; chain: string; symbol: string; poolMeta: string | null; tvlUsd: number; apy: number | null; apyMean30d: number | null; stablecoin: boolean }[]>;
+let yieldSearch: YieldSearch | null = null;
+export function setYieldSearch(fn: YieldSearch | null) {
+  yieldSearch = fn;
+}
+
 async function runSearch(catalog: Catalog, input: { product?: string; query?: string; limit?: number }) {
+  if (input.product === "yields") {
+    if (!yieldSearch) return [];
+    const rows = await yieldSearch(input.query ?? "", Math.min(input.limit ?? 8, 15));
+    return rows.map((p) => ({ pool: p.pool, project: p.project, chain: p.chain, symbol: p.symbol, market: p.poolMeta, apyPct: p.apy, apyMean30dPct: p.apyMean30d, tvlUsd: Math.round(p.tvlUsd), stablecoin: p.stablecoin }));
+  }
   const product = PRODUCTS.includes(input.product as Product) ? (input.product as Product) : "tokens";
   const rows = await catalog.list(product, { search: input.query ?? "", limit: Math.min(input.limit ?? 8, 15) });
   return rows.map((r) => ({

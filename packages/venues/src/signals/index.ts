@@ -11,6 +11,7 @@ import { xProviders } from "./x.ts";
 import { walletProvider } from "./wallet.ts";
 import { traderProvider } from "./trader.ts";
 import { sportsProvider } from "./sports.ts";
+import { Yields, yieldProvider } from "./yields.ts";
 import { simulatedProviders } from "./simulated.ts";
 
 export function createSignalProviders(md: VenueMarketData, urls: ExternalUrls = {}, onError?: (kind: string, err: unknown) => void): SignalProvider[] {
@@ -24,6 +25,7 @@ export function createSignalProviders(md: VenueMarketData, urls: ExternalUrls = 
     ...(md.ctx.helius ? [walletProvider(md.ctx.helius, onError)] : []),
     traderProvider(md.ctx.hl, onError),
     sportsProvider(md.ctx.http, undefined, onError),
+    yieldProvider(new Yields(md.ctx.http), onError),
     calendarProvider(),
     ...simulatedProviders({
       marketProb: async (i) => {

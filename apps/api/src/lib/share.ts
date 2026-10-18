@@ -44,6 +44,7 @@ const KIND: Record<string, string> = {
   model: "Forecast model",
   calendar: "Calendar",
   macro: "Rates and macro",
+  yield: "DeFi yields",
   wallet: "A wallet",
   trader: "A Hyperliquid trader",
   sports: "Sports results",
