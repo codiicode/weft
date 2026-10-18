@@ -123,13 +123,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       appId={APP_ID}
       clientId={CLIENT_ID}
       config={{
-        loginMethods: ["wallet", "email", "google"],
+        // Email first for anyone without a wallet, X for traders who live there, then wallets.
+        loginMethods: ["email", "twitter", "wallet"],
         appearance: {
           theme: dark ? "dark" : "light",
           accentColor: dark ? "#EDEDEB" : "#121214",
           landingHeader: "Sign in to Weft",
           loginMessage: "Your funds stay in your wallet. Nothing trades without your approval.",
-          showWalletLoginFirst: true,
+          showWalletLoginFirst: false,
           walletChainType: "ethereum-and-solana",
         },
         embeddedWallets: {

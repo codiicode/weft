@@ -78,8 +78,32 @@ function Builder() {
     }
   };
 
+  // The draft survives signing in (signing in with X leaves the page and comes back).
+  useEffect(() => {
+    if (status !== "done" || !result) return;
+    try {
+      sessionStorage.setItem("weft:draft", JSON.stringify({ at: Date.now(), thesis, result }));
+    } catch {
+      /* private mode: nothing to keep */
+    }
+  }, [status, result, thesis]);
+
   useEffect(() => {
     const from = params.get("from");
+    if (!from && !params.get("thesis")) {
+      try {
+        const kept = JSON.parse(sessionStorage.getItem("weft:draft") ?? "null") as { at: number; thesis: string; result: GenerateResult } | null;
+        if (kept && Date.now() - kept.at < 3_600_000 && sessionStorage.getItem("weft:pending-start")) {
+          setThesis(kept.thesis);
+          setResult(kept.result);
+          setJson(JSON.stringify(kept.result.strategy, null, 2));
+          setStatus("done");
+          return;
+        }
+      } catch {
+        /* nothing kept */
+      }
+    }
     if (from) {
       (from.startsWith("run:")
         ? api.deployment(from.slice(4)).then((r) => r.deployment.strategy)

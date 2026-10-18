@@ -225,21 +225,34 @@ export function DeployPanel({ strategy, strategyId, compact = false, initialMode
   const ptTopUp = onPapertrade && (ptHave < spend || !pt.data?.registered || ptExpiring);
   const ptMove = ptHave < spend ? Math.max(PAPERTRADE_MIN_DEPOSIT, (spend - ptHave) / (1 - PAPERTRADE_FEE)) : 0;
 
-  const deploy = async () => {
+  // Signed out: remember what they were starting, sign in, then start it (practice and alerts only;
+  // real money always waits for the person to look at the set-up first).
+  const PENDING = "weft:pending-start";
+  const startKey = strategy ? `${strategy.name}|${strategy.thesis}` : strategyId ?? "";
+  const deploy = async (over?: { mode: RunMode; allocation: number }) => {
+    const m = over?.mode ?? mode, alloc = over?.allocation ?? allocation;
+    const goLive = m === "live", goPractice = m === "practice";
+    if (!signedIn && auth.enabled && !goLive) {
+      try {
+        sessionStorage.setItem(PENDING, JSON.stringify({ key: startKey, mode: m, allocation: alloc, at: Date.now() }));
+      } catch {
+        /* can't remember it: they press Start again after signing in */
+      }
+    }
     if (!requireAuth()) return;
     setBusy(true);
     setError(null);
     try {
       // Papertrade: top up from Hyperliquid and connect first, in the background, then start.
-      if (isLive && ptTopUp) await papertrade.ensureReady(spend, setPtStep);
+      if (goLive && ptTopUp) await papertrade.ensureReady(spend, setPtStep);
       const rec = await api.deploy({
         strategy,
         strategyId,
         intervalSec: interval,
-        ...(isLive
-          ? { mode: "live", allocationUsd: autoBudget ?? Math.min(allocation, max), confirm: "GO LIVE" }
-          : isPractice
-            ? { mode: "paper", allocationUsd: autoBudget ?? Math.min(allocation, max) }
+        ...(goLive
+          ? { mode: "live", allocationUsd: autoBudget ?? Math.min(alloc, max), confirm: "GO LIVE" }
+          : goPractice
+            ? { mode: "paper", allocationUsd: autoBudget ?? Math.min(alloc, max) }
             : { mode: "paper", alertsOnly: true, allocationUsd: 1000 }),
       });
       router.push(`/run?id=${encodeURIComponent(rec.id)}`);
@@ -248,6 +261,27 @@ export function DeployPanel({ strategy, strategyId, compact = false, initialMode
       setBusy(false);
     }
   };
+
+  // Back signed in with something pending for this strategy: start it now.
+  useEffect(() => {
+    if (!signedIn || busy) return;
+    let p: { key: string; mode: RunMode; allocation: number; at: number } | null = null;
+    try {
+      p = JSON.parse(sessionStorage.getItem(PENDING) ?? "null");
+    } catch {
+      p = null;
+    }
+    if (!p || p.key !== startKey || Date.now() - p.at > 3_600_000 || p.mode === "live") return;
+    try {
+      sessionStorage.removeItem(PENDING);
+    } catch {
+      /* fine */
+    }
+    setPicked(p.mode);
+    setAllocation(p.allocation);
+    void deploy({ mode: p.mode, allocation: p.allocation });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [signedIn, startKey]);
 
   const link = "font-medium text-ink underline decoration-line-2 underline-offset-4 hover:decoration-ink";
   const budgetUi = (
@@ -422,7 +456,7 @@ export function DeployPanel({ strategy, strategyId, compact = false, initialMode
           Sign in to trade
         </Btn>
       ) : (!isLive || ready) && (
-        <Btn onClick={deploy} disabled={busy} className="mt-5 h-11 w-full text-[15px]">
+        <Btn onClick={() => void deploy()} disabled={busy} className="mt-5 h-11 w-full text-[15px]">
           {busy
             ? ptStep && ptStep !== "done"
               ? { depositing: "Moving money to Papertrade…", arriving: "Waiting for it to arrive…", connecting: "Connecting Papertrade…" }[ptStep]
@@ -430,9 +464,11 @@ export function DeployPanel({ strategy, strategyId, compact = false, initialMode
             : isLive && ptTopUp && ptMove > 0
               ? `Move $${Math.ceil(ptMove)} from Hyperliquid and ${now ? lowerFirst(now) : "start"}`
             : isPractice
-              ? now && stated
-                ? `Practice: ${now} for ${stated.text}`
-                : "Start practicing"
+              ? !signedIn && auth.enabled
+                ? "Run it in practice, free"
+                : now && stated
+                  ? `Practice: ${now} for ${stated.text}`
+                  : "Start practicing"
             : !isLive
               ? "Start alerts"
               : now && stated
@@ -454,7 +490,9 @@ export function DeployPanel({ strategy, strategyId, compact = false, initialMode
           : isLive
             ? "Pause or stop any time. Stopping sells everything the strategy holds."
             : isPractice
-              ? "Pretend money only. When you like how it trades, start it for real in one click."
+              ? !signedIn && auth.enabled
+                ? "Sign in with email, X or a wallet. No money needed, and it starts right after."
+                : "Pretend money only. When you like how it trades, start it for real in one click."
               : "Pause or stop any time."}
       </p>
     </Card>
