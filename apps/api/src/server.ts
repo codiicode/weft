@@ -31,6 +31,9 @@ import { CompositeEngine } from "./live/composite.ts";
 import { Reconciler } from "./live/reconcile.ts";
 import { TelegramBot } from "./lib/telegram.ts";
 import { createApp } from "./app.ts";
+import { XBot } from "./social/xbot.ts";
+import { generateStrategy } from "./ai/generate.ts";
+import { randomBytes } from "node:crypto";
 import { claudePostMatcher } from "./ai/post-matcher.ts";
 import { HeliusWebhook } from "./live/helius-webhook.ts";
 import { createTopTraders } from "./lib/traders.ts";
@@ -307,6 +310,40 @@ const scheduleRewards = (ms: number) => {
 };
 scheduleRewards(30_000);
 console.log(`  rewards: ${rewards.enabled ? `from ${rewards.startDay}` : "ledger only (WEFT_REWARDS_START not set)"} · treasury ${treasury ? treasury.address.toBase58().slice(0, 8) + "…" : "off"}`);
+
+// The X reply bot (@weftfinance): off unless WEFT_XBOT is "dry" (logs replies) or "live" (posts them).
+const xbotMode = process.env.WEFT_XBOT === "live" || process.env.WEFT_XBOT === "dry" ? process.env.WEFT_XBOT : null;
+if (xbotMode && process.env.TWITTERAPI_IO_KEY) {
+  const xKeys = process.env.X_API_KEY && process.env.X_API_SECRET && process.env.X_ACCESS_TOKEN && process.env.X_ACCESS_SECRET
+    ? { apiKey: process.env.X_API_KEY, apiSecret: process.env.X_API_SECRET, accessToken: process.env.X_ACCESS_TOKEN, accessSecret: process.env.X_ACCESS_SECRET }
+    : undefined;
+  const mode = xbotMode === "live" && xKeys ? "live" : "dry";
+  const bot = new XBot({
+    mode,
+    handle: process.env.WEFT_X_HANDLE ?? "weftfinance",
+    twitterApiKey: process.env.TWITTERAPI_IO_KEY,
+    site: (process.env.WEFT_SITE_URL ?? "https://weft.fi").replace(/\/$/, ""),
+    x: xKeys,
+    maxPerDay: Number(process.env.WEFT_XBOT_MAX_PER_DAY ?? 15),
+    perAuthorPerDay: Number(process.env.WEFT_XBOT_PER_AUTHOR ?? 2),
+    minFollowers: Number(process.env.WEFT_XBOT_MIN_FOLLOWERS ?? 10),
+    // Only real AI drafts get posted: the template fallback isn't good enough to answer someone with.
+    draft: async (thesis) => {
+      const r = await generateStrategy(thesis, { catalog: venues.catalog });
+      return r.source === "template" ? null : { strategy: r.strategy, rationale: r.rationale };
+    },
+    saveDraft: (d) => {
+      const id = randomBytes(8).toString("hex").slice(0, 12);
+      accounts.kvSet(`draft:${id}`, JSON.stringify({ id, ...d }));
+      return id;
+    },
+    kvGet: (k) => accounts.kvGet(k),
+    kvSet: (k, v) => accounts.kvSet(k, v),
+    log: (m) => console.log(`  ${m}`),
+  });
+  setInterval(() => void bot.run().catch((e) => console.warn(`xbot: ${(e as Error).message.slice(0, 200)}`)), 60_000).unref();
+  console.log(`  x bot: ${mode}${xbotMode === "live" && !xKeys ? " (X_API_* keys missing, so nothing is posted)" : ""}`);
+}
 
 const app = createApp({
   holders,

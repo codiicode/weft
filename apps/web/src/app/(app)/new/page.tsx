@@ -83,6 +83,10 @@ function Builder() {
     if (from) {
       (from.startsWith("run:")
         ? api.deployment(from.slice(4)).then((r) => r.deployment.strategy)
+        : from.startsWith("draft:")
+          ? api.draft(from.slice(6)).then((r) => r.strategy)
+        : from.startsWith("result:")
+          ? api.result(from.slice(7)).then((r) => r.strategy)
         : from.startsWith("shared:")
           ? api.leaderboard().then((d) => {
               const s = d.rows.find((r) => r.deploymentId === from.slice(7))?.strategy;

@@ -1,5 +1,5 @@
 import { Hono } from "hono";
-import { sharePage, strategyCard } from "./lib/share.ts";
+import { resultCard, resultPage, sharePage, strategyCard, tradesOf, type ResultCard } from "./lib/share.ts";
 import { createHash, randomBytes } from "node:crypto";
 import type { TopTrader } from "./lib/traders.ts";
 import type { HeliusWebhook } from "./live/helius-webhook.ts";
@@ -12,7 +12,7 @@ import type { Context } from "hono";
 import { streamSSE } from "hono/streaming";
 import { z } from "zod";
 import { examples } from "@weft/strategy/examples";
-import { RiskCaps, toGraph, validateStrategy, type Instrument } from "@weft/strategy";
+import { RiskCaps, toGraph, validateStrategy, type Instrument, type Strategy } from "@weft/strategy";
 import { Instrument as InstrumentSchema } from "@weft/strategy";
 import { INTERVAL_MS, type CandleInterval, type Catalog, type MarketData, type Product } from "@weft/venues";
 import type { Engine, EngineEvent } from "@weft/engine";
@@ -301,6 +301,108 @@ export function createApp(deps: AppDeps) {
       if (cards.size > 500) cards.delete(cards.keys().next().value!);
     }
     return c.body(new Uint8Array(hit.png), 200, { "content-type": "image/png", "cache-control": "public, max-age=3600" });
+  });
+
+  /* ---------------- Result cards: a run's outcome, shared by its owner ---------------- */
+
+  // weft.fi/r/<id> and weft.fi/og/result/<id>.png are rewritten here by the website.
+  const readResult = (id: string): ResultCard | null => {
+    if (!/^[a-z0-9]{6,24}$/.test(id)) return null;
+    const raw = accounts?.kvGet(`result:${id}`);
+    return raw ? (JSON.parse(raw) as ResultCard) : null;
+  };
+  /** Owner: freeze this run's result (percent only) into a card with its own link. */
+  app.post("/deployments/:id/card", async (c) => {
+    const user = await requireUser(c);
+    const id = c.req.param("id");
+    const snap = await engine.getSnapshot(id);
+    if (!snap) return c.json({ error: "not found" }, 404);
+    assertOwner(accounts?.deploymentOwner(id), user);
+    if (!accounts) return c.json({ error: "sharing needs the account store" }, 503);
+    const d = snap.deployment;
+    if (d.alertsOnly) return c.json({ error: "alerts-only runs don’t trade, so there’s no result to share" }, 400);
+    const fills = await engine.getFills(id);
+    const pnl = snap.realizedPnlUsd + snap.unrealizedPnlUsd;
+    const openMargin = snap.positions.reduce((n, p) => n + p.sizeUsd, 0);
+    const invested = snap.investedUsd ?? (openMargin > 0 ? openMargin : null);
+    if (!invested || !(invested > 0) || !fills.length) return c.json({ error: "nothing has traded yet" }, 400);
+    // The same return the run page shows: profit over what went in. The curve is scaled to match.
+    const eq = snap.equityCurve;
+    const step = Math.max(1, Math.ceil(eq.length / 60));
+    const curve = eq.filter((_, i) => i % step === 0 || i === eq.length - 1).map(([, v]) => ((v - eq[0]![1]) / invested) * 100);
+    const card: ResultCard = {
+      id: randomBytes(8).toString("hex").replace(/[^a-z0-9]/g, "").slice(0, 12),
+      deploymentId: id,
+      createdAt: Date.now(),
+      practice: d.mode !== "live",
+      name: d.strategy.name,
+      thesis: d.strategy.thesis,
+      markets: tradesOf(d.strategy).length ? tradesOf(d.strategy) : [...new Set(fills.map((f) => f.instrumentKey.split(":").pop()!.slice(0, 12)))].slice(0, 4),
+      returnPct: (pnl / invested) * 100,
+      curve: [...curve.slice(0, -1), (pnl / invested) * 100],
+      since: d.createdAt,
+      trades: fills.length,
+      strategy: d.strategy,
+    };
+    accounts.kvSet(`result:${card.id}`, JSON.stringify(card));
+    return c.json({ id: card.id, url: `${site}/r/${card.id}`, image: `${site}/og/result/${card.id}.png`, returnPct: card.returnPct, practice: card.practice });
+  });
+  app.get("/result/:id", (c) => {
+    const r = readResult(c.req.param("id"));
+    if (!r) return c.redirect(`${site}/strategies`, 302);
+    c.header("cache-control", "public, max-age=3600");
+    return c.html(resultPage(r, site));
+  });
+  /** A shared result's strategy, so whoever opens the link can run it themselves. */
+  app.get("/results/:id", (c) => {
+    const r = readResult(c.req.param("id"));
+    return r ? c.json({ id: r.id, name: r.name, practice: r.practice, returnPct: r.returnPct, strategy: r.strategy }) : c.json({ error: "not found" }, 404);
+  });
+  const resultPngs = new Map<string, Buffer>();
+  app.get("/og/result/:file", async (c) => {
+    const id = c.req.param("file").replace(/\.png$/, "");
+    const r = readResult(id);
+    if (!r) return c.redirect(`${site}/og.png`, 302);
+    let png = resultPngs.get(id);
+    if (!png) {
+      png = await resultCard(r);
+      resultPngs.set(id, png);
+      if (resultPngs.size > 500) resultPngs.delete(resultPngs.keys().next().value!);
+    }
+    return c.body(new Uint8Array(png), 200, { "content-type": "image/png", "cache-control": "public, max-age=86400, immutable" });
+  });
+
+  /* ---------------- Drafts: strategies the X bot wrote for someone who tagged @weftfinance ---------------- */
+
+  // weft.fi/d/<id> and weft.fi/og/draft/<id>.png are rewritten here by the website.
+  type Draft = { id: string; strategy: Strategy; thesis: string; tweetId: string; author: string; at: number };
+  const readDraft = (id: string): Draft | null => {
+    if (!/^[a-z0-9]{6,24}$/.test(id)) return null;
+    const raw = accounts?.kvGet(`draft:${id}`);
+    return raw ? (JSON.parse(raw) as Draft) : null;
+  };
+  app.get("/draft/:id", (c) => {
+    const d = readDraft(c.req.param("id"));
+    if (!d) return c.redirect(`${site}/new`, 302);
+    c.header("cache-control", "public, max-age=3600");
+    return c.html(sharePage(d.strategy, d.id, site, { href: `${site}/new?from=${encodeURIComponent(`draft:${d.id}`)}`, image: `${site}/og/draft/${d.id}.png`, path: "d" }));
+  });
+  app.get("/drafts/:id", (c) => {
+    const d = readDraft(c.req.param("id"));
+    return d ? c.json({ id: d.id, thesis: d.thesis, strategy: d.strategy }) : c.json({ error: "not found" }, 404);
+  });
+  const draftPngs = new Map<string, Buffer>();
+  app.get("/og/draft/:file", async (c) => {
+    const id = c.req.param("file").replace(/\.png$/, "");
+    const d = readDraft(id);
+    if (!d) return c.redirect(`${site}/og.png`, 302);
+    let png = draftPngs.get(id);
+    if (!png) {
+      png = await strategyCard(d.strategy);
+      draftPngs.set(id, png);
+      if (draftPngs.size > 500) draftPngs.delete(draftPngs.keys().next().value!);
+    }
+    return c.body(new Uint8Array(png), 200, { "content-type": "image/png", "cache-control": "public, max-age=86400, immutable" });
   });
 
   /** Hyperliquid traders worth copying, with their current positions on request. */

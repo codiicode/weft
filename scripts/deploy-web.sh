@@ -42,7 +42,11 @@ cat > "$TMP/vercel.json" <<'JSON'
   ],
   "rewrites": [
     { "source": "/s/:id", "destination": "https://weft-api-production.up.railway.app/share/:id" },
-    { "source": "/og/strategy/:file", "destination": "https://weft-api-production.up.railway.app/og/strategy/:file" }
+    { "source": "/og/strategy/:file", "destination": "https://weft-api-production.up.railway.app/og/strategy/:file" },
+    { "source": "/r/:id", "destination": "https://weft-api-production.up.railway.app/result/:id" },
+    { "source": "/og/result/:file", "destination": "https://weft-api-production.up.railway.app/og/result/:file" },
+    { "source": "/d/:id", "destination": "https://weft-api-production.up.railway.app/draft/:id" },
+    { "source": "/og/draft/:file", "destination": "https://weft-api-production.up.railway.app/og/draft/:file" }
   ],
   "trailingSlash": false,
   "headers": [

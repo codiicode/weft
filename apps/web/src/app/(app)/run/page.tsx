@@ -19,6 +19,7 @@ import { TradesChart } from "@/components/chart/TradesChart";
 import { InstructRun, SellButton } from "@/components/app/RunControls";
 import { StrategyCanvas } from "@/components/app/StrategyCanvas";
 import { EquityChart } from "@/components/app/EquityChart";
+import { ShareResult } from "@/components/app/ShareResult";
 
 const EVENT: Record<string, [label: string, color: string]> = {
   fill: ["Trade", "var(--long)"],
@@ -293,6 +294,7 @@ function Run() {
         }
         actions={
           <>
+            {!d.alertsOnly && money.traded && <ShareResult id={d.id} name={d.strategy.name} />}
             <Btn variant="quiet" href={`/new?from=${encodeURIComponent(`run:${d.id}`)}`}>
               Edit a copy
             </Btn>

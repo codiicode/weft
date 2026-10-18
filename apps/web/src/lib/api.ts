@@ -455,6 +455,12 @@ export const api = {
   leaderboard: () => req<{ rows: LeaderRow[] }>("/leaderboard"),
   traders: () => req<{ traders: TopTrader[] }>("/traders"),
   shareRun: (id: string, shared: boolean) => req<{ shared: boolean }>(`/deployments/${encodeURIComponent(id)}/share`, { method: "POST", json: { shared } }),
+  /** Owner: freeze the run's result (percent only) into a card with its own share link. */
+  resultCard: (id: string) => req<{ id: string; url: string; image: string; returnPct: number; practice: boolean }>(`/deployments/${encodeURIComponent(id)}/card`, { method: "POST" }),
+  /** A strategy the X bot drafted for someone who tagged @weftfinance. */
+  draft: (id: string) => req<{ id: string; thesis: string; strategy: Strategy }>(`/drafts/${encodeURIComponent(id)}`),
+  /** A shared result's strategy, to run it yourself. */
+  result: (id: string) => req<{ id: string; name: string; practice: boolean; returnPct: number; strategy: Strategy }>(`/results/${encodeURIComponent(id)}`),
   stats: () => req<Stats>("/stats"),
 
   alertsMe: () => req<{ available: boolean; telegram: { username: string | null; linkedAt: number } | null }>("/alerts/me"),
