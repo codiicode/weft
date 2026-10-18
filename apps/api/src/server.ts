@@ -508,6 +508,33 @@ const app = createApp({
 });
 engine.start();
 
+// Usage at a glance, in the log (counts only, nobody's name or money): at boot and hourly.
+async function logUsage() {
+  const runs = await engine.listDeployments();
+  const day = Date.now() - 86_400_000, week = Date.now() - 7 * 86_400_000;
+  const kind = (d: (typeof runs)[number]) => (d.mode === "live" ? "live" : d.alertsOnly ? "alerts" : "practice");
+  const venue = (d: (typeof runs)[number]) => {
+    const o = d.strategy.actions.find((a) => a.type === "open" || a.type === "liquidity") as { type: string; instrument?: { kind: string } } | undefined;
+    return o?.type === "liquidity" ? "lp" : o?.instrument?.kind === "synth" ? "papertrade" : o?.instrument?.kind === "token" ? "solana" : o?.instrument ? "hyperliquid" : "none";
+  };
+  const tally = (list: typeof runs, f: (d: (typeof runs)[number]) => string) => Object.entries(list.reduce<Record<string, number>>((m, d) => ((m[f(d)] = (m[f(d)] ?? 0) + 1), m), {})).map(([k, n]) => `${k} ${n}`).join(", ") || "none";
+  const active = runs.filter((d) => d.status === "running" || d.status === "paused");
+  const owners = new Set(runs.map((d) => accounts.deploymentOwner(d.id)).filter(Boolean));
+  const liveOwners = new Set(active.filter((d) => d.mode === "live").map((d) => accounts.deploymentOwner(d.id)).filter(Boolean));
+  let fills = 0, liveFills = 0;
+  for (const d of runs) {
+    const n = (await engine.getFills(d.id).catch(() => [])).length;
+    fills += n;
+    if (d.mode === "live") liveFills += n;
+  }
+  console.log(
+    `usage: ${runs.length} runs by ${owners.size} people (${tally(runs, kind)}); active now ${active.length} (${tally(active, kind)}; venues ${tally(active, venue)}), live by ${liveOwners.size} people, $${Math.round(active.filter((d) => d.mode === "live").reduce((n, d) => n + d.allocationUsd, 0))} live; ` +
+      `started last 24h ${runs.filter((d) => d.createdAt > day).length}, last 7d ${runs.filter((d) => d.createdAt > week).length}; fills ${fills} (live ${liveFills})`,
+  );
+}
+setTimeout(() => void logUsage().catch((e) => console.warn(`usage: ${(e as Error).message}`)), 20_000).unref();
+setInterval(() => void logUsage().catch(() => {}), 3_600_000).unref();
+
 // Live runs: blocked and failed orders go to the server log too (run id prefix and reason only), so
 // problems with real money can be diagnosed without reading anyone's private activity.
 engine.subscribe((e) => {
