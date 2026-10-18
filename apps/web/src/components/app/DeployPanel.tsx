@@ -6,6 +6,7 @@ import { api, ApiError } from "@/lib/api";
 import { useAuth, useRequireAuth } from "@/lib/auth";
 import { useApi } from "@/lib/use-api";
 import { hlFreeUsd, tradesSolana, useTradingVenues, type Venues } from "@/lib/trading";
+import { PAPERTRADE_FEE, PAPERTRADE_MIN_DEPOSIT, usePapertrade, type PapertradeStep } from "@/lib/papertrade";
 import { useHlApprove } from "@/lib/hl-approve";
 import Link from "next/link";
 import { Btn, Card } from "./AppShell";
@@ -122,6 +123,8 @@ function orderNow(s: Strategy | undefined): string | null {
   return `${open.side === "short" ? "Short" : perpLike ? "Long" : "Buy"} ${instrumentLabel(open.instrument)}${perpLike && (open.leverage ?? 1) > 1 ? ` ${open.leverage}×` : ""}`;
 }
 
+const lowerFirst = (t: string) => t.charAt(0).toLowerCase() + t.slice(1);
+
 export type RunMode = "live" | "practice" | "alerts";
 
 /** Start a strategy with real money, as practice (pretend money, real prices) or as alerts only, and jump to its run page. */
@@ -137,7 +140,8 @@ export function DeployPanel({ strategy, strategyId, compact = false, initialMode
   const live = useApi(signedIn && !onSolana && !onPapertrade ? () => api.liveStatus() : null, [signedIn, onSolana, onPapertrade]);
   const sol = useApi(signedIn && onSolana ? () => api.solanaStatus() : null, [signedIn, onSolana]);
   const pt = useApi(signedIn && onPapertrade ? () => api.papertradeAccount() : null, [signedIn, onPapertrade]);
-  const ready = onSolana ? !!sol.data?.ready : onPapertrade ? !!pt.data?.registered : !!live.data?.ready;
+  // Papertrade needs only the wallet: Start tops the account up and connects it on the way.
+  const ready = onSolana ? !!sol.data?.ready : onPapertrade ? !!pt.data?.wallet : !!live.data?.ready;
   // An account that only lacks an approval (e.g. Weft's fee was just switched on) is set up: a
   // Weft wallet approves in the background right here, an own wallet gets a clear one-step ask.
   // The approvals sign themselves in the background (WalletAutopilot); the button is the fallback.
@@ -161,7 +165,7 @@ export function DeployPanel({ strategy, strategyId, compact = false, initialMode
   const practiceOn = Boolean(practice.data?.enabled);
   // Practice first for anyone who can't trade real money yet (not signed in, no wallet, no money in
   // it); Trade for everyone who can. What the person picks always wins.
-  const funded = ready && (onSolana ? (walletUsd ?? 0) >= 1 : (available ?? 0) >= 10);
+  const funded = ready && (onSolana ? (walletUsd ?? 0) >= 1 : onPapertrade ? true : (available ?? 0) >= 10);
   const [picked, setPicked] = useState<RunMode | null>(initialMode ?? null);
   const mode: RunMode = picked ?? (blocker ? (practiceOn ? "practice" : "alerts") : funded || !practiceOn ? "live" : "practice");
   const setMode = setPicked;
@@ -174,15 +178,25 @@ export function DeployPanel({ strategy, strategyId, compact = false, initialMode
   const isPractice = mode === "practice";
   const alerts = useApi(signedIn && mode === "alerts" ? () => api.alertsMe() : null, [signedIn, mode]);
   const practiceLeft = practice.data?.leftUsd ?? null;
-  const limit = isPractice ? (practiceLeft ?? Infinity) : Math.min(cap ?? Infinity, available ?? Infinity);
+  const limit = isPractice ? (practiceLeft ?? Infinity) : onPapertrade ? Infinity : Math.min(cap ?? Infinity, available ?? Infinity);
   const max = Number.isFinite(limit) ? Math.max(10, limit) : Infinity;
   const now = useMemo(() => orderNow(strategy), [strategy]);
+  // Papertrade: what this run needs in the account, and whether Start has to top it up or connect first.
+  const papertrade = usePapertrade();
+  const [ptStep, setPtStep] = useState<PapertradeStep | null>(null);
+  const spend = autoBudget ?? Math.min(allocation, max);
+  const ptHave = pt.data?.availableUsd ?? 0;
+  const ptExpiring = (pt.data?.sessionExpiresAt ?? 0) - Date.now() < 3 * 86_400_000;
+  const ptTopUp = onPapertrade && (ptHave < spend || !pt.data?.registered || ptExpiring);
+  const ptMove = ptHave < spend ? Math.max(PAPERTRADE_MIN_DEPOSIT, (spend - ptHave) / (1 - PAPERTRADE_FEE)) : 0;
 
   const deploy = async () => {
     if (!requireAuth()) return;
     setBusy(true);
     setError(null);
     try {
+      // Papertrade: top up from Hyperliquid and connect first, in the background, then start.
+      if (isLive && ptTopUp) await papertrade.ensureReady(spend, setPtStep);
       const rec = await api.deploy({
         strategy,
         strategyId,
@@ -296,10 +310,10 @@ export function DeployPanel({ strategy, strategyId, compact = false, initialMode
               {onSolana
                 ? "Create your wallet, allow Weft to swap from it, and add some SOL. About a minute."
                 : onPapertrade
-                  ? "Deposit from your Hyperliquid account, then connect Papertrade with one signature."
+                  ? "Papertrade uses your Hyperliquid wallet in Weft. Set that up first; the rest happens when you start."
                   : "Weft makes you a wallet. Send it USDC and you’re ready to trade. About a minute."}
             </p>
-            <Link href={onSolana ? "/wallets?venue=solana" : onPapertrade ? "/wallets?venue=papertrade" : "/wallets"} className="mt-3 inline-flex h-9 items-center rounded-[10px] bg-ink px-3.5 text-[14px] font-medium text-paper hover:bg-ink/85">
+            <Link href={onSolana ? "/wallets?venue=solana" : "/wallets"} className="mt-3 inline-flex h-9 items-center rounded-[10px] bg-ink px-3.5 text-[14px] font-medium text-paper hover:bg-ink/85">
               Set up trading
             </Link>
           </div>
@@ -311,7 +325,9 @@ export function DeployPanel({ strategy, strategyId, compact = false, initialMode
                 : onSolana
                   ? "Real swaps through Jupiter, from your own Solana wallet."
                   : onPapertrade
-                    ? "Real positions on Papertrade, from your own Papertrade account."
+                    ? ptTopUp && ptMove > 0
+                      ? `Real positions on Papertrade, from your own account there. Start moves $${Math.ceil(ptMove)} into it from your Hyperliquid account first (Weft keeps 1%), then connects it.`
+                      : "Real positions on Papertrade, from your own Papertrade account."
                     : <>Real orders on Hyperliquid{testnet ? " testnet (test funds)" : ""}, from your own account.</>}
               {solBalance != null && (
                 <>
@@ -369,7 +385,11 @@ export function DeployPanel({ strategy, strategyId, compact = false, initialMode
       ) : (!isLive || ready) && (
         <Btn onClick={deploy} disabled={busy} className="mt-5 h-11 w-full text-[15px]">
           {busy
-            ? "Starting…"
+            ? ptStep && ptStep !== "done"
+              ? { depositing: "Moving money to Papertrade…", arriving: "Waiting for it to arrive…", connecting: "Connecting Papertrade…" }[ptStep]
+              : "Starting…"
+            : isLive && ptTopUp && ptMove > 0
+              ? `Move $${Math.ceil(ptMove)} from Hyperliquid and ${now ? lowerFirst(now) : "start"}`
             : isPractice
               ? now && stated
                 ? `Practice: ${now} for ${stated.text}`

@@ -1,12 +1,10 @@
 "use client";
 import { useState } from "react";
 import Link from "next/link";
-import { useSignTypedData, useWallets } from "@privy-io/react-auth";
 import { api } from "@/lib/api";
+import { PAPERTRADE_FEE, usePapertrade, type PapertradeStep } from "@/lib/papertrade";
 import { useApi, fmtUsd } from "@/lib/use-api";
 import { Card, Btn } from "@/components/app/AppShell";
-
-const SILENT = { uiOptions: { showWalletUIs: false } };
 
 /**
  * Papertrade (synthetic BTC and ETH perps up to 1000× on HyperEVM) from the same wallet as the
@@ -15,8 +13,6 @@ const SILENT = { uiOptions: { showWalletUIs: false } };
  */
 export function PapertradeSetup() {
   const acct = useApi(() => api.papertradeAccount(), [], { pollMs: 15_000 });
-  const { wallets } = useWallets();
-  const { signTypedData } = useSignTypedData();
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [amount, setAmount] = useState("");
@@ -25,15 +21,8 @@ export function PapertradeSetup() {
   const n = Number(amount);
   const funded = (a?.availableUsd ?? 0) > 0 || (a?.openPositions ?? 0) > 0;
 
-  /** Sign a message with the account's wallet (in the background) and return v/r/s for Papertrade. */
-  const signVrs = async (td: { message: Record<string, string> } & Record<string, unknown>) => {
-    const wallet = wallets.find((w) => w.address.toLowerCase() === String(td.message.user).toLowerCase());
-    if (!wallet) throw new Error("Your Hyperliquid wallet isn’t connected in this browser.");
-    const { signature } = await signTypedData(td as never, { ...SILENT, address: wallet.address });
-    const hex = signature.slice(2);
-    const v = parseInt(hex.slice(128, 130), 16);
-    return { ...td.message, v: String(v < 27 ? v + 27 : v), r: `0x${hex.slice(0, 64)}`, s: `0x${hex.slice(64, 128)}` };
-  };
+  const papertrade = usePapertrade();
+  const [step, setStep] = useState<PapertradeStep | null>(null);
 
   const move = async (dir: "in" | "out") => {
     setBusy(true);
@@ -41,15 +30,11 @@ export function PapertradeSetup() {
     setNote(null);
     try {
       if (dir === "in") {
-        const wallet = wallets.find((w) => w.address.toLowerCase() === a?.wallet?.toLowerCase());
-        if (!wallet) throw new Error("Your Hyperliquid wallet isn’t connected in this browser.");
-        const prep = await api.papertradeDepositPrepare(n, "0xa4b1");
-        const sigs: string[] = [];
-        for (const td of prep.typedData) sigs.push((await signTypedData(td as never, { ...SILENT, address: wallet.address })).signature);
-        await api.papertradeDepositSubmit(sigs);
-        setNote(`Sent: $${prep.toPapertradeUsd.toFixed(2)} to Papertrade, $${prep.feeUsd.toFixed(2)} Weft fee. It shows up in a minute or two.`);
+        // Deposit, wait for it to arrive, connect if needed: one click.
+        await papertrade.ensureReady((a?.availableUsd ?? 0) + n * (1 - PAPERTRADE_FEE) - 0.01, setStep);
+        setNote("Done: the money is in your Papertrade account and Weft can trade it.");
       } else {
-        await api.papertradeWithdrawSubmit(await signVrs(await api.papertradeWithdrawPrepare(n)));
+        await api.papertradeWithdrawSubmit(await papertrade.signVrs(await api.papertradeWithdrawPrepare(n)));
         setNote("Withdrawal sent. It lands in your Hyperliquid account in a minute or two.");
       }
       setAmount("");
@@ -58,6 +43,7 @@ export function PapertradeSetup() {
       setError((e as Error).message);
     } finally {
       setBusy(false);
+      setStep(null);
     }
   };
 
@@ -65,13 +51,7 @@ export function PapertradeSetup() {
     setBusy(true);
     setError(null);
     try {
-      const td = await api.papertradeRegistration();
-      const wallet = wallets.find((w) => w.address.toLowerCase() === String(td.message.user).toLowerCase());
-      if (!wallet) throw new Error("Your Hyperliquid wallet isn’t connected in this browser.");
-      const { signature } = await signTypedData(td as never, { ...SILENT, address: wallet.address });
-      const hex = signature.slice(2);
-      const v = parseInt(hex.slice(128, 130), 16);
-      await api.papertradeRegister({ ...td.message, v: String(v < 27 ? v + 27 : v), r: `0x${hex.slice(0, 64)}`, s: `0x${hex.slice(64, 128)}` });
+      await papertrade.connect();
       await acct.refresh();
     } catch (e) {
       setError((e as Error).message);
@@ -111,13 +91,15 @@ export function PapertradeSetup() {
                   {a.registered
                     ? `Weft can open and close positions in your Papertrade account until ${new Date(a.sessionExpiresAt!).toLocaleDateString()}. It can’t withdraw.`
                     : funded
-                      ? "One signature lets Weft open and close positions in your Papertrade account for 30 days. Papertrade never lets that key withdraw."
-                      : "Papertrade accepts the key once your account has money in it: deposit below first, then connect."}
+                      ? "Weft connects your account so it can open and close positions there. Papertrade never lets that key withdraw."
+                      : "Add money below: Weft connects your account at the same time. Papertrade never lets that key withdraw."}
                 </div>
               </div>
-              <Btn onClick={connect} disabled={busy || (!a.registered && !funded)} variant={a.registered ? "ghost" : "ink"}>
-                {busy ? "Signing…" : a.registered ? "Renew" : "Connect"}
-              </Btn>
+              {funded && (
+                <Btn onClick={connect} disabled={busy} variant="ghost">
+                  {busy && !step ? "Signing…" : a.registered ? "Renew" : "Connect"}
+                </Btn>
+              )}
             </div>
             <div className="px-5 py-4">
               <div className="flex items-baseline justify-between">
@@ -135,7 +117,7 @@ export function PapertradeSetup() {
                       className="h-10 w-40 rounded-[10px] border border-line bg-paper px-3 text-[14px] text-ink outline-none focus:border-ink"
                     />
                     <Btn onClick={() => move("in")} disabled={busy || !(n >= 11)}>
-                      Deposit from Hyperliquid
+                      {busy && step && step !== "done" ? { depositing: "Moving…", arriving: "Arriving…", connecting: "Connecting…" }[step] : "Add money from Hyperliquid"}
                     </Btn>
                     {funded && (
                       <Btn variant="ghost" onClick={() => move("out")} disabled={busy || !(n >= 10)}>
@@ -144,7 +126,7 @@ export function PapertradeSetup() {
                     )}
                   </div>
                   <p className="mt-2 text-[12.5px] leading-relaxed text-muted">
-                    Deposits come from your Hyperliquid account. Weft keeps 1% of what you move in (less if you hold $WEFT); withdrawals are free. At least $11 in (Papertrade takes $1 on a first deposit), $10 out.
+                    Deposits come from your Hyperliquid account. Weft keeps 1% of what you move in (less if you hold $WEFT); withdrawals are free. At least $11 in, $10 out.
                     {n >= 11 && ` Depositing $${n.toFixed(2)}: about $${(n * 0.99).toFixed(2)} reaches Papertrade.`}
                   </p>
                   {note && <p className="mt-2 text-[13px] text-ink-2">{note}</p>}
