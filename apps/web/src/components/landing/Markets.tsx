@@ -8,15 +8,19 @@ import { products } from "@/data/mock";
 
 const LOGOS: Record<string, string[]> = {
   perps: ["BTC", "ETH", "HYPE"],
+  leverage: ["BTC", "ETH"],
   stocks: ["NVDA", "TSLA", "GOLD"],
   predictions: ["OUTCOME"],
+  liquidity: ["SOL", "USDC"],
   tokens: ["PUMP", "WIF", "JUP"],
   options: ["ETH", "BTC"],
 };
 
 const blurb: Record<string, string> = {
   perps: "Crypto perpetuals on Hyperliquid, up to each market’s own max leverage. Your stop is placed on Hyperliquid too.",
+  leverage: "Synthetic BTC and ETH perps on Papertrade, up to 1000×, priced at Hyperliquid’s mid. Weft funds it from your Hyperliquid account in one click and checks your stop on every price update.",
   stocks: "Stocks, indices and gold as perps on Hyperliquid, or tokenized shares on Solana.",
+  liquidity: "Earn trading fees in Meteora pools, from SOL-USDC to tokens that launched this week. Weft deposits from your own wallet, watches the range and pulls out when your exit hits.",
   predictions: "Fed decisions, crypto prices and sports on Hyperliquid. Buy the side you think is priced wrong, or use Polymarket’s odds as a signal.",
   tokens: "Any Solana token by contract address, from majors to brand-new launches. Bought and sold through Jupiter, straight from your own wallet.",
   options: "Spreads and bought calls or puts, so you know the most you can lose before you trade.",

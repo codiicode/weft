@@ -16,7 +16,7 @@ export interface ProductMarket {
 }
 
 export interface Product {
-  id: "perps" | "stocks" | "predictions" | "tokens" | "options";
+  id: "perps" | "leverage" | "stocks" | "predictions" | "liquidity" | "tokens" | "options";
   name: string;
   venues: string[];
   status: "live" | "soon";
@@ -34,6 +34,19 @@ export const products: Product[] = [
         venue: "Hyperliquid",
         thesis: "If the Fear & Greed Index hits 20, open a 20× long on ETH and on BTC with $100 each.",
         graph: { signal: "Crypto Fear & Greed Index", trigger: "20 or lower", action: "Long ETH and BTC at 20×, $100 each" },
+      },
+    ],
+  },
+  {
+    id: "leverage",
+    name: "BTC and ETH at 1000×",
+    venues: ["Papertrade"],
+    status: "live",
+    markets: [
+      {
+        venue: "Papertrade, funded from your Hyperliquid account",
+        thesis: "Long BTC 1000× when it breaks $82,400. Out at +100%.",
+        graph: { signal: "BTC price on Hyperliquid", trigger: "Breaks $82,400", action: "Long BTC 1000× with $20, stop at −30%" },
       },
     ],
   },
@@ -60,6 +73,19 @@ export const products: Product[] = [
         venue: "Hyperliquid",
         thesis: "Bonds are pricing a Fed cut before the odds are.",
         graph: { signal: "2-year yield and Fed odds on Polymarket", trigger: "Yield down 10 bp in 5 days, odds under 70%", action: "Buy YES on Hyperliquid, up to 70¢" },
+      },
+    ],
+  },
+  {
+    id: "liquidity",
+    name: "Liquidity pools",
+    venues: ["Meteora"],
+    status: "live",
+    markets: [
+      {
+        venue: "Meteora, from your own Solana wallet",
+        thesis: "Put $500 of SOL into SOL-USDC, tight range. Pull it out if it’s out of range for an hour.",
+        graph: { signal: "SOL price against your range", trigger: "Out of range for an hour", action: "Withdraw everything, back to SOL" },
       },
     ],
   },
