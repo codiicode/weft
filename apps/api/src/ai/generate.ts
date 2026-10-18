@@ -52,6 +52,35 @@ const tools: Anthropic.Beta.BetaTool[] = [
   },
 ];
 
+/**
+ * Looking traders up by name (set once at boot; off when unset): Fomo usernames → their addresses,
+ * plus what they hold on Hyperliquid right now, so a strategy can copy or fade "frank on Fomo".
+ */
+export type TraderLookup = (handle: string) => Promise<{
+  handle: string;
+  displayName: string | null;
+  followers: number | null;
+  verified: boolean;
+  hyperliquid: string | null;
+  solana: string | null;
+  hyperliquidPositions?: { coin: string; side: "long" | "short"; leverage: number }[];
+} | null>;
+let traderLookup: TraderLookup | null = null;
+export function setTraderLookup(fn: TraderLookup | null) {
+  traderLookup = fn;
+}
+const lookupTool: Anthropic.Beta.BetaTool = {
+  name: "lookup_fomo_trader",
+  description:
+    "Look up a trader on Fomo (the social trading app) by username. Returns their Hyperliquid address (where their Fomo perps are), their Solana address (where their token trades are), and their open Hyperliquid positions. Use it whenever the user names a Fomo trader, or a trader by username to copy or fade.",
+  input_schema: {
+    type: "object",
+    properties: { handle: { type: "string", description: "The Fomo username, with or without @" } },
+    required: ["handle"],
+    additionalProperties: false,
+  },
+};
+
 function hasCredentials(): boolean {
   return Boolean(process.env.ANTHROPIC_API_KEY || process.env.ANTHROPIC_AUTH_TOKEN || process.env.ANTHROPIC_PROFILE);
 }
@@ -114,7 +143,7 @@ export async function generateStrategy(
         fallbacks: "default",
         output_config: { effort: "high" },
         system: [{ type: "text", text: SYSTEM_PROMPT, cache_control: { type: "ephemeral" } }],
-        tools,
+        tools: traderLookup ? [...tools, lookupTool] : tools,
         messages,
       });
 
@@ -142,6 +171,15 @@ export async function generateStrategy(
             results.push({ type: "tool_result", tool_use_id: use.id, content: JSON.stringify(rows) });
           } catch (e) {
             results.push({ type: "tool_result", tool_use_id: use.id, is_error: true, content: `Search failed: ${(e as Error).message}` });
+          }
+        } else if (use.name === "lookup_fomo_trader" && traderLookup) {
+          const handle = String(input.handle ?? "");
+          progress({ type: "search", message: `Looking up @${handle.replace(/^@+/, "")} on Fomo` });
+          try {
+            const t = await traderLookup(handle);
+            results.push({ type: "tool_result", tool_use_id: use.id, content: JSON.stringify(t ? { found: true, ...t } : { found: false, note: "No Fomo trader with that username. Ask the user to check the spelling, or for an address." }) });
+          } catch (e) {
+            results.push({ type: "tool_result", tool_use_id: use.id, is_error: true, content: `Lookup failed: ${(e as Error).message}` });
           }
         } else if (use.name === "submit_strategy") {
           progress({ type: "submit", message: "Validating the strategy graph" });

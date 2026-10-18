@@ -32,6 +32,8 @@ import { Reconciler } from "./live/reconcile.ts";
 import { TelegramBot } from "./lib/telegram.ts";
 import { createApp } from "./app.ts";
 import { DEFAULT_X_PREFS, XBot, type XPrefs } from "./social/xbot.ts";
+import { fomoLookup } from "./lib/fomo.ts";
+import { setTraderLookup } from "./ai/generate.ts";
 import { FastExits } from "./live/fast-exits.ts";
 import { RiftFunding } from "./live/rift.ts";
 import { PapertradeAccounts } from "./live/papertrade.ts";
@@ -370,6 +372,26 @@ const scheduleRewards = (ms: number) => {
 };
 scheduleRewards(30_000);
 console.log(`  rewards: ${rewards.enabled ? `from ${rewards.startDay}` : "ledger only (WEFT_REWARDS_START not set)"} · treasury ${treasury ? treasury.address.toBase58().slice(0, 8) + "…" : "off"}`);
+
+// Fomo traders by username (fomoapi.io): the AI can copy or fade "frank on Fomo". Off without FOMOAPI_KEY.
+if (process.env.FOMOAPI_KEY) {
+  const lookup = fomoLookup({ key: process.env.FOMOAPI_KEY, kvGet: (k) => accounts.kvGet(k), kvSet: (k, v) => accounts.kvSet(k, v) });
+  setTraderLookup(async (handle) => {
+    const t = await lookup(handle);
+    if (!t) return null;
+    // What they hold on Hyperliquid now, so the plan (and the person reading it) can see it's them.
+    const st = t.evm
+      ? ((await fetch("https://api.hyperliquid.xyz/info", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ type: "clearinghouseState", user: t.evm }), signal: AbortSignal.timeout(10_000) })
+          .then((r) => r.json())
+          .catch(() => null)) as { assetPositions?: { position: { coin: string; szi: string; leverage?: { value?: number } } }[] } | null)
+      : null;
+    return {
+      handle: t.handle, displayName: t.displayName, followers: t.followers, verified: t.verified, hyperliquid: t.evm, solana: t.solana,
+      hyperliquidPositions: (st?.assetPositions ?? []).map((p) => ({ coin: p.position.coin, side: Number(p.position.szi) >= 0 ? ("long" as const) : ("short" as const), leverage: p.position.leverage?.value ?? 1 })),
+    };
+  });
+  console.log("  fomo: trader lookup on");
+}
 
 // In-process requests as a user (the X bot starting a run through the same route as the Start button).
 const INTERNAL_KEY = randomBytes(32).toString("hex");
