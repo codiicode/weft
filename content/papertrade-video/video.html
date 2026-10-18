@@ -1,0 +1,578 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Weft × Papertrade</title>
+<style>
+  @font-face { font-family: "Newsreader"; src: url("../../scripts/og/newsreader-latin.woff2") format("woff2"); font-weight: 200 800; }
+  @font-face { font-family: "Inst"; src: url("../../scripts/og/instrument-sans-latin.woff2") format("woff2"); font-weight: 400 700; }
+  html, body { margin: 0; background: #0c0c0d; }
+  #stage { position: relative; width: 1920px; height: 1080px; overflow: hidden; background: #0c0c0d; color: #f4f3ef; font-family: "Inst", sans-serif; -webkit-font-smoothing: antialiased; }
+  .scene { position: absolute; inset: 0; opacity: 0; visibility: hidden; }
+  .serif { font-family: "Newsreader", serif; font-weight: 400; letter-spacing: -0.02em; }
+  .pt { font-family: "Helvetica Neue", Helvetica, Arial, sans-serif; font-weight: 400; letter-spacing: -0.035em; }
+  .center { position: absolute; left: 0; right: 0; text-align: center; }
+  .label { font-size: 19px; letter-spacing: 0.16em; text-transform: uppercase; color: #6f6e6a; }
+  .muted { color: #a3a29d; } .faint { color: #6f6e6a; }
+  .m { display: inline-block; overflow: hidden; vertical-align: top; padding: 0.04em 0.06em 0.18em; margin: -0.04em -0.06em -0.18em; }
+  .m > span { display: inline-block; transform: translateY(140%); }
+  .tnum { font-variant-numeric: tabular-nums; }
+  .card { position: absolute; box-sizing: border-box; border-radius: 26px; background: linear-gradient(180deg,#17171a,#121214); border: 1.5px solid #26262a; box-shadow: inset 0 1px 0 rgba(255,255,255,0.05), 0 40px 120px rgba(0,0,0,0.5); }
+  .seg { display: grid; grid-template-columns: repeat(3, 1fr); background: #1f1f23; border-radius: 16px; padding: 5px; }
+  .seg div { height: 60px; border-radius: 12px; display: grid; place-items: center; font-size: 26px; color: #8f8e88; }
+  .btn { height: 84px; border-radius: 18px; background: #f4f3ef; color: #0c0c0d; display: grid; place-items: center; font-size: 32px; font-weight: 600; }
+  .row { display: grid; grid-template-columns: 190px 1fr; align-items: baseline; padding: 20px 0; border-top: 1px solid #26262a; }
+  .row .k { font-size: 18px; letter-spacing: 0.16em; text-transform: uppercase; color: #6f6e6a; }
+  .row .v { font-size: 32px; font-weight: 500; letter-spacing: -0.015em; }
+  .row .s { font-size: 22px; color: #8f8e88; margin-top: 6px; }
+  .step { display: grid; grid-template-columns: 56px 1fr; align-items: center; padding: 22px 0; border-top: 1px solid #26262a; }
+  .step .t { font-size: 32px; font-weight: 500; letter-spacing: -0.015em; }
+  .step .s { font-size: 22px; color: #8f8e88; margin-top: 4px; }
+  .lvl { display: flex; justify-content: space-between; align-items: baseline; padding: 14px 0; border-top: 1px solid #26262a; font-size: 23px; }
+  .fact { position: absolute; box-sizing: border-box; width: 500px; padding: 40px 40px 44px; border-radius: 24px; background: linear-gradient(180deg,#17171a,#121214); border: 1.5px solid #26262a; }
+  svg { overflow: visible; }
+</style>
+</head>
+<body>
+<div id="stage">
+  <svg width="0" height="0" style="position:absolute"><defs>
+    <filter id="glow" x="-150%" y="-150%" width="400%" height="400%"><feGaussianBlur stdDeviation="5" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter>
+    <filter id="bloom" x="-100%" y="-100%" width="300%" height="300%"><feGaussianBlur stdDeviation="14" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter>
+  </defs></svg>
+  <canvas id="field" width="1920" height="1080" style="position:absolute;inset:0"></canvas>
+  <svg id="grid" width="1920" height="1080" style="position:absolute;inset:0"></svg>
+  <div id="glowBg" style="position:absolute;inset:0"></div>
+  <div id="caps" class="serif" style="position:absolute;left:0;right:0;top:62px;height:100px;font-size:66px"></div>
+
+  <!-- the two marks, on Papertrade's paper -->
+  <div id="lockup" style="position:absolute;left:0;right:0;top:445px;height:150px;display:flex;align-items:center;justify-content:center;color:#15120a">
+    <div id="lkWeft" style="display:flex;align-items:center;gap:26px">
+      <svg id="lkMark" width="112" height="112" viewBox="0 0 48 48"><g fill="none" stroke="#15120a" stroke-width="4.4" stroke-linecap="round"><path d="M8 13C20 13 21 24 30 24"/><path d="M8 24H30"/><path d="M8 35C20 35 21 24 30 24"/><path d="M30 24H40"/></g><circle cx="30" cy="24" r="5.6" fill="#15120a"/></svg>
+      <div id="lkWeftW" style="font-size:138px;font-weight:600;letter-spacing:-0.045em;line-height:1"></div>
+    </div>
+    <div id="lkX" style="font-size:64px;color:#9b937b;margin:0 54px;line-height:1">×</div>
+    <div id="lkPt" class="pt" style="position:relative;font-size:138px;line-height:1;white-space:nowrap"><span id="ptText"></span><span id="ptCur" style="position:absolute;bottom:0.02em;width:0.5em;height:0.075em;background:#881e20"></span></div>
+  </div>
+
+  <!-- 1000x -->
+  <div class="scene" id="s-big">
+    <div class="center pt" id="big1" style="top:330px;font-size:150px;color:#15120a;line-height:1.1"></div>
+    <div class="center pt" style="top:505px;font-size:150px;color:#15120a;line-height:1.1"><span id="big2"></span><span id="bigN" class="tnum"></span><span id="bigCur" style="display:inline-block;width:0.5em;height:0.075em;background:#881e20;margin-left:0.04em"></span></div>
+    <div class="center" id="bigSub" style="top:750px;font-size:34px;color:#5f584a"></div>
+  </div>
+
+  <!-- describe it -->
+  <div class="scene" id="s-prompt">
+    <div class="card" style="left:300px;top:330px;width:1320px;padding:46px 56px 50px">
+      <div class="label">Describe it</div>
+      <div id="promptText" style="font-size:50px;line-height:1.32;letter-spacing:-0.02em;margin-top:22px;min-height:198px"></div>
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-top:26px;padding-top:24px;border-top:1px solid #26262a">
+        <span class="faint" style="font-size:22px">Weft turns it into a strategy you can read before anything runs.</span>
+        <div id="sendBtn" style="width:64px;height:64px;border-radius:16px;background:#f4f3ef;display:grid;place-items:center"><svg width="28" height="28" viewBox="0 0 24 24"><path d="M12 19V5M5 12l7-7 7 7" fill="none" stroke="#0c0c0d" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/></svg></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- the plan, then start it -->
+  <div class="scene" id="s-ticket">
+    <div class="card" style="left:220px;top:210px;width:880px;padding:42px 52px 26px">
+      <div class="label">Papertrade · Perps</div>
+      <div style="display:flex;align-items:center;gap:24px;margin-top:20px">
+        <img src="../../apps/web/public/coins/BTC.svg" width="72" height="72" style="border-radius:50%">
+        <div><div style="font-size:54px;font-weight:600;letter-spacing:-0.03em;line-height:1">Long BTC <span style="color:#f472b6">1000×</span></div><div class="muted" style="font-size:24px;margin-top:8px">Priced at Hyperliquid’s mid</div></div>
+      </div>
+      <div style="margin-top:28px">
+        <div class="row" id="r1"><div class="k">When</div><div><div class="v tnum" id="whenV"></div><div class="s">Checked on every price update</div></div></div>
+        <div class="row" id="r2"><div class="k">Size</div><div><div class="v tnum">$20 margin</div><div class="s tnum">A $20,000 position</div></div></div>
+        <div class="row" id="r3"><div class="k">Exit</div><div><div class="v">Take profit +100% · stop −30%</div><div class="s tnum" id="exitS"></div></div></div>
+        <div class="row" id="r4"><div class="k">Bust</div><div><div class="v tnum" id="bustV"></div><div class="s">Where Papertrade closes it and keeps the margin</div></div></div>
+      </div>
+    </div>
+    <div class="card" id="panel" style="left:1150px;top:300px;width:550px;padding:40px 42px">
+      <div style="font-size:32px;font-weight:600;letter-spacing:-0.02em">Run this strategy</div>
+      <div class="seg" style="margin-top:24px"><div id="sgT">Trade</div><div id="sgP">Practice</div><div id="sgA">Alerts</div></div>
+      <div class="muted" style="font-size:23px;line-height:1.45;margin-top:24px">A real trade on Papertrade, from your own wallet. Weft tops up your Papertrade account from Hyperliquid.</div>
+      <div class="btn" id="startBtn" style="margin-top:30px">Start with $20</div>
+    </div>
+    <svg id="cursor1" width="46" height="46" viewBox="0 0 24 24" style="position:absolute;left:0;top:0;opacity:0;filter:drop-shadow(0 4px 10px rgba(0,0,0,0.5))"><path d="M4 2l15 9-7 1.5L8.5 20z" fill="#f4f3ef" stroke="#0c0c0d" stroke-width="1.5" stroke-linejoin="round"/></svg>
+  </div>
+
+  <!-- one click -->
+  <div class="scene" id="s-steps">
+    <div class="card" style="left:510px;top:250px;width:900px;padding:42px 52px 22px">
+      <div class="label" style="margin-bottom:12px">Starting</div>
+      <div id="steps"></div>
+    </div>
+  </div>
+
+  <!-- the trade, on real BTC prices -->
+  <div class="scene" id="s-run">
+    <div class="card" style="left:150px;top:190px;width:1620px;height:840px;padding:34px 46px">
+      <div style="display:flex;justify-content:space-between;align-items:flex-start">
+        <div style="display:flex;align-items:center;gap:20px">
+          <img src="../../apps/web/public/coins/BTC.svg" width="56" height="56" style="border-radius:50%">
+          <div><div style="font-size:40px;font-weight:600;letter-spacing:-0.025em;line-height:1">Long BTC 1000× <span class="faint" style="font-weight:500">· Papertrade</span></div><div class="muted tnum" style="font-size:22px;margin-top:9px" id="runSub"></div></div>
+        </div>
+        <div style="display:flex;gap:56px;text-align:right">
+          <div><div class="label" style="font-size:16px">Status</div><div id="stVal" class="tnum" style="font-size:38px;font-weight:600;letter-spacing:-0.025em;line-height:1.25;margin-top:4px"></div></div>
+          <div><div class="label" style="font-size:16px">On $20</div><div id="pnlVal" class="tnum" style="font-size:38px;font-weight:600;letter-spacing:-0.025em;line-height:1.25;margin-top:4px;min-width:190px"></div></div>
+        </div>
+      </div>
+      <div style="position:relative;margin-top:24px;border:1px solid rgba(255,255,255,0.08);border-radius:16px;background:#141416;height:610px;box-sizing:border-box">
+        <svg id="chart" width="1100" height="610" style="position:absolute;left:0;top:0"></svg>
+        <div id="side" style="position:absolute;left:1140px;top:34px;width:360px">
+          <div class="label" style="font-size:15px">BTC, live</div>
+          <div id="pxBig" class="tnum" style="font-size:56px;font-weight:600;letter-spacing:-0.035em;margin-top:10px;line-height:1"></div>
+          <div id="pxDist" class="tnum muted" style="font-size:21px;margin-top:10px;height:26px"></div>
+          <div style="margin-top:26px" id="lvls"></div>
+        </div>
+        <div id="toast" style="position:absolute;left:1140px;top:34px;width:360px;opacity:0">
+          <div class="label" style="font-size:16px;color:#3ecf8e">Target hit · closed</div>
+          <div id="toastBig" class="tnum" style="font-size:76px;font-weight:600;letter-spacing:-0.04em;margin-top:16px;line-height:1"></div>
+          <div class="muted" style="font-size:23px;margin-top:10px">paid out on $20</div>
+          <div id="toastText" class="tnum" style="font-size:20px;margin-top:24px;padding-top:20px;border-top:1px solid #26262a;line-height:1.55;color:#8f8e88"></div>
+        </div>
+      </div>
+      <div class="faint tnum" id="runFoot" style="margin-top:14px;font-size:17px"></div>
+    </div>
+  </div>
+
+  <!-- why it works at 1000x -->
+  <div class="scene" id="s-facts">
+    <div id="facts"></div>
+  </div>
+
+  <!-- end -->
+  <div class="scene" id="s-end">
+    <svg width="1920" height="1080" style="position:absolute;inset:0">
+      <g id="threads" fill="none" stroke-linecap="round"></g>
+      <circle id="knotRing" cx="960" cy="300" r="0" fill="none" stroke="#881e20" stroke-width="2"/>
+      <circle id="knot" cx="960" cy="300" r="0" fill="#15120a"/>
+    </svg>
+    <div class="center serif" id="tagline" style="top:640px;font-size:60px;color:#5f584a"></div>
+    <div class="center" id="endUrl" style="top:770px;font-size:44px;font-weight:600;letter-spacing:-0.015em;color:#15120a"></div>
+  </div>
+
+  <div id="flash" style="position:absolute;inset:0;opacity:0;background:#f4f3ef;pointer-events:none"></div>
+  <div id="vig" style="position:absolute;inset:0;background:radial-gradient(ellipse 78% 78% at 50% 50%,transparent 58%,rgba(0,0,0,0.42) 100%)"></div>
+  <div id="grain" style="position:absolute;inset:0;background-size:256px 256px"></div>
+</div>
+
+<script src="data.js"></script>
+<script>
+/* ================= helpers ================= */
+const $ = (id) => document.getElementById(id);
+const clamp = (x, a = 0, b = 1) => Math.min(b, Math.max(a, x));
+const seg = (t, a, b) => clamp((t - a) / (b - a));
+const eo = (x) => 1 - Math.pow(1 - x, 3);
+const eio = (x) => (x < 0.5 ? 4 * x * x * x : 1 - Math.pow(-2 * x + 2, 3) / 2);
+const eox = (x) => (x >= 1 ? 1 : 1 - Math.pow(2, -10 * x));
+const eix = (x) => (x <= 0 ? 0 : Math.pow(2, 10 * x - 10));
+const back = (x) => 1 + 2.2 * Math.pow(x - 1, 3) + 1.2 * Math.pow(x - 1, 2);
+const lerp = (a, b, x) => a + (b - a) * x;
+const NS = "http://www.w3.org/2000/svg";
+const el = (tag, attrs = {}, parent) => { const e = document.createElementNS(NS, tag); for (const k in attrs) e.setAttribute(k, attrs[k]); if (parent) parent.appendChild(e); return e; };
+const div = (html, style = "", parent) => { const d = document.createElement("div"); d.innerHTML = html; d.style.cssText = style; if (parent) parent.appendChild(d); return d; };
+const C = { ink: "#f4f3ef", muted: "#a3a29d", faint: "#6f6e6a", amber: "#f5a524", pink: "#f472b6", sky: "#38bdf8", blue: "#7c8cff", violet: "#a78bfa", green: "#3ecf8e", red: "#f26a57", paper: "#f3ebd6", pInk: "#15120a", pRed: "#881e20", pDot: "#9d9479" };
+const hash = (a, b) => { let h = (a * 374761393 + b * 668265263) >>> 0; h = Math.imul(h ^ (h >>> 13), 1274126177) >>> 0; return ((h ^ (h >>> 16)) >>> 0) / 4294967296 * 2 - 1; };
+const srnd = (s) => () => ((s = (Math.imul(s, 1103515245) + 12345) >>> 0) / 4294967296);
+const usd = (n, d = 2) => `$${n.toLocaleString("en-US", { minimumFractionDigits: d, maximumFractionDigits: d })}`;
+const px0 = (n) => `$${Math.round(n).toLocaleString("en-US")}`;
+
+// "Goldn": 146 BPM, first beat 0.03 s. Bass comes in on bar 4, the full beat on bar 8.
+const BAR = 240 / 146, BEAT = BAR / 4, B0 = 0.03;
+const b = (n) => B0 + n * BAR;
+const DURATION = b(19.75);
+
+function put(id, { o = 1, x = 0, y = 0, s = 1, ox = 960, oy = 540, blur = 0 } = {}) {
+  const e = typeof id === "string" ? $(id) : id;
+  if (o <= 0.002) { e.style.opacity = 0; e.style.visibility = "hidden"; return false; }
+  e.style.opacity = o; e.style.visibility = "visible";
+  e.style.transformOrigin = `${ox}px ${oy}px`;
+  e.style.transform = `translate(${x.toFixed(2)}px, ${y.toFixed(2)}px) scale(${s.toFixed(5)})`;
+  e.style.filter = blur > 0.4 ? `blur(${blur.toFixed(1)}px)` : "none";
+  return true;
+}
+function window_(id, t, a, z, { inD = 0.5, outD = 0.4, dy = 60 } = {}) {
+  if (t < a - 0.01 || t > z + outD) return put(id, { o: 0 });
+  const i = eo(seg(t, a, a + inD)), o = eix(seg(t, z, z + outD));
+  return put(id, { o: i * (1 - o), y: (1 - i) * dy - o * dy, blur: (1 - i) * 10 + o * 12 });
+}
+function maskWords(target, text) { target.innerHTML = text.split(" ").map((w) => `<span class="m"><span>${w}</span></span>`).join(" "); return [...target.querySelectorAll(".m > span")]; }
+function maskChars(target, text) { target.innerHTML = [...text].map((w) => `<span class="m"><span>${w}</span></span>`).join(""); return [...target.querySelectorAll(".m > span")]; }
+function reveal(ws, t, t0, st = 0.05, d = 0.8, out = null) {
+  ws.forEach((w, i) => {
+    let y = (1 - eox(seg(t, t0 + i * st, t0 + i * st + d))) * 140;
+    if (out != null) y -= eix(seg(t, out + i * st * 0.6, out + i * st * 0.6 + 0.45)) * 140;
+    w.style.transform = `translateY(${y.toFixed(2)}%)`;
+  });
+}
+function captions(target, list, end) {
+  const rows = list.map(([t, text, z]) => { const d = div("", "position:absolute;left:0;right:0;text-align:center", target); return { t, z, ws: maskWords(d, text) }; });
+  return (t) => rows.forEach((r, i) => reveal(r.ws, t, r.t, 0.04, 0.8, r.z ?? (i < rows.length - 1 ? rows[i + 1].t - 0.35 : end)));
+}
+const press = (t, at) => 1 - 0.06 * Math.sin(Math.PI * seg(t, at, at + 0.22));
+const segPick = (ids, on) => ids.forEach((id, k) => { const e = $(id); e.style.background = k === on ? "#2c2c31" : "transparent"; e.style.color = k === on ? C.ink : "#8f8e88"; e.style.fontWeight = k === on ? 600 : 400; });
+
+const D = window.PT_DATA;
+const W1 = b(4) - 0.08, W2 = b(16.5); // paper → dark, dark → paper
+
+/* ================= the ASCII field: a day of real BTC, in Papertrade's type ================= */
+const CW = 16, CH = 26, COLS = 120, ROWS = 42, RAMP = " .:-=+x#";
+const fx = $("field").getContext("2d");
+fx.font = "500 16px Menlo, monospace"; fx.textBaseline = "top";
+const dmin = Math.min(...D.day), dmax = Math.max(...D.day);
+const ridge = (u) => { // 0..1 across, returns the ridge row (low price = low ridge)
+  const f = clamp(u) * (D.day.length - 1), i = Math.floor(f), k = f - i;
+  const v = D.day[i] + ((D.day[Math.min(i + 1, D.day.length - 1)] ?? D.day[i]) - D.day[i]) * k;
+  return 31 - ((v - dmin) / (dmax - dmin || 1)) * 24;
+};
+/** How much paper a cell shows at t: 1 on Papertrade's paper, 0 on Weft's dark. */
+function paperAt(t, col, row) {
+  const n = hash(col, row) * 0.05;
+  if (t < (W1 + W2) / 2) { const a = W1 + (col / COLS) * 0.42 + (row / ROWS) * 0.06 + n; return 1 - seg(t, a, a + 0.1); }
+  const a = W2 + ((COLS - col) / COLS) * 0.42 + ((ROWS - row) / ROWS) * 0.06 + n;
+  return seg(t, a, a + 0.1);
+}
+function drawField(t) {
+  const busyDark = t > W1 + 0.75 && t < W2 - 0.05;
+  if (busyDark) { if (fx._dark !== true) { fx.fillStyle = "#0c0c0d"; fx.fillRect(0, 0, 1920, 1080); fx._dark = true; } return 0; }
+  fx._dark = false;
+  fx.fillStyle = "#0c0c0d"; fx.fillRect(0, 0, 1920, 1080);
+  // the text in the middle stays clear: the landscape thins out around it
+  const quiet = 0.82;
+  let paper = 0;
+  for (let c = 0; c < COLS; c++) {
+    const u = c / (COLS - 1) + t * 0.012;
+    const rr = ridge(u % 1);
+    for (let r = 0; r < ROWS; r++) {
+      const p = paperAt(t, c, r);
+      paper += p;
+      const x = c * CW, y = r * CH;
+      if (p > 0.001) { fx.globalAlpha = p; fx.fillStyle = C.paper; fx.fillRect(x, y, CW, CH); }
+      let d = r < rr ? 0.42 - (rr - r) * 0.045 : 0.7 + (r - rr) * 0.06;
+      d += hash(c + Math.floor(t * 6), r) * 0.08 + 0.12 * Math.sin(c * 0.21 + r * 0.33 + t * 1.3);
+      const cx = (c - COLS / 2) / (COLS * 0.3), cy = (r - ROWS / 2 + 1) / (ROWS * 0.24);
+      d *= 1 - quiet * Math.exp(-(cx * cx + cy * cy) * 1.6);
+      const front = p > 0.08 && p < 0.92;
+      const ch = front ? "#" : RAMP[Math.max(0, Math.min(RAMP.length - 1, Math.floor(clamp(d) * RAMP.length)))];
+      if (ch === " ") continue;
+      fx.globalAlpha = front ? 1 : 1;
+      fx.fillStyle = front ? C.pRed : p > 0.5 ? C.pDot : "#1d1d20";
+      fx.fillText(ch, x + 3, y + 4);
+    }
+  }
+  fx.globalAlpha = 1;
+  return paper / (COLS * ROWS);
+}
+
+/* ================= finish ================= */
+for (let x = 24; x < 1920; x += 48) el("line", { x1: x, y1: 0, x2: x, y2: 1080, stroke: "#fff", "stroke-opacity": 0.022 }, $("grid"));
+const GRAIN = Array.from({ length: 8 }, (_, k) => {
+  const c = document.createElement("canvas"); c.width = c.height = 256;
+  const x = c.getContext("2d"), im = x.createImageData(256, 256), r = srnd(101 + k * 7919);
+  for (let i = 0; i < im.data.length; i += 4) { const v = r(); const w = v > 0.5; im.data[i] = im.data[i + 1] = im.data[i + 2] = w ? 255 : 0; im.data[i + 3] = Math.abs(v - 0.5) * 2 * (w ? 11 : 22); }
+  x.putImageData(im, 0, 0); return `url(${c.toDataURL()})`;
+});
+
+/* ---------- 1. the lockup: papertrade_ types itself, weft joins it (b0 – b2.5) ---------- */
+const PT = "papertrade";
+$("ptText").innerHTML = [...PT].map((ch) => `<span>${ch}</span>`).join("");
+const ptChars = [...$("ptText").children];
+const wW = maskChars($("lkWeftW"), "weft");
+const markPaths = [...$("lkMark").querySelectorAll("path")], markLen = markPaths.map((p) => p.getTotalLength());
+let LK = null;
+function lockGeo() {
+  const pt = $("lkPt").getBoundingClientRect();
+  return { dx: 960 - (pt.left + pt.width / 2), ends: ptChars.map((c) => c.offsetLeft + c.offsetWidth), w: pt.width };
+}
+const cursorOn = (t, typing) => typing || Math.floor((t - B0) / BEAT) % 2 === 0;
+function drawLockup(t) {
+  LK ??= lockGeo();
+  const inEnd = t >= W2 + 0.3;
+  if (!inEnd && t > W1 + 0.5) return put("lockup", { o: 0 });
+  let n, slide, wIn, y = 0, s = 1;
+  if (!inEnd) {
+    n = Math.round(PT.length * seg(t, 0.3, 1.25));
+    slide = eio(seg(t, b(1.5), b(1.5) + 0.75));
+    wIn = seg(t, b(1.5) + 0.15, b(1.5) + 1.0);
+    // up to the top as a header for the 1000× line
+    const up = eio(seg(t, b(2.5) - 0.1, b(2.5) + 0.55));
+    y = -360 * up; s = 1 - 0.6 * up;
+  } else {
+    const l = t - (W2 + 0.3);
+    n = PT.length; slide = 1; wIn = seg(l, 0.9, 1.6);
+    y = -50; s = 0.86;
+  }
+  ptChars.forEach((c, i) => (c.style.opacity = i < n ? 1 : 0));
+  const typing = n < PT.length && t > 0.25;
+  $("ptCur").style.left = `${n ? LK.ends[n - 1] + 6 : 0}px`;
+  $("ptCur").style.opacity = cursorOn(t, typing) ? 1 : 0;
+  $("lkPt").style.transform = `translateX(${(LK.dx * (1 - slide)).toFixed(2)}px)`;
+  $("lkWeft").style.opacity = wIn > 0 ? 1 : 0;
+  markPaths.forEach((p, i) => { const k = eio(seg(wIn, i * 0.08, 0.55 + i * 0.08)); p.style.strokeDasharray = markLen[i]; p.style.strokeDashoffset = markLen[i] * (1 - k); });
+  $("lkMark").querySelector("circle").setAttribute("r", 5.6 * back(seg(wIn, 0.45, 0.8)) * (wIn > 0.45 ? 1 : 0));
+  reveal(wW, wIn, 0.15, 0.06, 0.6);
+  $("lkX").style.opacity = eo(seg(wIn, 0.35, 0.8));
+  $("lkX").style.transform = `scale(${0.6 + 0.4 * back(seg(wIn, 0.35, 0.8))})`;
+  // the wave to dark wipes it from the left
+  const front = (t - W1) / 0.42 * 1920;
+  $("lockup").style.clipPath = !inEnd && t > W1 ? `inset(0 0 0 ${Math.max(0, front)}px)` : "none";
+  return put("lockup", { o: inEnd ? eo(seg(t - (W2 + 0.3), 0.85, 1.1)) : 1, y, s, ox: 960, oy: 75 });
+}
+
+/* ---------- 2. BTC and ETH, up to 1000× (b2.5 – b4) ---------- */
+const BG1 = maskWords($("big1"), "BTC and ETH.");
+const BG2 = maskWords($("big2"), "Up to ");
+const SUB = maskWords($("bigSub"), "Now on Weft. Say the trade, Weft runs it.");
+const STEPS_N = [1, 2, 5, 10, 25, 50, 100, 250, 500, 1000];
+function drawBig(t) {
+  if (t < b(2.5) || t > W1 + 0.5) return put("s-big", { o: 0 });
+  put("s-big", {});
+  reveal(BG1, t, b(2.5) + 0.2, 0.07, 0.8);
+  reveal(BG2, t, b(3), 0.07, 0.8);
+  const k = Math.floor(seg(t, b(3) + 0.15, b(3.75)) * (STEPS_N.length - 1) + 0.0001);
+  $("bigN").textContent = t < b(3) + 0.1 ? "" : `${STEPS_N[k]}×`;
+  $("bigN").style.color = k === STEPS_N.length - 1 ? C.pRed : C.pInk;
+  $("bigCur").style.opacity = t > b(3) && cursorOn(t, k < STEPS_N.length - 1) ? 1 : 0;
+  reveal(SUB, t, b(3.5), 0.04, 0.7);
+  const front = (t - W1) / 0.42 * 1920;
+  $("s-big").style.clipPath = t > W1 ? `inset(0 0 0 ${Math.max(0, front)}px)` : "none";
+}
+
+/* ---------- 3. describe it (b4 – b6) ---------- */
+const PROMPT = `Long BTC 1000× on Papertrade when it breaks ${px0(D.level)}. $20 margin. Take profit at +100%, stop at −30%.`;
+const T = { a: b(4) + 0.25, type0: b(4) + 0.6, type1: b(5) + 1.05, send: b(5) + 1.3, z: b(6) - 0.3 };
+function drawPrompt(t) {
+  if (!window_("s-prompt", t, T.a, T.z)) return;
+  const n = Math.round(PROMPT.length * seg(t, T.type0, T.type1));
+  const caret = n < PROMPT.length || Math.floor(t * 2.4) % 2 === 0 ? `<span style="display:inline-block;width:3px;height:0.95em;background:${C.ink};vertical-align:-0.12em;margin-left:2px"></span>` : "";
+  $("promptText").innerHTML = PROMPT.slice(0, n) + caret;
+  $("sendBtn").style.transform = `scale(${press(t, T.send)})`;
+}
+
+/* ---------- 4. the plan + start it (b6 – b8, Start on the beat) ---------- */
+const K = { a: b(6), pick: b(7) - 0.1, start: b(8) - 0.12, z: b(8) + 0.06 };
+$("whenV").textContent = `BTC breaks ${px0(D.level)}`;
+$("exitS").textContent = `About ${px0(D.tp)} and ${px0(D.sl)}, if it gets in at ${px0(D.level)}`;
+$("bustV").textContent = `About ${px0(D.bust)}, 0.05% under the entry`;
+function drawTicket(t) {
+  if (!window_("s-ticket", t, K.a, K.z, { outD: 0.3 })) return;
+  ["r1", "r2", "r3", "r4"].forEach((id, i) => { const k = eo(seg(t, K.a + 0.25 + i * 0.12, K.a + 0.85 + i * 0.12)); $(id).style.opacity = k; $(id).style.transform = `translateY(${(1 - k) * 24}px)`; });
+  const pk = eo(seg(t, K.a + 0.55, K.a + 1.1));
+  $("panel").style.opacity = pk; $("panel").style.transform = `translateX(${(1 - pk) * 60}px)`;
+  segPick(["sgT", "sgP", "sgA"], 0);
+  $("startBtn").style.transform = `scale(${press(t, K.start)})`;
+  const k = eio(seg(t, K.pick, K.start));
+  $("cursor1").style.opacity = t < K.pick - 0.2 ? 0 : 1;
+  $("cursor1").style.transform = `translate(${lerp(1680, 1440, k)}px, ${lerp(940, 690, k)}px) scale(${press(t, K.start)})`;
+}
+
+/* ---------- 5. one click: Weft does the rest (b8 – b9.5) ---------- */
+const STEPS = [
+  [`Moving ${usd(D.deposit)} from your Hyperliquid account`, "Weft’s 1% included"],
+  ["Arrived on Papertrade", "Ready to trade"],
+  ["Papertrade connected", "Signed in the background, no pop-ups"],
+  ["Watching BTC", "Every price update from Hyperliquid"],
+];
+const stepEls = STEPS.map(([a, s]) => div(`<div class="ic" style="width:34px;height:34px;border-radius:50%;border:2px solid #3a3a40;display:grid;place-items:center"></div><div><div class="t">${a}</div><div class="s">${s}</div></div>`, "", $("steps")));
+stepEls.forEach((e) => (e.className = "step"));
+const S5 = { a: b(8) + 0.05, z: b(9.5) - 0.3 };
+const CHECK = `<svg width="18" height="18" viewBox="0 0 24 24"><path d="M5 12.5l4.5 4.5L19 7.5" fill="none" stroke="#0c0c0d" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
+function drawSteps(t) {
+  if (!window_("s-steps", t, S5.a, S5.z, { inD: 0.3 })) return;
+  stepEls.forEach((e, i) => {
+    const at = S5.a + 0.2 + i * BEAT;
+    const k = eo(seg(t, at - 0.15, at + 0.2));
+    e.style.opacity = 0.25 + 0.75 * k;
+    e.style.transform = `translateY(${(1 - k) * 14}px)`;
+    const done = t >= at + BEAT * 0.8 || (i === 3 && t >= at + 0.1);
+    const ic = e.querySelector(".ic");
+    ic.style.background = done ? C.green : "transparent";
+    ic.style.borderColor = done ? C.green : t >= at ? C.ink : "#3a3a40";
+    ic.innerHTML = done ? CHECK : "";
+    ic.style.transform = `scale(${done ? back(seg(t, at + BEAT * 0.8, at + BEAT * 0.8 + 0.25)) : 1})`;
+  });
+}
+
+/* ---------- 6. the trade, on real BTC 1-minute prices (b9.5 – b14.5) ---------- */
+const CS = D.candles, EI = D.entryIdx, XI = D.exitIdx;
+const R = { a: b(9.5), e0: b(10), e1: b(11), x: b(13), z: b(14.5) - 0.3 };
+const lows = CS.slice(0, XI + 1).map((k) => k.l), highs = CS.slice(0, XI + 1).map((k) => k.h);
+const YLO = Math.min(...lows, D.bust) - 12, YHI = Math.max(...highs, D.tp) + 12;
+const CX0 = 70, CX1 = 1040, CY0 = 40, CY1 = 570;
+const yOf = (p) => CY1 - ((p - YLO) / (YHI - YLO)) * (CY1 - CY0);
+const xOf = (i) => CX0 + ((i + 0.5) / (CS.length)) * (CX1 - CX0);
+const chart = $("chart");
+// price grid
+for (let p = Math.ceil(YLO / 25) * 25; p <= YHI; p += 25) {
+  el("line", { x1: CX0 - 20, x2: CX1 + 10, y1: yOf(p), y2: yOf(p), stroke: "#fff", "stroke-opacity": 0.045 }, chart);
+  const tx = el("text", { x: CX0 - 30, y: yOf(p) + 6, fill: "#5d5d63", "font-size": 15, "text-anchor": "end", "font-family": "Inst" }, chart); tx.textContent = Math.round(p).toLocaleString("en-US");
+}
+const LINES = {};
+const lineDef = [["trig", D.level, "#f4f3ef", `Breaks ${px0(D.level)}`, "6 7"], ["tp", D.tp, C.green, "Take profit +100%"], ["sl", D.sl, C.amber, "Stop −30%"], ["bust", D.bust, C.red, "Bust"]];
+lineDef.forEach(([k, p, col, txt, dash]) => {
+  const g = el("g", { opacity: 0 }, chart);
+  el("line", { x1: CX0 - 20, x2: CX1 + 10, y1: yOf(p), y2: yOf(p), stroke: col, "stroke-width": 1.6, "stroke-dasharray": dash ?? "none", "stroke-opacity": 0.85 }, g);
+  const tx = el("text", { x: CX1 + 4, y: yOf(p) - 9, fill: col, "font-size": 16, "text-anchor": "end", "font-family": "Inst", "font-weight": 600 }, g); tx.textContent = txt;
+  LINES[k] = g;
+});
+const candleEls = CS.map(() => { const g = el("g", {}, chart); return { g, wick: el("line", { "stroke-width": 2 }, g), body: el("rect", { rx: 2 }, g) }; });
+const liveLine = el("line", { x1: CX0 - 20, x2: CX1 + 10, stroke: "#f4f3ef", "stroke-width": 1, "stroke-dasharray": "2 4", opacity: 0 }, chart);
+const entryDot = el("circle", { r: 0, fill: C.pink, filter: "url(#glow)" }, chart);
+const entryTag = el("text", { fill: C.pink, "font-size": 17, "font-weight": 600, "font-family": "Inst", opacity: 0 }, chart);
+const exitDot = el("circle", { r: 0, fill: C.green, filter: "url(#glow)" }, chart);
+const exitRing = el("circle", { r: 0, fill: "none", stroke: C.green, "stroke-width": 2, opacity: 0 }, chart);
+/** A candle's price at fraction f of its minute: open → low → high → close when it closed up (open → high → low → close when down). */
+function pathAt(k, f) {
+  const pts = k.c >= k.o ? [k.o, k.l, k.h, k.c] : [k.o, k.h, k.l, k.c];
+  const s = clamp(f) * 3, i = Math.min(2, Math.floor(s));
+  return lerp(pts[i], pts[i + 1], s - i);
+}
+// where the entry candle crosses the level, and the exit candle reaches the target
+function crossF(k, lvl, up = true) { for (let s = 0; s <= 1; s += 0.002) { const p = pathAt(k, s); if (up ? p >= lvl : p <= lvl) return s; } return 1; }
+const FE = crossF(CS[EI], D.level), FX = crossF(CS[XI], D.tp);
+/** Film time → (candle index, fraction). The entry candle plays over e0–e1, the rest up to the exit over e1–x. */
+function clock(t) {
+  if (t < R.e0) return { i: EI, f: 0 };
+  if (t < R.e1) return { i: EI, f: seg(t, R.e0, R.e1) };
+  const span = XI - EI - 1 + FX, k = seg(t, R.e1, R.x) * span;
+  const i = EI + 1 + Math.floor(k);
+  return i > XI || k >= span ? { i: XI, f: FX } : { i, f: k - Math.floor(k) };
+}
+const entryT = R.e0 + FE * (R.e1 - R.e0);
+const utc = (ms) => new Date(ms).toISOString().slice(11, 16);
+const LV = [["Take profit", D.tp, C.green], ["Entry", D.level, C.pink], ["Stop", D.sl, C.amber], ["Bust", D.bust, C.red]];
+const lvlEls = LV.map(([k, p, col]) => div(`<span style="color:#8f8e88"><span style="display:inline-block;width:10px;height:10px;border-radius:50%;background:${col};margin-right:12px;vertical-align:1px"></span>${k}</span><span class="tnum">${usd(p)}</span>`, "", $("lvls")));
+lvlEls.forEach((e) => (e.className = "lvl"));
+$("runSub").textContent = `Real BTC prices from Hyperliquid · ${new Date(CS[EI].t).toUTCString().slice(5, 16)}`;
+$("runFoot").textContent = `Hyperliquid BTC 1-minute candles, ${utc(CS[0].t)}–${utc(CS[XI].t + 6e4)} UTC, sped up. The +100% target is a 0.1% move at 1000×.`;
+$("toastBig").textContent = `+${usd(D.payout)}`;
+$("toastText").innerHTML = `<span style="color:${C.green}">+100% on the trade: +${usd(D.raw)}</span><br>After Papertrade’s share of the win: +${usd(D.payout)}<br>In at ${usd(D.level)}, out at ${usd(D.tp)}<br>${XI - EI} minutes · ${utc(CS[EI].t)}–${utc(CS[XI].t)} UTC`;
+function drawRun(t) {
+  if (!window_("s-run", t, R.a, R.z, { inD: 0.4 })) return;
+  const { i: ci, f } = clock(t);
+  const inPos = t >= entryT, closed = t >= R.x;
+  let p = pathAt(CS[ci], f);
+  if (closed) p = D.tp;
+  CS.forEach((k, i) => {
+    const e = candleEls[i];
+    if (i > ci || i > XI) { e.g.setAttribute("opacity", 0); return; }
+    let o = k.o, h = k.h, l = k.l, c = k.c;
+    if (i === ci) { // the forming candle
+      const ps = [o]; for (let s = 0; s <= f + 1e-9; s += 0.02) ps.push(pathAt(k, s)); ps.push(p);
+      h = Math.max(...ps); l = Math.min(...ps); c = p;
+    }
+    const up = c >= o, col = up ? "#2fc58c" : "#f26a57", x = xOf(i), w = 26;
+    e.g.setAttribute("opacity", i < EI ? 0.55 : 1);
+    e.wick.setAttribute("x1", x); e.wick.setAttribute("x2", x); e.wick.setAttribute("y1", yOf(h)); e.wick.setAttribute("y2", yOf(l)); e.wick.setAttribute("stroke", col);
+    const yt = yOf(Math.max(o, c)), yb = yOf(Math.min(o, c));
+    e.body.setAttribute("x", x - w / 2); e.body.setAttribute("width", w); e.body.setAttribute("y", yt); e.body.setAttribute("height", Math.max(2, yb - yt)); e.body.setAttribute("fill", col);
+  });
+  // levels: the trigger first, then the trade's lines once it's in
+  LINES.trig.setAttribute("opacity", inPos ? 0.25 : eo(seg(t, R.a + 0.3, R.a + 0.8)));
+  ["tp", "sl", "bust"].forEach((k, j) => LINES[k].setAttribute("opacity", eo(seg(t, entryT + 0.05 + j * 0.08, entryT + 0.45 + j * 0.08)) * (closed ? 0.45 : 1)));
+  liveLine.setAttribute("y1", yOf(p)); liveLine.setAttribute("y2", yOf(p)); liveLine.setAttribute("opacity", closed ? 0 : 0.6);
+  const ek = seg(t, entryT, entryT + 0.35);
+  entryDot.setAttribute("cx", xOf(EI)); entryDot.setAttribute("cy", yOf(D.level)); entryDot.setAttribute("r", inPos ? 7 * back(ek) : 0);
+  entryTag.setAttribute("x", xOf(EI) - 14); entryTag.setAttribute("y", yOf(D.level) + 32); entryTag.setAttribute("text-anchor", "end"); entryTag.setAttribute("opacity", eo(ek)); entryTag.textContent = "In · long 1000×";
+  const xk = seg(t, R.x, R.x + 0.35);
+  exitDot.setAttribute("cx", xOf(XI)); exitDot.setAttribute("cy", yOf(D.tp)); exitDot.setAttribute("r", closed ? 8 * back(xk) : 0);
+  const rk = seg(t, R.x, R.x + 1.0); exitRing.setAttribute("cx", xOf(XI)); exitRing.setAttribute("cy", yOf(D.tp)); exitRing.setAttribute("r", 8 + 70 * eox(rk)); exitRing.setAttribute("opacity", closed ? (1 - rk) * 0.9 : 0);
+  // header + side
+  const pct = inPos ? ((p - D.level) / D.level) * D.lev * 100 : 0;
+  let st, col;
+  if (!inPos) { st = `Waiting for ${px0(D.level)}`; col = C.muted; }
+  else if (closed) { st = "Closed · target hit"; col = C.green; }
+  else { st = "In · long 1000×"; col = C.pink; }
+  $("stVal").textContent = st; $("stVal").style.color = col;
+  $("pnlVal").textContent = !inPos ? "—" : closed ? `+${usd(D.payout)}` : `${pct >= 0 ? "+" : "−"}${Math.abs(pct).toFixed(0)}%`;
+  $("pnlVal").style.color = !inPos ? C.muted : pct >= 0 || closed ? C.green : C.amber;
+  $("pxBig").textContent = usd(p);
+  $("pxDist").innerHTML = !inPos ? `${usd(D.level - p)} below the break` : closed ? "" : `<span style="color:${C.green}">${usd(D.tp - p)} to target</span> · <span style="color:${C.amber}">${usd(p - D.sl)} to stop</span>`;
+  lvlEls.forEach((e, j) => (e.style.opacity = j === 1 ? (inPos ? 1 : 0.35) : inPos ? 1 : 0.35));
+  const tk = seg(t, R.x + 0.35, R.x + 0.8);
+  $("side").style.opacity = 1 - tk;
+  $("toast").style.opacity = tk > 0 ? Math.min(1, tk * 3) : 0;
+  $("toast").style.transform = `translateY(${(1 - eo(tk)) * 30}px)`;
+}
+
+/* ---------- 7. built for 1000× (b14.5 – b16.5) ---------- */
+const FACTS = [
+  ["Priced at Hyperliquid’s mid", "No spread. No funding while you hold.", C.sky],
+  ["Every price update, checked", "Stops and targets don’t wait for the next tick.", C.pink],
+  ["Practice first", "The same strategy, with no money on the line.", C.violet],
+];
+const factEls = FACTS.map(([a, s, col], i) => div(`<div style="width:44px;height:4px;border-radius:2px;background:${col}"></div><div style="font-size:38px;font-weight:600;letter-spacing:-0.025em;line-height:1.15;margin-top:30px">${a}</div><div class="muted" style="font-size:25px;line-height:1.4;margin-top:16px">${s}</div>`, `left:${170 + i * 540}px;top:380px`, $("facts")));
+factEls.forEach((e) => e.classList.add("fact"));
+const F7 = { a: b(14.5), z: b(16.5) - 0.25 };
+function drawFacts(t) {
+  if (!window_("s-facts", t, F7.a, F7.z, { inD: 0.2, outD: 0.3 })) return;
+  factEls.forEach((e, i) => { const k = eox(seg(t, F7.a + i * BEAT, F7.a + 0.8 + i * BEAT)); e.style.opacity = k; e.style.transform = `translateY(${(1 - k) * 80}px)`; e.style.filter = k < 0.98 ? `blur(${((1 - k) * 10).toFixed(1)}px)` : "none"; });
+}
+
+/* ---------- captions ---------- */
+const caps = captions($("caps"), [
+  [b(6) + 0.1, "Weft reads it back as a plan.", b(8) - 0.3],
+  [b(8) + 0.15, "One click. Weft moves the money and connects.", b(9.5) - 0.35],
+  [b(9.5) + 0.15, `Waiting for BTC to break ${px0(D.level)}.`],
+  [entryT + 0.05, "In on the break. Long 1000×."],
+  [b(11.6), "Every price update, checked."],
+  [R.x + 0.05, "+100%. Closed on the update that hit it.", b(14.5) - 0.35],
+  [b(14.5) + 0.1, "Built for 1000×.", b(16.5) - 0.35],
+], b(16.5));
+
+/* ---------- 8. end: back on Papertrade’s paper, the threads tie on (b16.5 – end) ---------- */
+const END = W2 + 0.3;
+const KN = { x: 960, y: 300 };
+const THREAD_C = ["#d8901f", "#d64d86", "#2f8fc2", "#5563d8", "#7d5fd6", C.pRed];
+const threadEls = [
+  `M -40 160 C 400 110 640 ${KN.y} ${KN.x} ${KN.y}`, `M -40 230 C 420 180 660 ${KN.y} ${KN.x} ${KN.y}`, `M -40 ${KN.y} L ${KN.x} ${KN.y}`,
+  `M -40 370 C 420 320 660 ${KN.y} ${KN.x} ${KN.y}`, `M -40 440 C 400 390 640 ${KN.y} ${KN.x} ${KN.y}`, `M ${KN.x} ${KN.y} L 1980 ${KN.y}`,
+].map((d, i) => el("path", { d, stroke: THREAD_C[i], "stroke-width": i === 5 ? 5 : 3.5, opacity: 0.95 }, $("threads")));
+const threadLen = threadEls.map((p) => p.getTotalLength());
+const tag = maskWords($("tagline"), "BTC and ETH, up to 1000×. Live on Weft.");
+const url = maskWords($("endUrl"), "weft.fi");
+function drawEnd(t) {
+  if (t < END - 0.05) return put("s-end", { o: 0 });
+  const l = t - END;
+  put("s-end", {});
+  threadEls.forEach((p, i) => {
+    const start = i < 5 ? 0.05 + i * 0.07 : 0.95;
+    const pr = eio(seg(l, start, start + 0.9));
+    p.style.strokeDasharray = threadLen[i]; p.style.strokeDashoffset = threadLen[i] * (1 - pr);
+  });
+  const k = seg(l, 0.9, 1.3);
+  $("knot").setAttribute("r", Math.max(0, 18 * back(k) * (k > 0 ? 1 : 0)));
+  const ring = seg(l, 0.95, 2.0); $("knotRing").setAttribute("r", 18 + 110 * eox(ring)); $("knotRing").setAttribute("opacity", ring > 0 ? (1 - ring) * 0.8 : 0);
+  reveal(tag, l, 1.75, 0.05, 0.9);
+  reveal(url, l, 2.3, 0.06, 0.9);
+}
+
+async function renderAt(t) {
+  const paper = drawField(t);
+  $("grid").style.opacity = (1 - paper).toFixed(3);
+  drawLockup(t); drawBig(t); drawPrompt(t); drawTicket(t); drawSteps(t); drawRun(t); drawFacts(t); drawEnd(t); caps(t);
+  $("caps").style.color = t > W2 ? C.pInk : C.ink;
+  const fl = t >= b(8) ? Math.exp(-(t - b(8)) * 7) * 0.12 : 0, fl2 = t >= R.x ? Math.exp(-(t - R.x) * 6) * 0.1 : 0;
+  $("flash").style.opacity = (fl + fl2).toFixed(3);
+  $("flash").style.background = t >= R.x ? C.green : C.ink;
+  const gx = 50 + 20 * Math.sin(t * 0.21), gy = 40 + 15 * Math.cos(t * 0.17);
+  $("glowBg").style.background = `radial-gradient(1100px 700px at ${gx}% ${gy}%, rgba(244,114,182,0.06), transparent 70%)`;
+  $("glowBg").style.opacity = (1 - paper).toFixed(3);
+  $("vig").style.opacity = (1 - paper * 0.6).toFixed(3);
+  const fk = Math.floor(t * 24);
+  $("grain").style.backgroundImage = GRAIN[fk % 8];
+  $("grain").style.backgroundPosition = `${(hash(fk, 1) * 128).toFixed(0)}px ${(hash(fk, 2) * 128).toFixed(0)}px`;
+}
+window.DURATION = DURATION;
+window.renderAt = renderAt;
+window.ready = document.fonts.ready.then(() => Promise.all([document.fonts.load("600 40px Inst"), document.fonts.load("400 40px Newsreader"), document.fonts.load("400 40px 'Helvetica Neue'")]));
+if (!navigator.webdriver) {
+  const q = new URLSearchParams(location.search);
+  if (q.has("t")) window.ready.then(() => renderAt(Number(q.get("t"))));
+  else { const t0 = performance.now(); const loop = async () => { await renderAt(((performance.now() - t0) / 1000) % DURATION); requestAnimationFrame(loop); }; window.ready.then(loop); }
+}
+</script>
+</body>
+</html>
