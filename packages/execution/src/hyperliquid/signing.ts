@@ -210,6 +210,21 @@ export const USD_SEND_TYPES: Eip712Field[] = [
 
 export const WITHDRAW_TYPES = USD_SEND_TYPES;
 
+export const SPOT_SEND_TYPES: Eip712Field[] = [
+  { name: "hyperliquidChain", type: "string" },
+  { name: "destination", type: "string" },
+  { name: "token", type: "string" },
+  { name: "amount", type: "string" },
+  { name: "time", type: "uint64" },
+];
+
+export const USD_CLASS_TRANSFER_TYPES: Eip712Field[] = [
+  { name: "hyperliquidChain", type: "string" },
+  { name: "amount", type: "string" },
+  { name: "toPerp", type: "bool" },
+  { name: "nonce", type: "uint64" },
+];
+
 /**
  * Python: `user_signed_payload`. The message contains only the typed fields (eth_account
  * ignores the extra `type` / `signatureChainId` keys; we drop them explicitly).

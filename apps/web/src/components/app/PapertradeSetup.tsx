@@ -19,8 +19,46 @@ export function PapertradeSetup() {
   const { signTypedData } = useSignTypedData();
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [copied, setCopied] = useState(false);
+  const [amount, setAmount] = useState("");
+  const [note, setNote] = useState<string | null>(null);
   const a = acct.data;
+  const n = Number(amount);
+
+  /** Sign a message with the account's wallet (in the background) and return v/r/s for Papertrade. */
+  const signVrs = async (td: { message: Record<string, string> } & Record<string, unknown>) => {
+    const wallet = wallets.find((w) => w.address.toLowerCase() === String(td.message.user).toLowerCase());
+    if (!wallet) throw new Error("Your Hyperliquid wallet isn’t connected in this browser.");
+    const { signature } = await signTypedData(td as never, { ...SILENT, address: wallet.address });
+    const hex = signature.slice(2);
+    const v = parseInt(hex.slice(128, 130), 16);
+    return { ...td.message, v: String(v < 27 ? v + 27 : v), r: `0x${hex.slice(0, 64)}`, s: `0x${hex.slice(64, 128)}` };
+  };
+
+  const move = async (dir: "in" | "out") => {
+    setBusy(true);
+    setError(null);
+    setNote(null);
+    try {
+      if (dir === "in") {
+        const wallet = wallets.find((w) => w.address.toLowerCase() === a?.wallet?.toLowerCase());
+        if (!wallet) throw new Error("Your Hyperliquid wallet isn’t connected in this browser.");
+        const prep = await api.papertradeDepositPrepare(n, "0xa4b1");
+        const sigs: string[] = [];
+        for (const td of prep.typedData) sigs.push((await signTypedData(td as never, { ...SILENT, address: wallet.address })).signature);
+        await api.papertradeDepositSubmit(sigs);
+        setNote(`Sent: $${prep.toPapertradeUsd.toFixed(2)} to Papertrade, $${prep.feeUsd.toFixed(2)} Weft fee. It shows up in a minute or two.`);
+      } else {
+        await api.papertradeWithdrawSubmit(await signVrs(await api.papertradeWithdrawPrepare(n)));
+        setNote("Withdrawal sent. It lands in your Hyperliquid account in a minute or two.");
+      }
+      setAmount("");
+      await acct.refresh();
+    } catch (e) {
+      setError((e as Error).message);
+    } finally {
+      setBusy(false);
+    }
+  };
 
   const connect = async () => {
     setBusy(true);
@@ -83,21 +121,28 @@ export function PapertradeSetup() {
                 <div className="text-[14.5px] font-medium text-ink">Balance</div>
                 <div className="tnum text-[15px] font-semibold text-ink">{a.availableUsd != null ? fmtUsd(a.availableUsd, 2) : "—"}</div>
               </div>
-              {a.depositAddress && (
+              {a.registered && (
                 <div className="mt-3">
-                  <div className="text-[13.5px] leading-relaxed text-muted">
-                    To add money, send USDC on Hyperliquid (spot) to your Papertrade deposit address. At least 10 USDC; the first deposit pays 1 USDC to open the account.
+                  <div className="flex flex-wrap items-center gap-2">
+                    <input
+                      inputMode="decimal"
+                      placeholder="Amount, USD"
+                      value={amount}
+                      onChange={(e) => setAmount(e.target.value.replace(/[^0-9.]/g, ""))}
+                      className="h-10 w-40 rounded-[10px] border border-line bg-paper px-3 text-[14px] text-ink outline-none focus:border-ink"
+                    />
+                    <Btn onClick={() => move("in")} disabled={busy || !(n >= 11)}>
+                      Deposit from Hyperliquid
+                    </Btn>
+                    <Btn variant="ghost" onClick={() => move("out")} disabled={busy || !(n >= 10)}>
+                      Withdraw
+                    </Btn>
                   </div>
-                  <button
-                    onClick={async () => {
-                      await navigator.clipboard.writeText(a.depositAddress!);
-                      setCopied(true);
-                      setTimeout(() => setCopied(false), 1500);
-                    }}
-                    className="mt-2 w-full truncate rounded-[10px] border border-line bg-paper-2 px-3.5 py-2.5 text-left font-mono text-[12.5px] text-ink-2 hover:text-ink"
-                  >
-                    {copied ? "Copied" : a.depositAddress}
-                  </button>
+                  <p className="mt-2 text-[12.5px] leading-relaxed text-muted">
+                    Deposits come from your Hyperliquid account. Weft keeps 1% of what you move in (less if you hold $WEFT); withdrawals are free. At least $11 in (Papertrade takes $1 on a first deposit), $10 out.
+                    {n >= 11 && ` Depositing $${n.toFixed(2)}: about $${(n * 0.99).toFixed(2)} reaches Papertrade.`}
+                  </p>
+                  {note && <p className="mt-2 text-[13px] text-ink-2">{note}</p>}
                 </div>
               )}
             </div>

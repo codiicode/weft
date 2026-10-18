@@ -466,6 +466,11 @@ export const api = {
     req<{ enabled: boolean; live?: boolean; wallet?: string | null; sessionKey?: string | null; registered?: boolean; sessionExpiresAt?: number | null; depositAddress?: string | null; availableUsd?: number | null; openPositions?: number }>("/papertrade/account"),
   papertradeRegistration: () => req<{ domain: Record<string, unknown>; types: Record<string, unknown>; primaryType: string; message: Record<string, string> }>("/papertrade/registration", { method: "POST" }),
   papertradeRegister: (signed: Record<string, unknown>) => req<{ intentId: string }>("/papertrade/register", { method: "POST", json: { signed } }),
+  papertradeDepositPrepare: (amountUsd: number, signatureChainId: string) =>
+    req<{ amountUsd: number; feeUsd: number; feeRate: number; toPapertradeUsd: number; depositAddress: string; typedData: Record<string, unknown>[] }>("/papertrade/deposit/prepare", { method: "POST", json: { amountUsd, signatureChainId } }),
+  papertradeDepositSubmit: (signatures: string[]) => req<{ ok: true; summary: string }>("/papertrade/deposit/submit", { method: "POST", json: { signatures } }),
+  papertradeWithdrawPrepare: (amountUsd: number) => req<{ domain: Record<string, unknown>; types: Record<string, unknown>; primaryType: string; message: Record<string, string> }>("/papertrade/withdraw/prepare", { method: "POST", json: { amountUsd } }),
+  papertradeWithdrawSubmit: (signed: Record<string, unknown>) => req<{ ok: true }>("/papertrade/withdraw/submit", { method: "POST", json: { signed } }),
   /** A strategy the X bot drafted for someone who tagged @weftfinance. */
   draft: (id: string) => req<{ id: string; thesis: string; strategy: Strategy }>(`/drafts/${encodeURIComponent(id)}`),
   /** A shared result's strategy, to run it yourself. */

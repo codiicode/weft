@@ -72,7 +72,18 @@ const liveRouter = live ? new LiveRouterExecutor(live, (id) => accounts.deployme
 // Papertrade (synthetic BTC/ETH perps on HyperEVM) runs in the Hyperliquid live engine: same wallet.
 // Accounts (session keys, registration, deposit address) exist whenever Privy is configured; orders
 // only go out with WEFT_PAPERTRADE_LIVE=1.
-const papertrade = process.env.PRIVY_APP_ID && process.env.PRIVY_APP_SECRET ? new PapertradeAccounts({ appId: process.env.PRIVY_APP_ID, appSecret: process.env.PRIVY_APP_SECRET, accounts }) : null;
+const papertrade =
+  process.env.PRIVY_APP_ID && process.env.PRIVY_APP_SECRET
+    ? new PapertradeAccounts({
+        appId: process.env.PRIVY_APP_ID,
+        appSecret: process.env.PRIVY_APP_SECRET,
+        accounts,
+        // Weft's 1% deposit fee lands on Weft's own Hyperliquid address (the builder's, unless set).
+        feeAddress: process.env.WEFT_PAPERTRADE_FEE_ADDRESS ?? liveCfg.builder?.address ?? null,
+        // $WEFT holders pay less, as on every other Weft fee (called later: holders is set up below).
+        feeMultiplier: async (userId) => (await holders.status(userId).catch(() => null))?.feeMultiplier ?? 1,
+      })
+    : null;
 const papertradeLive = Boolean(papertrade) && process.env.WEFT_PAPERTRADE_LIVE === "1";
 const papertradeExec = papertrade
   ? new PapertradeExecutor({

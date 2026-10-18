@@ -441,6 +441,51 @@ export function createApp(deps: AppDeps) {
     }
   });
 
+  /** Money from the user's Hyperliquid account into Papertrade, less Weft's 1% fee: steps to sign. */
+  app.post("/papertrade/deposit/prepare", async (c) => {
+    const user = await requireUser(c);
+    if (!deps.papertrade) return c.json({ error: "Papertrade isn’t set up on this server" }, 503);
+    const b = z.object({ amountUsd: z.number().positive(), signatureChainId: z.string().regex(/^0x[0-9a-fA-F]+$/) }).parse(await c.req.json());
+    try {
+      return c.json(await deps.papertrade.prepareDeposit(user.id, b.amountUsd, b.signatureChainId));
+    } catch (e) {
+      return c.json({ error: (e as Error).message }, 422);
+    }
+  });
+  app.post("/papertrade/deposit/submit", async (c) => {
+    const user = await requireUser(c);
+    if (!deps.papertrade) return c.json({ error: "Papertrade isn’t set up on this server" }, 503);
+    const { signatures } = z.object({ signatures: z.array(z.string().regex(/^0x[0-9a-fA-F]{130}$/)).min(1).max(4) }).parse(await c.req.json());
+    try {
+      const r = await deps.papertrade.submitDeposit(user.id, signatures as `0x${string}`[]);
+      console.log(`[papertrade ${user.id.slice(-6)}] deposit sent: ${r.summary}`);
+      return c.json(r);
+    } catch (e) {
+      return c.json({ error: (e as Error).message }, 422);
+    }
+  });
+  /** Money back from Papertrade to the user's Hyperliquid account: the message to sign, then the signed one. */
+  app.post("/papertrade/withdraw/prepare", async (c) => {
+    const user = await requireUser(c);
+    if (!deps.papertrade) return c.json({ error: "Papertrade isn’t set up on this server" }, 503);
+    const { amountUsd } = z.object({ amountUsd: z.number().positive() }).parse(await c.req.json());
+    try {
+      return c.json(await deps.papertrade.prepareWithdraw(user.id, amountUsd));
+    } catch (e) {
+      return c.json({ error: (e as Error).message }, 422);
+    }
+  });
+  app.post("/papertrade/withdraw/submit", async (c) => {
+    const user = await requireUser(c);
+    if (!deps.papertrade) return c.json({ error: "Papertrade isn’t set up on this server" }, 503);
+    const { signed } = z.object({ signed: z.record(z.string(), z.unknown()) }).parse(await c.req.json());
+    try {
+      return c.json(await deps.papertrade.submitWithdraw(user.id, signed));
+    } catch (e) {
+      return c.json({ error: (e as Error).message }, 422);
+    }
+  });
+
   /* ---------------- AI assistants: personal keys and the MCP endpoint ---------------- */
 
   // A key lets an assistant (Claude, ChatGPT, Cursor…) read the user's own runs over MCP. Only its

@@ -3,6 +3,8 @@ import {
   APPROVE_AGENT_TYPES,
   APPROVE_BUILDER_FEE_TYPES,
   WITHDRAW_TYPES,
+  SPOT_SEND_TYPES,
+  USD_CLASS_TRANSFER_TYPES,
   DEFAULT_SIGNATURE_CHAIN_ID,
   floatToWire,
   recoverUserSigner,
@@ -137,4 +139,37 @@ export function buildWithdraw(
     hyperliquidChain: opts.isMainnet ? "Mainnet" : "Testnet",
   };
   return build("HyperliquidTransaction:Withdraw", WITHDRAW_TYPES, signed, { ...signed }, nonce);
+}
+
+/** Python: `Exchange.spot_transfer`. Sends a spot token (e.g. "USDC:0x6d1e…") to another HyperCore address. */
+export function buildSpotSend(
+  opts: CommonOpts & { destination: Hex; token: string; amount: string }
+): UserSignRequest<Record<string, unknown> & { signatureChainId: string }> {
+  const nonce = opts.nonce ?? Date.now();
+  const signed = {
+    destination: opts.destination.toLowerCase(),
+    token: opts.token,
+    amount: opts.amount,
+    time: nonce,
+    type: "spotSend",
+    signatureChainId: opts.signatureChainId ?? DEFAULT_SIGNATURE_CHAIN_ID,
+    hyperliquidChain: opts.isMainnet ? "Mainnet" : "Testnet",
+  };
+  return build("HyperliquidTransaction:SpotSend", SPOT_SEND_TYPES, signed, { ...signed }, nonce);
+}
+
+/** Python: `Exchange.usd_class_transfer`. Moves USDC between the perp and spot balances. */
+export function buildUsdClassTransfer(
+  opts: CommonOpts & { amount: string; toPerp: boolean }
+): UserSignRequest<Record<string, unknown> & { signatureChainId: string }> {
+  const nonce = opts.nonce ?? Date.now();
+  const signed = {
+    amount: opts.amount,
+    toPerp: opts.toPerp,
+    nonce,
+    type: "usdClassTransfer",
+    signatureChainId: opts.signatureChainId ?? DEFAULT_SIGNATURE_CHAIN_ID,
+    hyperliquidChain: opts.isMainnet ? "Mainnet" : "Testnet",
+  };
+  return build("HyperliquidTransaction:UsdClassTransfer", USD_CLASS_TRANSFER_TYPES, signed, { ...signed }, nonce);
 }
