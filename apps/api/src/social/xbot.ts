@@ -97,6 +97,35 @@ export function looksLikeIdea(idea: string): boolean {
   return /\b(long|short|buy|sell|lp|liquidity|copy|mirror|hedge|if|when|above|below|breaks?|drops?|dips?|pumps?|funding|odds|leverage|\d+x|\$[a-z]{2,10}|btc|eth|sol|stake|position|trade)\b/i.test(idea);
 }
 
+/**
+ * The plan in one line, from the strategy itself: "Long SOL 15× when SOL breaks $107. Stop at −20%."
+ * Only for the common shape (one position to open); otherwise null and the AI's rationale is used.
+ */
+export function planLine(s: Strategy): string | null {
+  const opens = s.actions.filter((a) => a.type === "open");
+  if (opens.length !== 1) return null;
+  const a = opens[0]!;
+  if (a.type !== "open") return null;
+  const i = a.instrument as { kind: string; symbol?: string };
+  if (!i.symbol || i.kind === "outcome") return null;
+  const spotLike = i.kind === "spot" || i.kind === "token";
+  const what = `${spotLike ? "Buy" : a.side === "short" ? "Short" : "Long"} ${i.symbol.replace(/^\$/, "")}${!spotLike && a.leverage > 1 ? ` ${a.leverage}×` : ""}`;
+  const label = s.triggers.find((t) => a.on?.includes(t.id))?.label?.trim();
+  // "Funding turns negative" → "when funding turns negative"; tickers ("SOL breaks…") keep their case
+  const first = label && /^[A-Z][a-z]/.test(label) ? label.charAt(0).toLowerCase() + label.slice(1) : label;
+  const when = first ? ` when ${first.replace(/[.!]+$/, "")}` : "";
+  const lv = (l: Record<string, number> | undefined, sign: string) =>
+    !l ? null : "positionPct" in l ? `${sign}${l.positionPct}%` : "pct" in l ? `${sign}${l.pct}% on the price` : "price" in l ? `$${l.price!.toLocaleString("en-US")}` : null;
+  const ex = a.exits as { takeProfit?: Record<string, number>; stopLoss?: Record<string, number>; trailingStopPct?: number };
+  const parts = [
+    lv(ex.takeProfit, "+") && `take profit at ${lv(ex.takeProfit, "+")}`,
+    lv(ex.stopLoss, "−") && `stop at ${lv(ex.stopLoss, "−")}`,
+    ex.trailingStopPct && `trailing stop ${ex.trailingStopPct}%`,
+  ].filter(Boolean) as string[];
+  const exits = parts.length ? ` ${parts.join(", ").charAt(0).toUpperCase()}${parts.join(", ").slice(1)}.` : "";
+  return `${what}${when}.${exits}`;
+}
+
 /** What the public reply says happened. Never amounts: a connected account's money is its own business. */
 export type Outcome = "draft" | "yours" | "practice" | "live";
 const TAILS: Record<Outcome, string> = {
@@ -107,11 +136,11 @@ const TAILS: Record<Outcome, string> = {
 };
 
 /** "Here's the plan …" in at most 280 characters, the link counted as X counts it (23). */
-export function replyText(name: string, rationale: string, link: string, outcome: Outcome = "draft"): string {
+export function replyText(name: string, rationale: string, link: string, outcome: Outcome = "draft", plan: string | null = null): string {
   const firstSentence = (rationale.match(/^[^.!?]+[.!?]/)?.[0] ?? rationale).trim();
   const tail = `\n\n${TAILS[outcome]}\n${link}`;
   const room = 280 - 23 - (tail.length - link.length) - 4;
-  let body = `${name}. ${firstSentence}`;
+  let body = plan ? `${name}\n${plan}` : `${name}. ${firstSentence}`;
   if (body.length > room) body = `${body.slice(0, room - 1).replace(/\s+\S*$/, "")}…`;
   return `${body}${tail}`;
 }
@@ -278,7 +307,7 @@ export class XBot {
         const id = this.d.saveDraft({ strategy: drafted.strategy, thesis: idea, tweetId: m.id, author: m.author, at: now, owner: link?.userId });
         const draftUrl = `${this.d.site}/d/${id}`;
         const outcome = link ? await this.act(link, drafted.strategy, draftUrl, day) : "draft";
-        const text = replyText(drafted.strategy.name, drafted.rationale, draftUrl, outcome);
+        const text = replyText(drafted.strategy.name, drafted.rationale, draftUrl, outcome, (() => { try { return planLine(drafted.strategy); } catch { return null; } })());
         if (this.d.mode === "dry") {
           this.d.log?.(`xbot (dry): would reply to @${m.author} ${m.id}: ${JSON.stringify(text)}`);
         } else {

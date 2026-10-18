@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { DEFAULT_X_PREFS, XBot, asksAboutParent, ideaOf, looksLikeIdea, oauthHeader, replyText, thesisFromParent, type XPrefs } from "../src/social/xbot.ts";
+import { DEFAULT_X_PREFS, XBot, asksAboutParent, planLine, ideaOf, looksLikeIdea, oauthHeader, replyText, thesisFromParent, type XPrefs } from "../src/social/xbot.ts";
 import { resultCard, resultPage, type ResultCard } from "../src/lib/share.ts";
 
 const tweet = (id: string, text: string, o: { author?: string; followers?: number; at?: number } = {}) => ({
@@ -106,6 +106,18 @@ describe("tweet a trade", () => {
     });
     return { b, kv, posted, told, started, drafts };
   }
+
+  it("says the plan itself in the reply", () => {
+    const s = {
+      name: "SOL Breakout 15×",
+      triggers: [{ id: "breakout", label: "SOL breaks $107" }],
+      actions: [{ id: "long_sol", on: ["breakout"], type: "open", instrument: { kind: "perp", venue: "hyperliquid", symbol: "SOL" }, side: "long", leverage: 15, exits: { stopLoss: { positionPct: 20 } } }],
+    } as never;
+    expect(planLine(s)).toBe("Long SOL 15× when SOL breaks $107. Stop at −20%.");
+    const t = replyText("SOL Breakout 15×", "The strategy watches SOL.", "https://weft.fi/d/x", "practice", planLine(s));
+    expect(t).toBe("SOL Breakout 15×\nLong SOL 15× when SOL breaks $107. Stop at −20%.\n\nStarted in practice on Weft. Try it yourself:\nhttps://weft.fi/d/x");
+    expect(planLine({ name: "x", triggers: [], actions: [] } as never)).toBeNull();
+  });
 
   it("turns the tweet above into a strategy when asked to", async () => {
     expect(asksAboutParent("make this a strategy")).toBe(true);
