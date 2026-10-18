@@ -59,6 +59,13 @@ export function statedSpend(s: Strategy | undefined, solUsd: number | null): { u
       parts.push(`${a.size.unit === "usd" ? `$${a.size.value.toLocaleString("en-US")}` : `${a.size.value} SOL`} a copy, up to ${a.maxOpen} at once`);
       continue;
     }
+    // Liquidity: the amount going into the pool.
+    if (a.type === "liquidity") {
+      if (a.size.unit !== "usd") return null;
+      usd += a.size.value;
+      parts.push(`$${a.size.value.toLocaleString("en-US")}`);
+      continue;
+    }
     if (a.type !== "open") continue;
     const size = a.size;
     if (size.unit === "usd") {
