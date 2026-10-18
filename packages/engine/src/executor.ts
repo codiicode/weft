@@ -1,5 +1,5 @@
 import type { Instrument, OrderSpec } from "@weft/strategy";
-import type { MarketData, Quote } from "@weft/venues";
+import { DEFAULT_SYNTH_LIMITS, synthSettlement, type MarketData, type Quote, type SynthLimits } from "@weft/venues";
 import { computeFee, resolveFees, type FeeOverrides, type FeeSchedule } from "./fees.ts";
 
 /**
@@ -40,6 +40,8 @@ export interface OrderRequest {
    * closes name the on-chain position to withdraw from.
    */
   lp?: { lower: number; upper: number; poolPrice: number; quoteUsd: number; position?: string; shape?: "spot" | "bid_ask" };
+  /** Closes: the position being closed (Papertrade settles a win against its entry and leverage). */
+  position?: { entryPrice: number; leverage: number; side: "long" | "short"; sizeUsd: number; venueId?: string };
 }
 
 export type ExecutionResult =
@@ -54,6 +56,8 @@ export type ExecutionResult =
       builderFeeUsd: number;
       /** Liquidity opens on chain: the position account that holds it. */
       lp?: { position: string };
+      /** The venue's id for the position this opened (Papertrade). */
+      venueId?: string;
       slippageBps: number;
     }
   | { status: "rejected" | "pending"; reason: string };
@@ -66,6 +70,7 @@ export const DEFAULT_SLIPPAGE_BPS: Record<Instrument["kind"], number> = {
   outcome: 50,
   option: 50,
   lp: 0,
+  synth: 0, // Papertrade fills at the mid
 };
 
 export interface PaperExecutorOptions {
@@ -73,6 +78,8 @@ export interface PaperExecutorOptions {
   fees?: FeeOverrides | FeeSchedule;
   slippageBps?: Partial<Record<Instrument["kind"], number>>;
   quoteTimeoutMs?: number;
+  /** Papertrade's live limits and market parameters (defaults to a recent snapshot). */
+  synthLimits?: () => Promise<SynthLimits>;
 }
 
 /**
@@ -138,8 +145,32 @@ export class PaperExecutor implements Executor {
 
     const qty = req.qty ?? (req.notionalUsd != null ? req.notionalUsd / price : NaN);
     if (!(qty > 0) || !Number.isFinite(qty)) return { status: "rejected", reason: "nothing to fill (qty/notional missing)" };
+    if (req.instrument.kind === "synth") return this.synth(req, qty, mid);
     const fee = computeFee(this.fees, req.instrument, req.phase, qty * price, qty);
     return { status: "filled", qty, price, markPrice: mid, feeUsd: fee.feeUsd, builderFeeUsd: fee.builderFeeUsd, slippageBps };
+  }
+
+  /**
+   * Papertrade, practised: opens are free and checked against its limits; a winning close keeps
+   * only what Papertrade would pay (the impact haircut and the 2% win fee are booked as the fee).
+   */
+  private async synth(req: OrderRequest, qty: number, mid: number): Promise<ExecutionResult> {
+    const i = req.instrument as Extract<OrderRequest["instrument"], { kind: "synth" }>;
+    const limits = this.opts.synthLimits ? await this.opts.synthLimits() : DEFAULT_SYNTH_LIMITS;
+    const m = limits.markets[i.symbol];
+    if (req.phase === "open") {
+      const notional = qty * mid, lev = req.leverage ?? 1, margin = notional / lev;
+      if (limits.paused || !m.active) return { status: "rejected", reason: `Papertrade ${i.symbol} is paused` };
+      if (lev > m.maxLeverage) return { status: "rejected", reason: `Papertrade allows up to ${m.maxLeverage}×` };
+      if (margin < limits.minMarginUsd - 1e-9) return { status: "rejected", reason: `Papertrade needs at least $${limits.minMarginUsd} of margin` };
+      if (notional < limits.minNotionalUsd - 1e-9) return { status: "rejected", reason: `Papertrade needs a position of at least $${limits.minNotionalUsd.toLocaleString("en-US")} (margin × leverage)` };
+      if (notional > m.maxPositionUsd) return { status: "rejected", reason: `Papertrade allows positions up to $${m.maxPositionUsd.toLocaleString("en-US")}` };
+      return { status: "filled", qty, price: mid, markPrice: mid, feeUsd: 0, builderFeeUsd: 0, slippageBps: 0 };
+    }
+    const pos = req.position;
+    if (!pos) return { status: "rejected", reason: "a Papertrade close needs the position's entry" };
+    const { keptByVenue } = synthSettlement(pos.side, pos.entryPrice, mid, qty * pos.entryPrice, m, limits.winFeeRate);
+    return { status: "filled", qty, price: mid, markPrice: mid, feeUsd: keptByVenue, builderFeeUsd: 0, slippageBps: 0 };
   }
 
   private fillPrice(req: OrderRequest, q: Quote, mid: number): number {

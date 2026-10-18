@@ -43,9 +43,10 @@ export function fitRiskToActions(s: Strategy): Strategy {
   let exp = s.risk.maxTotalExposurePct;
   for (const a of s.actions) {
     if (a.type !== "open" || a.size.unit !== "pct_equity") continue;
-    exp = Math.max(exp, a.size.value * (a.instrument.kind === "perp" ? a.leverage : 1));
+    exp = Math.max(exp, a.size.value * (a.instrument.kind === "perp" || a.instrument.kind === "synth" ? a.leverage : 1));
   }
-  exp = Math.min(5000, exp);
+  // Papertrade goes to 1000×: 100% of the budget there is 100,000% exposure.
+  exp = Math.min(100_000, exp);
   return exp === s.risk.maxTotalExposurePct ? s : { ...s, risk: { ...s.risk, maxTotalExposurePct: exp } };
 }
 
@@ -118,7 +119,9 @@ export function semanticIssues(s: Strategy): Issue[] {
     if (a.type === "open") {
       const inst = a.instrument;
       if (isLongOnly(inst) && a.side === "short") err(`${p}.side`, `${inst.kind} instruments can only be bought (long)`);
-      if (inst.kind !== "perp" && a.leverage > 1) err(`${p}.leverage`, `leverage only applies to perps`);
+      if (inst.kind !== "perp" && inst.kind !== "synth" && a.leverage > 1) err(`${p}.leverage`, `leverage only applies to perps`);
+      if (inst.kind === "synth" && a.leverage >= 100)
+        warn(`${p}.leverage`, `at ${a.leverage}× a ${(100 / a.leverage).toFixed(a.leverage >= 1000 ? 2 : 1)}% move against the position busts it on Papertrade, and the whole margin is lost`);
       if (a.leverage > s.risk.maxLeverage) err(`${p}.leverage`, `leverage ${a.leverage}× exceeds the strategy max of ${s.risk.maxLeverage}×`);
       if (a.size.unit === "pct_equity" && a.size.value > s.risk.maxPositionPct)
         err(`${p}.size`, `${a.size.value}% exceeds maxPositionPct (${s.risk.maxPositionPct}%)`);

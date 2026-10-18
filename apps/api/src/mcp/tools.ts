@@ -27,7 +27,7 @@ export interface RunView {
   url: string;
 }
 
-const PRODUCTS = ["perps", "stocks", "predictions", "tokens", "options", "pools"] as const;
+const PRODUCTS = ["perps", "stocks", "predictions", "tokens", "options", "pools", "papertrade"] as const;
 const fmt = (v: number | null | undefined, d = 2) => (v == null ? "—" : v.toLocaleString("en-US", { maximumFractionDigits: d }));
 const pct = (v: number) => `${v > 0 ? "+" : ""}${v.toFixed(2)}%`;
 
@@ -41,7 +41,7 @@ export const TOOLS: Tool<McpCtx>[] = [
     name: "search_markets",
     title: "Search markets",
     description:
-      "Find markets Weft can watch and trade: Hyperliquid perps (crypto, plus stocks and commodities), Solana tokens, prediction markets, options and Meteora liquidity pools. Returns live prices and 24 h numbers.",
+      "Find markets Weft can watch and trade: Hyperliquid perps (crypto, plus stocks and commodities), Solana tokens, prediction markets, options, Meteora liquidity pools and Papertrade (BTC and ETH up to 1000×). Returns live prices and 24 h numbers.",
     input: z.object({
       query: z.string().max(80).default("").describe("A symbol, name or pair, e.g. \"SOL\", \"NVDA\", \"SOL-USDC\", \"Fed cut\". Empty for the most active."),
       product: z.enum(PRODUCTS).default("perps").describe("Which kind of market"),

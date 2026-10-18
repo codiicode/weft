@@ -9,6 +9,7 @@ export type Venues = {
   solana: boolean;
   /** Liquidity in Meteora pools with real money. */
   liquidity?: boolean;
+  papertrade?: boolean;
   network: "testnet" | "mainnet" | null;
   /** Signal kinds Weft only simulates (no live feed): fine for alerts, never for real trades. */
   simulated?: string[];

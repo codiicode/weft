@@ -65,14 +65,14 @@ export const OpenAction = z.object({
   instrument: TradableInstrument,
   side: z.enum(["long", "short"]).describe("Spot, tokens and outcomes are long-only (buy)"),
   size: Size,
-  leverage: z.number().min(1).max(50).default(1).describe("Perps only"),
+  leverage: z.number().min(1).max(1000).default(1).describe("Perps only: up to 50× on Hyperliquid, up to 1000× on Papertrade"),
   order: OrderSpec.prefault({}),
   exits: Exits.prefault({}),
   reentry: z
     .enum(["never", "after_close"])
     .default("never")
     .describe("never: fire at most once; after_close: may reopen once the previous position is closed"),
-});
+}).refine((a) => a.leverage <= 50 || a.instrument.kind === "synth", { message: "leverage above 50× is only for Papertrade (synth) markets", path: ["leverage"] });
 export type OpenAction = z.infer<typeof OpenAction>;
 
 export const OptionLeg = z.object({

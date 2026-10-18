@@ -22,6 +22,7 @@ const PRODUCTS: { id: Product; label: string; blurb: string }[] = [
   { id: "predictions", label: "Predictions", blurb: "Outcome markets on Hyperliquid: crypto prices, sports, companies and more" },
   { id: "tokens", label: "Solana tokens", blurb: "Any Solana token, matched by contract address" },
   { id: "options", label: "Options", blurb: "Listed options. Only strategies with a known worst case" },
+  { id: "papertrade", label: "Papertrade", blurb: "BTC and ETH up to 1000× on Papertrade (HyperEVM). A bust loses the whole margin. Practice for now" },
 ];
 
 /** A price that flashes green or red when it moves. */

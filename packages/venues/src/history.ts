@@ -320,6 +320,8 @@ export class VenueHistory implements HistoryProvider {
         return "Options price history isn't available yet";
       case "lp":
         return "Pool price history isn't available yet";
+      case "synth":
+        return null; // Papertrade prices are Hyperliquid's mid
     }
   }
 
@@ -369,6 +371,8 @@ export class VenueHistory implements HistoryProvider {
     switch (i.kind) {
       case "perp":
         return hl(perpCoin(i.symbol, i.dex));
+      case "synth":
+        return hl(i.symbol);
       case "spot": {
         const m = await this.md!.spotMarket(i.symbol);
         return hl(m.coin);

@@ -21,6 +21,8 @@ export function instrumentIcon(i: Instrument, meta?: Record<string, unknown> | n
       return { symbol: "OUTCOME", src: src ?? "/coins/OUTCOME.svg" };
     case "lp":
       return { symbol: i.symbol.split("-")[0]!, src, alt: [tokenLogo(i.baseMint)] };
+    case "synth":
+      return { symbol: i.symbol, src };
     default:
       return { symbol: "?", src };
   }

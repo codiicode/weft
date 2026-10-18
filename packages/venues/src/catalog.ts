@@ -18,6 +18,7 @@ import { mapLimit, matchesSearch, pctChange } from "./util.ts";
  *  tokens       trending / searched Solana tokens (Jupiter Tokens v2)
  *  options      Deribit BTC/ETH/SOL options: 2 nearest expiries + first weekly and monthly, strikes within ±20% of spot
  *  pools        Meteora DLMM liquidity pools on Solana (search by pair, symbol or mint)
+ *  papertrade   Papertrade's synthetic BTC and ETH perps (HyperEVM, up to 1000×), priced at Hyperliquid's mid
  */
 export class VenueCatalog implements Catalog {
   private readonly md: VenueMarketData;
@@ -48,6 +49,9 @@ export class VenueCatalog implements Catalog {
       case "pools":
         rows = await this.pools(q.search);
         break;
+      case "papertrade":
+        rows = await this.papertrade();
+        break;
     }
     const filtered = rows.filter((r) =>
       r._searched ||
@@ -62,6 +66,34 @@ export class VenueCatalog implements Catalog {
     );
     filtered.sort((a, b) => (b._rank ?? b.volume24hUsd ?? 0) - (a._rank ?? a.volume24hUsd ?? 0));
     return filtered.slice(0, limit).map(({ _rank, _searched, ...r }) => r);
+  }
+
+  /** Papertrade's two markets, with Hyperliquid's mid and 24h change, and Papertrade's own 24h volume and LP. */
+  private async papertrade(): Promise<MarketListing[]> {
+    const [hl, stats, limits, summary] = await Promise.all([
+      this.md.perpMarkets(null),
+      this.md.papertrade.marketStats().catch(() => ({}) as Record<string, number>),
+      this.md.papertrade.tradingLimits(),
+      this.md.papertrade.summary().catch(() => null),
+    ]);
+    return (["BTC", "ETH"] as const).map((symbol) => {
+      const m = hl.find((x) => x.symbol === symbol && !x.dex);
+      const instrument = { kind: "synth" as const, venue: "papertrade" as const, symbol, assetClass: "crypto" as const };
+      return {
+        product: "papertrade" as const,
+        instrument,
+        instrumentKey: instrumentKey(instrument),
+        label: `${symbol} · Papertrade`,
+        name: `Synthetic perp on HyperEVM · up to ${limits.markets[symbol].maxLeverage}× · positions from $${limits.minNotionalUsd.toLocaleString("en-US")} · a bust loses the whole margin`,
+        price: m?.price ?? null,
+        change24hPct: m?.price != null && m.prevDayPx ? pctChange(m.price, m.prevDayPx) : null,
+        volume24hUsd: stats[symbol] ?? null,
+        liquidityUsd: summary?.lpUsd ?? null,
+        maxLeverage: limits.markets[symbol].maxLeverage,
+        meta: { symbol, minNotionalUsd: limits.minNotionalUsd, minMarginUsd: limits.minMarginUsd },
+        venue: "papertrade",
+      };
+    });
   }
 
   /** Meteora DLMM pools for a pair, symbol or mint; the busiest SOL and USDC pools without a search. */

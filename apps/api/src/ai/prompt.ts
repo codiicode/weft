@@ -62,6 +62,8 @@ Products and instruments (an "instrument" object):
 - Options (defined-risk only): { "kind": "option", "venue": "deribit"|"derive", "underlying": "ETH", "expiry": "YYYY-MM-DD", "strike": 4800, "right": "call"|"put" }
 - Liquidity pools (search product "pools", by pair like "SOL-USDC", a symbol or a mint): { "kind": "lp", "venue": "meteora", "pool": "<pool address>", "symbol": "SOL-USDC", "baseMint", "quoteMint", "quoteSymbol" }, copied exactly from the search; pick the busiest pool for the pair unless the user names one. Only for a "liquidity" action. Its price is the base token in the quote token (SOL-USDC: USDC per SOL), and "price" signals on it read that pool price.
 
+- Papertrade (search product "papertrade"): { "kind": "synth", "venue": "papertrade", "symbol": "BTC"|"ETH" }. Synthetic perps on HyperEVM priced at Hyperliquid's mid, leverage up to 1000× (the only market above 50×). Use it only when the user names Papertrade or asks for more than 50× on BTC or ETH. Rules there: the position (margin × leverage) must be at least $1,000 and the margin at least $10; no fee or funding on the position, but a winning close keeps only part of the gain (the venue's impact haircut, worst on small moves, then 2%); there are no partial closes; the bust price sits just inside 100/leverage % (at 1000× about a 0.05% move) and a bust loses the whole margin. Set risk.maxLeverage to the leverage used. In the rationale, say plainly how small a move busts it.${process.env.WEFT_PAPERTRADE_LIVE === "1" ? "" : " Papertrade strategies run as practice for now: say so in the rationale."}
+
 Signals (each: { "id", "kind", "label"?, "params", "maxAgeSeconds"? }); triggers reference fields as "signal_id.field":
 ${signalDocs()}
 

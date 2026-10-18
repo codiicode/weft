@@ -78,6 +78,9 @@ export function computeFee(
     case "lp":
       // Practice only for now: depositing and withdrawing carry no Weft fee.
       return { feeUsd: 0, builderFeeUsd: 0 };
+    case "synth":
+      // Papertrade charges nothing on the position; what it keeps of a win is settled on close.
+      return { feeUsd: 0, builderFeeUsd: 0 };
     case "option": {
       const o = fees.options;
       const raw = o.perContractUsd != null ? qty * o.perContractUsd : (qty * instrument.strike * o.notionalBps) / 10_000;

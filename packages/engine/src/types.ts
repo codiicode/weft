@@ -66,6 +66,8 @@ export interface Position {
    * put in, entry 1, mark = what a unit is worth now); this is the pool side of it.
    */
   lp?: LpState;
+  /** Optional (additive): the venue's own id for this position (Papertrade closes name it). */
+  venueId?: string;
 }
 
 /** A liquidity position's pool side (additive, optional). */

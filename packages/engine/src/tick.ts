@@ -16,7 +16,7 @@ import {
   type TokenFacts,
   type TriggerResult,
 } from "@weft/strategy";
-import type { MarketData, Quote, SignalProvider, TokenFactsProvider } from "@weft/venues";
+import { DEFAULT_SYNTH_LIMITS, synthBustPrice, type MarketData, type Quote, type SignalProvider, type SynthLimits, type TokenFactsProvider } from "@weft/venues";
 import type { DeploymentRecord, EngineEvent, EngineEventType, Fill, FillReason, Position } from "./types.ts";
 import type { DeploymentRuntime, StoreBatch } from "./store.ts";
 import { errMsg, withTimeout, type Executor } from "./executor.ts";
@@ -119,8 +119,9 @@ export class Session {
 
   /** Close `fraction` of a position at market. Exits are never blocked by slippage limits. */
   async closePosition(p: Position, fraction: number, reason: FillReason, clientId: string, intentKey?: string): Promise<boolean> {
-    // A liquidity position is withdrawn whole (the pool takes everything out at once).
-    if (p.lp) fraction = 1;
+    // A liquidity position is withdrawn whole (the pool takes everything out at once), and
+    // Papertrade has no partial closes.
+    if (p.lp || p.instrument.kind === "synth") fraction = 1;
     const qty = fraction >= 1 ? p.qty : p.qty * fraction;
     let res;
     try {
@@ -135,6 +136,7 @@ export class Session {
           fallbackPrice: p.markPrice,
           deploymentId: this.deployment.id,
           ...(p.lp ? { lp: { lower: p.lp.lower, upper: p.lp.upper, poolPrice: p.lp.poolPrice, quoteUsd: p.lp.quoteUsd ?? p.lp.entryQuoteUsd, ...(p.lp.position ? { position: p.lp.position } : {}) } } : {}),
+          position: { entryPrice: p.entryPrice, leverage: p.leverage, side: p.side, sizeUsd: p.sizeUsd, ...(p.venueId ? { venueId: p.venueId } : {}) },
         },
         this.now
       );
@@ -163,7 +165,9 @@ export class Session {
     const liq = p.liquidationPrice!;
     const mark = p.markPrice;
     const fee = computeFee(this.deps.fees, p.instrument, "close", p.qty * liq, p.qty);
-    const fill = this.bookClose(p, { qty: p.qty, price: liq, markPrice: mark, feeUsd: fee.feeUsd - fee.builderFeeUsd, builderFeeUsd: 0 }, "liquidation", true, undefined, "Liquidated: ");
+    // Papertrade busts before equity reaches zero and keeps the whole margin: the rest is its fee.
+    const synthForfeit = p.instrument.kind === "synth" ? Math.max(0, p.sizeUsd + p.qty * (liq - p.entryPrice) * dirOf(p)) : 0;
+    const fill = this.bookClose(p, { qty: p.qty, price: liq, markPrice: mark, feeUsd: fee.feeUsd - fee.builderFeeUsd + synthForfeit, builderFeeUsd: 0 }, "liquidation", true, undefined, "Liquidated: ");
     this.emit(
       "warning",
       `${instrumentLabel(p.instrument)} ${p.leverage}× ${p.side} liquidated: mark ${fmtPx(mark)} crossed the liquidation price ${fmtPx(liq)} (entry ${fmtPx(p.entryPrice)}). Closed at ${fmtPx(liq)}, P&L ${fmtUsd(fill.realizedPnlUsd ?? 0)}`,
@@ -235,8 +239,10 @@ export class Session {
     actionId: string;
     intentKey: string;
     exits: Position["exits"];
-    res: { qty: number; price: number; markPrice: number; feeUsd: number; builderFeeUsd: number };
+    res: { qty: number; price: number; markPrice: number; feeUsd: number; builderFeeUsd: number; venueId?: string };
     group?: Position["group"];
+    /** Papertrade: its current market parameters (for the bust price). */
+    synthLimits?: SynthLimits;
     /** Perps: venue max leverage, for the liquidation estimate (null/undefined → default maintenance). */
     maxLeverage?: number | null;
     /** Liquidity: the pool side of the position, and the fill message to show. */
@@ -267,6 +273,12 @@ export class Session {
       ...(args.group ? { group: args.group } : {}),
       ...(args.lp ? { lp: args.lp } : {}),
     };
+    // Papertrade: no funding; crossing the bust price forfeits the whole margin.
+    if (args.instrument.kind === "synth") {
+      const m = (args.synthLimits ?? DEFAULT_SYNTH_LIMITS).markets[args.instrument.symbol];
+      if (args.leverage > 1 || args.side === "short") p.liquidationPrice = synthBustPrice(args.side, res.price, args.leverage, m);
+      if (res.venueId) p.venueId = res.venueId;
+    }
     if (this.deps.perpRealism && args.instrument.kind === "perp") {
       p.fundingPaidUsd = 0;
       p.fundingState = { accruedAt: this.now, lastEventAt: this.now, sinceEventUsd: 0 };
@@ -609,7 +621,8 @@ async function runExits(s: Session): Promise<void> {
     if (p.group || !s.positions.has(p.id)) continue;
     if (p.markedAt !== s.now) continue; // not marked this tick: no fresh price, no exit decision
     // Liquidation first: on paper we can't tell whether a stop would have filled before it.
-    if (s.deps.perpRealism && liquidationCrossed(p)) {
+    // Practice Papertrade busts here too; live Papertrade busts on chain and is reconciled from the venue.
+    if ((s.deps.perpRealism || (p.instrument.kind === "synth" && s.deployment.mode !== "live")) && liquidationCrossed(p)) {
       s.liquidate(p);
       continue;
     }

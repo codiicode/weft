@@ -97,6 +97,7 @@ export function liveBlocker(s: Strategy | undefined, venues: Venues | null = nul
     if (a.type === "liquidity" && !venues?.liquidity) return "Liquidity strategies run as practice for now. Live deposits to Meteora are coming.";
     if (a.type === "options") return "Options can’t be traded live yet.";
     if (a.type !== "open") continue;
+    if (a.instrument.kind === "synth" && !venues?.papertrade) return "Papertrade runs as practice for now. Live trading there is coming.";
     if (a.order.type === "limit") return "Limit orders can’t be traded live yet. Use a market order with a slippage limit.";
     const k = a.instrument.kind;
     if (k === "token" && venues && !venues.solana) return "Trading Solana tokens opens soon.";

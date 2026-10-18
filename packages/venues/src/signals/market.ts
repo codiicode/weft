@@ -98,6 +98,9 @@ export async function priceFields(md: VenueMarketData, i: Instrument, now: numbe
       const p = await md.meteora.pool(i.pool);
       return { price: p.price, change_5m_pct: null, change_1h_pct: null, change_24h_pct: null, volume_24h_usd: p.volume24hUsd };
     }
+    case "synth":
+      // Papertrade trades at Hyperliquid's mid: the same fields as the Hyperliquid perp
+      return priceFields(md, { kind: "perp", venue: "hyperliquid", symbol: i.symbol, assetClass: "crypto" }, now);
   }
 }
 

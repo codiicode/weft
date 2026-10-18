@@ -37,6 +37,8 @@ export interface OrderRequest {
    * closes name the on-chain position to withdraw from.
    */
   lp?: { lower: number; upper: number; poolPrice: number; quoteUsd: number; position?: string; shape?: "spot" | "bid_ask" };
+  /** Closes: the position being closed (Papertrade settles a win against its entry and leverage). */
+  position?: { entryPrice: number; leverage: number; side: "long" | "short"; sizeUsd: number; venueId?: string };
 }
 
 export type ExecutionResult =
@@ -49,6 +51,8 @@ export type ExecutionResult =
       builderFeeUsd: number;
       /** Liquidity opens on chain: the position account that holds it. */
       lp?: { position: string };
+      /** The venue's id for the position this opened (Papertrade). */
+      venueId?: string;
       slippageBps: number;
     }
   | { status: "rejected" | "pending"; reason: string };

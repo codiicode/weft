@@ -8,8 +8,8 @@ import type { ExecutionResult, Executor, OrderRequest } from "./types.ts";
  */
 export class RoutingExecutor implements Executor {
   readonly mode = "live" as const;
-  private readonly routes: { hyperliquid?: Executor; solana?: Executor };
-  constructor(routes: { hyperliquid?: Executor; solana?: Executor }) {
+  private readonly routes: { hyperliquid?: Executor; solana?: Executor; papertrade?: Executor };
+  constructor(routes: { hyperliquid?: Executor; solana?: Executor; papertrade?: Executor }) {
     this.routes = routes;
   }
 
@@ -27,6 +27,8 @@ export class RoutingExecutor implements Executor {
         return null; // TODO: options venues (Derive / Deribit / HL options)
       case "lp":
         return null; // liquidity runs as practice for now; live Meteora deposits come next
+      case "synth":
+        return this.routes.papertrade ?? null;
     }
   }
 

@@ -80,6 +80,18 @@ export const LpInstrument = z.object({
   quoteSymbol: z.string().min(1).describe("e.g. USDC or SOL"),
 });
 
+/**
+ * A synthetic perp on Papertrade (HyperEVM): BTC or ETH, up to 1000×, priced at Hyperliquid's mid.
+ * No funding or fee on the position; a winning close keeps part of the gain (an impact haircut, then
+ * a 2% win fee); crossing the bust price forfeits the whole margin.
+ */
+export const SynthInstrument = z.object({
+  kind: z.literal("synth"),
+  venue: z.literal("papertrade"),
+  symbol: z.enum(["BTC", "ETH"]),
+  assetClass: AssetClass.default("crypto"),
+});
+
 export const Instrument = z.discriminatedUnion("kind", [
   PerpInstrument,
   SpotInstrument,
@@ -87,6 +99,7 @@ export const Instrument = z.discriminatedUnion("kind", [
   OutcomeInstrument,
   OptionInstrument,
   LpInstrument,
+  SynthInstrument,
 ]);
 
 /** Instruments a plain `open` action may trade (options go through multi-leg `options` actions). */
@@ -95,6 +108,7 @@ export const TradableInstrument = z.discriminatedUnion("kind", [
   SpotInstrument,
   TokenInstrument,
   OutcomeInstrument,
+  SynthInstrument,
 ]);
 
 export type PerpInstrument = z.infer<typeof PerpInstrument>;
@@ -103,6 +117,7 @@ export type TokenInstrument = z.infer<typeof TokenInstrument>;
 export type OutcomeInstrument = z.infer<typeof OutcomeInstrument>;
 export type OptionInstrument = z.infer<typeof OptionInstrument>;
 export type LpInstrument = z.infer<typeof LpInstrument>;
+export type SynthInstrument = z.infer<typeof SynthInstrument>;
 export type Instrument = z.infer<typeof Instrument>;
 export type TradableInstrument = z.infer<typeof TradableInstrument>;
 
@@ -121,6 +136,8 @@ export function instrumentKey(i: Instrument): string {
       return `${i.venue}:option:${i.underlying}-${i.expiry}-${i.strike}-${i.right === "call" ? "C" : "P"}`;
     case "lp":
       return `meteora:lp:${i.pool}`;
+    case "synth":
+      return `papertrade:synth:${i.symbol}`;
   }
 }
 
@@ -139,6 +156,8 @@ export function instrumentLabel(i: Instrument): string {
       return `${i.underlying} ${i.expiry} ${i.strike}${i.right === "call" ? "C" : "P"}`;
     case "lp":
       return `${i.symbol} liquidity`;
+    case "synth":
+      return `${i.symbol} on Papertrade`;
   }
 }
 

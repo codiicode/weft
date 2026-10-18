@@ -25,6 +25,7 @@ import type { LeaderTrade } from "./signals/wallet.ts";
 import { traderState, type TraderState } from "./traders.ts";
 export { OiHistory, type OiHistoryOptions, type OiSample } from "./oi-history.ts";
 export { VenueCatalog } from "./catalog.ts";
+export { PAPERTRADE, PapertradeApi, DEFAULT_SYNTH_LIMITS, decodeTradingState, synthBustPrice, synthSettlement, type SynthLimits, type SynthParams } from "./papertrade.ts";
 export { VenueTokenFactsProvider } from "./tokens.ts";
 export { SignalRouter, createSignalProviders } from "./signals/index.ts";
 export { walkBook, bookTop, depthWithin, type Book, type Level } from "./book.ts";

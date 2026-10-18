@@ -54,6 +54,8 @@ export interface AppDeps {
   siteUrl?: string;
   /** Profitable Hyperliquid traders to copy (public leaderboard, cached). */
   topTraders?: () => Promise<TopTrader[]>;
+  /** Papertrade live trading is on (WEFT_PAPERTRADE_LIVE=1, with its executor wired). */
+  papertradeLive?: boolean;
   /** Helius pushes watched wallets' transactions here (wallet signals and copy trading react at once). */
   heliusWebhook?: HeliusWebhook;
   catalog: Catalog;
@@ -565,7 +567,7 @@ export function createApp(deps: AppDeps) {
       signals: deps.signalModes,
       auth: { enabled: authEnabled, appId: deps.auth?.appId ?? null },
       /** Which venues take real orders right now. */
-      trading: { hyperliquid: Boolean(deps.live?.cfg.enabled), solana: Boolean(deps.solana?.cfg.enabled), liquidity: Boolean(deps.solana?.cfg.enabled && deps.solana?.cfg.lpEnabled), network: deps.live?.cfg.network ?? null },
+      trading: { hyperliquid: Boolean(deps.live?.cfg.enabled), solana: Boolean(deps.solana?.cfg.enabled), liquidity: Boolean(deps.solana?.cfg.enabled && deps.solana?.cfg.lpEnabled), papertrade: Boolean(deps.papertradeLive), network: deps.live?.cfg.network ?? null },
     })
   );
 
@@ -903,6 +905,8 @@ export function createApp(deps: AppDeps) {
     // Live liquidity only once it's switched on (WEFT_SOL_LP).
     if (body.mode === "live" && !body.alertsOnly && strategy.actions.some((a) => a.type === "liquidity") && !deps.solana?.cfg.lpEnabled)
       return c.json({ error: "Liquidity strategies run as practice for now. Live deposits to Meteora are coming." }, 409);
+    if (body.mode === "live" && !body.alertsOnly && strategy.actions.some((a) => a.type === "open" && a.instrument.kind === "synth") && !deps.papertradeLive)
+      return c.json({ error: "Papertrade runs as practice for now. Live trading there is coming." }, 409);
     // Real money never rides on made-up data: signals Weft only simulates (no live feed yet) can run
     // as alerts, not trades.
     if (body.mode === "live" && !body.alertsOnly) {

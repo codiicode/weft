@@ -19,6 +19,7 @@ import { deribitBookUsd, deriveName, parseDeribitName, parseDeriveTicker } from 
 import { num } from "./util.ts";
 import { polymarketOutcome } from "./polymarket.ts";
 import { MeteoraDlmm, feePerDay } from "./meteora.ts";
+import { PapertradeApi } from "./papertrade.ts";
 
 /** A quote that also says whether the visible book could absorb the full size. */
 export interface VenueQuote extends Quote {
@@ -148,6 +149,7 @@ export class VenueMarketData implements MarketData {
       }
       case "token":
       case "lp":
+      case "synth": // Papertrade has no book: it fills at the mid
         return null;
     }
   }
@@ -170,8 +172,20 @@ export class VenueMarketData implements MarketData {
         return this.optionQuote(i, req);
       case "lp":
         return this.lpQuote(i.pool);
+      case "synth": {
+        // Papertrade fills at Hyperliquid's mid whatever the size: no spread, no slippage.
+        const px = lookupMid(await this.ctx.hl.allMids(), i.symbol);
+        if (px == null) throw new Error(`hyperliquid: no mid for ${i.symbol}`);
+        return { instrumentKey: instrumentKey(i), price: px, ts: this.ctx.now(), source: "papertrade:hyperliquid-mid" };
+      }
     }
   }
+
+  /** Papertrade's public API (limits, market parameters, stats). */
+  get papertrade(): PapertradeApi {
+    return (this._papertrade ??= new PapertradeApi(this.ctx.http));
+  }
+  private _papertrade: PapertradeApi | undefined;
 
   /** Meteora DLMM pools (search and quotes). */
   get meteora(): MeteoraDlmm {

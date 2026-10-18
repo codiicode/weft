@@ -389,7 +389,7 @@ export const api = {
   reportProfile: (body: { wallets?: string[]; displayName?: string | null }) => req<Me["user"]>("/me", { method: "POST", json: body }),
 
   health: () =>
-    req<{ ok: boolean; ts: number; signals: Record<string, "live" | "simulated">; trading?: { hyperliquid: boolean; solana: boolean; liquidity?: boolean; network: "testnet" | "mainnet" | null } }>("/health"),
+    req<{ ok: boolean; ts: number; signals: Record<string, "live" | "simulated">; trading?: { hyperliquid: boolean; solana: boolean; liquidity?: boolean; papertrade?: boolean; network: "testnet" | "mainnet" | null } }>("/health"),
 
   markets: (product: Product, opts: { search?: string; limit?: number } = {}) => {
     const q = new URLSearchParams();

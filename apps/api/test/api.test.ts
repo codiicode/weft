@@ -35,6 +35,7 @@ const fakeCatalog: Catalog = {
       predictions: [listing("predictions", { kind: "outcome", venue: "hyperliquid", market: "fed-dec", outcome: "YES", question: "Fed cuts in December?" }, "Fed cuts in December? · YES", 0.64, { name: "Fed cuts in December?" })],
       options: [],
       pools: [],
+      papertrade: [],
     }[product];
     return rows.filter((r) => !s || r.label.toUpperCase().includes(s) || (r.name ?? "").toUpperCase().includes(s));
   },
