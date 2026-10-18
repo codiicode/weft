@@ -56,7 +56,12 @@ export interface TickDeps {
 export interface CopyFeeds {
   solanaWallet?: (address: string) => Promise<{ id: string; at: number; side: "buy" | "sell"; mint: string }[]>;
   hyperliquidTrader?: (address: string) => Promise<{ positions: { coin: string; side: "long" | "short"; leverage: number }[] }>;
+  /** An X account's buy calls for Solana tokens, read from its posts (oldest first). */
+  xCalls?: (account: string) => Promise<{ id: string; at: number; mint: string; symbol?: string }[]>;
 }
+
+/** Calls from X have no sell to follow: without exits of their own they get these. */
+export const X_CALL_EXITS = { stopLoss: { pct: 30 }, timeExitHours: 24 } as const;
 
 const DAY = (now: number) => new Date(now).toISOString().slice(0, 10);
 
@@ -465,7 +470,51 @@ async function copyIntents(s: Session, triggers: TriggerResult[], equity: number
     const base = { strategyId: strategy.id, actionId: a.id, triggerId: `copy:${a.id}` };
     const only = a.only?.map((x) => x.toUpperCase());
     try {
-      if (a.leader.venue === "solana") {
+      if (a.leader.venue === "x") {
+        if (!feeds?.xCalls) {
+          s.warn(`copy:${a.id}`, "Copying calls from X needs X data, which isn't set up on this server");
+          continue;
+        }
+        const calls = await withTimeout(feeds.xCalls(a.leader.account), s.deps.signalTimeoutMs);
+        const seen = new Set(state.seen);
+        let open = mine.length;
+        const ex = a.exits.stopLoss || a.exits.timeExitHours || a.exits.takeProfit || a.exits.trailingStopPct ? a.exits : { ...a.exits, ...X_CALL_EXITS };
+        for (const c of calls) {
+          if (c.at < state.since || seen.has(c.id)) continue;
+          seen.add(c.id);
+          const name = c.symbol ? `$${c.symbol}` : shortAddr(c.mint);
+          if (only && !only.includes(c.mint.toUpperCase()) && !(c.symbol && only.includes(c.symbol.toUpperCase()))) continue;
+          const key = `sol:token:${c.mint}`;
+          if (mine.some((p) => p.instrumentKey === key) || !gateOpen) continue;
+          if (open >= a.maxOpen) {
+            s.warn(`copy:max:${a.id}`, `Didn’t buy ${name} from @${a.leader.account}: already ${a.maxOpen} copied positions open`);
+            continue;
+          }
+          const facts = await s.deps.tokenFacts?.getTokenFacts(c.mint, {}).catch(() => null);
+          if (facts && facts.liquidity_usd < a.minLiquidityUsd) {
+            s.emit("rejected", `Didn’t buy ${name} from @${a.leader.account}: liquidity ${fmtUsd(facts.liquidity_usd)} is under ${fmtUsd(a.minLiquidityUsd)}`, { copy: a.id, mint: c.mint });
+            continue;
+          }
+          if (facts && (!facts.mint_authority_revoked || !facts.freeze_authority_revoked)) {
+            s.emit("rejected", `Didn’t buy ${name} from @${a.leader.account}: its ${!facts.mint_authority_revoked ? "mint" : "freeze"} authority is still on`, { copy: a.id, mint: c.mint });
+            continue;
+          }
+          out.push({
+            ...base,
+            key: `${strategy.id}:${a.id}:call:${c.id}`,
+            type: "open",
+            instrument: { kind: "token", chain: "solana", mint: c.mint, ...(c.symbol ? { symbol: c.symbol } : {}), quote: "SOL", route: "auto", assetClass: "crypto" },
+            instrumentKey: key,
+            side: "long",
+            size: resolveSize(a.size, equity),
+            leverage: 1,
+            order: { ...a.order, maxSlippageBps: a.order.maxSlippageBps ?? strategy.risk.defaultMaxSlippageBps },
+            exits: ex,
+          });
+          open++;
+        }
+        state.seen = [...seen].slice(-300);
+      } else if (a.leader.venue === "solana") {
         if (!feeds?.solanaWallet) {
           s.warn(`copy:${a.id}`, "Copying a Solana wallet needs wallet data (Helius), which isn't set up on this server");
           continue;
@@ -1107,7 +1156,7 @@ const lowerFirst = (t: string) => t.replace(/^\w/, (c) => c.toLowerCase());
 function ruleName(s: Session, triggerId: string): string {
   if (triggerId.startsWith("copy:")) {
     const a = s.deployment.strategy.actions.find((x) => x.id === triggerId.slice(5));
-    if (a?.type === "copy") return `${a.inverse ? "Fading" : "Copying"} ${shortAddr(a.leader.venue === "solana" ? a.leader.wallet : a.leader.trader)}`;
+    if (a?.type === "copy") return a.leader.venue === "x" ? `Calls from @${a.leader.account}` : `${a.inverse ? "Fading" : "Copying"} ${shortAddr(a.leader.venue === "solana" ? a.leader.wallet : a.leader.trader)}`;
   }
   const triggers = s.deployment.strategy.triggers;
   const idx = triggers.findIndex((t) => t.id === triggerId);

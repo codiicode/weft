@@ -3079,6 +3079,23 @@
                       "venue",
                       "trader"
                     ]
+                  },
+                  {
+                    "type": "object",
+                    "properties": {
+                      "venue": {
+                        "type": "string",
+                        "const": "x"
+                      },
+                      "account": {
+                        "type": "string",
+                        "pattern": "^@?[A-Za-z0-9_]{1,15}$"
+                      }
+                    },
+                    "required": [
+                      "venue",
+                      "account"
+                    ]
                   }
                 ]
               },
@@ -3137,7 +3154,7 @@
                     ]
                   }
                 ],
-                "description": "Per copied trade: SOL (native) or USD for Solana, USD for Hyperliquid"
+                "description": "Per copied trade: SOL (native) or USD for Solana and X calls, USD for Hyperliquid"
               },
               "leverage": {
                 "description": "Hyperliquid: fixed leverage; omit to use the leader's (capped by risk.maxLeverage)",

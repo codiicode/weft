@@ -75,6 +75,10 @@ export function toGraph(s: Strategy): GraphView {
         break;
       }
       case "copy": {
+        if (a.leader.venue === "x") {
+          nodes.push({ id: a.id, kind: "action", side: "long", title: a.label ?? `Calls from @${a.leader.account}`, subtitle: "every token it calls on X" });
+          break;
+        }
         const who = a.leader.venue === "solana" ? a.leader.wallet : a.leader.trader;
         nodes.push({ id: a.id, kind: "action", side: a.inverse ? "short" : "long", title: a.label ?? `${a.inverse ? "Fade" : "Copy"} ${who.slice(0, 4)}…${who.slice(-4)}`, subtitle: a.leader.venue === "solana" ? "every token it buys" : a.inverse ? "the opposite of every position it opens" : "every position it opens" });
         break;

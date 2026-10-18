@@ -179,6 +179,12 @@ export function semanticIssues(s: Strategy): Issue[] {
     if (a.type === "copy") {
       if (a.leverage != null && a.leverage > s.risk.maxLeverage) err(`${p}.leverage`, `leverage ${a.leverage}× exceeds the strategy max of ${s.risk.maxLeverage}×`);
       if (a.leader.venue === "solana" && a.leverage != null && a.leverage > 1) err(`${p}.leverage`, "leverage only applies to Hyperliquid copies");
+      if (a.leader.venue === "x") {
+        if (a.leverage != null && a.leverage > 1) err(`${p}.leverage`, "calls from X are bought as Solana tokens, without leverage");
+        if (a.inverse || a.leaderSide) err(`${p}.inverse`, "calls from X can be copied, not faded: a Solana token can't be shorted");
+        if (!a.exits.stopLoss && !a.exits.timeExitHours && !a.exits.takeProfit && !a.exits.trailingStopPct)
+          warn(`${p}.exits`, "no exits set: each bought call gets a −30% stop and is sold after 24 hours");
+      }
       if (a.leader.venue === "solana" && a.leaderSide) err(`${p}.leaderSide`, "following only longs or shorts works for Hyperliquid traders only");
       if (a.leader.venue === "solana" && a.inverse) err(`${p}.inverse`, "doing the opposite works for Hyperliquid traders only: a Solana token can't be shorted");
     }

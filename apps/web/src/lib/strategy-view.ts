@@ -262,7 +262,7 @@ export function strategyToSpec(s: Strategy, live: LiveOverlay = {}): { spec: Gra
         detail: a.fraction < 1 ? `${Math.round(a.fraction * 100)}% of position` : "entire position",
       });
     } else if (a.type === "copy") {
-      nodes.push({ id: a.id, kind: "action", side: "buy", asset: a.label ?? copyWho(a), venue: a.leader.venue === "solana" ? "Solana" : "Hyperliquid", alloc: sizeLabel(a.size) });
+      nodes.push({ id: a.id, kind: "action", side: "buy", asset: a.label ?? copyWho(a), venue: a.leader.venue === "hyperliquid" ? "Hyperliquid" : "Solana", alloc: sizeLabel(a.size) });
     } else if (a.type === "liquidity") {
       nodes.push({ id: a.id, kind: "action", side: "buy", asset: a.label ?? `${a.pool.symbol} liquidity`, venue: "Meteora", alloc: sizeLabel(a.size), tp: levelLabel(a.exits.takeProfit, "+", "tp"), sl: levelLabel(a.exits.stopLoss, "−", "sl"), pnl: pos ? pos.unrealizedPnlPct : undefined });
     } else {
@@ -566,18 +566,19 @@ export function describeStrategy(s: Strategy): { watches: string[]; watchKinds: 
     rules.push({
       id: a.id,
       match: "all",
-      when: [a.leader.venue === "solana" ? `${copyWho(a)} buys or sells a token` : `${copyWho(a)} opens, closes or flips a position`, ...gate],
+      when: [a.leader.venue === "x" ? `${copyWho(a)} calls a Solana token in a post` : a.leader.venue === "solana" ? `${copyWho(a)} buys or sells a token` : `${copyWho(a)} opens, closes or flips a position`, ...gate],
       then: [{ text: copyText(a), tone: "long" }],
     });
     const w = copyWho(a);
     if (!watches.includes(w)) watches.push(w);
-    watchKinds.push({ label: w, kind: a.leader.venue === "solana" ? "wallet" : "trader" });
+    watchKinds.push({ label: w, kind: a.leader.venue === "x" ? "post_match" : a.leader.venue === "solana" ? "wallet" : "trader" });
   }
   return { watches, watchKinds, rules };
 }
 
 /** "Wallet 7xKp…9fQe" / "Trader 0x1234…abcd". */
 function copyWho(a: Extract<Action, { type: "copy" }>): string {
+  if (a.leader.venue === "x") return `@${a.leader.account}`;
   return a.leader.venue === "solana" ? `Wallet ${a.leader.wallet.slice(0, 4)}…${a.leader.wallet.slice(-4)}` : `Trader ${a.leader.trader.slice(0, 6)}…${a.leader.trader.slice(-4)}`;
 }
 
@@ -585,6 +586,11 @@ function copyWho(a: Extract<Action, { type: "copy" }>): string {
 function copyText(a: Extract<Action, { type: "copy" }>): string {
   const size = sizeLabel(a.size);
   const only = a.only?.length ? ` (only ${a.only.slice(0, 3).map((x) => (x.length > 12 ? `${x.slice(0, 4)}…` : x)).join(", ")}${a.only.length > 3 ? "…" : ""})` : "";
+  if (a.leader.venue === "x") {
+    const ex = a.exits;
+    const exits = [ex.takeProfit && "pct" in ex.takeProfit ? `take profit at +${ex.takeProfit.pct}%` : null, ex.stopLoss && "pct" in ex.stopLoss ? `stop at −${ex.stopLoss.pct}%` : null, ex.timeExitHours ? `sell after ${ex.timeExitHours}h` : null].filter(Boolean);
+    return `Buy each Solana token they call with ${size}${only}, if its liquidity is above $${Math.round(a.minLiquidityUsd / 1000)}k; ${exits.length ? exits.join(", ") : "stop at −30%, sell after 24h"}. Up to ${a.maxOpen} at once.`;
+  }
   if (a.leader.venue === "solana")
     return `Buy the same token with ${size}${only}, if its liquidity is above $${Math.round(a.minLiquidityUsd / 1000)}k${a.mirrorExits ? ", and sell when it sells" : ""}. Up to ${a.maxOpen} at once.`;
   const lev = a.leverage ? `${a.leverage}×` : "their leverage";

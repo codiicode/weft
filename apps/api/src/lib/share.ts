@@ -66,7 +66,7 @@ export function watchesOf(s: Strategy): string[] {
     if (sig.kind === "position") continue;
     if (!out.includes(w)) out.push(w);
   }
-  for (const a of s.actions) if (a.type === "copy") out.push(a.leader.venue === "solana" ? `Wallet ${short(a.leader.wallet)}` : `Trader ${short(a.leader.trader)}`);
+  for (const a of s.actions) if (a.type === "copy") out.push(a.leader.venue === "x" ? `Calls by @${a.leader.account}` : a.leader.venue === "solana" ? `Wallet ${short(a.leader.wallet)}` : `Trader ${short(a.leader.trader)}`);
   return out.slice(0, 4);
 }
 
@@ -79,7 +79,7 @@ export function tradesOf(s: Strategy): string[] {
       const i = a.instrument;
       t = i.kind === "perp" ? `${i.symbol}${a.leverage > 1 ? ` ${a.leverage}×` : ""}` : i.kind === "token" ? (i.symbol ? `$${i.symbol}` : "a Solana token") : i.kind === "outcome" ? "a prediction market" : instrumentLabel(i);
     } else if (a.type === "options") t = `${a.legs[0]!.instrument.underlying} options`;
-    else if (a.type === "copy") t = a.leader.venue === "solana" ? "every token it buys" : "every position it opens";
+    else if (a.type === "copy") t = a.leader.venue === "x" ? "every token it calls" : a.leader.venue === "solana" ? "every token it buys" : "every position it opens";
     if (t && !out.includes(t)) out.push(t);
   }
   return out.slice(0, 4);

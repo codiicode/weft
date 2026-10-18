@@ -112,10 +112,14 @@ export const NotifyAction = z.object({
 });
 export type NotifyAction = z.infer<typeof NotifyAction>;
 
-/** Whose trades to copy: a Solana wallet (any token it buys) or a Hyperliquid account (any perp it opens). */
+/**
+ * Whose trades to copy: a Solana wallet (any token it buys), a Hyperliquid account (any perp it
+ * opens), or an X account (any Solana token it calls in a post: by contract address or cashtag).
+ */
 export const CopyLeader = z.discriminatedUnion("venue", [
   z.object({ venue: z.literal("solana"), wallet: SolanaMint }),
   z.object({ venue: z.literal("hyperliquid"), trader: z.string().regex(/^0x[0-9a-fA-F]{40}$/, "a Hyperliquid address (0x…)") }),
+  z.object({ venue: z.literal("x"), account: z.string().regex(/^@?[A-Za-z0-9_]{1,15}$/, "an X handle").transform((h) => h.replace(/^@/, "")) }),
 ]);
 export type CopyLeader = z.infer<typeof CopyLeader>;
 
@@ -132,7 +136,7 @@ export const CopyAction = z.object({
   type: z.literal("copy"),
   on: z.array(Id).default([]).describe("Optional: copy only while one of these triggers is true"),
   leader: CopyLeader,
-  size: Size.describe("Per copied trade: SOL (native) or USD for Solana, USD for Hyperliquid"),
+  size: Size.describe("Per copied trade: SOL (native) or USD for Solana and X calls, USD for Hyperliquid"),
   leverage: z.number().min(1).max(50).optional().describe("Hyperliquid: fixed leverage; omit to use the leader's (capped by risk.maxLeverage)"),
   only: z.array(z.string().min(1)).max(50).optional().describe("Only these coins (Hyperliquid, e.g. BTC) or token mints (Solana)"),
   minLiquidityUsd: z.number().nonnegative().default(100_000).describe("Solana: skip tokens with less liquidity than this"),

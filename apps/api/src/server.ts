@@ -34,6 +34,7 @@ import { createApp } from "./app.ts";
 import { DEFAULT_X_PREFS, XBot, type XPrefs } from "./social/xbot.ts";
 import { fomoLookup } from "./lib/fomo.ts";
 import { claudeTradeIntent } from "./ai/trade-intent.ts";
+import { claudeCallClassifier, xCallFeed } from "./social/x-calls.ts";
 import { setTraderLookup } from "./ai/generate.ts";
 import { FastExits } from "./live/fast-exits.ts";
 import { RiftFunding } from "./live/rift.ts";
@@ -66,13 +67,20 @@ const venues = createVenues({
   ...(process.env.TWITTERAPI_IO_KEY ? { twitterApiKey: process.env.TWITTERAPI_IO_KEY, postMatcher: process.env.ANTHROPIC_API_KEY ? claudePostMatcher() : undefined } : {}),
   ...(process.env.HELIUS_API_KEY ? { heliusApiKey: process.env.HELIUS_API_KEY } : {}),
 });
+// Copy trading's leaders: Solana wallets, Hyperliquid accounts, and calls from X accounts.
+const copyFeeds = {
+  ...venues.copyFeeds,
+  ...(process.env.TWITTERAPI_IO_KEY && process.env.ANTHROPIC_API_KEY
+    ? { xCalls: xCallFeed({ twitterApiKey: process.env.TWITTERAPI_IO_KEY, catalog: venues.catalog, classify: claudeCallClassifier(), log: (m) => console.warn(m) }) }
+    : {}),
+};
 const accounts = new Accounts(join(DATA_DIR, "accounts.db"));
 const paperEngine = createEngine({
   store: new SqliteStore(join(DATA_DIR, "engine.db")),
   marketData: venues.marketData,
   signalProviders: venues.signalProviders,
   tokenFacts: venues.tokenFacts,
-  copy: venues.copyFeeds,
+  copy: copyFeeds,
 });
 
 // Live trading: per-user Privy agent wallets → Hyperliquid. A separate engine and store, so paper
@@ -126,7 +134,7 @@ const liveEngine = live
       marketData: venues.marketData,
       signalProviders: venues.signalProviders,
       tokenFacts: venues.tokenFacts,
-      copy: venues.copyFeeds,
+      copy: copyFeeds,
       executor: liveExecutor!,
     })
   : null;
@@ -160,7 +168,7 @@ const solanaEngine = solana
       marketData: venues.marketData,
       signalProviders: venues.signalProviders,
       tokenFacts: venues.tokenFacts,
-      copy: venues.copyFeeds,
+      copy: copyFeeds,
       executor: new SolanaRouterExecutor(solana, (id) => accounts.deploymentOwner(id)),
     })
   : null;

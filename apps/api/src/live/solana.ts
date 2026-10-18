@@ -502,7 +502,7 @@ export class SolanaLive {
 
 /** True when a strategy opens positions in Solana tokens. */
 export function tradesSolana(s: Strategy): boolean {
-  return s.actions.some((a) => (a.type === "open" && a.instrument.kind === "token") || (a.type === "copy" && a.leader.venue === "solana") || a.type === "liquidity");
+  return s.actions.some((a) => (a.type === "open" && a.instrument.kind === "token") || (a.type === "copy" && (a.leader.venue === "solana" || a.leader.venue === "x")) || a.type === "liquidity");
 }
 
 /** The base64 SPKI public key for a base64 PKCS8 P-256 private key. */

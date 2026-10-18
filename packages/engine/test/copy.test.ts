@@ -108,6 +108,28 @@ describe("copy trading", () => {
     expect(r.fills.map((f) => [f.instrumentKey, f.side, f.reason])).toEqual([["hl:perp:BTC", "sell", "entry"]]);
   });
 
+  it("X calls: buys each new token an account calls (not older ones), skips thin or unsafe ones, adds a stop and a time exit", async () => {
+    const s = defineStrategy({
+      schemaVersion: 1, id: "calls", name: "calls", thesis: "t", signals: [], triggers: [],
+      actions: [{ id: "c", type: "copy", leader: { venue: "x", account: "@caller" }, size: { unit: "usd", value: 50 } }],
+    });
+    const C = "TokenC11111111111111111111111111111111111111";
+    const feed = [
+      [{ id: "old", at: T0 - 60 * MIN, mint: A, symbol: "AAA" }],
+      [{ id: "old", at: T0 - 60 * MIN, mint: A, symbol: "AAA" }, { id: "p1", at: T0 + MIN, mint: A, symbol: "AAA" }, { id: "p2", at: T0 + MIN, mint: B, symbol: "BBB" }, { id: "p3", at: T0 + MIN, mint: C, symbol: "CCC" }],
+    ];
+    let i = 0;
+    const safe = { top10_holders_pct: 10, mint_authority_revoked: true, freeze_authority_revoked: true, age_minutes: 999, dev_sold_pct: 0 };
+    const r = await replay(s, [frame(0, {}), frame(1, { [`sol:token:${A}`]: 1, [`sol:token:${B}`]: 1, [`sol:token:${C}`]: 1 })], {
+      slippageBps: ZERO_SLIPPAGE,
+      tokenFacts: { [A]: { ...safe, liquidity_usd: 500_000 }, [B]: { ...safe, liquidity_usd: 5_000 }, [C]: { ...safe, liquidity_usd: 900_000, mint_authority_revoked: false } },
+      copy: { xCalls: async () => feed[Math.min(i++, feed.length - 1)]! },
+    });
+    expect(r.fills.map((f) => [f.instrumentKey, f.side])).toEqual([[`sol:token:${A}`, "buy"]]);
+    expect(r.events.filter((e) => e.type === "rejected").map((e) => e.message).join(" ")).toMatch(/liquidity[\s\S]*mint authority/);
+    expect(r.snapshot.positions[0]!.exits).toMatchObject({ stopLoss: { pct: 30 }, timeExitHours: 24 });
+  });
+
   it("refuses to fade a Solana wallet (spot tokens can't be shorted)", () => {
     expect(() =>
       defineStrategy({
