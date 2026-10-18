@@ -407,8 +407,10 @@ async function drawRun(t) {
 }
 
 /* ---------- 5. real pools: b11 – b13 ---------- */
-const PAIRS = ["SOL-USDC", "JUP-SOL", "ETH-SOL", "JUP-USDC"];
-const LOGO = (s) => `../../apps/web/public/coins/${s}.svg`;
+const PAIRS = ["SOL-USDC", "FTR-SOL", "CATE-SOL", "JUP-SOL"];
+const OWN = { FTR: "logos/FTR.webp", CATE: "logos/CATE.jpg" }; // token logos from Jupiter's token list
+const LOGO = (s) => OWN[s] ?? `../../apps/web/public/coins/${s}.svg`;
+const age = (d) => (d >= 365 ? `${(d / 365).toFixed(1)} years` : d >= 1.5 ? `${Math.round(d)} days` : `${Math.max(1, Math.round(d * 24))} hours`);
 const poolCards = PAIRS.map((name) => {
   const p = D.pools.find((x) => x.name === name);
   return div(`
@@ -419,7 +421,7 @@ const poolCards = PAIRS.map((name) => {
       <div class="stat tnum"><span>Deposited</span><span>${big(p.tvl)}</span></div>
       <div class="stat tnum"><span>Traded, 24 h</span><span>${big(p.vol24h)}</span></div>
       <div class="stat tnum"><span>Fees, 24 h</span><span>${big(p.fees24h)}</span></div>
-      <div class="stat tnum" style="border-bottom:1px solid #26262a"><span>Price step</span><span>${p.binStep / 100}%</span></div>
+      <div class="stat tnum" style="border-bottom:1px solid #26262a"><span>Pool age</span><span>${age(p.ageDays)}</span></div>
     </div>`, "position:relative;border-radius:24px;background:linear-gradient(180deg,#17171a,#121214);border:1.5px solid #26262a;padding:38px 36px 34px;box-shadow:inset 0 1px 0 rgba(255,255,255,0.05),0 40px 120px rgba(0,0,0,0.5)", $("poolRow"));
 });
 const Q = { a: b(11), z: b(13) - 0.3 };
@@ -435,7 +437,7 @@ const caps = captions($("caps"), [
   [b(7.6), "Earns fees while SOL is in range."],
   [b(9.2), "Out of range too long?"],
   [b(10.05), "It pulls out for you.", b(11) - 0.35],
-  [b(11) + 0.15, "Name a pool, or let Weft pick one."],
+  [b(11) + 0.15, "From SOL-USDC to tokens that launched this week."],
 ], b(13) - 0.4);
 
 /* ---------- 6. end: the knot ---------- */
