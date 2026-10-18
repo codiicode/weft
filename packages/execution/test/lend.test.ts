@@ -239,3 +239,27 @@ describe("Jupiter Lend", () => {
     expect(h.sentTx).toHaveLength(0);
   });
 });
+
+describe("Jupiter Lend rate limits", () => {
+  it("asks again after a 429, and marks a lasting one as worth retrying later", async () => {
+    let n = 0;
+    const flaky = (async (url: string, init?: RequestInit) => {
+      if (String(url).includes("deposit-instructions") && n++ < 2) return new Response('{"code":429}', { status: 429 });
+      return realFetch(url, init);
+    }) as unknown as typeof fetch;
+    const { api: base } = fakeJupiter();
+    const realFetch = (base as unknown as { fetchFn: typeof fetch }).fetchFn;
+    const api = new JupiterLendApi({ baseUrl: "https://jup.test", fetch: flaky });
+    api.backoffMs = [1, 1, 1];
+    const h = jupHarness(api, { held: 1_000_000_000n });
+    expect((await h.ex.execute(h.req({ notionalUsd: 10 }))).status).toBe("filled");
+
+    const always = (async (url: string, init?: RequestInit) => (String(url).includes("deposit-instructions") ? new Response("{}", { status: 429 }) : realFetch(url, init))) as unknown as typeof fetch;
+    const api2 = new JupiterLendApi({ baseUrl: "https://jup.test", fetch: always });
+    api2.backoffMs = [1];
+    const h2 = jupHarness(api2, { held: 1_000_000_000n });
+    const r = await h2.ex.execute(h2.req({ notionalUsd: 10 }));
+    expect(r.status === "rejected" && r.retry).toBe(true);
+    expect(h2.sentTx).toHaveLength(0);
+  });
+});

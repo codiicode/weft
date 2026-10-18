@@ -60,7 +60,8 @@ export type ExecutionResult =
       venueId?: string;
       slippageBps: number;
     }
-  | { status: "rejected" | "pending"; reason: string };
+  /** `retry`: nothing reached the market and the cause may pass (a rate limit, a lender short of cash), so the rule tries again later. */
+  | { status: "rejected" | "pending"; reason: string; retry?: boolean };
 
 /** Default paper slippage (bps from mid) when a quote has no fillPrice, impact or book. */
 export const DEFAULT_SLIPPAGE_BPS: Record<Instrument["kind"], number> = {

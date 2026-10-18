@@ -985,7 +985,7 @@ async function executeOpen(s: Session, i: OpenIntent, usdPrices: Record<string, 
   } catch (e) {
     res = { status: "rejected" as const, reason: errMsg(e) };
   }
-  if (res.status !== "filled") return reject(s, i, res.reason, res.status === "pending");
+  if (res.status !== "filled") return res.status === "rejected" && res.retry ? retryLater(s, i, res.reason) : reject(s, i, res.reason, res.status === "pending");
   const maxLeverage = s.deps.perpRealism && i.instrument.kind === "perp" && needsLiquidationPrice({ instrument: i.instrument, side: i.side, leverage: i.leverage }) ? await maxLeverageOf(s, i.instrument) : null;
   s.bookOpen({ instrument: i.instrument, side: i.side, leverage: i.leverage, actionId: i.actionId, intentKey: i.key, exits: i.exits, res, maxLeverage });
 }

@@ -650,3 +650,28 @@ describe("prediction markets: never get stuck", () => {
     expect(await t.engine.getFills(d.id)).toHaveLength(1);
   });
 });
+
+describe("orders the venue couldn't take yet", () => {
+  it("tries a rate-limited open again on the next check instead of giving up", async () => {
+    let calls = 0;
+    const executor = {
+      mode: "paper" as const,
+      async execute(req: { notionalUsd?: number }) {
+        calls++;
+        if (calls === 1) return { status: "rejected" as const, reason: "429 Too many requests", retry: true };
+        return { status: "filled" as const, qty: (req.notionalUsd ?? 0) / 100, price: 100, markPrice: 100, feeUsd: 0, builderFeeUsd: 0, slippageBps: 0 };
+      },
+    };
+    const t = setup({ executor: executor as never });
+    t.market.set(BTC, 100);
+    t.signals.set("go", { value: 1 });
+    const strategy = simpleStrategy({ instrument: BTC, side: "long", size: { unit: "usd", value: 1_000 } }, { triggers: [{ id: "entry", when: { op: "gt", left: { ref: "go.value" }, right: { value: 0 } }, maxFires: 1 }] });
+    const d = await t.engine.createDeployment({ strategy, allocationUsd: 10_000 });
+    await t.engine.tick(d.id);
+    expect((await t.engine.getSnapshot(d.id))!.positions).toHaveLength(0);
+    t.clock.t += MIN;
+    await t.engine.tick(d.id);
+    expect(calls).toBe(2);
+    expect((await t.engine.getSnapshot(d.id))!.positions).toHaveLength(1);
+  });
+});

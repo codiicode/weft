@@ -16,6 +16,15 @@ const u64 = (n: bigint) => {
   return b;
 };
 
+/** An error from before anything was sent; `retry` when it may pass on its own (rate limits, outages). */
+export class LendRetryable extends Error {
+  readonly retry: boolean;
+  constructor(message: string, retry: boolean) {
+    super(message);
+    this.retry = retry;
+  }
+}
+
 /** SOL kept in the wallet for fees and rent when lending SOL. */
 export const LEND_SOL_RESERVE_LAMPORTS = 10_000_000n;
 
@@ -145,11 +154,22 @@ export class JupiterLendApi {
     this.fetchFn = o.fetch ?? fetch;
   }
 
+  /** Waits between tries on a 429 (ms); tests shorten it. */
+  backoffMs = [800, 2000, 4500];
+
   private async call<T>(path: string, body?: unknown): Promise<T> {
-    const r = await this.fetchFn(`${this.base}/lend/v1/earn/${path}`, body ? { method: "POST", headers: this.headers, body: JSON.stringify(body) } : { headers: this.headers });
-    const t = await r.text();
-    if (!r.ok) throw new Error(`Jupiter Lend ${path}: ${r.status} ${t.slice(0, 200)}`);
-    return JSON.parse(t) as T;
+    for (let attempt = 0; ; attempt++) {
+      const r = await this.fetchFn(`${this.base}/lend/v1/earn/${path}`, body ? { method: "POST", headers: this.headers, body: JSON.stringify(body) } : { headers: this.headers });
+      const t = await r.text();
+      if (r.ok) return JSON.parse(t) as T;
+      // Jupiter's gateway rate-limits bursts: wait and ask again a few times before giving up.
+      if ((r.status === 429 || r.status >= 500) && attempt < this.backoffMs.length) {
+        const after = Number(r.headers?.get?.("retry-after")) * 1000;
+        await new Promise((res) => setTimeout(res, after > 0 && after < 10_000 ? after : this.backoffMs[attempt]));
+        continue;
+      }
+      throw new LendRetryable(`Jupiter Lend ${path}: ${r.status} ${t.slice(0, 200)}`, r.status === 429 || r.status >= 500);
+    }
   }
 
   tokens(): Promise<JupiterEarnToken[]> {
@@ -277,7 +297,9 @@ export class LendExecutor implements Executor {
       if (!m.liquidityMint.equals(new PublicKey(i.mint))) return { status: "rejected", reason: `that ${VENUE_NAME[m.venue]} market lends ${m.liquidityMint.toBase58().slice(0, 6)}…, not ${i.symbol}` };
       return req.phase === "open" ? await this.open(req, m, i.symbol) : await this.close(req, m, i.symbol);
     } catch (e) {
-      return { status: "rejected", reason: e instanceof Error ? e.message : String(e) };
+      // Nothing went out for this order (a send that failed would have recorded it): an open may try again.
+      const unsent = !this.sent.has(req.clientId);
+      return { status: "rejected", reason: e instanceof Error ? e.message : String(e), ...(unsent && e instanceof LendRetryable && e.retry ? { retry: true } : {}) };
     }
   }
 

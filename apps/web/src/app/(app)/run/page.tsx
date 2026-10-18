@@ -20,6 +20,7 @@ import { InstructRun, SellButton } from "@/components/app/RunControls";
 import { StrategyCanvas } from "@/components/app/StrategyCanvas";
 import { EquityChart } from "@/components/app/EquityChart";
 import { ShareResult } from "@/components/app/ShareResult";
+import { tradesSolana } from "@/lib/trading";
 
 const EVENT: Record<string, [label: string, color: string]> = {
   fill: ["Trade", "var(--long)"],
@@ -323,7 +324,7 @@ function Run() {
             id={d.id}
             shared={Boolean(s.shared)}
             onChange={() => snap.refresh()}
-            venue={d.strategy.actions.some((a) => a.type === "open" && a.instrument.kind === "token") ? "Solana trading wallet" : d.strategy.actions.some((a) => a.type === "open" && a.instrument.kind === "synth") ? "Papertrade account" : "Hyperliquid account"}
+            venue={tradesSolana(d.strategy) ? "Solana trading wallet" : d.strategy.actions.some((a) => a.type === "open" && a.instrument.kind === "synth") ? "Papertrade account" : "Hyperliquid account"}
           />
         )}
         {d.mode === "paper" && !d.alertsOnly && (
