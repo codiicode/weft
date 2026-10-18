@@ -1006,7 +1006,10 @@ const BANNERS = {
       [drawPM, "green", 1170, 650, 330, 220],
     ];
     for (const [fn, ink, x, y, w, h] of T) tile(x, y, w, h, fn, ink, { contrast: 1.0, cell: 5, solid: 0.42 });
-    div(`Weft = Financial<br>Superintelligence<br><span style="color:#77766f">for everyone.</span>`, "position:absolute;left:0;right:0;top:268px;text-align:center;font-size:104px;line-height:1.02;letter-spacing:-0.03em;color:#f4f3ef;text-shadow:0 20px 60px rgba(0,0,0,0.6)").classList.add("serif");
+    // the wordmark on its own line, the claim under it
+    const mark = `<svg width="92" height="92" viewBox="0 0 48 48"><g fill="none" stroke="#f4f3ef" stroke-width="4.4" stroke-linecap="round"><path d="M8 13C20 13 21 24 30 24"/><path d="M8 24H30"/><path d="M8 35C20 35 21 24 30 24"/><path d="M30 24H40"/></g><circle cx="30" cy="24" r="5.6" fill="#f4f3ef"/></svg>`;
+    div(`${mark}<span style="font-size:112px;font-weight:600;letter-spacing:-0.045em;line-height:1">weft</span>`, "position:absolute;left:0;right:0;top:262px;display:flex;align-items:center;justify-content:center;gap:22px;color:#f4f3ef;filter:drop-shadow(0 20px 50px rgba(0,0,0,0.6))");
+    div(`Financial Superintelligence<br><span style="color:#77766f">for everyone.</span>`, "position:absolute;left:0;right:0;top:418px;text-align:center;font-size:84px;line-height:1.06;letter-spacing:-0.025em;color:#f4f3ef;text-shadow:0 20px 60px rgba(0,0,0,0.6)").classList.add("serif");
   },
   safe() {
     $b.style.width = "1080px"; $b.style.height = "1080px"; $b.className = "dark"; dots("#242428", 24);
