@@ -65,3 +65,22 @@ describe("Papertrade (practice)", () => {
     expect(() => simpleStrategy({ instrument: { kind: "perp", venue: "hyperliquid", symbol: "BTC" }, side: "long", size: { unit: "usd", value: 10 }, leverage: 100 }, { risk: { maxLeverage: 1000 } as never })).toThrow(/Papertrade/);
   });
 });
+
+describe("exit checks between ticks", () => {
+  it("closes on a stop with a streamed price, without a tick", async () => {
+    const t = setup({ tickEventIntervalMs: 0 });
+    const key = instrumentKey(PT_BTC);
+    t.market.set(key, 100_000);
+    t.signals.set("go", { value: 1 });
+    const s = simpleStrategy({ instrument: PT_BTC, side: "long", size: { unit: "usd", value: 100 }, leverage: 100, exits: { stopLoss: { positionPct: 25 } } }, { risk: { maxLeverage: 1000, maxTotalExposurePct: 5000, maxPositionPct: 100 } as never });
+    const d = await t.engine.createDeployment({ strategy: s, allocationUsd: 10_000 });
+    await t.engine.tick(d.id);
+    expect((await t.engine.getSnapshot(d.id))!.positions).toHaveLength(1);
+    t.clock.t += 1_000;
+    // the quote feed still says 100,000; the stream says 99,700 (−0.3% → −30% on the position)
+    await t.engine.checkExits!(d.id, { [key]: 99_700 });
+    const snap = (await t.engine.getSnapshot(d.id))!;
+    expect(snap.positions).toHaveLength(0);
+    expect((await t.engine.getFills(d.id)).at(-1)!.reason).toBe("stop_loss");
+  });
+});

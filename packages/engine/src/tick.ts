@@ -637,6 +637,17 @@ async function runExits(s: Session): Promise<void> {
   }
 }
 
+/**
+ * Only the exit half of a tick: mark, liquidate and run exits on the positions, nothing else (no
+ * signals, rules or new orders). For fast checks between ticks when a price moves.
+ */
+export async function runExitsOnly(s: Session): Promise<void> {
+  if (!s.open().length) return;
+  await markAll(s);
+  if (s.deps.perpRealism) await ensureLiquidationPrices(s);
+  await runExits(s);
+}
+
 /* ---- a2. perps: funding & liquidation ---- */
 
 /**

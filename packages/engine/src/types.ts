@@ -242,6 +242,11 @@ export interface Engine {
   subscribe(listener: (e: EngineEvent) => void): () => void;
   /** Record an outside observation on a deployment (e.g. venue reconciliation). */
   note?(id: string, type: "warning" | "error" | "notify", message: string, data?: Record<string, unknown>): Promise<void>;
+  /**
+   * Check exits now, between ticks (mark, liquidate, stops and targets; no rules, no new orders).
+   * `prices` (instrument key → price) are used instead of fetching quotes when given.
+   */
+  checkExits?(id: string, prices?: Record<string, number>): Promise<void>;
   /** The owner sells `fraction` (0–1] of one open position at market, now. Resolves false if nothing filled. */
   closePosition?(id: string, positionId: string, fraction: number): Promise<boolean>;
   /** Change the exits of open positions (all, or the listed ones). `null` clears a level. */

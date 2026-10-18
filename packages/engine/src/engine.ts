@@ -1,5 +1,5 @@
 import { randomUUID } from "node:crypto";
-import { initialState, RiskCaps, validateStrategy, type Instrument, type Strategy } from "@weft/strategy";
+import { initialState, instrumentKey, RiskCaps, validateStrategy, type Instrument, type Strategy } from "@weft/strategy";
 import type { MarketData, SignalProvider, TokenFactsProvider } from "@weft/venues";
 import type {
   CreateDeploymentInput,
@@ -17,7 +17,7 @@ import type { DeploymentRuntime, Store } from "./store.ts";
 import { errMsg, PaperExecutor, type Executor } from "./executor.ts";
 import { resolveFees, type FeeOverrides } from "./fees.ts";
 import { marginOf, unrealizedOf } from "./positions.ts";
-import { fmtUsd, runTick, Session, type CopyFeeds, type TickDeps } from "./tick.ts";
+import { fmtUsd, runExitsOnly, runTick, Session, type CopyFeeds, type TickDeps } from "./tick.ts";
 
 export type Clock = (() => number) | { now(): number };
 
@@ -353,6 +353,39 @@ export function createEngine(opts: EngineOptions): EngineRuntime {
     subscribe(listener: (e: EngineEvent) => void): () => void {
       listeners.add(listener);
       return () => listeners.delete(listener);
+    },
+
+    checkExits(id: string, prices?: Record<string, number>): Promise<void> {
+      return withLock(id, async () => {
+        const { d, rt } = await load(id);
+        if (d.status !== "running" && d.status !== "paused") return;
+        const t = now();
+        // Fresh prices from a stream, when given: no quote round trip for the instruments they cover.
+        const md = deps.marketData;
+        const marketData: MarketData = prices
+          ? {
+              ...md,
+              getQuote: async (i, r) => {
+                const k = instrumentKey(i);
+                return prices[k] != null ? { instrumentKey: k, price: prices[k]!, ts: t, source: "stream" } : md.getQuote(i, r);
+              },
+              getQuotes: undefined,
+              getFundingRate: md.getFundingRate?.bind(md),
+              getMaxLeverage: md.getMaxLeverage?.bind(md),
+            }
+          : md;
+        const s = new Session(d, rt, await store.listPositions(id), { ...deps, marketData }, t);
+        try {
+          await runExitsOnly(s);
+        } catch (e) {
+          const ev = event(id, "error", `Exit check failed: ${errMsg(e)}`, undefined, t);
+          await store.commit({ deploymentId: id, events: [ev] });
+          publish([ev]);
+          return;
+        }
+        await store.commit(s.toBatch());
+        publish(s.events);
+      });
     },
 
     closePosition(id: string, positionId: string, fraction: number): Promise<boolean> {

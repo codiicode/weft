@@ -146,3 +146,22 @@ describe("liquidity ranges", () => {
     expect(describePctRange({ lowerPct: 50, upperPct: -10 })).toBe("from 50% below to 10% below the price");
   });
 });
+
+describe("Papertrade warnings", () => {
+  const pt = (leverage: number, stop?: number) =>
+    validateStrategy({
+      schemaVersion: 1, id: "pt", name: "pt", thesis: "pt",
+      signals: [{ id: "go", kind: "macro", params: { series: "GO" } }],
+      triggers: [{ id: "t", when: { op: "gt", left: { ref: "go.value" }, right: { value: 0 } } }],
+      actions: [{ id: "a", type: "open", on: ["t"], instrument: { kind: "synth", venue: "papertrade", symbol: "BTC" }, side: "long", size: { unit: "usd", value: 10 }, leverage, ...(stop ? { exits: { stopLoss: { positionPct: stop } } } : {}) }],
+      risk: { maxLeverage: 1000 },
+    } as never);
+  const msgs = (r: ReturnType<typeof pt>) => (r.ok ? r.warnings.map((w) => w.message).join(" | ") : "invalid");
+  it("says plainly that no stop protects at 500× and up", () => {
+    expect(msgs(pt(1000, 20))).toMatch(/faster than any stop can close it/);
+  });
+  it("flags a stop too close to the bust price, and leaves a sensible one alone", () => {
+    expect(msgs(pt(100, 90))).toMatch(/too close to the bust price/);
+    expect(msgs(pt(100, 25))).not.toMatch(/too close/);
+  });
+});

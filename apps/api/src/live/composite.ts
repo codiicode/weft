@@ -85,7 +85,10 @@ export class CompositeEngine implements Engine {
       await e.note?.(id, type, message, data);
     });
   }
-  closePosition(id: string, positionId: string, fraction: number) {
+  checkExits(id: string, prices?: Record<string, number>) {
+    return this.on(id, async (e) => (e.checkExits ? e.checkExits(id, prices) : undefined));
+  }
+    closePosition(id: string, positionId: string, fraction: number) {
     return this.on(id, (e) => {
       if (!e.closePosition) throw new Error("this engine can’t sell positions on request");
       return e.closePosition(id, positionId, fraction);

@@ -32,6 +32,7 @@ import { Reconciler } from "./live/reconcile.ts";
 import { TelegramBot } from "./lib/telegram.ts";
 import { createApp } from "./app.ts";
 import { XBot } from "./social/xbot.ts";
+import { FastExits } from "./live/fast-exits.ts";
 import { PapertradeAccounts } from "./live/papertrade.ts";
 import { PapertradeExecutor, type Executor } from "@weft/execution";
 import { generateStrategy } from "./ai/generate.ts";
@@ -152,6 +153,17 @@ const solanaEngine = solana
     })
   : null;
 const engine = new CompositeEngine(paperEngine, liveEngine, solanaEngine);
+// Stops and targets on Papertrade (and practice perps) react to Hyperliquid's streamed prices at
+// once, not only at the next tick. Off with WEFT_FAST_EXITS=0.
+if (process.env.WEFT_FAST_EXITS !== "0") {
+  const fast = new FastExits({
+    engine,
+    listRuns: async () => (await engine.listDeployments()).filter((d) => d.status === "running" || d.status === "paused").map((d) => ({ id: d.id, mode: d.mode, status: d.status })),
+    log: (m) => console.warn(m),
+  });
+  fast.start();
+  console.log("  fast exits: watching Hyperliquid best bid/offer");
+}
 // Live liquidity (WEFT_SOL_LP=1): make sure Weft's Solana signer may sign Meteora DLMM transactions.
 if (solana && solCfg.lpEnabled)
   void solana

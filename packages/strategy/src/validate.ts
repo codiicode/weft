@@ -120,8 +120,21 @@ export function semanticIssues(s: Strategy): Issue[] {
       const inst = a.instrument;
       if (isLongOnly(inst) && a.side === "short") err(`${p}.side`, `${inst.kind} instruments can only be bought (long)`);
       if (inst.kind !== "perp" && inst.kind !== "synth" && a.leverage > 1) err(`${p}.leverage`, `leverage only applies to perps`);
-      if (inst.kind === "synth" && a.leverage >= 100)
-        warn(`${p}.leverage`, `at ${a.leverage}× a ${(100 / a.leverage).toFixed(a.leverage >= 1000 ? 2 : 1)}% move against the position busts it on Papertrade, and the whole margin is lost`);
+      if (inst.kind === "synth") {
+        // Papertrade busts ~0.048% before zero equity, and a close takes a second or two to land:
+        // in a fast move the price can travel ~0.1% in that time (0.1% × leverage of the position).
+        const L = a.leverage;
+        const bustPct = Math.max(0, 100 * (1 - L * 0.00048));
+        const lagPct = 0.1 * L;
+        const sl = a.exits.stopLoss;
+        const stopPos = sl ? ("positionPct" in sl ? sl.positionPct : "pct" in sl ? sl.pct * L : null) : null;
+        const move = `${(100 / L).toFixed(L >= 1000 ? 2 : 1)}%`;
+        if (L >= 500)
+          warn(`${p}.leverage`, `at ${L}× a ${move} move busts it, faster than any stop can close it: count on losing the whole margin, not on the stop`);
+        else if (L >= 100) warn(`${p}.leverage`, `at ${L}× a ${move} move against the position busts it on Papertrade, and the whole margin is lost`);
+        if (L < 500 && stopPos != null && stopPos + lagPct >= bustPct)
+          warn(`${p}.exits.stopLoss`, `this stop sits too close to the bust price: in a fast move the close can land after the bust. Use a tighter stop or less leverage`);
+      }
       if (a.leverage > s.risk.maxLeverage) err(`${p}.leverage`, `leverage ${a.leverage}× exceeds the strategy max of ${s.risk.maxLeverage}×`);
       if (a.size.unit === "pct_equity" && a.size.value > s.risk.maxPositionPct)
         err(`${p}.size`, `${a.size.value}% exceeds maxPositionPct (${s.risk.maxPositionPct}%)`);
