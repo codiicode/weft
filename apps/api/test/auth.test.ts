@@ -51,7 +51,7 @@ function fakeEngine(): Engine {
   };
 }
 
-function setup(opts: { aiDailyLimit?: number; anonAiDailyLimit?: number; practiceBudgetUsd?: number } = {}) {
+function setup(opts: { aiDailyLimit?: number; anonAiDailyLimit?: number; practiceBudgetUsd?: number; internalKey?: string; xAccountOf?: (u: string) => Promise<{ id: string; username: string } | null> } = {}) {
   const dir = mkdtempSync(join(tmpdir(), "weft-auth-"));
   const accounts = new Accounts(join(dir, "accounts.db"));
   const app = createApp({
@@ -65,6 +65,8 @@ function setup(opts: { aiDailyLimit?: number; anonAiDailyLimit?: number; practic
     aiDailyLimit: opts.aiDailyLimit,
     anonAiDailyLimit: opts.anonAiDailyLimit,
     practiceBudgetUsd: opts.practiceBudgetUsd,
+    internalKey: opts.internalKey,
+    xAccountOf: opts.xAccountOf,
   });
   const call = async (method: string, path: string, body?: unknown, tok?: string) =>
     app.request(path, {
@@ -205,5 +207,34 @@ describe("practice", () => {
     const alice = await token("did:privy:alice");
     expect((await call("POST", "/deployments", { strategyId: "crowded-fade", allocationUsd: 100, mode: "paper" }, alice)).status).toBe(400);
     expect(((await (await call("GET", "/practice", undefined, alice)).json()) as { enabled: boolean }).enabled).toBe(false);
+  });
+});
+
+describe("tweet a trade: connecting X and in-process calls", () => {
+  it("acts as a user only with the right internal key", async () => {
+    const { app } = setup({ internalKey: "k".repeat(64), practiceBudgetUsd: 10_000 });
+    const as = (key: string) => app.request("/me/x", { headers: { "x-weft-internal": key, "x-weft-as": "did:privy:bot-user" } });
+    expect((await as("k".repeat(64))).status).toBe(200);
+    expect((await as("j".repeat(64))).status).toBe(401);
+    expect((await as("short")).status).toBe(401);
+    expect((await app.request("/me/x")).status).toBe(401);
+  });
+
+  it("links the X account Privy reports, once, and asks before tweets can trade live", async () => {
+    const xs: Record<string, { id: string; username: string }> = { "did:privy:a": { id: "111", username: "alice" }, "did:privy:b": { id: "111", username: "alice" } };
+    const { call, accounts } = setup({ xAccountOf: async (u) => xs[u] ?? null });
+    const a = await token("did:privy:a"), b = await token("did:privy:b");
+    const linked = (await (await call("POST", "/me/x/sync", {}, a)).json()) as { account: { id: string; username: string } };
+    expect(linked.account).toMatchObject({ id: "111", username: "alice" });
+    expect(accounts.kvGet("x:link:111")).toBe("did:privy:a");
+    expect((await call("POST", "/me/x/sync", {}, b)).status).toBe(409); // already someone else's
+    const prefs = { mode: "live", sizeUsd: 50, maxPerTweetUsd: 50, maxPerDayUsd: 100 };
+    expect((await call("PUT", "/me/x/prefs", prefs, a)).status).toBe(400);
+    expect((await call("PUT", "/me/x/prefs", { ...prefs, maxPerTweetUsd: 500 }, a)).status).toBe(400); // per tweet above per day
+    const ok = (await (await call("PUT", "/me/x/prefs", { ...prefs, confirm: "GO LIVE" }, a)).json()) as { prefs: { mode: string } };
+    expect(ok.prefs.mode).toBe("live");
+    await call("DELETE", "/me/x", undefined, a);
+    expect(accounts.kvGet("x:link:111")).toBe("");
+    expect(((await (await call("GET", "/me/x", undefined, a)).json()) as { account: unknown }).account).toBeNull();
   });
 });

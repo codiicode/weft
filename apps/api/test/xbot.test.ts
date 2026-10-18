@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { XBot, ideaOf, looksLikeIdea, oauthHeader, replyText } from "../src/social/xbot.ts";
+import { DEFAULT_X_PREFS, XBot, asksAboutParent, ideaOf, looksLikeIdea, oauthHeader, replyText, thesisFromParent, type XPrefs } from "../src/social/xbot.ts";
 import { resultCard, resultPage, type ResultCard } from "../src/lib/share.ts";
 
 const tweet = (id: string, text: string, o: { author?: string; followers?: number; at?: number } = {}) => ({
@@ -72,6 +72,85 @@ describe("x bot", () => {
     const k = { apiKey: "a", apiSecret: "b", accessToken: "c", accessSecret: "d" };
     expect(oauthHeader("POST", "https://api.x.com/2/tweets", k, "n", 1)).toBe(oauthHeader("POST", "https://api.x.com/2/tweets", k, "n", 1));
     expect(oauthHeader("POST", "https://api.x.com/2/tweets", k, "n", 1)).not.toBe(oauthHeader("POST", "https://api.x.com/2/tweets", k, "n", 2));
+  });
+});
+
+describe("tweet a trade", () => {
+  const T = (id: string, text: string, o: { author?: string; authorId?: string; followers?: number; inReplyToId?: string } = {}) => ({
+    id, text, createdAt: new Date(Date.UTC(2026, 9, 18, 3)).toUTCString(), inReplyToId: o.inReplyToId ?? null,
+    author: { id: o.authorId ?? "x-1", userName: o.author ?? "trader", followers: o.followers ?? 500 },
+  });
+  function linkedBot(tweets: unknown[], o: { prefs?: Partial<XPrefs>; parent?: { text: string; author: string }; fail?: string; mode?: "dry" | "live" } = {}) {
+    const kv = new Map<string, string>();
+    const posted: string[] = [], told: string[] = [], started: { mode: string; usd: number }[] = [], drafts: { thesis: string; owner?: string }[] = [];
+    const fetch = (async (url: string, init?: RequestInit) => {
+      if (url.includes("/twitter/tweets?tweet_ids=")) return new Response(JSON.stringify({ tweets: o.parent ? [{ id: "p", text: o.parent.text, author: { userName: o.parent.author } }] : [] }), { status: 200 });
+      if (url.includes("twitterapi.io")) return new Response(JSON.stringify({ tweets }), { status: 200 });
+      posted.push(JSON.parse(String(init?.body)).text);
+      return new Response(JSON.stringify({ data: { id: `r${posted.length}` } }), { status: 201 });
+    }) as typeof globalThis.fetch;
+    const b = new XBot({
+      mode: o.mode ?? "live", handle: "weftfinance", twitterApiKey: "k", site: "https://weft.fi", fetch,
+      x: { apiKey: "ck", apiSecret: "cs", accessToken: "at", accessSecret: "as" },
+      draft: async (t) => ({ strategy: { name: "SOL breakout" } as never, rationale: `Plan for: ${t}.` }),
+      saveDraft: (d) => (drafts.push({ thesis: d.thesis, owner: d.owner }), `d${drafts.length}`),
+      linked: (xId) => (xId === "x-me" ? { userId: "did:me", prefs: { ...DEFAULT_X_PREFS, ...o.prefs } } : null),
+      start: async (_u, _s, mode, usd) => {
+        if (o.fail) throw new Error(o.fail);
+        started.push({ mode, usd });
+        return { id: `run${started.length}` };
+      },
+      tell: async (_u, text) => void told.push(text),
+      kvGet: (k) => kv.get(k) ?? null, kvSet: (k, v) => void kv.set(k, v),
+      maxPerDay: 20, perAuthorPerDay: 5, perLinkedPerDay: 10, minFollowers: 10,
+    });
+    return { b, kv, posted, told, started, drafts };
+  }
+
+  it("turns the tweet above into a strategy when asked to", async () => {
+    expect(asksAboutParent("make this a strategy")).toBe(true);
+    expect(asksAboutParent("turn that into a trade but 5x")).toBe(true);
+    expect(asksAboutParent("long SOL 10x if it breaks $110")).toBe(false);
+    expect(thesisFromParent("Long $SOL here, invalidation $95 https://t.co/a", "make this a strategy")).toBe("Long $SOL here, invalidation $95");
+    expect(thesisFromParent("Long $SOL here", "turn this into a trade but 5x")).toBe("Long $SOL here (but 5x)");
+    const { b, drafts, posted } = linkedBot([T("1", "@trader @weftfinance make this a strategy", { inReplyToId: "p" })], { parent: { text: "Long $SOL if it holds $100, target $130", author: "caller" } });
+    expect(await b.run()).toEqual({ seen: 1, replied: 1 });
+    expect(drafts[0]!.thesis).toBe("Long $SOL if it holds $100, target $130");
+    expect(posted[0]).toContain("Read it, practice it or run it:");
+  });
+
+  it("puts it in a connected account, or starts it in practice", async () => {
+    const yours = linkedBot([T("1", "@weftfinance long SOL 10x if it breaks $110", { authorId: "x-me", followers: 3 })]);
+    expect(await yours.b.run()).toEqual({ seen: 1, replied: 1 }); // few followers is fine once connected
+    expect(yours.drafts[0]!.owner).toBe("did:me");
+    expect(yours.posted[0]).toContain("It's in your Weft account");
+    expect(yours.started).toEqual([]);
+
+    const practice = linkedBot([T("1", "@weftfinance long SOL 10x if it breaks $110", { authorId: "x-me" })], { prefs: { mode: "practice", sizeUsd: 500 } });
+    await practice.b.run();
+    expect(practice.started).toEqual([{ mode: "paper", usd: 500 }]);
+    expect(practice.posted[0]).toContain("Started in practice on Weft");
+    expect(practice.told[0]).toContain("Started in practice with $500");
+  });
+
+  it("starts live within the per-tweet and per-day limits, never naming amounts in public", async () => {
+    const { b, started, posted, told } = linkedBot(
+      ["1", "2", "3"].map((id) => T(id, `@weftfinance long SOL 10x if it breaks $11${id}`, { authorId: "x-me" })),
+      { prefs: { mode: "live", sizeUsd: 80, maxPerTweetUsd: 60, maxPerDayUsd: 130 } },
+    );
+    expect(await b.run()).toEqual({ seen: 3, replied: 3 });
+    expect(started).toEqual([{ mode: "live", usd: 60 }, { mode: "live", usd: 60 }]); // the third would pass $130
+    expect(posted.slice(0, 2).every((t) => t.includes("Started on Weft") && !t.includes("$60"))).toBe(true);
+    expect(posted[2]).toContain("It's in your Weft account");
+    expect(told[2]).toContain("today's $130 live limit");
+  });
+
+  it("keeps it as a draft and says why, privately, when it can't start", async () => {
+    const { b, posted, told } = linkedBot([T("1", "@weftfinance long SOL 10x if it breaks $110", { authorId: "x-me" })], { prefs: { mode: "live" }, fail: "Connect Papertrade under Wallets first (one signature)." });
+    await b.run();
+    expect(posted[0]).toContain("It's in your Weft account");
+    expect(posted[0]).not.toContain("Papertrade");
+    expect(told[0]).toContain("Not started: Connect Papertrade");
   });
 });
 

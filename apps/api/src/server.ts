@@ -31,7 +31,7 @@ import { CompositeEngine } from "./live/composite.ts";
 import { Reconciler } from "./live/reconcile.ts";
 import { TelegramBot } from "./lib/telegram.ts";
 import { createApp } from "./app.ts";
-import { XBot } from "./social/xbot.ts";
+import { DEFAULT_X_PREFS, XBot, type XPrefs } from "./social/xbot.ts";
 import { FastExits } from "./live/fast-exits.ts";
 import { RiftFunding } from "./live/rift.ts";
 import { PapertradeAccounts } from "./live/papertrade.ts";
@@ -371,6 +371,9 @@ const scheduleRewards = (ms: number) => {
 scheduleRewards(30_000);
 console.log(`  rewards: ${rewards.enabled ? `from ${rewards.startDay}` : "ledger only (WEFT_REWARDS_START not set)"} · treasury ${treasury ? treasury.address.toBase58().slice(0, 8) + "…" : "off"}`);
 
+// In-process requests as a user (the X bot starting a run through the same route as the Start button).
+const INTERNAL_KEY = randomBytes(32).toString("hex");
+
 // The X reply bot (@weftfinance): off unless WEFT_XBOT is "dry" (logs replies) or "live" (posts them).
 const xbotMode = process.env.WEFT_XBOT === "live" || process.env.WEFT_XBOT === "dry" ? process.env.WEFT_XBOT : null;
 if (xbotMode && process.env.TWITTERAPI_IO_KEY) {
@@ -386,6 +389,7 @@ if (xbotMode && process.env.TWITTERAPI_IO_KEY) {
     x: xKeys,
     maxPerDay: Number(process.env.WEFT_XBOT_MAX_PER_DAY ?? 15),
     perAuthorPerDay: Number(process.env.WEFT_XBOT_PER_AUTHOR ?? 2),
+    perLinkedPerDay: Number(process.env.WEFT_XBOT_PER_LINKED ?? 10),
     minFollowers: Number(process.env.WEFT_XBOT_MIN_FOLLOWERS ?? 10),
     // Only real AI drafts get posted: the template fallback isn't good enough to answer someone with.
     draft: async (thesis) => {
@@ -396,6 +400,26 @@ if (xbotMode && process.env.TWITTERAPI_IO_KEY) {
       const id = randomBytes(8).toString("hex").slice(0, 12);
       accounts.kvSet(`draft:${id}`, JSON.stringify({ id, ...d }));
       return id;
+    },
+    // Tweet a trade: someone who connected X in Settings gets what they chose there.
+    linked: (xId) => {
+      const userId = accounts.kvGet(`x:link:${xId}`);
+      if (!userId) return null;
+      const raw = accounts.kvGet(`x:prefs:${userId}`);
+      return { userId, prefs: raw ? { ...DEFAULT_X_PREFS, ...(JSON.parse(raw) as Partial<XPrefs>) } : DEFAULT_X_PREFS };
+    },
+    start: async (userId, strategy, mode, allocationUsd) => {
+      const r = await app.request("/deployments", {
+        method: "POST",
+        headers: { "content-type": "application/json", "x-weft-internal": INTERNAL_KEY, "x-weft-as": userId },
+        body: JSON.stringify({ strategy, mode, allocationUsd, ...(mode === "live" ? { confirm: "GO LIVE" } : {}) }),
+      });
+      const body = (await r.json().catch(() => ({}))) as { id?: string; error?: string };
+      if (!r.ok || !body.id) throw new Error(body.error ?? `HTTP ${r.status}`);
+      return { id: body.id };
+    },
+    tell: async (userId, text) => {
+      await telegram?.sendToUser(userId, text);
     },
     kvGet: (k) => accounts.kvGet(k),
     kvSet: (k, v) => accounts.kvSet(k, v),
@@ -470,6 +494,15 @@ const app = createApp({
   telegram: telegram ?? undefined,
   webOrigins: process.env.WEB_ORIGINS ? process.env.WEB_ORIGINS.split(",").map((o) => o.trim()).filter(Boolean) : undefined,
   liveMaxTotalUsd: process.env.WEFT_LIVE_MAX_TOTAL_USD ? Number(process.env.WEFT_LIVE_MAX_TOTAL_USD) : undefined,
+  internalKey: INTERNAL_KEY,
+  // The X account the user linked with Privy (Settings → Tweet a trade), read from Privy, not the browser.
+  xAccountOf: privyUsers && xbotMode && process.env.TWITTERAPI_IO_KEY
+    ? async (userId) => {
+        const u = (await privyUsers.users()._get(userId)) as { linked_accounts?: { type?: string; subject?: string; username?: string | null }[] };
+        const x = u.linked_accounts?.find((a) => a.type === "twitter_oauth" && a.subject);
+        return x ? { id: String(x.subject), username: String(x.username ?? "") } : null;
+      }
+    : undefined,
   backtest: { history: venues.history, tokenFacts: venues.tokenFacts, calendar: calendarFields },
 });
 engine.start();

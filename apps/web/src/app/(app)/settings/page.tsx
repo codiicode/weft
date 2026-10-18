@@ -1,7 +1,8 @@
 "use client";
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { api } from "@/lib/api";
+import { useLinkAccount, usePrivy } from "@privy-io/react-auth";
+import { api, type XPrefs } from "@/lib/api";
 import { useAuth, shortAddress } from "@/lib/auth";
 import { useApi } from "@/lib/use-api";
 import { PageHeader, Card, Btn } from "@/components/app/AppShell";
@@ -231,6 +232,140 @@ function AiAssistants() {
   );
 }
 
+
+const MODES: { k: XPrefs["mode"]; title: string; sub: string }[] = [
+  { k: "draft", title: "Save it", sub: "The strategy waits in your account. You start it here." },
+  { k: "practice", title: "Start it in practice", sub: "It runs right away, with no money." },
+  { k: "live", title: "Start it live", sub: "A real trade from your own wallet, within your limits." },
+];
+const money = "h-10 w-28 rounded-[10px] border border-line-2 bg-card px-3 text-[14px] text-ink outline-none focus:border-ink/40 tnum";
+
+/** Tweet a trade: connect X, then tag @weftfinance with an idea and Weft does what you chose here. */
+function TweetATrade() {
+  const me = useApi(() => api.xMe(), []);
+  const { user } = usePrivy();
+  const [busy, setBusy] = useState(false);
+  const [msg, setMsg] = useState<{ ok: boolean; text: string } | null>(null);
+  const [draft, setDraft] = useState<XPrefs | null>(null);
+  const [confirm, setConfirm] = useState("");
+  const refresh = me.refresh;
+  const sync = async () => {
+    try {
+      await api.xSync();
+      await refresh();
+    } catch (e) {
+      setMsg({ ok: false, text: (e as Error).message });
+    }
+  };
+  const { linkTwitter } = useLinkAccount({ onSuccess: ({ linkMethod }) => void (linkMethod === "twitter" && sync()) });
+  // Back from X's sign-in (or linked earlier): make sure Weft knows about it.
+  const privyX = user?.twitter?.subject ?? null;
+  const account = me.data?.account ?? null;
+  useEffect(() => {
+    if (me.data?.enabled && privyX && account?.id !== privyX) void sync();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [me.data?.enabled, privyX, account?.id]);
+  useEffect(() => {
+    if (me.data) setDraft(me.data.prefs);
+  }, [me.data]);
+
+  if (!me.data) return <Row title="X" sub={me.error ? "Couldn’t load." : "Loading…"} />;
+  if (!me.data.enabled) return <Row title="X" sub="Tweet a trade isn’t set up on this server yet." />;
+  if (!account)
+    return (
+      <Row title="Connect X" sub={<>Then tag <span className="text-ink">@weftfinance</span> with a trade idea, and Weft drafts it, or starts it, in your account.</>}>
+        <Btn onClick={() => linkTwitter()}>Connect X</Btn>
+      </Row>
+    );
+  const p = draft ?? me.data.prefs;
+  const changed = JSON.stringify(p) !== JSON.stringify(me.data.prefs);
+  const goingLive = p.mode === "live" && me.data.prefs.mode !== "live";
+  const save = async () => {
+    setBusy(true);
+    setMsg(null);
+    try {
+      await api.xPrefs({ ...p, ...(goingLive ? { confirm } : {}) });
+      setConfirm("");
+      await refresh();
+      setMsg({ ok: true, text: "Saved." });
+    } catch (e) {
+      setMsg({ ok: false, text: (e as Error).message });
+    } finally {
+      setBusy(false);
+    }
+  };
+  const num = (k: keyof Omit<XPrefs, "mode">, v: string) => setDraft({ ...p, [k]: Math.max(0, Number(v.replace(/[^0-9.]/g, "")) || 0) });
+  return (
+    <>
+      <Row title={`Connected as @${account.username}`} sub={<>Tag <span className="text-ink">@weftfinance</span> with an idea, like “long SOL 10x if it breaks $110”, or reply “@weftfinance make this a strategy” under someone’s call.</>}>
+        <Btn
+          variant="ghost"
+          onClick={async () => {
+            await api.xUnlink();
+            setMsg(null);
+            await refresh();
+          }}
+        >
+          Disconnect
+        </Btn>
+      </Row>
+      <div className="px-5 py-4">
+        <div className="text-[14.5px] font-medium text-ink">When you tweet a trade</div>
+        <div className="mt-3 grid gap-2">
+          {MODES.map((m) => (
+            <label key={m.k} className={`flex cursor-pointer items-start gap-3 rounded-[10px] border px-4 py-3 ${p.mode === m.k ? "border-ink/40 bg-paper-2" : "border-line hover:border-line-2"}`}>
+              <input type="radio" name="xmode" checked={p.mode === m.k} onChange={() => setDraft({ ...p, mode: m.k })} className="mt-1 accent-current" />
+              <span>
+                <span className="block text-[14px] text-ink">{m.title}</span>
+                <span className="block text-[13px] text-muted">{m.sub}</span>
+              </span>
+            </label>
+          ))}
+        </div>
+        {p.mode !== "draft" && (
+          <div className="mt-4 flex flex-wrap items-center gap-x-6 gap-y-3 text-[13.5px] text-muted">
+            <label className="flex items-center gap-2">
+              Size per run $
+              <input inputMode="decimal" value={p.sizeUsd || ""} onChange={(e) => num("sizeUsd", e.target.value)} className={money} />
+            </label>
+            {p.mode === "live" && (
+              <>
+                <label className="flex items-center gap-2">
+                  Most per tweet $
+                  <input inputMode="decimal" value={p.maxPerTweetUsd || ""} onChange={(e) => num("maxPerTweetUsd", e.target.value)} className={money} />
+                </label>
+                <label className="flex items-center gap-2">
+                  Most per day $
+                  <input inputMode="decimal" value={p.maxPerDayUsd || ""} onChange={(e) => num("maxPerDayUsd", e.target.value)} className={money} />
+                </label>
+              </>
+            )}
+          </div>
+        )}
+        {p.mode === "live" && (
+          <p className="mt-3 text-[13px] leading-relaxed text-muted">
+            Only tweets from @{account.username} can start trades, only on venues you’ve set up, and never above your limits. Weft’s public reply never shows amounts. You get a Telegram message with a link to stop it.
+            {me.data.prefs.mode === "live" && ` Used today: $${me.data.liveUsedTodayUsd.toLocaleString("en-US")} of $${me.data.prefs.maxPerDayUsd.toLocaleString("en-US")}.`}
+          </p>
+        )}
+        {goingLive && (
+          <input placeholder='Type "GO LIVE" to let your tweets trade' value={confirm} onChange={(e) => setConfirm(e.target.value)} className="mt-3 h-10 w-full rounded-[10px] border border-line-2 bg-card px-3 text-[14px] text-ink outline-none placeholder:text-faint focus:border-ink/40 sm:w-80" />
+        )}
+        {(changed || msg) && (
+          <div className="mt-4 flex flex-wrap items-center gap-3">
+            {changed && (
+              <Btn onClick={save} disabled={busy || (goingLive && confirm !== "GO LIVE")}>
+                {busy ? "Saving…" : "Save"}
+              </Btn>
+            )}
+            {msg && <span className={`text-[13px] ${msg.ok ? "text-muted" : "text-short"}`}>{msg.text}</span>}
+          </div>
+        )}
+      </div>
+    </>
+  );
+}
+
 export default function SettingsPage() {
   const auth = useAuth();
   const live = useApi(auth.enabled && auth.authenticated ? () => api.liveStatus() : null, [auth.enabled, auth.authenticated]);
@@ -287,6 +422,11 @@ export default function SettingsPage() {
             <section>
               <h2 className="mb-3 text-[15px] font-semibold text-ink">Alerts</h2>
               <Card className="divide-y divide-line">{auth.enabled ? <Telegram /> : <Row title="Telegram" sub="Per-person alerts need sign-in." />}</Card>
+            </section>
+
+            <section>
+              <h2 className="mb-3 text-[15px] font-semibold text-ink">Tweet a trade</h2>
+              <Card className="divide-y divide-line">{auth.enabled ? <TweetATrade /> : <Row title="X" sub="Needs sign-in." />}</Card>
             </section>
 
             <section>

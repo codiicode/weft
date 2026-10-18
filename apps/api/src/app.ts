@@ -1,6 +1,7 @@
 import { Hono } from "hono";
 import { resultCard, resultPage, sharePage, strategyCard, tradesOf, type ResultCard } from "./lib/share.ts";
-import { createHash, randomBytes } from "node:crypto";
+import { createHash, randomBytes, timingSafeEqual } from "node:crypto";
+import { DEFAULT_X_PREFS, type XPrefs } from "./social/xbot.ts";
 import type { TopTrader } from "./lib/traders.ts";
 import type { HeliusWebhook } from "./live/helius-webhook.ts";
 import { cors } from "hono/cors";
@@ -116,6 +117,13 @@ export interface AppDeps {
   webOrigins?: string[];
   /** Ceiling on one user's open live allocation across all runs, USD. */
   liveMaxTotalUsd?: number;
+  /**
+   * In-process calls as a given user (the X bot starting a run someone tweeted): the request carries
+   * this key and the user id. Random per boot, never leaves the process.
+   */
+  internalKey?: string;
+  /** The X account Privy says the user linked (id and handle), for Tweet a trade. */
+  xAccountOf?: (userId: string) => Promise<{ id: string; username: string } | null>;
 }
 
 const PRODUCTS = ["perps", "stocks", "predictions", "tokens", "options"] as const;
@@ -167,7 +175,15 @@ export function createApp(deps: AppDeps) {
   const app = new Hono();
 
   /** The signed-in user, LOCAL_USER in local mode, or null for anonymous requests. */
+  const internalKey = deps.internalKey ? Buffer.from(deps.internalKey) : null;
   const optionalUser = async (c: Context): Promise<AuthUser | null> => {
+    const ik = c.req.header("x-weft-internal");
+    if (internalKey && ik) {
+      const got = Buffer.from(ik);
+      const as = c.req.header("x-weft-as");
+      if (got.length === internalKey.length && timingSafeEqual(got, internalKey) && as) return { id: as };
+      throw new HTTPException(401, { message: "bad internal key" });
+    }
     if (!authEnabled) return LOCAL_USER;
     const header = c.req.header("authorization");
     // Query-string tokens only for the event stream (EventSource can't send headers); never elsewhere.
@@ -778,6 +794,70 @@ export function createApp(deps: AppDeps) {
       });
     }
     return c.json(await revenueCache.data);
+  });
+
+  /* ---------------- Tweet a trade: a connected X account and what its tweets do ---------------- */
+
+  const XPrefsBody = z
+    .object({
+      mode: z.enum(["draft", "practice", "live"]),
+      sizeUsd: z.number().min(1).max(100_000),
+      maxPerTweetUsd: z.number().min(1).max(100_000),
+      maxPerDayUsd: z.number().min(1).max(1_000_000),
+      /** Switching to live: the user typed this. */
+      confirm: z.string().optional(),
+    })
+    .refine((p) => p.maxPerTweetUsd <= p.maxPerDayUsd, { message: "The per-tweet limit can't be above the daily limit." });
+  const xOf = (userId: string) => {
+    const raw = accounts?.kvGet(`x:user:${userId}`);
+    return raw ? (JSON.parse(raw) as { id: string; username: string; at: number }) : null;
+  };
+  const xPrefsOf = (userId: string): XPrefs => {
+    const raw = accounts?.kvGet(`x:prefs:${userId}`);
+    return raw ? { ...DEFAULT_X_PREFS, ...(JSON.parse(raw) as Partial<XPrefs>) } : DEFAULT_X_PREFS;
+  };
+  const xView = (userId: string) => {
+    const day = new Date().toISOString().slice(0, 10);
+    return { enabled: Boolean(deps.xAccountOf), account: xOf(userId), prefs: xPrefsOf(userId), liveUsedTodayUsd: Number(accounts?.kvGet(`xbot:live:${userId}:${day}`) ?? 0) };
+  };
+  app.get("/me/x", async (c) => {
+    const user = await requireUser(c);
+    return c.json(xView(user.id));
+  });
+  /** After linking X with Privy on the website: read the link from Privy (not from the browser) and store it. */
+  app.post("/me/x/sync", async (c) => {
+    const user = await requireUser(c);
+    if (!deps.xAccountOf || !accounts) return c.json({ error: "Tweet a trade isn’t set up on this server." }, 501);
+    const x = await deps.xAccountOf(user.id);
+    const old = xOf(user.id);
+    if (old && old.id !== x?.id) accounts.kvSet(`x:link:${old.id}`, "");
+    if (!x) {
+      accounts.kvSet(`x:user:${user.id}`, "");
+      return c.json(xView(user.id));
+    }
+    const other = accounts.kvGet(`x:link:${x.id}`);
+    if (other && other !== user.id) return c.json({ error: "That X account is connected to another Weft account." }, 409);
+    accounts.kvSet(`x:link:${x.id}`, user.id);
+    accounts.kvSet(`x:user:${user.id}`, JSON.stringify({ id: x.id, username: x.username, at: Date.now() }));
+    return c.json(xView(user.id));
+  });
+  app.put("/me/x/prefs", async (c) => {
+    const user = await requireUser(c);
+    if (!accounts) return c.json({ error: "not available" }, 501);
+    const body = XPrefsBody.parse(await c.req.json());
+    if (body.mode === "live" && xPrefsOf(user.id).mode !== "live" && body.confirm !== "GO LIVE")
+      return c.json({ error: 'Type "GO LIVE" to let your tweets start real-money trades.' }, 400);
+    const { confirm: _c, ...prefs } = body;
+    accounts.kvSet(`x:prefs:${user.id}`, JSON.stringify(prefs));
+    return c.json(xView(user.id));
+  });
+  app.delete("/me/x", async (c) => {
+    const user = await requireUser(c);
+    const old = xOf(user.id);
+    if (old) accounts?.kvSet(`x:link:${old.id}`, "");
+    accounts?.kvSet(`x:user:${user.id}`, "");
+    accounts?.kvSet(`x:prefs:${user.id}`, "");
+    return c.json(xView(user.id));
   });
 
   /** Client reports linked wallets / display name (display only; never used for authorization). */

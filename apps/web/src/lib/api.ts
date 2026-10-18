@@ -269,6 +269,19 @@ export interface MyRewards {
   history: RewardRow[];
 }
 
+export interface XPrefs {
+  mode: "draft" | "practice" | "live";
+  sizeUsd: number;
+  maxPerTweetUsd: number;
+  maxPerDayUsd: number;
+}
+export interface XView {
+  enabled: boolean;
+  account: { id: string; username: string; at: number } | null;
+  prefs: XPrefs;
+  liveUsedTodayUsd: number;
+}
+
 export interface Earnings {
   hyperliquid: { builder: string; earnedUsd: number; unclaimedUsd: number; claimedUsd: number; accountValueUsd: number } | null;
   solana: { feeWallet: string; wsol: number; usdc: number; sol: number; solUsd: number | null; usd: number } | null;
@@ -494,6 +507,11 @@ export const api = {
   alertsMe: () => req<{ available: boolean; telegram: { username: string | null; linkedAt: number } | null }>("/alerts/me"),
   linkTelegram: () => req<{ url: string }>("/alerts/telegram/link", { method: "POST", json: {} }),
   unlinkTelegram: () => req<{ ok: true }>("/alerts/telegram", { method: "DELETE" }),
+  /** Tweet a trade: the connected X account and what its tweets do. */
+  xMe: () => req<XView>("/me/x"),
+  xSync: () => req<XView>("/me/x/sync", { method: "POST", json: {} }),
+  xPrefs: (prefs: XPrefs & { confirm?: string }) => req<XView>("/me/x/prefs", { method: "PUT", json: prefs }),
+  xUnlink: () => req<XView>("/me/x", { method: "DELETE" }),
   testMyAlert: () => req<{ ok: true }>("/alerts/me/test", { method: "POST", json: {} }),
   /** Events from the signed-in user's own runs (token in the query: EventSource can't send headers). */
   subscribeMine(onEvent: (e: EngineEvent) => void): () => void {
