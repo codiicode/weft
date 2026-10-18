@@ -1,0 +1,493 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Weft LP video</title>
+<style>
+  @font-face { font-family: "Newsreader"; src: url("../../scripts/og/newsreader-latin.woff2") format("woff2"); font-weight: 200 800; }
+  @font-face { font-family: "Inst"; src: url("../../scripts/og/instrument-sans-latin.woff2") format("woff2"); font-weight: 400 700; }
+  html, body { margin: 0; background: #0c0c0d; }
+  #stage { position: relative; width: 1920px; height: 1080px; overflow: hidden; background: #0c0c0d; color: #f4f3ef; font-family: "Inst", sans-serif; -webkit-font-smoothing: antialiased; }
+  .scene { position: absolute; inset: 0; opacity: 0; visibility: hidden; }
+  .serif { font-family: "Newsreader", serif; font-weight: 400; letter-spacing: -0.02em; }
+  .center { position: absolute; left: 0; right: 0; text-align: center; }
+  .label { font-size: 19px; letter-spacing: 0.16em; text-transform: uppercase; color: #6f6e6a; }
+  .muted { color: #a3a29d; } .faint { color: #6f6e6a; }
+  .m { display: inline-block; overflow: hidden; vertical-align: top; padding: 0.04em 0.06em 0.18em; margin: -0.04em -0.06em -0.18em; }
+  .m > span { display: inline-block; transform: translateY(140%); }
+  .tnum { font-variant-numeric: tabular-nums; }
+  .card { position: absolute; box-sizing: border-box; border-radius: 26px; background: linear-gradient(180deg,#17171a,#121214); border: 1.5px solid #26262a; box-shadow: inset 0 1px 0 rgba(255,255,255,0.05), 0 40px 120px rgba(0,0,0,0.5); }
+  .seg { display: grid; grid-template-columns: repeat(3, 1fr); background: #1f1f23; border-radius: 16px; padding: 5px; }
+  .seg div { height: 60px; border-radius: 12px; display: grid; place-items: center; font-size: 26px; color: #8f8e88; }
+  .btn { height: 84px; border-radius: 18px; background: #f4f3ef; color: #0c0c0d; display: grid; place-items: center; font-size: 32px; font-weight: 600; }
+  .pair { position: relative; display: inline-block; flex: none; }
+  .pair img { position: absolute; top: 0; border-radius: 50%; box-shadow: 0 0 0 3px #151517; }
+  .row { display: grid; grid-template-columns: 210px 1fr; align-items: baseline; padding: 22px 0; border-top: 1px solid #26262a; }
+  .row .k { font-size: 18px; letter-spacing: 0.16em; text-transform: uppercase; color: #6f6e6a; }
+  .row .v { font-size: 32px; font-weight: 500; letter-spacing: -0.015em; }
+  .row .s { font-size: 23px; color: #8f8e88; margin-top: 6px; }
+  .stat { display: flex; justify-content: space-between; align-items: baseline; padding: 15px 0; border-top: 1px solid #26262a; font-size: 24px; }
+  .stat span:first-child { color: #8f8e88; }
+  svg { overflow: visible; }
+</style>
+</head>
+<body>
+<div id="stage">
+  <svg width="0" height="0" style="position:absolute"><defs>
+    <filter id="glow" x="-150%" y="-150%" width="400%" height="400%"><feGaussianBlur stdDeviation="5" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter>
+    <filter id="bloom" x="-100%" y="-100%" width="300%" height="300%"><feGaussianBlur stdDeviation="14" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter>
+  </defs></svg>
+  <svg id="grid" width="1920" height="1080" style="position:absolute;inset:0"></svg>
+  <div id="glowBg" style="position:absolute;inset:0"></div>
+  <div id="caps" class="serif" style="position:absolute;left:0;right:0;top:62px;height:100px;font-size:68px"></div>
+
+  <!-- 1. hook -->
+  <div class="scene" id="s-hook">
+    <div class="center label" id="hookLabel" style="top:330px;font-size:24px;letter-spacing:0.22em"></div>
+    <div class="center serif" id="hook1" style="top:400px;font-size:124px"></div>
+    <div class="center serif" id="hook2" style="top:560px;font-size:124px"></div>
+  </div>
+
+  <!-- 2. describe it -->
+  <div class="scene" id="s-prompt">
+    <div class="card" id="promptCard" style="left:300px;top:330px;width:1320px;padding:46px 56px 50px">
+      <div class="label">Describe it</div>
+      <div id="promptText" style="font-size:50px;line-height:1.32;letter-spacing:-0.02em;margin-top:22px;min-height:132px"></div>
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-top:26px;padding-top:24px;border-top:1px solid #26262a">
+        <span class="faint" style="font-size:22px">Weft turns it into a strategy you can read before anything runs.</span>
+        <div id="sendBtn" style="width:64px;height:64px;border-radius:16px;background:#f4f3ef;display:grid;place-items:center"><svg width="28" height="28" viewBox="0 0 24 24"><path d="M12 19V5M5 12l7-7 7 7" fill="none" stroke="#0c0c0d" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/></svg></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 3. the strategy, then run it -->
+  <div class="scene" id="s-ticket">
+    <div class="card" id="ticket" style="left:240px;top:200px;width:860px;padding:44px 52px 30px">
+      <div class="label">Liquidity</div>
+      <div style="display:flex;align-items:center;gap:22px;margin-top:20px">
+        <span class="pair" style="width:104px;height:64px"><img src="../../apps/web/public/coins/SOL.svg" width="64" height="64" style="left:0"><img src="../../apps/web/public/coins/USDC.svg" width="64" height="64" style="left:40px"></span>
+        <div><div style="font-size:52px;font-weight:600;letter-spacing:-0.03em;line-height:1">SOL-USDC</div><div class="muted" style="font-size:24px;margin-top:8px">Meteora DLMM · the busiest SOL-USDC pool</div></div>
+      </div>
+      <div style="margin-top:30px">
+        <div class="row" id="r1"><div class="k">Deposit</div><div><div class="v tnum">$500 of SOL</div><div class="s">Half is swapped to USDC to fill the range</div></div></div>
+        <div class="row" id="r2"><div class="k">Range</div><div><div class="v tnum" id="rangeV"></div><div class="s" id="rangeS"></div></div></div>
+        <div class="row" id="r3"><div class="k">Earns</div><div><div class="v">Trading fees, while SOL is in range</div><div class="s tnum" id="poolS"></div></div></div>
+        <div class="row" id="r4"><div class="k">Exit</div><div><div class="v">Out of range for an hour</div><div class="s">Withdraws everything, back to SOL</div></div></div>
+      </div>
+    </div>
+    <div class="card" id="panel" style="left:1150px;top:300px;width:540px;padding:40px 42px">
+      <div style="font-size:32px;font-weight:600;letter-spacing:-0.02em">Run this strategy</div>
+      <div class="seg" style="margin-top:24px"><div id="sgT">Trade</div><div id="sgP">Practice</div><div id="sgA">Alerts</div></div>
+      <div class="muted" style="font-size:23px;line-height:1.45;margin-top:24px">A real deposit into Meteora from your own Solana wallet, paid in SOL.</div>
+      <div class="btn" id="startBtn" style="margin-top:30px">Start trading with $500</div>
+    </div>
+    <svg id="cursor1" width="46" height="46" viewBox="0 0 24 24" style="position:absolute;left:0;top:0;opacity:0;filter:drop-shadow(0 4px 10px rgba(0,0,0,0.5))"><path d="M4 2l15 9-7 1.5L8.5 20z" fill="#f4f3ef" stroke="#0c0c0d" stroke-width="1.5" stroke-linejoin="round"/></svg>
+  </div>
+
+  <!-- 4. the position: real SOL candles, the range, the bins -->
+  <div class="scene" id="s-run">
+    <div class="card" id="runCard" style="left:150px;top:190px;width:1620px;height:840px;padding:36px 46px">
+      <div style="display:flex;justify-content:space-between;align-items:flex-start">
+        <div style="display:flex;align-items:center;gap:20px">
+          <span class="pair" style="width:88px;height:54px"><img src="../../apps/web/public/coins/SOL.svg" width="54" height="54" style="left:0"><img src="../../apps/web/public/coins/USDC.svg" width="54" height="54" style="left:34px"></span>
+          <div><div style="font-size:42px;font-weight:600;letter-spacing:-0.025em;line-height:1">SOL-USDC liquidity</div><div class="muted tnum" style="font-size:22px;margin-top:9px" id="runSub"></div></div>
+        </div>
+        <div style="display:flex;gap:56px;text-align:right">
+          <div><div class="label" style="font-size:16px" id="stLabel">Status</div><div id="stVal" class="tnum" style="font-size:40px;font-weight:600;letter-spacing:-0.025em;line-height:1.25;margin-top:4px"></div></div>
+          <div><div class="label" style="font-size:16px">Position</div><div id="posVal" class="tnum" style="font-size:40px;font-weight:600;letter-spacing:-0.025em;line-height:1.25;margin-top:4px"></div></div>
+        </div>
+      </div>
+      <div style="position:relative;margin-top:26px;border:1px solid rgba(255,255,255,0.08);border-radius:16px;background:#141416;padding:18px 0 8px 22px;height:600px;box-sizing:border-box">
+        <div id="ohlc" class="tnum" style="font-size:17px;color:#808289;height:22px"></div>
+        <div id="chartWrap" style="position:absolute;left:22px;top:48px;width:1080px;height:540px">
+          <div id="band" style="position:absolute;left:0;opacity:0"></div>
+          <div id="lw" style="position:absolute;inset:0"></div>
+          <div id="bandHi" class="tnum" style="position:absolute;left:12px;font-size:16px;color:#93e3bc;opacity:0"></div>
+          <div id="bandLo" class="tnum" style="position:absolute;left:12px;font-size:16px;color:#93e3bc;opacity:0"></div>
+        </div>
+        <div id="bins" style="position:absolute;left:1140px;top:48px;width:330px;height:540px"></div>
+        <div class="label" id="binsLabel" style="position:absolute;left:1140px;top:16px;font-size:14px">Your liquidity, by price</div>
+        <div id="toast" style="position:absolute;left:1140px;top:150px;width:350px;opacity:0">
+          <div class="label" style="font-size:16px;color:#f5a524">Withdrawn</div>
+          <div id="toastBig" class="tnum" style="font-size:54px;font-weight:600;letter-spacing:-0.035em;margin-top:14px;line-height:1"></div>
+          <div class="muted" style="font-size:22px;margin-top:8px">back in your wallet</div>
+          <div id="toastText" class="tnum" style="font-size:19px;margin-top:22px;padding-top:18px;border-top:1px solid #26262a;line-height:1.5;color:#8f8e88"></div>
+        </div>
+      </div>
+      <div style="display:flex;justify-content:space-between;margin-top:14px;font-size:17px" class="faint">
+        <span>Example · real SOL prices, Oct 15–16 2026, 15-minute candles</span>
+        <span><span style="display:inline-block;width:12px;height:12px;background:#a78bfa;vertical-align:-1px;margin-right:8px"></span>SOL<span style="display:inline-block;width:12px;height:12px;background:#38bdf8;vertical-align:-1px;margin:0 8px 0 22px"></span>USDC</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- 5. real pools -->
+  <div class="scene" id="s-pools">
+    <div id="poolRow" style="position:absolute;left:150px;top:330px;width:1620px;display:grid;grid-template-columns:repeat(4,1fr);gap:28px"></div>
+    <div class="center faint" style="top:880px;font-size:19px">Meteora pool data, Oct 18 2026</div>
+  </div>
+
+  <!-- 6. end -->
+  <div class="scene" id="s-logo">
+    <svg width="1920" height="1080" style="position:absolute;inset:0">
+      <g id="threads" fill="none" stroke-linecap="round"></g>
+      <circle id="knotRing" cx="960" cy="380" r="0" fill="none" stroke="#a78bfa" stroke-width="2"/>
+      <circle id="knot" cx="960" cy="380" r="0" fill="#f4f3ef" filter="url(#bloom)"/>
+    </svg>
+    <div class="center" id="wordmark" style="top:500px;font-size:150px;font-weight:600;letter-spacing:-0.045em"></div>
+    <div class="center serif muted" id="tagline" style="top:700px;font-size:60px"></div>
+    <div class="center" id="endUrl" style="top:850px;font-size:42px;font-weight:600;letter-spacing:-0.015em"></div>
+  </div>
+
+  <div id="flash" style="position:absolute;inset:0;opacity:0;background:#f4f3ef"></div>
+  <div id="vig" style="position:absolute;inset:0;background:radial-gradient(ellipse 78% 78% at 50% 50%,transparent 58%,rgba(0,0,0,0.42) 100%)"></div>
+  <div id="grain" style="position:absolute;inset:0;background-size:256px 256px"></div>
+</div>
+
+<script src="../../node_modules/lightweight-charts/dist/lightweight-charts.standalone.production.js"></script>
+<script src="data.js"></script>
+<script>
+/* ================= helpers ================= */
+const $ = (id) => document.getElementById(id);
+const clamp = (x, a = 0, b = 1) => Math.min(b, Math.max(a, x));
+const seg = (t, a, b) => clamp((t - a) / (b - a));
+const eo = (x) => 1 - Math.pow(1 - x, 3);
+const eio = (x) => (x < 0.5 ? 4 * x * x * x : 1 - Math.pow(-2 * x + 2, 3) / 2);
+const eox = (x) => (x >= 1 ? 1 : 1 - Math.pow(2, -10 * x));
+const eix = (x) => (x <= 0 ? 0 : Math.pow(2, 10 * x - 10));
+const back = (x) => 1 + 2.2 * Math.pow(x - 1, 3) + 1.2 * Math.pow(x - 1, 2);
+const lerp = (a, b, x) => a + (b - a) * x;
+const NS = "http://www.w3.org/2000/svg";
+const el = (tag, attrs = {}, parent) => { const e = document.createElementNS(NS, tag); for (const k in attrs) e.setAttribute(k, attrs[k]); if (parent) parent.appendChild(e); return e; };
+const div = (html, style = "", parent) => { const d = document.createElement("div"); d.innerHTML = html; d.style.cssText = style; if (parent) parent.appendChild(d); return d; };
+const C = { ink: "#f4f3ef", muted: "#a3a29d", faint: "#6f6e6a", line: "#26262a", blue: "#7c8cff", violet: "#a78bfa", amber: "#f5a524", pink: "#f472b6", sky: "#38bdf8", green: "#3ecf8e", mint: "#93e3bc" };
+const hash = (a, b) => { let h = (a * 374761393 + b * 668265263) >>> 0; h = Math.imul(h ^ (h >>> 13), 1274126177) >>> 0; return ((h ^ (h >>> 16)) >>> 0) / 4294967296 * 2 - 1; };
+const srnd = (s) => () => ((s = (Math.imul(s, 1103515245) + 12345) >>> 0) / 4294967296);
+const usd = (n, d = 2) => `$${n.toLocaleString("en-US", { minimumFractionDigits: d, maximumFractionDigits: d })}`;
+const big = (n) => (n >= 1e6 ? `$${(n / 1e6).toFixed(2)}M` : n >= 1e3 ? `$${Math.round(n / 1e3)}K` : `$${Math.round(n)}`);
+
+// Cascade Breathe: 130.01 BPM, downbeat 0.044 s. Every cue sits on its bars.
+const BAR = 240 / 130.01, BEAT = BAR / 4, B0 = 0.044;
+const b = (n) => B0 + n * BAR;
+const DURATION = b(15.6);
+
+function put(id, { o = 1, x = 0, y = 0, s = 1, ox = 960, oy = 540, blur = 0 } = {}) {
+  const e = $(id);
+  if (o <= 0.002) { e.style.opacity = 0; e.style.visibility = "hidden"; return false; }
+  e.style.opacity = o; e.style.visibility = "visible";
+  e.style.transformOrigin = `${ox}px ${oy}px`;
+  e.style.transform = `translate(${x.toFixed(2)}px, ${y.toFixed(2)}px) scale(${s.toFixed(5)})`;
+  e.style.filter = blur > 0.4 ? `blur(${blur.toFixed(1)}px)` : "none";
+  return true;
+}
+/** A scene between a and z: in from below with a blur, out upward. */
+function window_(id, t, a, z, { inD = 0.5, outD = 0.4, dy = 60 } = {}) {
+  if (t < a - 0.01 || t > z + outD) return put(id, { o: 0 });
+  const i = eo(seg(t, a, a + inD)), o = eix(seg(t, z, z + outD));
+  return put(id, { o: i * (1 - o), y: (1 - i) * dy - o * dy, blur: (1 - i) * 10 + o * 12 });
+}
+function maskWords(target, text) { target.innerHTML = text.split(" ").map((w) => `<span class="m"><span>${w}</span></span>`).join(" "); return [...target.querySelectorAll(".m > span")]; }
+function maskChars(target, text) { target.innerHTML = [...text].map((w) => `<span class="m"><span>${w}</span></span>`).join(""); return [...target.querySelectorAll(".m > span")]; }
+function reveal(ws, t, t0, st = 0.05, d = 0.8, out = null) {
+  ws.forEach((w, i) => {
+    let y = (1 - eox(seg(t, t0 + i * st, t0 + i * st + d))) * 140;
+    if (out != null) y -= eix(seg(t, out + i * st * 0.6, out + i * st * 0.6 + 0.45)) * 140;
+    w.style.transform = `translateY(${y.toFixed(2)}%)`;
+  });
+}
+function captions(target, list, end) {
+  const rows = list.map(([t, text, z]) => { const d = div("", "position:absolute;left:0;right:0;text-align:center", target); return { t, z, ws: maskWords(d, text) }; });
+  return (t) => rows.forEach((r, i) => reveal(r.ws, t, r.t, 0.04, 0.8, r.z ?? (i < rows.length - 1 ? rows[i + 1].t - 0.35 : end)));
+}
+const press = (t, at) => 1 - 0.06 * Math.sin(Math.PI * seg(t, at, at + 0.22));
+const segPick = (ids, on) => ids.forEach((id, k) => { const e = $(id); e.style.background = k === on ? "#2c2c31" : "transparent"; e.style.color = k === on ? C.ink : "#8f8e88"; e.style.fontWeight = k === on ? 600 : 400; });
+
+/* ================= finish: grid, glow, grain ================= */
+for (let x = 24; x < 1920; x += 48) el("line", { x1: x, y1: 0, x2: x, y2: 1080, stroke: "#fff", "stroke-opacity": 0.022 }, $("grid"));
+const GRAIN = Array.from({ length: 8 }, (_, k) => {
+  const c = document.createElement("canvas"); c.width = c.height = 256;
+  const x = c.getContext("2d"), im = x.createImageData(256, 256), r = srnd(101 + k * 7919);
+  for (let i = 0; i < im.data.length; i += 4) { const v = r(); const w = v > 0.5; im.data[i] = im.data[i + 1] = im.data[i + 2] = w ? 255 : 0; im.data[i + 3] = Math.abs(v - 0.5) * 2 * (w ? 11 : 22); }
+  x.putImageData(im, 0, 0); return `url(${c.toDataURL()})`;
+});
+
+/* ================= the data: real SOL candles, a real pool ================= */
+const D = window.LP_DATA;
+const POOL = D.pools.find((p) => p.name === "SOL-USDC");
+// 5m → 15m candles
+const C15 = [];
+for (const [t, o, h, l, c] of D.sol) {
+  const k = Math.floor(t / 9e5) * 9e5, last = C15[C15.length - 1];
+  if (last && last.t === k) { last.high = Math.max(last.high, h); last.low = Math.min(last.low, l); last.close = c; }
+  else C15.push({ t: k, time: k / 1000, open: o, high: h, low: l, close: c });
+}
+const FROM = Date.UTC(2026, 9, 15, 17), DEP = Date.UTC(2026, 9, 16, 0);
+const ALL = C15.filter((x) => x.t >= FROM);
+const E = ALL.findIndex((x) => x.t === DEP);
+const P0 = ALL[E].close, PCT = 1.2, STEP = POOL.binStep;
+const LOWER = P0 * (1 - PCT / 100), UPPER = P0 * (1 + PCT / 100);
+const NBINS = Math.round(Math.log(UPPER / LOWER) / Math.log(1 + STEP / 10000));
+const BIN_P = Array.from({ length: NBINS }, (_, i) => LOWER * Math.pow(1 + STEP / 10000, i + 0.5));
+// out of range: the first close outside, then withdraw after an hour (4 candles) outside
+let OUT = -1, X = -1;
+for (let i = E + 1; i < ALL.length; i++) {
+  const out = ALL[i].close < LOWER || ALL[i].close > UPPER;
+  if (out && OUT < 0) OUT = i;
+  if (!out) OUT = -1;
+  if (OUT >= 0 && i - OUT >= 4) { X = i; break; }
+}
+const SHOW = ALL.slice(0, X + 3);
+/** Spot shape: the same value in every bin. Bins above the price hold SOL, below it USDC; a bin the
+ *  price falls through turns its USDC into SOL at that bin's price (and back the other way). */
+const DEPOSIT = 500, PER = DEPOSIT / NBINS;
+function position(p) {
+  let sol = 0, usdc = 0;
+  for (const bp of BIN_P) {
+    const startSol = bp > P0;
+    if (bp > p) sol += startSol ? PER / P0 : PER / bp; // holds SOL now
+    else usdc += startSol ? (PER / P0) * bp : PER;      // holds USDC now
+  }
+  return { sol, usdc, value: sol * p + usdc };
+}
+const hm = (ms) => { const m = Math.round(ms / 6e4); return `${Math.floor(m / 60)}h ${String(m % 60).padStart(2, "0")}m`; };
+const utc = (ms) => new Date(ms).toLocaleString("en-US", { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit", hour12: false, timeZone: "UTC" }) + " UTC";
+
+/* ---------- 1. hook: b0 – b2 ---------- */
+const HL = maskWords($("hookLabel"), "New on Weft");
+const H1 = maskWords($("hook1"), "Earn the pool fees.");
+const H2 = maskWords($("hook2"), "Skip the babysitting.");
+H1[2].style.color = C.violet; H1[3].style.color = C.violet;
+function drawHook(t) {
+  if (!window_("s-hook", t, 0, b(2) - 0.35, { inD: 0.01 })) return;
+  reveal(HL, t, 0.15, 0.06, 0.8);
+  reveal(H1, t, 0.3, 0.07, 0.9);
+  reveal(H2, t, b(1), 0.08, 0.9);
+}
+
+/* ---------- 2. describe it: b2 – b4 ---------- */
+const PROMPT = "Put $500 of SOL into SOL-USDC on Meteora, tight range. Pull it out if it’s out of range for an hour.";
+const T = { a: b(2), type0: b(2) + 0.35, type1: b(3) + 1.1, send: b(3) + 1.35, z: b(4) - 0.3 };
+function drawPrompt(t) {
+  if (!window_("s-prompt", t, T.a, T.z)) return;
+  const n = Math.round(PROMPT.length * seg(t, T.type0, T.type1));
+  const caret = n < PROMPT.length || Math.floor(t * 2.4) % 2 === 0 ? `<span style="display:inline-block;width:3px;height:0.95em;background:${C.ink};vertical-align:-0.12em;margin-left:2px"></span>` : "";
+  $("promptText").innerHTML = PROMPT.slice(0, n) + caret;
+  $("sendBtn").style.transform = `scale(${press(t, T.send)})`;
+}
+
+/* ---------- 3. the strategy + run it: b4 – b6 (Start on the drop) ---------- */
+const K = { a: b(4), pick: b(5) - 0.1, start: b(6) - 0.12, z: b(6) + 0.08 };
+$("rangeV").textContent = `${usd(LOWER)} – ${usd(UPPER)}`;
+$("rangeS").textContent = `±${PCT}% around the price · ${NBINS} price bins of ${STEP / 100}%`;
+$("poolS").textContent = `${big(POOL.tvl)} in the pool · ${big(POOL.vol24h)} traded in 24 h`;
+function drawTicket(t) {
+  if (!window_("s-ticket", t, K.a, K.z, { outD: 0.3 })) return;
+  ["r1", "r2", "r3", "r4"].forEach((id, i) => { const k = eo(seg(t, K.a + 0.25 + i * 0.12, K.a + 0.85 + i * 0.12)); $(id).style.opacity = k; $(id).style.transform = `translateY(${(1 - k) * 24}px)`; });
+  const pk = eo(seg(t, K.a + 0.55, K.a + 1.1));
+  $("panel").style.opacity = pk; $("panel").style.transform = `translateX(${(1 - pk) * 60}px)`;
+  segPick(["sgT", "sgP", "sgA"], 0);
+  $("startBtn").style.transform = `scale(${press(t, K.start)})`;
+  const k = eio(seg(t, K.pick, K.start));
+  $("cursor1").style.opacity = t < K.pick - 0.2 ? 0 : 1;
+  $("cursor1").style.transform = `translate(${lerp(1660, 1420, k)}px, ${lerp(900, 640, k)}px) scale(${press(t, K.start)})`;
+}
+
+/* ---------- 4. the position: b6 (the drop) – b11 ---------- */
+const R = { a: b(6), fill: b(6) + 0.15, play0: b(6) + 0.9, outAt: b(9.2), xAt: b(10.05), z: b(11) - 0.3 };
+const LW = window.LightweightCharts;
+const lw = LW.createChart($("lw"), {
+  width: 1080, height: 540,
+  layout: { background: { type: LW.ColorType.Solid, color: "transparent" }, textColor: "#808289", fontFamily: "Inst", fontSize: 16, attributionLogo: false },
+  grid: { vertLines: { color: "rgba(255,255,255,0.045)" }, horzLines: { color: "rgba(255,255,255,0.045)" } },
+  rightPriceScale: { borderVisible: false, scaleMargins: { top: 0.08, bottom: 0.08 } },
+  timeScale: { borderVisible: false, timeVisible: true, secondsVisible: false, rightOffset: 2 },
+  crosshair: { mode: LW.CrosshairMode.Hidden },
+  handleScroll: false, handleScale: false,
+});
+const lo = Math.min(...SHOW.map((x) => x.low), LOWER) - 0.4, hi = Math.max(...SHOW.map((x) => x.high), UPPER) + 0.3;
+const candles = lw.addSeries(LW.CandlestickSeries, {
+  upColor: "#2fc58c", downColor: "#f26a57", wickUpColor: "#2fc58c", wickDownColor: "#f26a57", borderVisible: false,
+  priceLineStyle: LW.LineStyle.Dotted, priceFormat: { type: "price", precision: 2, minMove: 0.01 },
+  autoscaleInfoProvider: () => ({ priceRange: { minValue: lo, maxValue: hi } }),
+});
+candles.setData(SHOW);
+lw.timeScale().setVisibleLogicalRange({ from: -1, to: SHOW.length + 1 });
+let shown = -1, markers = null;
+// the bins column
+// drawn three bins to a bar, so the column reads at a glance
+const GROUP = 3, BARS = Array.from({ length: Math.ceil(NBINS / GROUP) }, (_, j) => BIN_P.slice(j * GROUP, j * GROUP + GROUP));
+const binEls = BARS.map(() => div("", "position:absolute;left:0;height:3px;width:0;border-radius:0 3px 3px 0", $("bins")));
+const activeLine = div("", `position:absolute;left:-8px;width:340px;height:1px;background:${C.ink};opacity:0`, $("bins"));
+let geo = null;
+function layoutGeo() {
+  const y = (p) => candles.priceToCoordinate(p);
+  const yu = y(UPPER), yl = y(LOWER);
+  if (yu == null || yl == null) return null;
+  const w = lw.timeScale().width();
+  Object.assign($("band").style, { top: `${yu}px`, height: `${yl - yu}px`, width: `${w}px` });
+  $("bandHi").style.top = `${yu - 24}px`; $("bandLo").style.top = `${yl + 6}px`;
+  $("bandHi").textContent = `${usd(UPPER)}  upper`; $("bandLo").textContent = `${usd(LOWER)}  lower`;
+  binEls.forEach((e, j) => {
+    const g = BARS[j], top = y(g[g.length - 1] * Math.sqrt(1 + STEP / 10000)), bot = y(g[0] / Math.sqrt(1 + STEP / 10000));
+    e.style.top = `${top + 1.5}px`; e.style.height = `${Math.max(1, bot - top - 3)}px`;
+  });
+  return { y };
+}
+const fmt2 = (n) => n.toFixed(2);
+const ohlcRow = (x) => `SOL-USDC · 15m&nbsp;&nbsp;&nbsp; O <span style="color:#cfcec9">${fmt2(x.open)}</span>&nbsp;&nbsp; H <span style="color:#cfcec9">${fmt2(x.high)}</span>&nbsp;&nbsp; L <span style="color:#cfcec9">${fmt2(x.low)}</span>&nbsp;&nbsp; C <span style="color:#cfcec9">${fmt2(x.close)}</span>`;
+async function drawRun(t) {
+  if (!window_("s-run", t, R.a - 0.05, R.z, { inD: 0.35 })) return;
+  // history up to the deposit, then the rest forms one candle at a time (the newest one grows)
+  const k = t < R.play0 ? 0 : seg(t, R.play0, R.xAt) * (X - E);
+  const n = Math.min(E + 1 + Math.floor(k), X + 1), part = k - Math.floor(k);
+  const list = SHOW.slice(0, n);
+  if (n <= X && t >= R.play0) {
+    const x = SHOW[n], c = x.open + (x.close - x.open) * part;
+    list.push({ time: x.time, open: x.open, close: c, high: Math.max(x.open, c, x.open + (x.high - x.open) * part), low: Math.min(x.open, c, x.open + (x.low - x.open) * part) });
+  }
+  if (list.length !== shown) { candles.setData(list); shown = list.length; lw.timeScale().setVisibleLogicalRange({ from: -1, to: SHOW.length + 1 }); }
+  else candles.update(list[list.length - 1]);
+  await new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r)));
+  geo ??= layoutGeo();
+  if (!geo) return;
+  const last = list[list.length - 1], p = last.close;
+  $("ohlc").innerHTML = ohlcRow(last);
+  const deposited = t >= R.fill, withdrawn = t >= R.xAt;
+  const outside = p < LOWER || p > UPPER;
+  if (deposited && !markers) markers = LW.createSeriesMarkers(candles, [{ time: SHOW[E].time, position: "aboveBar", color: C.violet, shape: "arrowDown", text: "Deposited", size: 1.3 }]);
+  if (markers) {
+    const ms = [{ time: SHOW[E].time, position: "aboveBar", color: C.violet, shape: "arrowDown", text: "Deposited", size: 1.3 }];
+    if (withdrawn) ms.push({ time: SHOW[X].time, position: "belowBar", color: C.amber, shape: "arrowUp", text: "Withdrawn", size: 1.3 });
+    markers.setMarkers(ms);
+  }
+  // the band
+  const bk = eo(seg(t, R.fill, R.fill + 0.6));
+  const warn = outside && deposited && !withdrawn;
+  $("band").style.opacity = withdrawn ? 0.35 : bk;
+  $("band").style.background = warn ? "rgba(245,165,36,0.06)" : "rgba(147,227,188,0.07)";
+  $("band").style.borderTop = $("band").style.borderBottom = `1px solid ${warn ? "rgba(245,165,36,0.6)" : "rgba(147,227,188,0.45)"}`;
+  $("bandHi").style.opacity = $("bandLo").style.opacity = bk * (withdrawn ? 0.4 : 1);
+  $("bandHi").style.color = $("bandLo").style.color = warn ? C.amber : C.mint;
+  // bins: grow in on the deposit, then colour by which side of the price they're on
+  binEls.forEach((e, j) => {
+    const g = eox(seg(t, R.fill + 0.1 + j * 0.03, R.fill + 0.7 + j * 0.03));
+    const bins = BARS[j], solN = bins.filter((q) => q > p).length;
+    e.style.width = `${(withdrawn ? 1 - eo(seg(t, R.xAt, R.xAt + 0.3)) : g) * 300}px`;
+    // a bar the price is inside holds both: split it by how many of its bins sit above the price
+    const f = (solN / bins.length) * 100;
+    e.style.background = solN === bins.length ? C.violet : solN === 0 ? C.sky : `linear-gradient(0deg, ${C.sky} ${100 - f}%, ${C.ink} ${100 - f}%, ${C.ink} ${100 - f + 0.01}%, ${C.violet} ${100 - f}%)`;
+    e.style.opacity = warn ? 0.55 : 1;
+  });
+  const ya = geo.y(p);
+  activeLine.style.top = `${ya}px`; activeLine.style.opacity = deposited && !withdrawn ? 0.8 : 0;
+  // header
+  const pos = position(withdrawn ? SHOW[X].close : p);
+  let inMs = 0;
+  for (let i = E + 1; i < list.length; i++) if (list[i].close >= LOWER && list[i].close <= UPPER) inMs += 9e5;
+  let st, col = C.mint;
+  if (!deposited) { st = "Starting"; col = C.muted; }
+  else if (withdrawn) { st = "Closed"; col = C.amber; }
+  else if (outside) {
+    let s0 = list.length - 1;
+    while (s0 - 1 > E && (list[s0 - 1].close < LOWER || list[s0 - 1].close > UPPER)) s0--;
+    const mins = Math.round((list.length - 1 - s0 + part) * 15);
+    st = `Out · ${Math.min(60, mins)} of 60 min`; col = C.amber;
+  } else st = `In range · ${hm(inMs)}`;
+  $("stVal").textContent = st; $("stVal").style.color = col;
+  $("posVal").textContent = deposited ? usd(pos.value) : "$0.00";
+  $("runSub").textContent = `Meteora DLMM · ${usd(LOWER)} – ${usd(UPPER)} · deposited ${utc(SHOW[E].t)}`;
+  // the withdraw card
+  const f = seg(t, R.xAt + 0.3, R.xAt + 0.75);
+  const xp = SHOW[X].close, back_ = position(xp);
+  $("toastBig").textContent = `${(back_.value / xp).toFixed(3)} SOL`;
+  $("toastText").innerHTML = `<span style="color:${C.mint}">+${((back_.value / xp) - DEPOSIT / P0).toFixed(3)} SOL vs. deposit, before fees</span><br>Deposited ${(DEPOSIT / P0).toFixed(3)} SOL at ${usd(P0)}<br>Out of range for an hour, withdrew at ${usd(xp)}<br>${utc(SHOW[X].t)}`;
+  $("binsLabel").style.opacity = 1 - f;
+  $("toast").style.opacity = f > 0 ? Math.min(1, f * 3) : 0;
+  $("toast").style.transform = `translateY(${(1 - eo(f)) * 30}px)`;
+}
+
+/* ---------- 5. real pools: b11 – b13 ---------- */
+const PAIRS = ["SOL-USDC", "JUP-SOL", "ETH-SOL", "JUP-USDC"];
+const LOGO = (s) => `../../apps/web/public/coins/${s}.svg`;
+const poolCards = PAIRS.map((name) => {
+  const p = D.pools.find((x) => x.name === name);
+  return div(`
+    <span class="pair" style="width:100px;height:62px"><img src="${LOGO(p.x)}" width="62" height="62" style="left:0"><img src="${LOGO(p.y)}" width="62" height="62" style="left:38px"></span>
+    <div style="font-size:44px;font-weight:600;letter-spacing:-0.03em;margin-top:26px">${p.name}</div>
+    <div class="faint" style="font-size:20px;margin-top:6px">Meteora DLMM</div>
+    <div style="margin-top:26px">
+      <div class="stat tnum"><span>Deposited</span><span>${big(p.tvl)}</span></div>
+      <div class="stat tnum"><span>Traded, 24 h</span><span>${big(p.vol24h)}</span></div>
+      <div class="stat tnum"><span>Fees, 24 h</span><span>${big(p.fees24h)}</span></div>
+      <div class="stat tnum" style="border-bottom:1px solid #26262a"><span>Price step</span><span>${p.binStep / 100}%</span></div>
+    </div>`, "position:relative;border-radius:24px;background:linear-gradient(180deg,#17171a,#121214);border:1.5px solid #26262a;padding:38px 36px 34px;box-shadow:inset 0 1px 0 rgba(255,255,255,0.05),0 40px 120px rgba(0,0,0,0.5)", $("poolRow"));
+});
+const Q = { a: b(11), z: b(13) - 0.3 };
+function drawPools(t) {
+  if (!window_("s-pools", t, Q.a, Q.z, { inD: 0.2 })) return;
+  poolCards.forEach((c, i) => { const k = eox(seg(t, Q.a + i * 0.09, Q.a + 0.9 + i * 0.09)); c.style.opacity = k; c.style.transform = `translateY(${(1 - k) * 90}px)`; c.style.filter = k < 0.98 ? `blur(${((1 - k) * 10).toFixed(1)}px)` : "none"; });
+}
+
+/* ---------- captions ---------- */
+const caps = captions($("caps"), [
+  [b(4) + 0.1, "Weft reads it back as a plan.", b(6) - 0.3],
+  [b(6) + 0.2, "It deposits from your own wallet."],
+  [b(7.6), "Earns fees while SOL is in range."],
+  [b(9.2), "Out of range too long?"],
+  [b(10.05), "It pulls out for you.", b(11) - 0.35],
+  [b(11) + 0.15, "Name a pool, or let Weft pick one."],
+], b(13) - 0.4);
+
+/* ---------- 6. end: the knot ---------- */
+const END = b(13);
+const KNOT = { x: 960, y: 380 };
+const THREAD_C = [C.amber, C.pink, C.sky, C.blue, C.violet, C.mint];
+const threadEls = [
+  `M -40 210 C 400 210 640 380 ${KNOT.x} ${KNOT.y}`, `M -40 295 C 420 295 660 380 ${KNOT.x} ${KNOT.y}`, `M -40 380 L ${KNOT.x} ${KNOT.y}`,
+  `M -40 465 C 420 465 660 380 ${KNOT.x} ${KNOT.y}`, `M -40 550 C 400 550 640 380 ${KNOT.x} ${KNOT.y}`, `M ${KNOT.x} ${KNOT.y} L 1980 ${KNOT.y}`,
+].map((d, i) => el("path", { d, stroke: THREAD_C[i], "stroke-width": i === 5 ? 5 : 3.5, opacity: 0.95 }, $("threads")));
+const threadLen = threadEls.map((p) => p.getTotalLength());
+const heads = THREAD_C.map((c, i) => el("circle", { r: i === 5 ? 6 : 4.5, fill: c, filter: "url(#glow)", opacity: 0 }, $("threads")));
+const wm = maskChars($("wordmark"), "weft");
+const tag = maskWords($("tagline"), "Liquidity, managed. Live now.");
+const url = maskWords($("endUrl"), "weft.fi");
+function drawEnd(t) {
+  if (t < END - 0.05) return put("s-logo", { o: 0 });
+  const l = t - END;
+  put("s-logo", { o: Math.min(1, l / 0.2 + 0.25) });
+  threadEls.forEach((p, i) => {
+    const start = i < 5 ? 0.05 + i * 0.07 : 0.95;
+    const pr = eio(seg(l, start, start + 0.9));
+    p.style.strokeDasharray = threadLen[i]; p.style.strokeDashoffset = threadLen[i] * (1 - pr);
+    const h = heads[i];
+    if (pr > 0 && pr < 1) { const pt = p.getPointAtLength(threadLen[i] * pr); h.setAttribute("cx", pt.x); h.setAttribute("cy", pt.y); h.setAttribute("opacity", 1); } else h.setAttribute("opacity", 0);
+  });
+  const k = seg(l, 0.9, 1.3);
+  $("knot").setAttribute("r", Math.max(0, 22 * back(k) * (k > 0 ? 1 : 0)));
+  const ring = seg(l, 0.95, 2.0); $("knotRing").setAttribute("r", 22 + 110 * eox(ring)); $("knotRing").setAttribute("opacity", ring > 0 ? (1 - ring) * 0.8 : 0);
+  reveal(wm, l, 1.2, 0.05, 0.9);
+  reveal(tag, l, 1.6, 0.06, 0.9);
+  reveal(url, l, 2.2, 0.06, 0.9);
+}
+
+async function renderAt(t) {
+  drawHook(t); drawPrompt(t); drawTicket(t); drawPools(t); drawEnd(t); caps(t);
+  $("flash").style.opacity = (t >= b(6) ? Math.exp(-(t - b(6)) * 7) * 0.14 : 0).toFixed(3);
+  const gx = 50 + 20 * Math.sin(t * 0.21), gy = 40 + 15 * Math.cos(t * 0.17);
+  $("glowBg").style.background = `radial-gradient(1100px 700px at ${gx}% ${gy}%, rgba(167,139,250,0.07), transparent 70%)`;
+  const fk = Math.floor(t * 24);
+  $("grain").style.backgroundImage = GRAIN[fk % 8];
+  $("grain").style.backgroundPosition = `${(hash(fk, 1) * 128).toFixed(0)}px ${(hash(fk, 2) * 128).toFixed(0)}px`;
+  await drawRun(t);
+}
+window.DURATION = DURATION;
+window.renderAt = renderAt;
+window.LP_DEBUG = { P0, LOWER, UPPER, NBINS, E, OUT, X, xp: SHOW[X]?.close, back: position(SHOW[X]?.close ?? P0) };
+if (!navigator.webdriver) {
+  const q = new URLSearchParams(location.search);
+  if (q.has("t")) document.fonts.ready.then(() => renderAt(Number(q.get("t"))));
+  else { const t0 = performance.now(); const loop = async () => { await renderAt(((performance.now() - t0) / 1000) % DURATION); requestAnimationFrame(loop); }; document.fonts.ready.then(loop); }
+}
+</script>
+</body>
+</html>
