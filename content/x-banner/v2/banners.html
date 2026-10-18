@@ -757,6 +757,39 @@ const drawCreator = (w, h) => paper2d(w, h, (g) => {
   txt(g, "running your strategy", 52, h - 58, F(40, 600), "#333");
 });
 
+/* ---------- read the plan, your money stays yours, things you can say ---------- */
+const drawPlan = (w, h) => paper2d(w, h, (g) => {
+  txt(g, "THE PLAN", 56, 92, F(34, 600), "#2e2e2e");
+  txt(g, "Read it before it runs", w - 56, 92, F(30, 500), "#555", "right");
+  [["POOL", "SOL-USDC on Meteora"], ["DEPOSIT", "$500 of SOL"], ["RANGE", "±1.2% around the price"], ["EXIT", "Out of range for 1 hour"]].forEach(([k, v], i) => {
+    const y = 236 + i * 222;
+    g.fillStyle = "#111"; g.fillRect(56, y - 76, w - 112, 5);
+    txt(g, k, 56, y, F(30, 600), "#555");
+    txt(g, v, 56, y + 88, F(68, 700));
+  });
+});
+const drawWalletBig = (w, h) => paper2d(w, h, (g) => {
+  txt(g, "YOUR WALLET", 56, 96, F(34, 600), "#2e2e2e");
+  txt(g, "Your keys.", 50, 250, F(118, 700));
+  txt(g, "Your money.", 50, 380, F(118, 700), "#555");
+  [["Funds stay here", true], ["Withdraw any time", true], ["Weft can’t send them anywhere", false]].forEach(([l, ok], i) => {
+    const y = 590 + i * 116;
+    g.strokeStyle = "#111"; g.lineWidth = 10; g.lineCap = "round"; g.lineJoin = "round"; g.beginPath();
+    if (ok) { g.moveTo(60, y - 14); g.lineTo(78, y + 4); g.lineTo(110, y - 32); } else { g.moveTo(64, y - 34); g.lineTo(104, y + 4); g.moveTo(104, y - 34); g.lineTo(64, y + 4); }
+    g.stroke();
+    txt(g, l, 140, y, F(46, 600));
+  });
+});
+const drawVenue = (n, kick, main) => (w, h) => paper2d(w, h, (g) => {
+  const x = 240 + (n - 1) * 84; // past the logos laid on top (canvas is drawn at 2×)
+  txt(g, kick, x, h / 2 - 14, F(32, 600), "#2e2e2e");
+  txt(g, main, x, h / 2 + 58, F(64, 700));
+});
+const drawSaid = (kick, main) => (w, h) => paper2d(w, h, (g) => {
+  txt(g, kick, 44, 78, F(32, 600), "#2e2e2e");
+  txt(g, main, 40, h - 48, F(68, 700));
+});
+
 /* ---------- the three banners ---------- */
 const Q = new URLSearchParams(location.search), V = Q.get("v") ?? "1";
 // ?raw=1 shows each scene before printing, ?raw=1&ink=1 after
@@ -864,6 +897,49 @@ const BANNERS = {
     tile(1000, 570, 520, 200, fillTile("COPIED", "Long BTC", "$100 at 5×", []), "green", o);
     div(ICON("BTC", 64), "position:absolute;left:1424px;top:600px;filter:drop-shadow(0 6px 14px rgba(0,0,0,0.35))");
     prompt(80, 806, 1440, "“Copy the top trader on Hyperliquid, but only BTC and ETH, $100 per trade, and only while BTC is above $80k.”", "dark");
+  },
+  plan() {
+    $b.style.width = "1600px"; $b.style.height = "900px"; $b.className = "dark"; dots("#2a2a2e", 24);
+    const o = { contrast: 1.0, cell: 5, solid: 0.42 };
+    div(`Weft never runs a strategy<br><span style="color:#77766f">you haven’t read.</span>`, "position:absolute;left:80px;top:54px;font-size:76px;line-height:1.08;color:#f4f3ef;letter-spacing:-0.02em").classList.add("serif");
+    div("YOU WRITE", "position:absolute;left:82px;top:388px;font-size:17px;letter-spacing:0.16em;color:#77766f");
+    const pr = div(`<div class="txt" style="font-size:31px;white-space:normal;line-height:1.38">“Put $500 of SOL into SOL-USDC, tight range. Pull it out if it’s out of range for an hour.”</div><div class="btn send" style="align-self:flex-end">${SEND("#141414")}</div>`, "left:80px;top:424px;width:620px;padding:24px 16px 16px 30px;align-items:flex-start;box-shadow:0 0 0 1.5px rgba(167,139,250,0.55),0 0 70px rgba(167,139,250,0.16),0 30px 80px rgba(0,0,0,0.55)");
+    pr.classList.add("prompt");
+    threads([["M 700 520 C 790 520 780 470 880 470", "#a78bfa"]]);
+    tile(880, 210, 640, 540, drawPlan, "violet", o);
+    div(`<div style="flex:1;font-size:24px;color:#a3a29d">You read it. Then you press start.</div><div style="background:#f4f3ef;color:#0c0c0d;border-radius:14px;padding:16px 30px;font-size:26px;font-weight:600">Start trading</div>`, "position:absolute;left:880px;top:770px;width:640px;height:84px;display:flex;align-items:center;gap:20px;box-sizing:border-box;padding:0 12px 0 28px;border-radius:16px;background:#1a1a1d;border:1px solid #2a2a2f");
+  },
+  custody() {
+    $b.style.width = "1600px"; $b.style.height = "900px"; $b.className = "dark"; dots("#2a2a2e", 24);
+    const o = { contrast: 1.0, cell: 5, solid: 0.42 };
+    div(`Weft never holds<br><span style="color:#77766f">your money.</span>`, "position:absolute;left:80px;top:54px;font-size:76px;line-height:1.08;color:#f4f3ef;letter-spacing:-0.02em").classList.add("serif");
+    tile(80, 270, 560, 500, drawWalletBig, "green", o);
+    threads([["M 640 520 C 760 520 760 330 880 330", "#adb7ff"], ["M 640 520 L 880 520", "#93d3f4"], ["M 640 520 C 760 520 760 710 880 710", "#f4a7c9"]]);
+    const ICON = (ks, size) => ks.map((k, i) => `<img src="../../../apps/web/public/coins/${k}.svg" width="${size}" height="${size}" style="border-radius:50%;flex:none;display:block;${i ? "margin-left:-22px;" : ""}box-shadow:0 0 0 3px rgba(0,0,0,0.12)">`).join("");
+    [[260, ["HYPE"], "HYPERLIQUID", "Perps and spot", "blue"], [450, ["JUP"], "JUPITER", "Token swaps", "sky"], [640, ["SOL", "USDC"], "METEORA", "Liquidity pools", "pink"]].forEach(([y, ks, k, m, ink]) => {
+      tile(880, y, 560, 140, drawVenue(ks.length, k, m), ink, o);
+      div(ICON(ks, 64), `position:absolute;left:910px;top:${y + 38}px;display:flex;filter:drop-shadow(0 6px 14px rgba(0,0,0,0.25))`);
+    });
+    div("Trades go straight from your wallet to the market. Weft never takes custody.", "position:absolute;left:80px;top:808px;font-size:26px;color:#a3a29d");
+  },
+  say() {
+    $b.style.width = "1600px"; $b.style.height = "900px"; $b.className = "dark"; dots("#2a2a2e", 24);
+    const o = { contrast: 1.0, cell: 5, solid: 0.42 };
+    div(`Things you can<br><span style="color:#77766f">say to Weft.</span>`, "position:absolute;left:80px;top:48px;font-size:72px;line-height:1.08;color:#f4f3ef;letter-spacing:-0.02em").classList.add("serif");
+    const ICON = (ks, size) => ks.map((k, i) => `<img src="../../../apps/web/public/coins/${k}.svg" width="${size}" height="${size}" style="border-radius:50%;flex:none;display:block;${i ? "margin-left:-14px;box-shadow:0 0 0 3px #1a1a1d;" : ""}">`).join("");
+    const ROWS = [
+      [["SOL"], "“Long SOL 10x if it breaks $110.”", "WHEN SOL > $110", "Long SOL 10×", "amber", "#f1b94e"],
+      [["SOL", "USDC"], "“LP SOL-USDC, tight range, out if it leaves for an hour.”", "METEORA · ±1.2%", "SOL-USDC pool", "violet", "#c9b6fb"],
+      [["ETH"], "“Buy ETH if Fear & Greed drops under 20.”", "WHEN FEAR & GREED < 20", "Buy ETH", "sky", "#93d3f4"],
+      [["BTC"], "“Short BTC if funding goes above 0.1%.”", "WHEN FUNDING > 0.1%", "Short BTC", "pink", "#f4a7c9"],
+    ];
+    ROWS.forEach(([ks, said, kick, main, ink, col], i) => {
+      const y = 262 + i * 152;
+      const e = div(`<span style="display:flex;align-items:center">${ICON(ks, 46)}</span><div class="txt" style="font-size:29px;margin-left:8px">${said}</div>`, `left:80px;top:${y}px;width:900px;height:96px;padding:0 26px`);
+      e.classList.add("prompt");
+      threads([[`M 980 ${y + 48} C 1040 ${y + 48} 1040 ${y + 48} 1100 ${y + 48}`, col]]);
+      tile(1100, y - 6, 420, 108, drawSaid(kick, main), ink, o);
+    });
   },
   safe() {
     $b.style.width = "1080px"; $b.style.height = "1080px"; $b.className = "dark"; dots("#242428", 24);
@@ -1176,7 +1252,7 @@ const BANNERS = {
 window.ready = (async () => {
   await document.fonts.ready;
   await Promise.all([document.fonts.load(F(40)), document.fonts.load(F(40, 500)), document.fonts.load(F(40, 400, "Newsreader")), document.fonts.load(F(40, 700, "Newsreader"))]);
-  await Promise.all([...["NVDA", "BTC", "OUTCOME", "ETH", "GOLD", "SOL", "TSLA", "SP500"].map((k) => loadImg(k, `../../../apps/web/public/coins/${k}.svg`)), loadImg("run", SHOTS + "copy/runFull.jpg"), loadImg("spurs", "assets/spurs.png"), loadImg("nba", "assets/nba.png"), loadImg("bt", SHOTS + "tour/backtestFull.jpg")]);
+  await Promise.all([...["NVDA", "BTC", "OUTCOME", "ETH", "GOLD", "SOL", "TSLA", "SP500", "HYPE", "JUP", "USDC"].map((k) => loadImg(k, `../../../apps/web/public/coins/${k}.svg`)), loadImg("run", SHOTS + "copy/runFull.jpg"), loadImg("spurs", "assets/spurs.png"), loadImg("nba", "assets/nba.png"), loadImg("bt", SHOTS + "tour/backtestFull.jpg")]);
   Q.get("raw") ? BANNERS_RAW() : BANNERS[V]();
   return true;
 })();
