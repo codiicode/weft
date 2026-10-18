@@ -80,6 +80,15 @@ export function statedSpend(s: Strategy | undefined, solUsd: number | null): { u
       else if (solUsd) usd += size.value * solUsd;
       else return null;
       parts.push(`${size.value} ${quote}`);
+    } else if (size.unit === "native" && a.instrument.kind === "lend") {
+      // Lending "4.90 USDC" or "2 SOL": the amount of the token lent.
+      const sym = a.instrument.symbol.toUpperCase();
+      if (a.instrument.mint === "So11111111111111111111111111111111111111112") {
+        if (!solUsd) return null;
+        usd += size.value * solUsd;
+      } else if (["USDC", "USDT", "USDS", "USDG", "JUPUSD", "PYUSD", "USD1"].includes(sym)) usd += size.value;
+      else return null;
+      parts.push(`${size.value} ${a.instrument.symbol}`);
     } else return null;
   }
   return usd > 0 ? { usd, text: parts.join(" + ") } : null;
