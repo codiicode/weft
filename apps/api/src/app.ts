@@ -18,6 +18,8 @@ import { INTERVAL_MS, type CandleInterval, type Catalog, type MarketData, type P
 import type { Engine, EngineEvent } from "@weft/engine";
 import type { StrategyLibrary } from "./lib/library.ts";
 import { generateStrategy, GenerationError } from "./ai/generate.ts";
+import { handleRpc } from "./mcp/server.ts";
+import { INSTRUCTIONS as MCP_INSTRUCTIONS, TOOLS as MCP_TOOLS, type McpCtx, type RunView } from "./mcp/tools.ts";
 import { runBacktest, type BacktestDeps } from "./backtest/run.ts";
 import type { Notifier } from "./lib/alerts.ts";
 import { AuthError, LOCAL_USER, type AuthUser, type Authenticator } from "./lib/auth.ts";
@@ -403,6 +405,128 @@ export function createApp(deps: AppDeps) {
       if (draftPngs.size > 500) draftPngs.delete(draftPngs.keys().next().value!);
     }
     return c.body(new Uint8Array(png), 200, { "content-type": "image/png", "cache-control": "public, max-age=86400, immutable" });
+  });
+
+  /* ---------------- AI assistants: personal keys and the MCP endpoint ---------------- */
+
+  // A key lets an assistant (Claude, ChatGPT, Cursor…) read the user's own runs over MCP. Only its
+  // hash is stored; the key itself is shown once. Keys never start, change or stop anything.
+  type KeyRow = { id: string; hash: string; label: string; createdAt: number };
+  const keyHash = (k: string) => createHash("sha256").update(k).digest("hex");
+  const keysOf = (userId: string): KeyRow[] => JSON.parse(accounts?.kvGet(`pats:${userId}`) || "[]") as KeyRow[];
+  const userOfKey = (k: string): string | null => {
+    const raw = accounts?.kvGet(`pat:${keyHash(k)}`);
+    return raw ? (JSON.parse(raw) as { userId: string }).userId : null;
+  };
+  app.get("/me/ai-keys", async (c) => {
+    const user = await requireUser(c);
+    return c.json({ keys: keysOf(user.id).map(({ id, label, createdAt }) => ({ id, label, createdAt })) });
+  });
+  app.post("/me/ai-keys", async (c) => {
+    const user = await requireUser(c);
+    if (!accounts) return c.json({ error: "keys need the account store" }, 503);
+    const { label } = z.object({ label: z.string().trim().max(40).default("AI assistant") }).parse(await c.req.json().catch(() => ({})));
+    const list = keysOf(user.id);
+    if (list.length >= 5) return c.json({ error: "You have 5 keys already: remove one first." }, 400);
+    const key = `weft_${randomBytes(24).toString("hex")}`;
+    const row: KeyRow = { id: randomBytes(4).toString("hex"), hash: keyHash(key), label: label || "AI assistant", createdAt: Date.now() };
+    accounts.kvSet(`pat:${row.hash}`, JSON.stringify({ userId: user.id, id: row.id }));
+    accounts.kvSet(`pats:${user.id}`, JSON.stringify([...list, row]));
+    return c.json({ key, id: row.id, label: row.label, createdAt: row.createdAt });
+  });
+  app.delete("/me/ai-keys/:id", async (c) => {
+    const user = await requireUser(c);
+    if (!accounts) return c.json({ error: "keys need the account store" }, 503);
+    const list = keysOf(user.id);
+    const row = list.find((k) => k.id === c.req.param("id"));
+    if (!row) return c.json({ error: "not found" }, 404);
+    accounts.kvSet(`pat:${row.hash}`, "");
+    accounts.kvSet(`pats:${user.id}`, JSON.stringify(list.filter((k) => k.id !== row.id)));
+    return c.json({ ok: true });
+  });
+
+  const runView = (snap: NonNullable<Awaited<ReturnType<typeof engine.getSnapshot>>>): RunView => {
+    const d = snap.deployment;
+    const pnl = snap.realizedPnlUsd + snap.unrealizedPnlUsd;
+    const open = snap.positions.reduce((n, p) => n + p.sizeUsd, 0);
+    const invested = snap.investedUsd ?? (open > 0 ? open : null);
+    return {
+      id: d.id,
+      name: d.strategy.name,
+      mode: d.alertsOnly ? "alerts" : d.mode === "live" ? "live" : "practice",
+      status: d.status,
+      returnPct: invested && invested > 0 ? (pnl / invested) * 100 : snap.returnPct,
+      openPositions: snap.positions.length,
+      startedAt: new Date(d.createdAt).toISOString(),
+      url: `${site}/run?id=${encodeURIComponent(d.id)}`,
+    };
+  };
+  const plainRules = (st: Strategy): string[] =>
+    toGraph(st).nodes.flatMap((n) =>
+      n.kind === "trigger" ? [`When ${n.lines.join(n.logic === "OR" ? " or " : " and ")}`]
+      : n.kind === "action" ? [`${n.title}${n.subtitle ? ` (${n.subtitle})` : ""}`]
+      : n.kind === "exit" ? [`${n.title}: ${n.subtitle}`]
+      : []
+    );
+
+  app.get("/mcp", (c) => c.json({ error: "POST JSON-RPC messages to this endpoint (MCP, streamable HTTP without a stream)" }, 405, { allow: "POST" }));
+  app.post("/mcp", async (c) => {
+    // The caller: a Weft key, or a signed-in Weft session; anyone else gets the public tools.
+    const bearer = c.req.header("authorization")?.replace(/^Bearer\s+/i, "") ?? "";
+    let userId: string | null = null;
+    if (bearer.startsWith("weft_")) {
+      userId = userOfKey(bearer);
+      if (!userId) return c.json({ jsonrpc: "2.0", id: null, error: { code: -32001, message: "That Weft key isn’t valid (removed?). Create a new one in Settings." } }, 401);
+    } else if (bearer) userId = (await optionalUser(c).catch(() => null))?.id ?? null;
+    const ctx: McpCtx = {
+      userId,
+      site,
+      searchMarkets: async (product, query, limit) => (await catalog.list(product as never, { search: query, limit })).map((r) => ({ label: r.label, name: r.name, price: r.price, change24hPct: r.change24hPct, volume24hUsd: r.volume24hUsd, liquidityUsd: r.liquidityUsd, meta: r.meta })),
+      draft: async (idea) => {
+        if (userId) await checkAiQuota({ id: userId });
+        else await allowVisitor(c, "ai");
+        const r = await generateStrategy(idea, { catalog });
+        const id = randomBytes(8).toString("hex").slice(0, 12);
+        accounts?.kvSet(`draft:${id}`, JSON.stringify({ id, strategy: r.strategy, thesis: idea, tweetId: "", author: userId ? "mcp:user" : "mcp", at: Date.now() }));
+        return { id, strategy: r.strategy, rationale: r.rationale, warnings: r.warnings.map((w) => (typeof w === "string" ? w : (w as { message?: string }).message ?? String(w))), ai: r.source !== "template" };
+      },
+      rules: plainRules,
+      topTraders: async () => (deps.topTraders ? await deps.topTraders() : []),
+      runs: async (uid) => {
+        const mine = accounts?.deploymentsOf(uid) ?? new Set<string>();
+        const snaps = await Promise.all([...mine].map((id) => engine.getSnapshot(id)));
+        return snaps.filter((x) => x != null).map(runView).sort((a, b) => b.startedAt.localeCompare(a.startedAt));
+      },
+      run: async (uid, id) => {
+        if (accounts?.deploymentOwner(id) !== uid) return null;
+        const snap = await engine.getSnapshot(id);
+        if (!snap) return null;
+        const fills = await engine.getFills(id);
+        return {
+          ...runView(snap),
+          positions: snap.positions.map((p) => ({ market: p.instrumentKey, side: p.side, leverage: p.leverage ?? 1, unrealizedPnlPct: p.unrealizedPnlPct })),
+          recentTrades: fills.slice(-10).map((f) => ({ at: new Date(f.ts).toISOString(), market: f.instrumentKey, side: f.side, reason: f.reason })),
+        };
+      },
+    };
+    const body = await c.req.json().catch(() => null);
+    if (body == null) return c.json({ jsonrpc: "2.0", id: null, error: { code: -32700, message: "parse error" } }, 400);
+    const info = { name: "weft", version: "1.0.0", instructions: MCP_INSTRUCTIONS };
+    const run = async (m: unknown) => {
+      try {
+        return await handleRpc(m as never, MCP_TOOLS, ctx, info);
+      } catch (e) {
+        // A quota or auth stop inside a tool, as a readable tool result.
+        const msg = e instanceof HTTPException ? e.message : (e as Error).message;
+        return { jsonrpc: "2.0" as const, id: (m as { id?: string | number }).id ?? null, result: { content: [{ type: "text", text: msg }], isError: true } };
+      }
+    };
+    if (Array.isArray(body)) {
+      const out = (await Promise.all(body.map(run))).filter((x) => x != null);
+      return out.length ? c.json(out) : c.body(null, 202);
+    }
+    const out = await run(body);
+    return out ? c.json(out) : c.body(null, 202);
   });
 
   /** Hyperliquid traders worth copying, with their current positions on request. */

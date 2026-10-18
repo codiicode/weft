@@ -134,6 +134,102 @@ function Theme() {
   );
 }
 
+const MCP_URL = "https://weft.fi/mcp";
+
+function Snippet({ label, code }: { label: string; code: string }) {
+  const [copied, setCopied] = useState(false);
+  return (
+    <div>
+      <div className="mb-1.5 flex items-baseline justify-between">
+        <span className="text-[12.5px] font-medium uppercase tracking-[0.08em] text-faint">{label}</span>
+        <button
+          onClick={async () => {
+            await navigator.clipboard.writeText(code);
+            setCopied(true);
+            setTimeout(() => setCopied(false), 1500);
+          }}
+          className="text-[12.5px] text-muted hover:text-ink"
+        >
+          {copied ? "Copied" : "Copy"}
+        </button>
+      </div>
+      <pre className="overflow-x-auto whitespace-pre-wrap break-all rounded-[10px] border border-line bg-paper-2 px-3.5 py-2.5 font-mono text-[12.5px] leading-relaxed text-ink-2">{code}</pre>
+    </div>
+  );
+}
+
+/** Use Weft from Claude, ChatGPT, Cursor…: the MCP address, and keys that let an assistant read your runs. */
+function AiAssistants() {
+  const keys = useApi(() => api.aiKeys(), []);
+  const [fresh, setFresh] = useState<string | null>(null);
+  const [busy, setBusy] = useState(false);
+  const [err, setErr] = useState<string | null>(null);
+  const create = async () => {
+    setBusy(true);
+    setErr(null);
+    try {
+      setFresh((await api.createAiKey("AI assistant")).key);
+      keys.refresh();
+    } catch (e) {
+      setErr((e as Error).message);
+    } finally {
+      setBusy(false);
+    }
+  };
+  const remove = async (id: string) => {
+    await api.deleteAiKey(id).catch(() => {});
+    keys.refresh();
+  };
+  const key = fresh ?? "<your key>";
+  return (
+    <>
+      <Row
+        title="Use Weft from your AI assistant"
+        sub={
+          <>
+            Claude, ChatGPT, Cursor and other assistants that speak MCP can search markets and draft strategies with Weft. Nothing trades from there: a draft opens here, where you read it and start it.
+          </>
+        }
+      />
+      <div className="space-y-4 px-5 pb-5">
+        <Snippet label="Address (Claude and ChatGPT: add it as a custom connector)" code={MCP_URL} />
+        <div className="rounded-[10px] border border-line px-4 py-3">
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <div className="text-[13.5px] leading-relaxed text-muted">
+              <span className="font-medium text-ink">Your runs too:</span> with a key, an assistant can also read your runs and their returns. It can’t start, change or stop anything.
+            </div>
+            <Btn variant="ghost" onClick={create} disabled={busy}>
+              {busy ? "Creating…" : "Create a key"}
+            </Btn>
+          </div>
+          {err && <p className="mt-2 text-[13px] text-short">{err}</p>}
+          {fresh && (
+            <div className="mt-3 space-y-3">
+              <Snippet label="Your key: copy it now, it won’t be shown again" code={fresh} />
+            </div>
+          )}
+          {!!keys.data?.keys.length && (
+            <ul className="mt-3 divide-y divide-line border-t border-line text-[13.5px]">
+              {keys.data.keys.map((k) => (
+                <li key={k.id} className="flex items-center justify-between py-2">
+                  <span className="text-ink-2">
+                    {k.label} <span className="text-faint">· created {new Date(k.createdAt).toLocaleDateString()}</span>
+                  </span>
+                  <button onClick={() => remove(k.id)} className="text-muted hover:text-short">
+                    Remove
+                  </button>
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
+        <Snippet label="Claude Code" code={`claude mcp add --transport http weft ${MCP_URL} --header "Authorization: Bearer ${key}"`} />
+        <Snippet label="Cursor and others (mcp.json)" code={JSON.stringify({ mcpServers: { weft: { url: MCP_URL, headers: { Authorization: `Bearer ${key}` } } } }, null, 2)} />
+      </div>
+    </>
+  );
+}
+
 export default function SettingsPage() {
   const auth = useAuth();
   const live = useApi(auth.enabled && auth.authenticated ? () => api.liveStatus() : null, [auth.enabled, auth.authenticated]);
@@ -190,6 +286,11 @@ export default function SettingsPage() {
             <section>
               <h2 className="mb-3 text-[15px] font-semibold text-ink">Alerts</h2>
               <Card className="divide-y divide-line">{auth.enabled ? <Telegram /> : <Row title="Telegram" sub="Per-person alerts need sign-in." />}</Card>
+            </section>
+
+            <section>
+              <h2 className="mb-3 text-[15px] font-semibold text-ink">AI assistants</h2>
+              <Card>{auth.enabled ? <AiAssistants /> : <Row title="AI assistants" sub="Keys need sign-in." />}</Card>
             </section>
 
             <section>

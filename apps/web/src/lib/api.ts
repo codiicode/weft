@@ -457,6 +457,10 @@ export const api = {
   shareRun: (id: string, shared: boolean) => req<{ shared: boolean }>(`/deployments/${encodeURIComponent(id)}/share`, { method: "POST", json: { shared } }),
   /** Owner: freeze the run's result (percent only) into a card with its own share link. */
   resultCard: (id: string) => req<{ id: string; url: string; image: string; returnPct: number; practice: boolean }>(`/deployments/${encodeURIComponent(id)}/card`, { method: "POST" }),
+  /** Keys that let an AI assistant (over MCP) read your runs. The key itself comes back once, on create. */
+  aiKeys: () => req<{ keys: { id: string; label: string; createdAt: number }[] }>("/me/ai-keys"),
+  createAiKey: (label: string) => req<{ key: string; id: string; label: string; createdAt: number }>("/me/ai-keys", { method: "POST", json: { label } }),
+  deleteAiKey: (id: string) => req<{ ok: true }>(`/me/ai-keys/${encodeURIComponent(id)}`, { method: "DELETE" }),
   /** A strategy the X bot drafted for someone who tagged @weftfinance. */
   draft: (id: string) => req<{ id: string; thesis: string; strategy: Strategy }>(`/drafts/${encodeURIComponent(id)}`),
   /** A shared result's strategy, to run it yourself. */
