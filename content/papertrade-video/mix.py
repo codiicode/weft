@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
-"""Papertrade video soundtrack: "Goldn" from 0:00 (146 BPM), so the bass lands on the cut to dark
-(bar 4) and the full beat on Start (bar 8); quiet UI sounds (-25 to -36 dB).
+"""Papertrade video soundtrack: Cascade Breathe, as in the launch and LP videos, from its bar 1, so
+its drop (bar 9) lands on Start (film bar 8); quiet UI sounds (-25 to -36 dB).
   python3 content/papertrade-video/mix.py   -> out/weft-papertrade.mp4 (from out/weft-papertrade-silent.mp4)
 """
 import json, os, re, subprocess
@@ -8,15 +8,16 @@ import json, os, re, subprocess
 HERE = os.path.dirname(os.path.abspath(__file__))
 ROOT = os.path.dirname(os.path.dirname(HERE))
 FF = subprocess.check_output(["node", "-e", 'console.log(require("@ffmpeg-installer/ffmpeg").path)'], cwd=ROOT, text=True).strip()
-MUSIC = os.path.join(ROOT, "content/music/kontraa-goldn-uk-drill-music-116392.mp3")
+MUSIC = os.path.join(ROOT, "content/music/nveravetyanmusic-cascade-breathe-future-garage-412839.mp3")
 SFX = os.path.join(ROOT, "content/music/sfx")
 VIDEO = os.path.join(HERE, "out/weft-papertrade-silent.mp4")
 OUT = os.path.join(HERE, "out/weft-papertrade.mp4")
-BAR = 240 / 146
+BAR = 240 / 130.01
 BEAT = BAR / 4
 def b(n):
-    return 0.03 + n * BAR
+    return 0.044 + n * BAR
 DUR = b(19.75)
+START = BAR  # track bar 1 lines up with film bar 0
 W2 = b(16.5)
 END = W2 + 0.3
 
@@ -39,7 +40,7 @@ EVENTS = [
     ("thread", b(1.5) + 0.1, -31, None),
     ("whoosh4", b(2.5) - 0.1, -33, None), # BTC and ETH
     ("tick", b(3.75), -30, None),         # 1000x
-    ("boom", b(4), -27, 2.6),             # bass in, paper → dark
+    ("boom", b(4), -28, 2.6),             # paper → dark
     ("whoosh5", b(4) - 0.05, -31, None),
     ("typing", b(4) + 0.6, -36, 2.5),     # the prompt
     ("click", b(5) + 1.3, -31, None),     # send
@@ -61,7 +62,7 @@ EVENTS = [
 
 def main():
     inputs = ["-i", VIDEO, "-i", MUSIC]
-    parts = [f"[1:a]atrim=0:{DUR},asetpts=PTS-STARTPTS,afade=t=out:st={DUR - 2.8}:d=2.8[music]"]
+    parts = [f"[1:a]atrim={START}:{START + DUR},asetpts=PTS-STARTPTS,afade=t=in:st=0:d=0.4,afade=t=out:st={DUR - 2.8}:d=2.8[music]"]
     labels = []
     for i, (name, t, db, trim) in enumerate(EVENTS):
         inputs += ["-i", os.path.join(SFX, f"{name}.mp3")]

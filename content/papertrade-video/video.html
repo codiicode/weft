@@ -179,8 +179,9 @@ const srnd = (s) => () => ((s = (Math.imul(s, 1103515245) + 12345) >>> 0) / 4294
 const usd = (n, d = 2) => `$${n.toLocaleString("en-US", { minimumFractionDigits: d, maximumFractionDigits: d })}`;
 const px0 = (n) => `$${Math.round(n).toLocaleString("en-US")}`;
 
-// "Goldn": 146 BPM, first beat 0.03 s. Bass comes in on bar 4, the full beat on bar 8.
-const BAR = 240 / 146, BEAT = BAR / 4, B0 = 0.03;
+// Cascade Breathe (as in the launch and LP videos): 130.01 BPM, downbeat 0.044 s. The film starts on
+// the track's bar 1, so the drop (track bar 9) lands on Start (film bar 8).
+const BAR = 240 / 130.01, BEAT = BAR / 4, B0 = 0.044;
 const b = (n) => B0 + n * BAR;
 const DURATION = b(19.75);
 
