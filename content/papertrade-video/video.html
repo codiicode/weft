@@ -85,7 +85,7 @@
         <div class="row" id="r1"><div class="k">When</div><div><div class="v tnum" id="whenV"></div><div class="s">Checked on every price update</div></div></div>
         <div class="row" id="r2"><div class="k">Size</div><div><div class="v tnum">$20 margin</div><div class="s tnum">A $20,000 position</div></div></div>
         <div class="row" id="r3"><div class="k">Exit</div><div><div class="v">Take profit +100% · stop −30%</div><div class="s tnum" id="exitS"></div></div></div>
-        <div class="row" id="r4"><div class="k">Bust</div><div><div class="v tnum" id="bustV"></div><div class="s">Where Papertrade closes it and keeps the margin</div></div></div>
+        <div class="row" id="r4"><div class="k">Liquidation</div><div><div class="v tnum" id="bustV"></div><div class="s">Papertrade liquidates the position here</div></div></div>
       </div>
     </div>
     <div class="card" id="panel" style="left:1150px;top:300px;width:550px;padding:40px 42px">
@@ -396,102 +396,105 @@ function drawSteps(t) {
   });
 }
 
-/* ---------- 6. the trade, on real BTC 1-minute prices (b9.5 – b14.5) ---------- */
-const CS = D.candles, EI = D.entryIdx, XI = D.exitIdx;
-const R = { a: b(9.5), e0: b(10), e1: b(11), x: b(13), z: b(14.5) - 0.3 };
-const lows = CS.slice(0, XI + 1).map((k) => k.l), highs = CS.slice(0, XI + 1).map((k) => k.h);
-const YLO = Math.min(...lows, D.bust) - 12, YHI = Math.max(...highs, D.tp) + 12;
-const CX0 = 70, CX1 = 1040, CY0 = 40, CY1 = 570;
+/* ---------- 6. the trade, on real BTC prices (b9.5 – b14.5) ---------- */
+// A price line through Hyperliquid's real 1-minute open/high/low/close, with the steps between them
+// filled in (prep.mjs). It plays at an even speed from the minute BTC breaks the level to the exit.
+const CS = D.candles, EI = D.entryIdx, XI = D.exitIdx, SR = D.series, SP = D.startP, EP = D.entryP, XP = D.exitP;
+const R = { a: b(9.5), e0: b(10), x: b(13), z: b(14.5) - 0.3 };
+const entryT = R.e0 + ((EP - SP) / (XP - SP)) * (R.x - R.e0);
+const prices = SR.map((q) => q[1]);
+const YLO = Math.min(...prices, D.bust) - 10, YHI = Math.max(...prices, D.tp) + 10;
+const PX0 = 30, PX1 = 960, CY0 = 36, CY1 = 548, T0 = SR[0][0], T1 = SR[XP][0] + 80e3;
 const yOf = (p) => CY1 - ((p - YLO) / (YHI - YLO)) * (CY1 - CY0);
-const xOf = (i) => CX0 + ((i + 0.5) / (CS.length)) * (CX1 - CX0);
+const xT = (ms) => PX0 + ((ms - T0) / (T1 - T0)) * (PX1 - PX0);
 const chart = $("chart");
-// price grid
+const utc = (ms) => new Date(ms).toISOString().slice(11, 16);
+el("defs", {}, chart).innerHTML = `<linearGradient id="area" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#f4f3ef" stop-opacity="0.10"/><stop offset="1" stop-color="#f4f3ef" stop-opacity="0"/></linearGradient>`;
+// price grid, labels on the right axis, times along the bottom
 for (let p = Math.ceil(YLO / 25) * 25; p <= YHI; p += 25) {
-  el("line", { x1: CX0 - 20, x2: CX1 + 10, y1: yOf(p), y2: yOf(p), stroke: "#fff", "stroke-opacity": 0.045 }, chart);
-  const tx = el("text", { x: CX0 - 30, y: yOf(p) + 6, fill: "#5d5d63", "font-size": 15, "text-anchor": "end", "font-family": "Inst" }, chart); tx.textContent = Math.round(p).toLocaleString("en-US");
+  el("line", { x1: PX0, x2: PX1, y1: yOf(p), y2: yOf(p), stroke: "#fff", "stroke-opacity": 0.045 }, chart);
+  if ([D.level, D.tp, D.sl, D.bust].some((q) => Math.abs(yOf(q) - yOf(p)) < 18)) continue; // a level's tag sits there
+  const tx = el("text", { x: PX1 + 18, y: yOf(p) + 5, fill: "#5d5d63", "font-size": 15, "font-family": "Inst" }, chart); tx.textContent = Math.round(p).toLocaleString("en-US");
 }
+for (let m = Math.ceil(T0 / 3e5) * 3e5; m < T1; m += 3e5) {
+  el("line", { x1: xT(m), x2: xT(m), y1: CY0, y2: CY1, stroke: "#fff", "stroke-opacity": 0.03 }, chart);
+  const tx = el("text", { x: xT(m), y: CY1 + 34, fill: "#5d5d63", "font-size": 15, "text-anchor": "middle", "font-family": "Inst" }, chart); tx.textContent = utc(m);
+}
+el("line", { x1: PX1, x2: PX1, y1: CY0 - 10, y2: CY1 + 10, stroke: "#fff", "stroke-opacity": 0.08 }, chart);
+// levels: a line across the plot, its name on the left, its price as a tag on the axis
 const LINES = {};
-const lineDef = [["trig", D.level, "#f4f3ef", `Breaks ${px0(D.level)}`, "6 7"], ["tp", D.tp, C.green, "Take profit +100%"], ["sl", D.sl, C.amber, "Stop −30%"], ["bust", D.bust, C.red, "Bust"]];
+const lineDef = [["trig", D.level, "#f4f3ef", `Breaks ${px0(D.level)}`, "6 7"], ["tp", D.tp, C.green, "Take profit +100%"], ["sl", D.sl, C.amber, "Stop −30%"], ["liq", D.bust, C.red, "Liquidation"]];
 lineDef.forEach(([k, p, col, txt, dash]) => {
   const g = el("g", { opacity: 0 }, chart);
-  el("line", { x1: CX0 - 20, x2: CX1 + 10, y1: yOf(p), y2: yOf(p), stroke: col, "stroke-width": 1.6, "stroke-dasharray": dash ?? "none", "stroke-opacity": 0.85 }, g);
-  const tx = el("text", { x: CX1 + 4, y: yOf(p) - 9, fill: col, "font-size": 16, "text-anchor": "end", "font-family": "Inst", "font-weight": 600 }, g); tx.textContent = txt;
+  el("line", { x1: PX0, x2: PX1, y1: yOf(p), y2: yOf(p), stroke: col, "stroke-width": 1.4, "stroke-dasharray": dash ?? "none", "stroke-opacity": 0.7 }, g);
+  const below = k === "liq";
+  const tx = el("text", { x: PX0 + 10, y: yOf(p) + (below ? 22 : -9), fill: col, "font-size": 16, "font-family": "Inst", "font-weight": 600 }, g); tx.textContent = txt;
+  el("rect", { x: PX1 + 6, y: yOf(p) - 13, width: 104, height: 26, rx: 6, fill: "#141416", stroke: col, "stroke-opacity": 0.8 }, g);
+  const tg = el("text", { x: PX1 + 58, y: yOf(p) + 5.5, fill: col, "font-size": 15, "text-anchor": "middle", "font-family": "Inst", "font-weight": 600 }, g); tg.textContent = Math.round(p).toLocaleString("en-US");
   LINES[k] = g;
 });
-const candleEls = CS.map(() => { const g = el("g", {}, chart); return { g, wick: el("line", { "stroke-width": 2 }, g), body: el("rect", { rx: 2 }, g) }; });
-const liveLine = el("line", { x1: CX0 - 20, x2: CX1 + 10, stroke: "#f4f3ef", "stroke-width": 1, "stroke-dasharray": "2 4", opacity: 0 }, chart);
+const zone = el("rect", { x: 0, y: 0, width: 0, height: 0, opacity: 0 }, chart);
+const area = el("path", { fill: "url(#area)" }, chart);
+const line = el("path", { fill: "none", stroke: "#f4f3ef", "stroke-width": 2.4, "stroke-linejoin": "round", "stroke-linecap": "round" }, chart);
+const live = el("line", { stroke: "#f4f3ef", "stroke-width": 1, "stroke-dasharray": "2 4", opacity: 0.5 }, chart);
+const pulse = el("circle", { r: 0, fill: "none", stroke: "#f4f3ef", "stroke-width": 1.5 }, chart);
+const head = el("circle", { r: 5.5, fill: "#f4f3ef", filter: "url(#glow)" }, chart);
+const tagR = el("rect", { width: 110, height: 30, rx: 7, fill: "#f4f3ef" }, chart);
+const tagT = el("text", { "font-size": 16, "text-anchor": "middle", "font-family": "Inst", "font-weight": 600, fill: "#0c0c0d" }, chart);
 const entryDot = el("circle", { r: 0, fill: C.pink, filter: "url(#glow)" }, chart);
-const entryTag = el("text", { fill: C.pink, "font-size": 17, "font-weight": 600, "font-family": "Inst", opacity: 0 }, chart);
-const exitDot = el("circle", { r: 0, fill: C.green, filter: "url(#glow)" }, chart);
+const entryTag = el("text", { fill: C.pink, "font-size": 17, "font-weight": 600, "font-family": "Inst", "text-anchor": "end", opacity: 0 }, chart);
 const exitRing = el("circle", { r: 0, fill: "none", stroke: C.green, "stroke-width": 2, opacity: 0 }, chart);
-/** A candle's price at fraction f of its minute: open → low → high → close when it closed up (open → high → low → close when down). */
-function pathAt(k, f) {
-  const pts = k.c >= k.o ? [k.o, k.l, k.h, k.c] : [k.o, k.h, k.l, k.c];
-  const s = clamp(f) * 3, i = Math.min(2, Math.floor(s));
-  return lerp(pts[i], pts[i + 1], s - i);
-}
-// where the entry candle crosses the level, and the exit candle reaches the target
-function crossF(k, lvl, up = true) { for (let s = 0; s <= 1; s += 0.002) { const p = pathAt(k, s); if (up ? p >= lvl : p <= lvl) return s; } return 1; }
-const FE = crossF(CS[EI], D.level), FX = crossF(CS[XI], D.tp);
-/** Film time → (candle index, fraction). The entry candle plays over e0–e1, the rest up to the exit over e1–x. */
-function clock(t) {
-  if (t < R.e0) return { i: EI, f: 0 };
-  if (t < R.e1) return { i: EI, f: seg(t, R.e0, R.e1) };
-  const span = XI - EI - 1 + FX, k = seg(t, R.e1, R.x) * span;
-  const i = EI + 1 + Math.floor(k);
-  return i > XI || k >= span ? { i: XI, f: FX } : { i, f: k - Math.floor(k) };
-}
-const entryT = R.e0 + FE * (R.e1 - R.e0);
-const utc = (ms) => new Date(ms).toISOString().slice(11, 16);
-const LV = [["Take profit", D.tp, C.green], ["Entry", D.level, C.pink], ["Stop", D.sl, C.amber], ["Bust", D.bust, C.red]];
+const LV = [["Take profit", D.tp, C.green], ["Entry", D.level, C.pink], ["Stop", D.sl, C.amber], ["Liquidation", D.bust, C.red]];
 const lvlEls = LV.map(([k, p, col]) => div(`<span style="color:#8f8e88"><span style="display:inline-block;width:10px;height:10px;border-radius:50%;background:${col};margin-right:12px;vertical-align:1px"></span>${k}</span><span class="tnum">${usd(p)}</span>`, "", $("lvls")));
 lvlEls.forEach((e) => (e.className = "lvl"));
 $("runSub").textContent = `Real BTC prices from Hyperliquid · ${new Date(CS[EI].t).toUTCString().slice(5, 16)}`;
-$("runFoot").textContent = `Hyperliquid BTC 1-minute candles, ${utc(CS[0].t)}–${utc(CS[XI].t + 6e4)} UTC, sped up. The +100% target is a 0.1% move at 1000×.`;
+$("runFoot").textContent = `Hyperliquid BTC, ${utc(T0)}–${utc(SR[XP][0])} UTC, sped up. Each minute’s open, high, low and close are real; the steps between them are filled in.`;
 $("toastBig").textContent = `+${usd(D.payout)}`;
 $("toastText").innerHTML = `<span style="color:${C.green}">+100% on the trade: +${usd(D.raw)}</span><br>After Papertrade’s share of the win: +${usd(D.payout)}<br>In at ${usd(D.level)}, out at ${usd(D.tp)}<br>${XI - EI} minutes · ${utc(CS[EI].t)}–${utc(CS[XI].t)} UTC`;
+const XY = SR.map(([ms, p]) => [xT(ms), yOf(p)]);
 function drawRun(t) {
   if (!window_("s-run", t, R.a, R.z, { inD: 0.4 })) return;
-  const { i: ci, f } = clock(t);
+  const k = t < R.e0 ? SP : SP + seg(t, R.e0, R.x) * (XP - SP);
+  const n = Math.floor(k), fr = k - n;
   const inPos = t >= entryT, closed = t >= R.x;
-  let p = pathAt(CS[ci], f);
-  if (closed) p = D.tp;
-  CS.forEach((k, i) => {
-    const e = candleEls[i];
-    if (i > ci || i > XI) { e.g.setAttribute("opacity", 0); return; }
-    let o = k.o, h = k.h, l = k.l, c = k.c;
-    if (i === ci) { // the forming candle
-      const ps = [o]; for (let s = 0; s <= f + 1e-9; s += 0.02) ps.push(pathAt(k, s)); ps.push(p);
-      h = Math.max(...ps); l = Math.min(...ps); c = p;
-    }
-    const up = c >= o, col = up ? "#2fc58c" : "#f26a57", x = xOf(i), w = 26;
-    e.g.setAttribute("opacity", i < EI ? 0.55 : 1);
-    e.wick.setAttribute("x1", x); e.wick.setAttribute("x2", x); e.wick.setAttribute("y1", yOf(h)); e.wick.setAttribute("y2", yOf(l)); e.wick.setAttribute("stroke", col);
-    const yt = yOf(Math.max(o, c)), yb = yOf(Math.min(o, c));
-    e.body.setAttribute("x", x - w / 2); e.body.setAttribute("width", w); e.body.setAttribute("y", yt); e.body.setAttribute("height", Math.max(2, yb - yt)); e.body.setAttribute("fill", col);
-  });
-  // levels: the trigger first, then the trade's lines once it's in
-  LINES.trig.setAttribute("opacity", inPos ? 0.25 : eo(seg(t, R.a + 0.3, R.a + 0.8)));
-  ["tp", "sl", "bust"].forEach((k, j) => LINES[k].setAttribute("opacity", eo(seg(t, entryT + 0.05 + j * 0.08, entryT + 0.45 + j * 0.08)) * (closed ? 0.45 : 1)));
-  liveLine.setAttribute("y1", yOf(p)); liveLine.setAttribute("y2", yOf(p)); liveLine.setAttribute("opacity", closed ? 0 : 0.6);
+  const p = closed ? D.tp : n >= XP ? prices[XP] : lerp(prices[n], prices[n + 1], fr);
+  const hx = n >= XP ? XY[XP][0] : lerp(XY[n][0], XY[n + 1][0], fr), hy = yOf(p);
+  let d = "M" + XY.slice(0, n + 1).map(([x, y]) => `${x.toFixed(1)} ${y.toFixed(1)}`).join("L") + `L${hx.toFixed(1)} ${hy.toFixed(1)}`;
+  line.setAttribute("d", d);
+  area.setAttribute("d", `${d}L${hx.toFixed(1)} ${CY1}L${XY[0][0].toFixed(1)} ${CY1}Z`);
+  const tone = !inPos ? C.ink : p >= D.level ? C.green : C.amber;
+  head.setAttribute("cx", hx); head.setAttribute("cy", hy); head.setAttribute("fill", tone);
+  const pk = ((t - R.a) / 0.55) % 1;
+  pulse.setAttribute("cx", hx); pulse.setAttribute("cy", hy); pulse.setAttribute("r", 6 + 18 * eo(pk)); pulse.setAttribute("opacity", closed ? 0 : (1 - pk) * 0.5); pulse.setAttribute("stroke", tone);
+  live.setAttribute("x1", hx); live.setAttribute("x2", PX1); live.setAttribute("y1", hy); live.setAttribute("y2", hy); live.setAttribute("stroke", tone); live.setAttribute("opacity", closed ? 0 : 0.5);
+  tagR.setAttribute("x", PX1 + 3); tagR.setAttribute("y", hy - 15); tagR.setAttribute("fill", tone);
+  tagT.setAttribute("x", PX1 + 58); tagT.setAttribute("y", hy + 5.5); tagT.textContent = p.toLocaleString("en-US", { minimumFractionDigits: 1, maximumFractionDigits: 1 });
+  // the position: shaded between the entry and the price
+  if (inPos) {
+    const ex = XY[EP][0], ye = yOf(D.level);
+    zone.setAttribute("x", ex); zone.setAttribute("width", Math.max(0, hx - ex));
+    zone.setAttribute("y", Math.min(ye, hy)); zone.setAttribute("height", Math.abs(hy - ye));
+    zone.setAttribute("fill", p >= D.level ? C.green : C.amber); zone.setAttribute("opacity", 0.12);
+  } else zone.setAttribute("opacity", 0);
+  LINES.trig.setAttribute("opacity", inPos ? 0 : eo(seg(t, R.a + 0.3, R.a + 0.8)));
+  ["tp", "sl", "liq"].forEach((k, j) => LINES[k].setAttribute("opacity", eo(seg(t, entryT + 0.05 + j * 0.08, entryT + 0.45 + j * 0.08)) * (closed && k !== "tp" ? 0.4 : 1)));
   const ek = seg(t, entryT, entryT + 0.35);
-  entryDot.setAttribute("cx", xOf(EI)); entryDot.setAttribute("cy", yOf(D.level)); entryDot.setAttribute("r", inPos ? 7 * back(ek) : 0);
-  entryTag.setAttribute("x", xOf(EI) - 14); entryTag.setAttribute("y", yOf(D.level) + 32); entryTag.setAttribute("text-anchor", "end"); entryTag.setAttribute("opacity", eo(ek)); entryTag.textContent = "In · long 1000×";
-  const xk = seg(t, R.x, R.x + 0.35);
-  exitDot.setAttribute("cx", xOf(XI)); exitDot.setAttribute("cy", yOf(D.tp)); exitDot.setAttribute("r", closed ? 8 * back(xk) : 0);
-  const rk = seg(t, R.x, R.x + 1.0); exitRing.setAttribute("cx", xOf(XI)); exitRing.setAttribute("cy", yOf(D.tp)); exitRing.setAttribute("r", 8 + 70 * eox(rk)); exitRing.setAttribute("opacity", closed ? (1 - rk) * 0.9 : 0);
+  entryDot.setAttribute("cx", XY[EP][0]); entryDot.setAttribute("cy", yOf(D.level)); entryDot.setAttribute("r", inPos ? 6.5 * back(ek) : 0);
+  entryTag.setAttribute("x", XY[EP][0] - 14); entryTag.setAttribute("y", yOf(D.level) + 30); entryTag.setAttribute("opacity", eo(ek)); entryTag.textContent = "Long 1000×";
+  const rk = seg(t, R.x, R.x + 1.0);
+  exitRing.setAttribute("cx", XY[XP][0]); exitRing.setAttribute("cy", yOf(D.tp)); exitRing.setAttribute("r", 8 + 70 * eox(rk)); exitRing.setAttribute("opacity", closed ? (1 - rk) * 0.9 : 0);
   // header + side
   const pct = inPos ? ((p - D.level) / D.level) * D.lev * 100 : 0;
   let st, col;
   if (!inPos) { st = `Waiting for ${px0(D.level)}`; col = C.muted; }
   else if (closed) { st = "Closed · target hit"; col = C.green; }
-  else { st = "In · long 1000×"; col = C.pink; }
+  else { st = "Long 1000×"; col = C.pink; }
   $("stVal").textContent = st; $("stVal").style.color = col;
   $("pnlVal").textContent = !inPos ? "—" : closed ? `+${usd(D.payout)}` : `${pct >= 0 ? "+" : "−"}${Math.abs(pct).toFixed(0)}%`;
   $("pnlVal").style.color = !inPos ? C.muted : pct >= 0 || closed ? C.green : C.amber;
-  $("pxBig").textContent = usd(p);
+  $("pxBig").textContent = usd(Math.round(p * 10) / 10, 1);
   $("pxDist").innerHTML = !inPos ? `${usd(D.level - p)} below the break` : closed ? "" : `<span style="color:${C.green}">${usd(D.tp - p)} to target</span> · <span style="color:${C.amber}">${usd(p - D.sl)} to stop</span>`;
-  lvlEls.forEach((e, j) => (e.style.opacity = j === 1 ? (inPos ? 1 : 0.35) : inPos ? 1 : 0.35));
+  lvlEls.forEach((e) => (e.style.opacity = inPos ? 1 : 0.35));
   const tk = seg(t, R.x + 0.35, R.x + 0.8);
   $("side").style.opacity = 1 - tk;
   $("toast").style.opacity = tk > 0 ? Math.min(1, tk * 3) : 0;

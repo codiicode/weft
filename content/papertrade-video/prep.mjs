@@ -32,15 +32,54 @@ for (let i = 1; i < c.length - 1; i++) {
   found.push({ i, j, level: L, dip: (e - low) / (e - sl), mins: j - i });
 }
 found.sort((a, b) => b.dip - a.dip);
-const pick = found.find((f) => f.dip < 0.9 && f.mins <= 15) ?? found[0];
+// the film's moment (Oct 15 2026, 21:57 UTC) stays pinned while it's in the 4-day window
+const PIN = Date.UTC(2026, 9, 15, 21, 57);
+const pick = found.find((f) => c[f.i].t === PIN) ?? found.find((f) => f.dip < 0.9 && f.mins <= 15) ?? found[0];
 if (!pick) { console.log("nothing found"); process.exit(1); }
 const from = pick.i - 12, to = pick.j + 4;
 const entry = pick.level, tp = entry * (1 + TP / LEV);
 const st = settle(entry, tp, MARGIN * LEV);
 console.log(found.length, "moments; picked", new Date(c[pick.i].t).toISOString(), pick, "bust", bust(entry), "payout", st.pnl.toFixed(2), "raw", st.rawPnl.toFixed(2));
+// A price line between the minute marks: each minute runs open → low → high → close (open → high →
+// low → close when it closed down), with a little seeded noise that stays inside the minute's range.
+// The minute's open, high, low and close are real; the steps between them are filled in.
+const N = 30, rnd = ((s) => () => ((s = (Math.imul(s, 1103515245) + 12345) >>> 0) / 4294967296))(20261015);
+const series = [];
+let entryP = -1, exitP = -1;
+const startP = (pick.i - from) * N;
+for (let k = from; k <= pick.j; k++) {
+  const m = c[k], up = m.c >= m.o;
+  const a = 0.15 + rnd() * 0.25, b2 = 0.55 + rnd() * 0.3;
+  const knots = [[0, m.o], [a, up ? m.l : m.h], [b2, up ? m.h : m.l], [1, m.c]];
+  const A = (m.h - m.l) * 0.2 + 1.2;
+  let w = 0; const walk = [];
+  for (let j = 0; j <= N; j++) { walk.push(w); w += (rnd() - 0.5) * 2; }
+  for (let j = 0; j < N; j++) {
+    const f = j / N;
+    let q = 0; while (q < 2 && f > knots[q + 1][0]) q++;
+    const [f0, p0] = knots[q], [f1, p1] = knots[q + 1];
+    const base = p0 + (p1 - p0) * ((f - f0) / (f1 - f0));
+    // the noise is pinned to zero at each knot, so the open/high/low/close are hit exactly
+    const near = Math.min(...knots.map(([kf]) => Math.abs(f - kf))) * N;
+    const noise = (walk[j] - walk[N] * f) * (A / 3) * Math.min(1, near / 1.5);
+    // folded back inside the minute's range (not clipped flat against it)
+    let p = base + noise;
+    if (p > m.h) p = Math.max(m.l, 2 * m.h - p);
+    if (p < m.l) p = Math.min(m.h, 2 * m.l - p);
+    const idx = series.length;
+    if (k === pick.i && entryP < 0 && p >= entry && (series.at(-1)?.[1] ?? 0) < entry) { entryP = idx; p = entry; }
+    if (entryP >= 0 && idx > entryP) p = Math.max(p, entry * (1 - SL / LEV) + 2);
+    if (k === pick.j && exitP < 0 && p >= tp) { exitP = idx; p = tp; }
+    series.push([Math.round(m.t + f * 6e4), Math.round(p * 10) / 10]);
+    if (exitP >= 0) break;
+  }
+  if (exitP >= 0) break;
+}
+if (entryP < 0 || exitP < 0) { console.log("the line missed the entry or exit", entryP, exitP); process.exit(1); }
+console.log("series", series.length, "start", startP, "entry", entryP, "exit", exitP);
 const day = c.filter((k) => k.t >= c[to].t - 864e5 && k.t <= c[to].t).filter((_, k) => k % 5 === 0).map((k) => k.c);
 writeFileSync(`${here}data.js`, `window.PT_DATA = ${JSON.stringify({
-  candles: c.slice(from, to + 1), entryIdx: pick.i - from, exitIdx: pick.j - from,
+  candles: c.slice(from, to + 1), entryIdx: pick.i - from, exitIdx: pick.j - from, series, startP, entryP, exitP,
   level: pick.level, entry, tp, sl: entry * (1 - SL / LEV), bust: bust(entry),
   payout: st.pnl, raw: st.rawPnl, margin: MARGIN, lev: LEV, deposit: Math.ceil((MARGIN / 0.99) * 100) / 100, day,
 })};\n`);

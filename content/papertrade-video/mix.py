@@ -21,18 +21,9 @@ START = BAR  # track bar 1 lines up with film bar 0
 W2 = b(16.5)
 END = W2 + 0.3
 
-# when the trade gets in: where the entry candle crosses the level (same path as the film)
+# when the trade gets in: the film plays the price line evenly from startP to exitP over bars 10–13
 D = json.loads(re.search(r"window.PT_DATA = (.*);", open(os.path.join(HERE, "data.js")).read()).group(1))
-k = D["candles"][D["entryIdx"]]
-pts = [k["o"], k["l"], k["h"], k["c"]] if k["c"] >= k["o"] else [k["o"], k["h"], k["l"], k["c"]]
-fe = 1.0
-for i in range(501):
-    s = i / 500 * 3
-    j = min(2, int(s))
-    if pts[j] + (pts[j + 1] - pts[j]) * (s - j) >= D["level"]:
-        fe = i / 500
-        break
-ENTRY = b(10) + fe * BAR
+ENTRY = b(10) + (D["entryP"] - D["startP"]) / (D["exitP"] - D["startP"]) * (b(13) - b(10))
 
 EVENTS = [
     ("typing", 0.3, -34, 0.95),           # papertrade_ types itself
