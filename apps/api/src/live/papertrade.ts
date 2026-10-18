@@ -188,7 +188,9 @@ export class PapertradeAccounts {
   async sessionKey(userId: string): Promise<{ walletId: string; address: Hex }> {
     const raw = this.accounts.kvGet(`pt_session:${userId}`);
     if (raw) return JSON.parse(raw) as { walletId: string; address: Hex };
-    const w = await this.privy.wallets().create({ chain_type: "ethereum", policy_ids: [await this.policy()], external_id: `weft-pt-${createHash("sha256").update(userId).digest("hex").slice(0, 40)}`, // DIDs have colons: hash them display_name: "Weft Papertrade session key" });
+    // external_id must be plain characters (DIDs have colons): hash the user id.
+    const externalId = `weft-pt-${createHash("sha256").update(userId).digest("hex").slice(0, 40)}`;
+    const w = await this.privy.wallets().create({ chain_type: "ethereum", policy_ids: [await this.policy()], external_id: externalId, display_name: "Weft Papertrade session key" });
     const out = { walletId: w.id, address: (w.address as string).toLowerCase() as Hex };
     this.accounts.kvSet(`pt_session:${userId}`, JSON.stringify(out));
     return out;
