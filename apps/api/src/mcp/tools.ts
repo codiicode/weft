@@ -51,7 +51,7 @@ export const TOOLS: Tool<McpCtx>[] = [
     async call(a: { query: string; product: string; limit: number }, ctx) {
       const rows = await ctx.searchMarkets(a.product, a.query, a.limit);
       if (!rows.length) return { text: `No ${a.product} found for “${a.query}”.`, data: { markets: [] } };
-      const text = rows.map((r) => `${r.label}${r.price != null ? ` · ${fmt(r.price, 6)}` : ""}${r.change24hPct != null ? ` (${pct(r.change24hPct)} 24h)` : ""}${r.volume24hUsd != null ? ` · $${fmt(r.volume24hUsd, 0)} volume` : ""}`).join("\n");
+      const text = rows.map((r) => `${r.label}${r.name && r.name !== r.label ? ` (${r.name})` : ""}${r.price != null ? ` · ${fmt(r.price, 6)}` : ""}${r.liquidityUsd != null ? ` · $${fmt(r.liquidityUsd, 0)} liquidity` : ""}${r.change24hPct != null ? ` (${pct(r.change24hPct)} 24h)` : ""}${r.volume24hUsd != null ? ` · $${fmt(r.volume24hUsd, 0)} volume` : ""}`).join("\n");
       return { text, data: { markets: rows } };
     },
   },

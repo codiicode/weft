@@ -461,13 +461,28 @@ export function createApp(deps: AppDeps) {
       url: `${site}/run?id=${encodeURIComponent(d.id)}`,
     };
   };
-  const plainRules = (st: Strategy): string[] =>
-    toGraph(st).nodes.flatMap((n) =>
+  const level = (l: { pct?: number; positionPct?: number; price?: number } | undefined) =>
+    !l ? null : l.positionPct != null ? `${l.positionPct}% on the position` : l.pct != null ? `${l.pct}% price move` : l.price != null ? `$${l.price}` : null;
+  const plainRules = (st: Strategy): string[] => [
+    ...toGraph(st).nodes.flatMap((n) =>
       n.kind === "trigger" ? [`When ${n.lines.join(n.logic === "OR" ? " or " : " and ")}`]
       : n.kind === "action" ? [`${n.title}${n.subtitle ? ` (${n.subtitle})` : ""}`]
       : n.kind === "exit" ? [`${n.title}: ${n.subtitle}`]
       : []
-    );
+    ),
+    // Each opening action's own exits.
+    ...st.actions.flatMap((a) => {
+      const ex = "exits" in a ? (a.exits as { takeProfit?: never; stopLoss?: never; trailingStopPct?: number; timeExitHours?: number } | undefined) : undefined;
+      if (!ex) return [];
+      const parts = [
+        level(ex.stopLoss) && `stop loss at ${level(ex.stopLoss)}`,
+        level(ex.takeProfit) && `take profit at ${level(ex.takeProfit)}`,
+        ex.trailingStopPct != null && `trailing stop ${ex.trailingStopPct}%`,
+        ex.timeExitHours != null && `out after ${ex.timeExitHours} h`,
+      ].filter(Boolean);
+      return parts.length ? [`Exits: ${parts.join(", ")}`] : [];
+    }),
+  ];
 
   app.get("/mcp", (c) => c.json({ error: "POST JSON-RPC messages to this endpoint (MCP, streamable HTTP without a stream)" }, 405, { allow: "POST" }));
   app.post("/mcp", async (c) => {

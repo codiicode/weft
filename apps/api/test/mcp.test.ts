@@ -36,7 +36,7 @@ describe("MCP endpoint", () => {
 
   it("searches markets", async () => {
     const r = (await post(rpc(4, "tools/call", { name: "search_markets", arguments: { query: "SOL" } }))).json.result;
-    expect(r.content[0].text).toContain("SOL-PERP · 103.2 (-1.10% 24h)");
+    expect(r.content[0].text).toContain("SOL-PERP (Solana) · 103.2 (-1.10% 24h)");
     expect(r.structuredContent.markets).toHaveLength(1);
   });
 
