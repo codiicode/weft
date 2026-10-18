@@ -179,6 +179,8 @@ export function semanticIssues(s: Strategy): Issue[] {
     if (a.type === "copy") {
       if (a.leverage != null && a.leverage > s.risk.maxLeverage) err(`${p}.leverage`, `leverage ${a.leverage}× exceeds the strategy max of ${s.risk.maxLeverage}×`);
       if (a.leader.venue === "solana" && a.leverage != null && a.leverage > 1) err(`${p}.leverage`, "leverage only applies to Hyperliquid copies");
+      if (a.leader.venue === "solana" && a.leaderSide) err(`${p}.leaderSide`, "following only longs or shorts works for Hyperliquid traders only");
+      if (a.leader.venue === "solana" && a.inverse) err(`${p}.inverse`, "doing the opposite works for Hyperliquid traders only: a Solana token can't be shorted");
     }
 
     if (a.type === "close" && a.target !== "all") {

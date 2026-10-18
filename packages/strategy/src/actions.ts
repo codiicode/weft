@@ -123,7 +123,7 @@ export type CopyLeader = z.infer<typeof CopyLeader>;
  * Copy trading: every new trade the leader makes is copied with this action's own size. Solana:
  * each token the wallet buys is bought (after the usual token checks and a liquidity floor), and
  * sold when the wallet sells it. Hyperliquid: each perp position the account opens is opened the
- * same way (long or short), and closed when it closes. Positions the leader already held when the
+ * same way (long or short), or the opposite way with `inverse`, and closed when it closes. Positions the leader already held when the
  * strategy started are not copied. With `on`, copying only happens while one of those triggers holds.
  */
 export const CopyAction = z.object({
@@ -137,6 +137,8 @@ export const CopyAction = z.object({
   only: z.array(z.string().min(1)).max(50).optional().describe("Only these coins (Hyperliquid, e.g. BTC) or token mints (Solana)"),
   minLiquidityUsd: z.number().nonnegative().default(100_000).describe("Solana: skip tokens with less liquidity than this"),
   mirrorExits: z.boolean().default(true).describe("Close the copy when the leader closes or sells"),
+  inverse: z.boolean().default(false).describe("Hyperliquid: do the opposite (short what the leader longs, long what it shorts), closing when it closes"),
+  leaderSide: z.enum(["long", "short"]).optional().describe("Hyperliquid: only follow the leader's longs, or only its shorts (\"if they long BTC, short it\" → long + inverse)"),
   maxOpen: z.number().int().min(1).max(50).default(5).describe("Most copied positions open at once"),
   order: OrderSpec.prefault({}),
   exits: Exits.prefault({}),

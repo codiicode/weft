@@ -588,6 +588,9 @@ function copyText(a: Extract<Action, { type: "copy" }>): string {
   if (a.leader.venue === "solana")
     return `Buy the same token with ${size}${only}, if its liquidity is above $${Math.round(a.minLiquidityUsd / 1000)}k${a.mirrorExits ? ", and sell when it sells" : ""}. Up to ${a.maxOpen} at once.`;
   const lev = a.leverage ? `${a.leverage}×` : "their leverage";
+  if (a.inverse)
+    return `Take the opposite side with ${size} at ${lev}${only}: ${a.leaderSide === "long" ? "short when they long" : a.leaderSide === "short" ? "long when they short" : "short what they long, long what they short"}${a.mirrorExits ? ", and close when they close" : ""}. Up to ${a.maxOpen} at once.`;
+  if (a.leaderSide) return `Copy only their ${a.leaderSide}s with ${size} at ${lev}${only}${a.mirrorExits ? ", and close when they close" : ""}. Up to ${a.maxOpen} at once.`;
   return `Open the same position with ${size} at ${lev}${only}${a.mirrorExits ? ", and close when they close" : ""}. Up to ${a.maxOpen} at once.`;
 }
 

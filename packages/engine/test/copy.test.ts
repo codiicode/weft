@@ -65,4 +65,55 @@ describe("copy trading", () => {
     expect(r.events.find((e) => e.type === "fill" && /BTC/.test(e.message))?.message).toMatch(/10×/);
     expect(r.snapshot.positions).toHaveLength(0);
   });
+
+  it("Hyperliquid inverse: takes the other side of each new position, flips with it, closes with it", async () => {
+    const s = defineStrategy({
+      schemaVersion: 1, id: "fade-hl", name: "fade", thesis: "t", signals: [], triggers: [], risk: { maxLeverage: 20 },
+      actions: [{ id: "fade", type: "copy", leader: { venue: "hyperliquid", trader: TRADER }, size: { unit: "usd", value: 100 }, inverse: true }],
+    });
+    const books = [
+      [],
+      [{ coin: "BTC", side: "long" as const, leverage: 10 }],
+      [{ coin: "BTC", side: "short" as const, leverage: 10 }],
+      [],
+    ];
+    let i = 0;
+    const q = { "hl:perp:BTC": 80_000 };
+    const r = await replay(s, [frame(0, q), frame(1, q), frame(2, q), frame(3, q)], {
+      slippageBps: ZERO_SLIPPAGE,
+      copy: { hyperliquidTrader: async () => ({ positions: books[Math.min(i++, books.length - 1)]! }) },
+    });
+    expect(r.fills.map((f) => [f.instrumentKey, f.side, f.reason])).toEqual([
+      ["hl:perp:BTC", "sell", "entry"], // they long, we short
+      ["hl:perp:BTC", "buy", "close_action"],
+      ["hl:perp:BTC", "buy", "entry"], // they flip short, we flip long
+      ["hl:perp:BTC", "sell", "close_action"],
+    ]);
+    expect(r.events.find((e) => e.type === "fill" && /BTC/.test(e.message))?.message).toMatch(/10×/);
+  });
+
+  it("Hyperliquid: only their longs, faded (\"if they long BTC, short it\")", async () => {
+    const s = defineStrategy({
+      schemaVersion: 1, id: "fade-longs", name: "fade longs", thesis: "t", signals: [], triggers: [], risk: { maxLeverage: 20 },
+      actions: [{ id: "f", type: "copy", leader: { venue: "hyperliquid", trader: TRADER }, size: { unit: "usd", value: 100 }, inverse: true, leaderSide: "long", only: ["BTC"] }],
+    });
+    const books = [[], [{ coin: "BTC", side: "short" as const, leverage: 5 }], [], [{ coin: "BTC", side: "long" as const, leverage: 5 }]];
+    let i = 0;
+    const q = { "hl:perp:BTC": 80_000 };
+    const r = await replay(s, [frame(0, q), frame(1, q), frame(2, q), frame(3, q)], {
+      slippageBps: ZERO_SLIPPAGE,
+      copy: { hyperliquidTrader: async () => ({ positions: books[Math.min(i++, books.length - 1)]! }) },
+    });
+    // their short is ignored; their long is faded with a short
+    expect(r.fills.map((f) => [f.instrumentKey, f.side, f.reason])).toEqual([["hl:perp:BTC", "sell", "entry"]]);
+  });
+
+  it("refuses to fade a Solana wallet (spot tokens can't be shorted)", () => {
+    expect(() =>
+      defineStrategy({
+        schemaVersion: 1, id: "fade-sol", name: "x", thesis: "t", signals: [], triggers: [],
+        actions: [{ id: "c", type: "copy", leader: { venue: "solana", wallet: WALLET }, size: { unit: "usd", value: 10 }, inverse: true }],
+      }),
+    ).toThrow(/Hyperliquid traders only/);
+  });
 });

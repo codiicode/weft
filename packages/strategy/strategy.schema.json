@@ -22,7 +22,7 @@
       "description": "The user's thesis in their own words"
     },
     "signals": {
-      "minItems": 1,
+      "maxItems": 24,
       "type": "array",
       "items": {
         "oneOf": [
@@ -197,8 +197,10 @@
                             "type": "string",
                             "enum": [
                               "hyperliquid",
-                              "jupiter"
-                            ]
+                              "jupiter",
+                              "polymarket"
+                            ],
+                            "description": "polymarket: watch-only odds (signals), not tradable yet"
                           },
                           "market": {
                             "type": "string",
@@ -266,6 +268,88 @@
                           "expiry",
                           "strike",
                           "right"
+                        ]
+                      },
+                      {
+                        "type": "object",
+                        "properties": {
+                          "kind": {
+                            "type": "string",
+                            "const": "lp"
+                          },
+                          "venue": {
+                            "type": "string",
+                            "const": "meteora"
+                          },
+                          "pool": {
+                            "type": "string",
+                            "pattern": "^[1-9A-HJ-NP-Za-km-z]{32,44}$",
+                            "description": "The DLMM pool (pair) address, copied exactly from the search"
+                          },
+                          "symbol": {
+                            "type": "string",
+                            "minLength": 1,
+                            "description": "Pair name for display, e.g. SOL-USDC"
+                          },
+                          "baseMint": {
+                            "type": "string",
+                            "pattern": "^[1-9A-HJ-NP-Za-km-z]{32,44}$"
+                          },
+                          "quoteMint": {
+                            "type": "string",
+                            "pattern": "^[1-9A-HJ-NP-Za-km-z]{32,44}$"
+                          },
+                          "quoteSymbol": {
+                            "type": "string",
+                            "minLength": 1,
+                            "description": "e.g. USDC or SOL"
+                          }
+                        },
+                        "required": [
+                          "kind",
+                          "venue",
+                          "pool",
+                          "symbol",
+                          "baseMint",
+                          "quoteMint",
+                          "quoteSymbol"
+                        ]
+                      },
+                      {
+                        "type": "object",
+                        "properties": {
+                          "kind": {
+                            "type": "string",
+                            "const": "synth"
+                          },
+                          "venue": {
+                            "type": "string",
+                            "const": "papertrade"
+                          },
+                          "symbol": {
+                            "type": "string",
+                            "enum": [
+                              "BTC",
+                              "ETH"
+                            ]
+                          },
+                          "assetClass": {
+                            "default": "crypto",
+                            "type": "string",
+                            "enum": [
+                              "crypto",
+                              "equity",
+                              "commodity",
+                              "fx",
+                              "index",
+                              "other"
+                            ]
+                          }
+                        },
+                        "required": [
+                          "kind",
+                          "venue",
+                          "symbol"
                         ]
                       }
                     ]
@@ -529,8 +613,10 @@
                             "type": "string",
                             "enum": [
                               "hyperliquid",
-                              "jupiter"
-                            ]
+                              "jupiter",
+                              "polymarket"
+                            ],
+                            "description": "polymarket: watch-only odds (signals), not tradable yet"
                           },
                           "market": {
                             "type": "string",
@@ -599,6 +685,88 @@
                           "strike",
                           "right"
                         ]
+                      },
+                      {
+                        "type": "object",
+                        "properties": {
+                          "kind": {
+                            "type": "string",
+                            "const": "lp"
+                          },
+                          "venue": {
+                            "type": "string",
+                            "const": "meteora"
+                          },
+                          "pool": {
+                            "type": "string",
+                            "pattern": "^[1-9A-HJ-NP-Za-km-z]{32,44}$",
+                            "description": "The DLMM pool (pair) address, copied exactly from the search"
+                          },
+                          "symbol": {
+                            "type": "string",
+                            "minLength": 1,
+                            "description": "Pair name for display, e.g. SOL-USDC"
+                          },
+                          "baseMint": {
+                            "type": "string",
+                            "pattern": "^[1-9A-HJ-NP-Za-km-z]{32,44}$"
+                          },
+                          "quoteMint": {
+                            "type": "string",
+                            "pattern": "^[1-9A-HJ-NP-Za-km-z]{32,44}$"
+                          },
+                          "quoteSymbol": {
+                            "type": "string",
+                            "minLength": 1,
+                            "description": "e.g. USDC or SOL"
+                          }
+                        },
+                        "required": [
+                          "kind",
+                          "venue",
+                          "pool",
+                          "symbol",
+                          "baseMint",
+                          "quoteMint",
+                          "quoteSymbol"
+                        ]
+                      },
+                      {
+                        "type": "object",
+                        "properties": {
+                          "kind": {
+                            "type": "string",
+                            "const": "synth"
+                          },
+                          "venue": {
+                            "type": "string",
+                            "const": "papertrade"
+                          },
+                          "symbol": {
+                            "type": "string",
+                            "enum": [
+                              "BTC",
+                              "ETH"
+                            ]
+                          },
+                          "assetClass": {
+                            "default": "crypto",
+                            "type": "string",
+                            "enum": [
+                              "crypto",
+                              "equity",
+                              "commodity",
+                              "fx",
+                              "index",
+                              "other"
+                            ]
+                          }
+                        },
+                        "required": [
+                          "kind",
+                          "venue",
+                          "symbol"
+                        ]
                       }
                     ]
                   }
@@ -649,8 +817,10 @@
                         "type": "string",
                         "enum": [
                           "hyperliquid",
-                          "jupiter"
-                        ]
+                          "jupiter",
+                          "polymarket"
+                        ],
+                        "description": "polymarket: watch-only odds (signals), not tradable yet"
                       },
                       "market": {
                         "type": "string",
@@ -968,8 +1138,10 @@
                         "type": "string",
                         "enum": [
                           "hyperliquid",
-                          "jupiter"
-                        ]
+                          "jupiter",
+                          "polymarket"
+                        ],
+                        "description": "polymarket: watch-only odds (signals), not tradable yet"
                       },
                       "market": {
                         "type": "string",
@@ -1090,6 +1262,156 @@
                 },
                 "required": [
                   "series"
+                ]
+              }
+            },
+            "required": [
+              "id",
+              "kind",
+              "params"
+            ]
+          },
+          {
+            "type": "object",
+            "properties": {
+              "id": {
+                "type": "string",
+                "pattern": "^[a-z][a-z0-9_]{0,39}$"
+              },
+              "label": {
+                "type": "string",
+                "maxLength": 60
+              },
+              "maxAgeSeconds": {
+                "description": "Values older than this count as unknown; defaults per kind",
+                "type": "integer",
+                "exclusiveMinimum": 0,
+                "maximum": 9007199254740991
+              },
+              "kind": {
+                "type": "string",
+                "const": "wallet"
+              },
+              "params": {
+                "type": "object",
+                "properties": {
+                  "address": {
+                    "type": "string",
+                    "pattern": "^[1-9A-HJ-NP-Za-km-z]{32,44}$",
+                    "description": "The wallet to watch"
+                  },
+                  "mint": {
+                    "description": "Only count trades of this token",
+                    "type": "string",
+                    "pattern": "^[1-9A-HJ-NP-Za-km-z]{32,44}$"
+                  }
+                },
+                "required": [
+                  "address"
+                ]
+              }
+            },
+            "required": [
+              "id",
+              "kind",
+              "params"
+            ]
+          },
+          {
+            "type": "object",
+            "properties": {
+              "id": {
+                "type": "string",
+                "pattern": "^[a-z][a-z0-9_]{0,39}$"
+              },
+              "label": {
+                "type": "string",
+                "maxLength": 60
+              },
+              "maxAgeSeconds": {
+                "description": "Values older than this count as unknown; defaults per kind",
+                "type": "integer",
+                "exclusiveMinimum": 0,
+                "maximum": 9007199254740991
+              },
+              "kind": {
+                "type": "string",
+                "const": "trader"
+              },
+              "params": {
+                "type": "object",
+                "properties": {
+                  "address": {
+                    "type": "string",
+                    "pattern": "^0x[0-9a-fA-F]{40}$"
+                  },
+                  "coin": {
+                    "type": "string",
+                    "minLength": 1,
+                    "description": "Perp symbol, e.g. BTC"
+                  }
+                },
+                "required": [
+                  "address",
+                  "coin"
+                ]
+              }
+            },
+            "required": [
+              "id",
+              "kind",
+              "params"
+            ]
+          },
+          {
+            "type": "object",
+            "properties": {
+              "id": {
+                "type": "string",
+                "pattern": "^[a-z][a-z0-9_]{0,39}$"
+              },
+              "label": {
+                "type": "string",
+                "maxLength": 60
+              },
+              "maxAgeSeconds": {
+                "description": "Values older than this count as unknown; defaults per kind",
+                "type": "integer",
+                "exclusiveMinimum": 0,
+                "maximum": 9007199254740991
+              },
+              "kind": {
+                "type": "string",
+                "const": "sports"
+              },
+              "params": {
+                "type": "object",
+                "properties": {
+                  "league": {
+                    "type": "string",
+                    "enum": [
+                      "nba",
+                      "wnba",
+                      "nfl",
+                      "mlb",
+                      "nhl",
+                      "mls",
+                      "epl",
+                      "laliga",
+                      "bundesliga",
+                      "seriea",
+                      "ligue1"
+                    ]
+                  },
+                  "team": {
+                    "type": "string",
+                    "minLength": 2,
+                    "description": "Team name, city or abbreviation, e.g. \"Spurs\", \"San Antonio\", \"SA\""
+                  }
+                },
+                "required": [
+                  "league",
+                  "team"
                 ]
               }
             },
@@ -1270,8 +1592,10 @@
                             "type": "string",
                             "enum": [
                               "hyperliquid",
-                              "jupiter"
-                            ]
+                              "jupiter",
+                              "polymarket"
+                            ],
+                            "description": "polymarket: watch-only odds (signals), not tradable yet"
                           },
                           "market": {
                             "type": "string",
@@ -1340,6 +1664,88 @@
                           "strike",
                           "right"
                         ]
+                      },
+                      {
+                        "type": "object",
+                        "properties": {
+                          "kind": {
+                            "type": "string",
+                            "const": "lp"
+                          },
+                          "venue": {
+                            "type": "string",
+                            "const": "meteora"
+                          },
+                          "pool": {
+                            "type": "string",
+                            "pattern": "^[1-9A-HJ-NP-Za-km-z]{32,44}$",
+                            "description": "The DLMM pool (pair) address, copied exactly from the search"
+                          },
+                          "symbol": {
+                            "type": "string",
+                            "minLength": 1,
+                            "description": "Pair name for display, e.g. SOL-USDC"
+                          },
+                          "baseMint": {
+                            "type": "string",
+                            "pattern": "^[1-9A-HJ-NP-Za-km-z]{32,44}$"
+                          },
+                          "quoteMint": {
+                            "type": "string",
+                            "pattern": "^[1-9A-HJ-NP-Za-km-z]{32,44}$"
+                          },
+                          "quoteSymbol": {
+                            "type": "string",
+                            "minLength": 1,
+                            "description": "e.g. USDC or SOL"
+                          }
+                        },
+                        "required": [
+                          "kind",
+                          "venue",
+                          "pool",
+                          "symbol",
+                          "baseMint",
+                          "quoteMint",
+                          "quoteSymbol"
+                        ]
+                      },
+                      {
+                        "type": "object",
+                        "properties": {
+                          "kind": {
+                            "type": "string",
+                            "const": "synth"
+                          },
+                          "venue": {
+                            "type": "string",
+                            "const": "papertrade"
+                          },
+                          "symbol": {
+                            "type": "string",
+                            "enum": [
+                              "BTC",
+                              "ETH"
+                            ]
+                          },
+                          "assetClass": {
+                            "default": "crypto",
+                            "type": "string",
+                            "enum": [
+                              "crypto",
+                              "equity",
+                              "commodity",
+                              "fx",
+                              "index",
+                              "other"
+                            ]
+                          }
+                        },
+                        "required": [
+                          "kind",
+                          "venue",
+                          "symbol"
+                        ]
                       }
                     ]
                   }
@@ -1353,10 +1759,11 @@
             ]
           }
         ]
-      }
+      },
+      "description": "At least one, unless the strategy only copies a leader"
     },
     "triggers": {
-      "minItems": 1,
+      "maxItems": 24,
       "type": "array",
       "items": {
         "type": "object",
@@ -1394,10 +1801,12 @@
           "id",
           "when"
         ]
-      }
+      },
+      "description": "At least one, unless the strategy only copies a leader"
     },
     "actions": {
       "minItems": 1,
+      "maxItems": 32,
       "type": "array",
       "items": {
         "oneOf": [
@@ -1572,8 +1981,10 @@
                         "type": "string",
                         "enum": [
                           "hyperliquid",
-                          "jupiter"
-                        ]
+                          "jupiter",
+                          "polymarket"
+                        ],
+                        "description": "polymarket: watch-only odds (signals), not tradable yet"
                       },
                       "market": {
                         "type": "string",
@@ -1595,6 +2006,43 @@
                       "venue",
                       "market",
                       "outcome"
+                    ]
+                  },
+                  {
+                    "type": "object",
+                    "properties": {
+                      "kind": {
+                        "type": "string",
+                        "const": "synth"
+                      },
+                      "venue": {
+                        "type": "string",
+                        "const": "papertrade"
+                      },
+                      "symbol": {
+                        "type": "string",
+                        "enum": [
+                          "BTC",
+                          "ETH"
+                        ]
+                      },
+                      "assetClass": {
+                        "default": "crypto",
+                        "type": "string",
+                        "enum": [
+                          "crypto",
+                          "equity",
+                          "commodity",
+                          "fx",
+                          "index",
+                          "other"
+                        ]
+                      }
+                    },
+                    "required": [
+                      "kind",
+                      "venue",
+                      "symbol"
                     ]
                   }
                 ]
@@ -1665,10 +2113,10 @@
               },
               "leverage": {
                 "default": 1,
-                "description": "Perps only",
+                "description": "Perps only: up to 50× on Hyperliquid, up to 1000× on Papertrade",
                 "type": "number",
                 "minimum": 1,
-                "maximum": 50
+                "maximum": 1000
               },
               "order": {
                 "default": {},
@@ -1721,6 +2169,19 @@
                       {
                         "type": "object",
                         "properties": {
+                          "positionPct": {
+                            "type": "number",
+                            "exclusiveMinimum": 0,
+                            "maximum": 1000
+                          }
+                        },
+                        "required": [
+                          "positionPct"
+                        ]
+                      },
+                      {
+                        "type": "object",
+                        "properties": {
                           "price": {
                             "type": "number",
                             "exclusiveMinimum": 0
@@ -1758,6 +2219,19 @@
                         },
                         "required": [
                           "pct"
+                        ]
+                      },
+                      {
+                        "type": "object",
+                        "properties": {
+                          "positionPct": {
+                            "type": "number",
+                            "exclusiveMinimum": 0,
+                            "maximum": 1000
+                          }
+                        },
+                        "required": [
+                          "positionPct"
                         ]
                       },
                       {
@@ -2022,6 +2496,19 @@
                       {
                         "type": "object",
                         "properties": {
+                          "positionPct": {
+                            "type": "number",
+                            "exclusiveMinimum": 0,
+                            "maximum": 1000
+                          }
+                        },
+                        "required": [
+                          "positionPct"
+                        ]
+                      },
+                      {
+                        "type": "object",
+                        "properties": {
                           "price": {
                             "type": "number",
                             "exclusiveMinimum": 0
@@ -2059,6 +2546,19 @@
                         },
                         "required": [
                           "pct"
+                        ]
+                      },
+                      {
+                        "type": "object",
+                        "properties": {
+                          "positionPct": {
+                            "type": "number",
+                            "exclusiveMinimum": 0,
+                            "maximum": 1000
+                          }
+                        },
+                        "required": [
+                          "positionPct"
                         ]
                       },
                       {
@@ -2296,8 +2796,10 @@
                                 "type": "string",
                                 "enum": [
                                   "hyperliquid",
-                                  "jupiter"
-                                ]
+                                  "jupiter",
+                                  "polymarket"
+                                ],
+                                "description": "polymarket: watch-only odds (signals), not tradable yet"
                               },
                               "market": {
                                 "type": "string",
@@ -2365,6 +2867,88 @@
                               "expiry",
                               "strike",
                               "right"
+                            ]
+                          },
+                          {
+                            "type": "object",
+                            "properties": {
+                              "kind": {
+                                "type": "string",
+                                "const": "lp"
+                              },
+                              "venue": {
+                                "type": "string",
+                                "const": "meteora"
+                              },
+                              "pool": {
+                                "type": "string",
+                                "pattern": "^[1-9A-HJ-NP-Za-km-z]{32,44}$",
+                                "description": "The DLMM pool (pair) address, copied exactly from the search"
+                              },
+                              "symbol": {
+                                "type": "string",
+                                "minLength": 1,
+                                "description": "Pair name for display, e.g. SOL-USDC"
+                              },
+                              "baseMint": {
+                                "type": "string",
+                                "pattern": "^[1-9A-HJ-NP-Za-km-z]{32,44}$"
+                              },
+                              "quoteMint": {
+                                "type": "string",
+                                "pattern": "^[1-9A-HJ-NP-Za-km-z]{32,44}$"
+                              },
+                              "quoteSymbol": {
+                                "type": "string",
+                                "minLength": 1,
+                                "description": "e.g. USDC or SOL"
+                              }
+                            },
+                            "required": [
+                              "kind",
+                              "venue",
+                              "pool",
+                              "symbol",
+                              "baseMint",
+                              "quoteMint",
+                              "quoteSymbol"
+                            ]
+                          },
+                          {
+                            "type": "object",
+                            "properties": {
+                              "kind": {
+                                "type": "string",
+                                "const": "synth"
+                              },
+                              "venue": {
+                                "type": "string",
+                                "const": "papertrade"
+                              },
+                              "symbol": {
+                                "type": "string",
+                                "enum": [
+                                  "BTC",
+                                  "ETH"
+                                ]
+                              },
+                              "assetClass": {
+                                "default": "crypto",
+                                "type": "string",
+                                "enum": [
+                                  "crypto",
+                                  "equity",
+                                  "commodity",
+                                  "fx",
+                                  "index",
+                                  "other"
+                                ]
+                              }
+                            },
+                            "required": [
+                              "kind",
+                              "venue",
+                              "symbol"
                             ]
                           }
                         ]
@@ -2435,6 +3019,659 @@
               "type",
               "message"
             ]
+          },
+          {
+            "type": "object",
+            "properties": {
+              "id": {
+                "type": "string",
+                "pattern": "^[a-z][a-z0-9_]{0,39}$"
+              },
+              "label": {
+                "type": "string",
+                "maxLength": 60
+              },
+              "type": {
+                "type": "string",
+                "const": "copy"
+              },
+              "on": {
+                "default": [],
+                "description": "Optional: copy only while one of these triggers is true",
+                "type": "array",
+                "items": {
+                  "type": "string",
+                  "pattern": "^[a-z][a-z0-9_]{0,39}$"
+                }
+              },
+              "leader": {
+                "oneOf": [
+                  {
+                    "type": "object",
+                    "properties": {
+                      "venue": {
+                        "type": "string",
+                        "const": "solana"
+                      },
+                      "wallet": {
+                        "type": "string",
+                        "pattern": "^[1-9A-HJ-NP-Za-km-z]{32,44}$"
+                      }
+                    },
+                    "required": [
+                      "venue",
+                      "wallet"
+                    ]
+                  },
+                  {
+                    "type": "object",
+                    "properties": {
+                      "venue": {
+                        "type": "string",
+                        "const": "hyperliquid"
+                      },
+                      "trader": {
+                        "type": "string",
+                        "pattern": "^0x[0-9a-fA-F]{40}$"
+                      }
+                    },
+                    "required": [
+                      "venue",
+                      "trader"
+                    ]
+                  }
+                ]
+              },
+              "size": {
+                "oneOf": [
+                  {
+                    "type": "object",
+                    "properties": {
+                      "unit": {
+                        "type": "string",
+                        "const": "pct_equity"
+                      },
+                      "value": {
+                        "type": "number",
+                        "exclusiveMinimum": 0,
+                        "maximum": 100
+                      }
+                    },
+                    "required": [
+                      "unit",
+                      "value"
+                    ]
+                  },
+                  {
+                    "type": "object",
+                    "properties": {
+                      "unit": {
+                        "type": "string",
+                        "const": "usd"
+                      },
+                      "value": {
+                        "type": "number",
+                        "exclusiveMinimum": 0
+                      }
+                    },
+                    "required": [
+                      "unit",
+                      "value"
+                    ]
+                  },
+                  {
+                    "type": "object",
+                    "properties": {
+                      "unit": {
+                        "type": "string",
+                        "const": "native"
+                      },
+                      "value": {
+                        "type": "number",
+                        "exclusiveMinimum": 0
+                      }
+                    },
+                    "required": [
+                      "unit",
+                      "value"
+                    ]
+                  }
+                ],
+                "description": "Per copied trade: SOL (native) or USD for Solana, USD for Hyperliquid"
+              },
+              "leverage": {
+                "description": "Hyperliquid: fixed leverage; omit to use the leader's (capped by risk.maxLeverage)",
+                "type": "number",
+                "minimum": 1,
+                "maximum": 50
+              },
+              "only": {
+                "description": "Only these coins (Hyperliquid, e.g. BTC) or token mints (Solana)",
+                "maxItems": 50,
+                "type": "array",
+                "items": {
+                  "type": "string",
+                  "minLength": 1
+                }
+              },
+              "minLiquidityUsd": {
+                "default": 100000,
+                "description": "Solana: skip tokens with less liquidity than this",
+                "type": "number",
+                "minimum": 0
+              },
+              "mirrorExits": {
+                "default": true,
+                "description": "Close the copy when the leader closes or sells",
+                "type": "boolean"
+              },
+              "inverse": {
+                "default": false,
+                "description": "Hyperliquid: do the opposite (short what the leader longs, long what it shorts), closing when it closes",
+                "type": "boolean"
+              },
+              "leaderSide": {
+                "description": "Hyperliquid: only follow the leader's longs, or only its shorts (\"if they long BTC, short it\" → long + inverse)",
+                "type": "string",
+                "enum": [
+                  "long",
+                  "short"
+                ]
+              },
+              "maxOpen": {
+                "default": 5,
+                "description": "Most copied positions open at once",
+                "type": "integer",
+                "minimum": 1,
+                "maximum": 50
+              },
+              "order": {
+                "default": {},
+                "type": "object",
+                "properties": {
+                  "type": {
+                    "default": "market",
+                    "type": "string",
+                    "enum": [
+                      "market",
+                      "limit"
+                    ]
+                  },
+                  "limitPrice": {
+                    "type": "number",
+                    "exclusiveMinimum": 0
+                  },
+                  "maxSlippageBps": {
+                    "description": "Defaults to the risk policy",
+                    "type": "integer",
+                    "exclusiveMinimum": 0,
+                    "maximum": 5000
+                  },
+                  "maxPriceImpactBps": {
+                    "type": "integer",
+                    "exclusiveMinimum": 0,
+                    "maximum": 5000
+                  }
+                }
+              },
+              "exits": {
+                "default": {},
+                "type": "object",
+                "properties": {
+                  "takeProfit": {
+                    "anyOf": [
+                      {
+                        "type": "object",
+                        "properties": {
+                          "pct": {
+                            "type": "number",
+                            "exclusiveMinimum": 0,
+                            "maximum": 1000
+                          }
+                        },
+                        "required": [
+                          "pct"
+                        ]
+                      },
+                      {
+                        "type": "object",
+                        "properties": {
+                          "positionPct": {
+                            "type": "number",
+                            "exclusiveMinimum": 0,
+                            "maximum": 1000
+                          }
+                        },
+                        "required": [
+                          "positionPct"
+                        ]
+                      },
+                      {
+                        "type": "object",
+                        "properties": {
+                          "price": {
+                            "type": "number",
+                            "exclusiveMinimum": 0
+                          }
+                        },
+                        "required": [
+                          "price"
+                        ]
+                      },
+                      {
+                        "type": "object",
+                        "properties": {
+                          "prob": {
+                            "type": "number",
+                            "exclusiveMinimum": 0,
+                            "exclusiveMaximum": 1
+                          }
+                        },
+                        "required": [
+                          "prob"
+                        ]
+                      }
+                    ]
+                  },
+                  "stopLoss": {
+                    "anyOf": [
+                      {
+                        "type": "object",
+                        "properties": {
+                          "pct": {
+                            "type": "number",
+                            "exclusiveMinimum": 0,
+                            "maximum": 1000
+                          }
+                        },
+                        "required": [
+                          "pct"
+                        ]
+                      },
+                      {
+                        "type": "object",
+                        "properties": {
+                          "positionPct": {
+                            "type": "number",
+                            "exclusiveMinimum": 0,
+                            "maximum": 1000
+                          }
+                        },
+                        "required": [
+                          "positionPct"
+                        ]
+                      },
+                      {
+                        "type": "object",
+                        "properties": {
+                          "price": {
+                            "type": "number",
+                            "exclusiveMinimum": 0
+                          }
+                        },
+                        "required": [
+                          "price"
+                        ]
+                      },
+                      {
+                        "type": "object",
+                        "properties": {
+                          "prob": {
+                            "type": "number",
+                            "exclusiveMinimum": 0,
+                            "exclusiveMaximum": 1
+                          }
+                        },
+                        "required": [
+                          "prob"
+                        ]
+                      }
+                    ]
+                  },
+                  "trailingStopPct": {
+                    "type": "number",
+                    "exclusiveMinimum": 0,
+                    "maximum": 100
+                  },
+                  "timeExitHours": {
+                    "type": "number",
+                    "exclusiveMinimum": 0
+                  }
+                }
+              }
+            },
+            "required": [
+              "id",
+              "type",
+              "leader",
+              "size"
+            ]
+          },
+          {
+            "type": "object",
+            "properties": {
+              "id": {
+                "type": "string",
+                "pattern": "^[a-z][a-z0-9_]{0,39}$"
+              },
+              "label": {
+                "type": "string",
+                "maxLength": 60
+              },
+              "on": {
+                "minItems": 1,
+                "type": "array",
+                "items": {
+                  "type": "string",
+                  "pattern": "^[a-z][a-z0-9_]{0,39}$"
+                },
+                "description": "Trigger ids; the action runs when any of them fires"
+              },
+              "type": {
+                "type": "string",
+                "const": "liquidity"
+              },
+              "pool": {
+                "type": "object",
+                "properties": {
+                  "kind": {
+                    "type": "string",
+                    "const": "lp"
+                  },
+                  "venue": {
+                    "type": "string",
+                    "const": "meteora"
+                  },
+                  "pool": {
+                    "type": "string",
+                    "pattern": "^[1-9A-HJ-NP-Za-km-z]{32,44}$",
+                    "description": "The DLMM pool (pair) address, copied exactly from the search"
+                  },
+                  "symbol": {
+                    "type": "string",
+                    "minLength": 1,
+                    "description": "Pair name for display, e.g. SOL-USDC"
+                  },
+                  "baseMint": {
+                    "type": "string",
+                    "pattern": "^[1-9A-HJ-NP-Za-km-z]{32,44}$"
+                  },
+                  "quoteMint": {
+                    "type": "string",
+                    "pattern": "^[1-9A-HJ-NP-Za-km-z]{32,44}$"
+                  },
+                  "quoteSymbol": {
+                    "type": "string",
+                    "minLength": 1,
+                    "description": "e.g. USDC or SOL"
+                  }
+                },
+                "required": [
+                  "kind",
+                  "venue",
+                  "pool",
+                  "symbol",
+                  "baseMint",
+                  "quoteMint",
+                  "quoteSymbol"
+                ]
+              },
+              "size": {
+                "oneOf": [
+                  {
+                    "type": "object",
+                    "properties": {
+                      "unit": {
+                        "type": "string",
+                        "const": "pct_equity"
+                      },
+                      "value": {
+                        "type": "number",
+                        "exclusiveMinimum": 0,
+                        "maximum": 100
+                      }
+                    },
+                    "required": [
+                      "unit",
+                      "value"
+                    ]
+                  },
+                  {
+                    "type": "object",
+                    "properties": {
+                      "unit": {
+                        "type": "string",
+                        "const": "usd"
+                      },
+                      "value": {
+                        "type": "number",
+                        "exclusiveMinimum": 0
+                      }
+                    },
+                    "required": [
+                      "unit",
+                      "value"
+                    ]
+                  },
+                  {
+                    "type": "object",
+                    "properties": {
+                      "unit": {
+                        "type": "string",
+                        "const": "native"
+                      },
+                      "value": {
+                        "type": "number",
+                        "exclusiveMinimum": 0
+                      }
+                    },
+                    "required": [
+                      "unit",
+                      "value"
+                    ]
+                  }
+                ],
+                "description": "usd or pct_equity: what goes into the pool"
+              },
+              "range": {
+                "anyOf": [
+                  {
+                    "type": "object",
+                    "properties": {
+                      "lowerPct": {
+                        "type": "number",
+                        "minimum": -1000,
+                        "maximum": 99
+                      },
+                      "upperPct": {
+                        "type": "number",
+                        "minimum": -99,
+                        "maximum": 1000
+                      }
+                    },
+                    "required": [
+                      "lowerPct",
+                      "upperPct"
+                    ],
+                    "description": "Percent below (lowerPct) and above (upperPct) the pool price at the moment it opens; upperPct ≤ 0 = one-sided below the price, lowerPct ≤ 0 = one-sided above"
+                  },
+                  {
+                    "type": "object",
+                    "properties": {
+                      "lower": {
+                        "type": "number",
+                        "exclusiveMinimum": 0
+                      },
+                      "upper": {
+                        "type": "number",
+                        "exclusiveMinimum": 0
+                      }
+                    },
+                    "required": [
+                      "lower",
+                      "upper"
+                    ],
+                    "description": "Fixed prices, in the pool's quote token"
+                  }
+                ]
+              },
+              "shape": {
+                "default": "spot",
+                "description": "How liquidity spreads over the range: spot = evenly; bid_ask = little near the price, more toward the edges (buys more the further the price falls into it, sells more the further it rises)",
+                "type": "string",
+                "enum": [
+                  "spot",
+                  "bid_ask"
+                ]
+              },
+              "exits": {
+                "default": {},
+                "type": "object",
+                "properties": {
+                  "takeProfit": {
+                    "anyOf": [
+                      {
+                        "type": "object",
+                        "properties": {
+                          "pct": {
+                            "type": "number",
+                            "exclusiveMinimum": 0,
+                            "maximum": 1000
+                          }
+                        },
+                        "required": [
+                          "pct"
+                        ]
+                      },
+                      {
+                        "type": "object",
+                        "properties": {
+                          "positionPct": {
+                            "type": "number",
+                            "exclusiveMinimum": 0,
+                            "maximum": 1000
+                          }
+                        },
+                        "required": [
+                          "positionPct"
+                        ]
+                      },
+                      {
+                        "type": "object",
+                        "properties": {
+                          "price": {
+                            "type": "number",
+                            "exclusiveMinimum": 0
+                          }
+                        },
+                        "required": [
+                          "price"
+                        ]
+                      },
+                      {
+                        "type": "object",
+                        "properties": {
+                          "prob": {
+                            "type": "number",
+                            "exclusiveMinimum": 0,
+                            "exclusiveMaximum": 1
+                          }
+                        },
+                        "required": [
+                          "prob"
+                        ]
+                      }
+                    ]
+                  },
+                  "stopLoss": {
+                    "anyOf": [
+                      {
+                        "type": "object",
+                        "properties": {
+                          "pct": {
+                            "type": "number",
+                            "exclusiveMinimum": 0,
+                            "maximum": 1000
+                          }
+                        },
+                        "required": [
+                          "pct"
+                        ]
+                      },
+                      {
+                        "type": "object",
+                        "properties": {
+                          "positionPct": {
+                            "type": "number",
+                            "exclusiveMinimum": 0,
+                            "maximum": 1000
+                          }
+                        },
+                        "required": [
+                          "positionPct"
+                        ]
+                      },
+                      {
+                        "type": "object",
+                        "properties": {
+                          "price": {
+                            "type": "number",
+                            "exclusiveMinimum": 0
+                          }
+                        },
+                        "required": [
+                          "price"
+                        ]
+                      },
+                      {
+                        "type": "object",
+                        "properties": {
+                          "prob": {
+                            "type": "number",
+                            "exclusiveMinimum": 0,
+                            "exclusiveMaximum": 1
+                          }
+                        },
+                        "required": [
+                          "prob"
+                        ]
+                      }
+                    ]
+                  },
+                  "trailingStopPct": {
+                    "type": "number",
+                    "exclusiveMinimum": 0,
+                    "maximum": 100
+                  },
+                  "timeExitHours": {
+                    "type": "number",
+                    "exclusiveMinimum": 0
+                  }
+                }
+              },
+              "outOfRangeMinutes": {
+                "description": "Close once the price has been outside the range this long",
+                "type": "number",
+                "exclusiveMinimum": 0,
+                "maximum": 100000
+              },
+              "reentry": {
+                "default": "never",
+                "type": "string",
+                "enum": [
+                  "never",
+                  "after_close"
+                ]
+              }
+            },
+            "required": [
+              "id",
+              "on",
+              "type",
+              "pool",
+              "size",
+              "range"
+            ]
           }
         ]
       }
@@ -2454,13 +3691,13 @@
           "default": 50,
           "type": "number",
           "exclusiveMinimum": 0,
-          "maximum": 500
+          "maximum": 100000
         },
         "maxLeverage": {
           "default": 5,
           "type": "number",
           "minimum": 1,
-          "maximum": 50
+          "maximum": 1000
         },
         "maxDailyLossPct": {
           "default": 10,
@@ -2470,7 +3707,7 @@
           "maximum": 100
         },
         "requireStopLoss": {
-          "default": true,
+          "default": false,
           "type": "boolean"
         },
         "defaultMaxSlippageBps": {
@@ -2479,10 +3716,20 @@
           "exclusiveMinimum": 0,
           "maximum": 9007199254740991
         },
+        "maxExitLossPct": {
+          "default": 10,
+          "type": "number",
+          "exclusiveMinimum": 0,
+          "maximum": 100
+        },
         "token": {
           "default": {},
           "type": "object",
           "properties": {
+            "enforce": {
+              "default": false,
+              "type": "boolean"
+            },
             "minLiquidityUsd": {
               "default": 50000,
               "type": "number",
@@ -2561,6 +3808,7 @@
             },
             "args": {
               "minItems": 1,
+              "maxItems": 16,
               "type": "array",
               "items": {
                 "$ref": "#/$defs/__schema0"

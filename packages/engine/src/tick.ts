@@ -450,8 +450,8 @@ const shortAddr = (a: string) => `${a.slice(0, 4)}…${a.slice(-4)}`;
 /**
  * Turn each copy action's leader activity since the last check into intents. Solana: a new buy of a
  * token becomes a buy of the same token (if liquid enough and under the open-copies limit), a sell
- * closes our copy. Hyperliquid: a newly opened (or flipped) position is opened the same way, a
- * closed one closes ours. Whatever the leader held before copying started is left alone.
+ * closes our copy. Hyperliquid: a newly opened (or flipped) position is opened the same way (the
+ * opposite way with `inverse`), a closed one closes ours. Whatever the leader held before copying started is left alone.
  */
 async function copyIntents(s: Session, triggers: TriggerResult[], equity: number): Promise<Intent[]> {
   const strategy = s.deployment.strategy;
@@ -532,6 +532,7 @@ async function copyIntents(s: Session, triggers: TriggerResult[], equity: number
           // Closed or flipped: close our copy first.
           if (was && held && a.mirrorExits) out.push({ ...base, key: `${strategy.id}:${a.id}:copy:${tag}:close`, type: "close", target: key, fraction: 1 });
           if (!is || !gateOpen) continue;
+          if (a.leaderSide && is !== a.leaderSide) continue; // only their longs (or only their shorts)
           if (held && !(was && a.mirrorExits)) continue;
           if (open >= a.maxOpen) {
             s.warn(`copy:max:${a.id}`, `Didn’t copy ${coin}: already ${a.maxOpen} copied positions open`);
@@ -544,7 +545,8 @@ async function copyIntents(s: Session, triggers: TriggerResult[], equity: number
             type: "open",
             instrument: { kind: "perp", venue: "hyperliquid", symbol: coin, assetClass: "crypto" },
             instrumentKey: key,
-            side: is,
+            // inverse: the other side of the leader's position ("fade")
+            side: a.inverse ? (is === "long" ? "short" : "long") : is,
             size: resolveSize(a.size, equity),
             leverage,
             order: { ...a.order, maxSlippageBps: a.order.maxSlippageBps ?? strategy.risk.defaultMaxSlippageBps },
@@ -1105,7 +1107,7 @@ const lowerFirst = (t: string) => t.replace(/^\w/, (c) => c.toLowerCase());
 function ruleName(s: Session, triggerId: string): string {
   if (triggerId.startsWith("copy:")) {
     const a = s.deployment.strategy.actions.find((x) => x.id === triggerId.slice(5));
-    if (a?.type === "copy") return `Copying ${shortAddr(a.leader.venue === "solana" ? a.leader.wallet : a.leader.trader)}`;
+    if (a?.type === "copy") return `${a.inverse ? "Fading" : "Copying"} ${shortAddr(a.leader.venue === "solana" ? a.leader.wallet : a.leader.trader)}`;
   }
   const triggers = s.deployment.strategy.triggers;
   const idx = triggers.findIndex((t) => t.id === triggerId);
