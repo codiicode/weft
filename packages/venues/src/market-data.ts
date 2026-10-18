@@ -1,6 +1,7 @@
 import {
   instrumentKey,
   type Instrument,
+  type LendInstrument,
   type OptionInstrument,
   type OutcomeInstrument,
   type PerpInstrument,
@@ -149,6 +150,7 @@ export class VenueMarketData implements MarketData {
       }
       case "token":
       case "lp":
+      case "lend": // a deposit, not a trade: no book
       case "synth": // Papertrade has no book: it fills at the mid
         return null;
     }
@@ -159,6 +161,7 @@ export class VenueMarketData implements MarketData {
   /* ------------------------------------------------------------------ */
 
   async getQuote(i: Instrument, req: QuoteRequest = {}): Promise<VenueQuote> {
+    if (i.kind === "lend") return this.lendQuote(i);
     switch (i.kind) {
       case "perp":
         return this.perpQuote(i, req);
@@ -301,6 +304,16 @@ export class VenueMarketData implements MarketData {
     }
     const px = (req.side ?? "buy") === "buy" ? p.ask : p.bid;
     return px != null ? { ...base, fillPrice: px, priceImpactBps: Math.abs(px - p.price) / p.price * 1e4 } : base;
+  }
+
+  /** A Kamino deposit, in USD per kToken: tokens per kToken (from the chain) × the token's price. */
+  private async lendQuote(i: LendInstrument): Promise<VenueQuote> {
+    if (!this.ctx.opts.lendRate) throw new Error("Kamino rates need a Solana RPC on the server");
+    const [rate, token] = await Promise.all([
+      this.ctx.opts.lendRate(i.reserve),
+      this.tokenQuote({ kind: "token", chain: "solana", mint: i.mint, symbol: i.symbol, quote: "USDC", route: "auto", assetClass: "crypto" }, {}),
+    ]);
+    return { instrumentKey: instrumentKey(i), price: rate * token.price, ts: this.ctx.now(), source: "kamino:reserve" };
   }
 
   private async tokenQuote(i: TokenInstrument, req: QuoteRequest): Promise<VenueQuote> {

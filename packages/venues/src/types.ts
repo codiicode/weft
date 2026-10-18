@@ -5,7 +5,7 @@
 import type { Instrument, Signal, SignalKind, SignalSnapshot } from "@weft/strategy";
 
 /** The five products Weft offers. */
-export type Product = "perps" | "stocks" | "predictions" | "tokens" | "options" | "pools" | "papertrade";
+export type Product = "perps" | "stocks" | "predictions" | "tokens" | "options" | "pools" | "papertrade" | "lending";
 
 /** A price for an instrument, optionally size-aware (quote with price impact). */
 export interface Quote {

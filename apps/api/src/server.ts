@@ -2,7 +2,7 @@ import { TradeTape } from "./lib/tape.ts";
 import { Backups } from "./lib/backup.ts";
 import { PrivyClient } from "@privy-io/node";
 import { Connection, Keypair, PublicKey } from "@solana/web3.js";
-import { JupiterSwapBuilder } from "@weft/execution";
+import { JupiterSwapBuilder, kaminoRates } from "@weft/execution";
 import type { Fill } from "@weft/engine";
 import { REWARDS, Rewards } from "./lib/rewards.ts";
 import { Treasury } from "./token/treasury.ts";
@@ -66,6 +66,12 @@ const venues = createVenues({
   // X data (social, post_match) and wallet tracking: live when their keys are set, simulated or off otherwise.
   ...(process.env.TWITTERAPI_IO_KEY ? { twitterApiKey: process.env.TWITTERAPI_IO_KEY, postMatcher: process.env.ANTHROPIC_API_KEY ? claudePostMatcher() : undefined } : {}),
   ...(process.env.HELIUS_API_KEY ? { heliusApiKey: process.env.HELIUS_API_KEY } : {}),
+  // Kamino lending: what a kToken is worth, read from the reserve on chain.
+  lendRate: (() => {
+    const rpc = process.env.SOLANA_RPC_URL ?? (process.env.HELIUS_API_KEY ? `https://mainnet.helius-rpc.com/?api-key=${process.env.HELIUS_API_KEY}` : "https://api.mainnet-beta.solana.com");
+    const rates = kaminoRates(new Connection(rpc, "confirmed"));
+    return async (reserve: string) => (await rates(reserve)).exchangeRate;
+  })(),
 });
 // Copy trading's leaders: Solana wallets, Hyperliquid accounts, and calls from X accounts.
 const copyFeeds = {

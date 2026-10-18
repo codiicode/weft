@@ -1115,6 +1115,8 @@ export function createApp(deps: AppDeps) {
     // Live liquidity only once it's switched on (WEFT_SOL_LP).
     if (body.mode === "live" && !body.alertsOnly && strategy.actions.some((a) => a.type === "liquidity") && !deps.solana?.cfg.lpEnabled)
       return c.json({ error: "Liquidity strategies run as practice for now. Live deposits to Meteora are coming." }, 409);
+    if (body.mode === "live" && !body.alertsOnly && strategy.actions.some((a) => a.type === "open" && a.instrument.kind === "lend") && !deps.solana?.cfg.lendEnabled)
+      return c.json({ error: "Kamino lending runs as practice for now. Live deposits are coming." }, 409);
     if (body.mode === "live" && !body.alertsOnly && strategy.actions.some((a) => a.type === "open" && a.instrument.kind === "synth") && !deps.papertradeLive)
       return c.json({ error: "Papertrade runs as practice for now. Live trading there is coming." }, 409);
     // Real money never rides on made-up data: signals Weft only simulates (no live feed yet) can run

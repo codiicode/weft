@@ -320,6 +320,8 @@ export class VenueHistory implements HistoryProvider {
         return "Options price history isn't available yet";
       case "lp":
         return "Pool price history isn't available yet";
+      case "lend":
+        return "Lending history isn't available yet";
       case "synth":
         return null; // Papertrade prices are Hyperliquid's mid
     }

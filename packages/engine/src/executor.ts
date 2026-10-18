@@ -70,6 +70,7 @@ export const DEFAULT_SLIPPAGE_BPS: Record<Instrument["kind"], number> = {
   outcome: 50,
   option: 50,
   lp: 0,
+  lend: 0,
   synth: 0, // Papertrade fills at the mid
 };
 

@@ -7,6 +7,7 @@ import { OiHistory, type OiHistoryOptions } from "./oi-history.ts";
 import { PolymarketClient } from "./polymarket.ts";
 import type { PostMatcher } from "./signals/x.ts";
 import { HeliusWallets } from "./signals/wallet.ts";
+import { Kamino } from "./kamino.ts";
 
 export interface VenueOptions extends HttpOptions {
   /** Share an existing Http instance (cache + coalescing) instead of creating one. */
@@ -32,6 +33,8 @@ export interface VenueOptions extends HttpOptions {
   heliusApiKey?: string;
   /** Polymarket Gamma API (read-only odds). */
   polymarketUrl?: string;
+  /** Kamino lending: tokens per kToken for a reserve, read from the chain (the API server provides it). */
+  lendRate?: (reserve: string) => Promise<number>;
   /**
    * dev_sold_pct cannot be derived from free public APIs (needs the dev's initial
    * allocation from an indexer). TokenFacts must carry a number, so this value is
@@ -58,6 +61,7 @@ export interface VenueContext {
   pm: PolymarketClient;
   /** Helius wallet histories (when a Helius key is set). */
   helius: HeliusWallets | null;
+  kamino: Kamino;
   /** Open-interest sampler fed by every metaAndAssetCtxs read. */
   oi: OiHistory;
   now: () => number;
@@ -77,6 +81,7 @@ export function createContext(opts: VenueOptions = {}): VenueContext {
     derive: new DeriveClient(http, opts.deriveUrl),
     pm: new PolymarketClient(http, opts.polymarketUrl),
     helius: opts.heliusApiKey ? new HeliusWallets(http, opts.heliusApiKey) : null,
+    kamino: new Kamino(http),
     oi: new OiHistory({ ...opts.oiHistory, path: opts.oiHistoryPath, now }),
     now,
     opts,

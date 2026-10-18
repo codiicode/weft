@@ -7,7 +7,7 @@ import { refineByRules } from "./refine.ts";
 
 export const MODEL = "claude-opus-5-5";
 const MAX_TURNS = 10;
-const PRODUCTS: Product[] = ["perps", "stocks", "predictions", "tokens", "options", "pools", "papertrade"];
+const PRODUCTS: Product[] = ["perps", "stocks", "predictions", "tokens", "options", "pools", "papertrade", "lending"];
 
 export interface GenerateResult {
   strategy: Strategy;
@@ -29,7 +29,7 @@ const tools: Anthropic.Beta.BetaTool[] = [
     input_schema: {
       type: "object",
       properties: {
-        product: { type: "string", enum: [...PRODUCTS, "yields"], description: "perps | stocks (HIP-3 perps + tokenized stocks) | predictions (Hyperliquid, tradable; Polymarket, watch-only odds) | tokens (Solana) | options | pools (Meteora liquidity pools: search a pair like SOL-USDC) | papertrade (synthetic BTC/ETH perps up to 1000×) | yields (DeFi APYs on every chain, for yield signals: \"kamino usdc\", \"aave base usdc\", \"jitosol\")" },
+        product: { type: "string", enum: [...PRODUCTS, "yields"], description: "perps | stocks (HIP-3 perps + tokenized stocks) | predictions (Hyperliquid, tradable; Polymarket, watch-only odds) | tokens (Solana) | options | pools (Meteora liquidity pools: search a pair like SOL-USDC) | papertrade (synthetic BTC/ETH perps up to 1000×) | lending (Kamino lending reserves on Solana, to deposit into: \"usdc\", \"sol\") | yields (DeFi APYs on every chain, for yield signals: \"kamino usdc\", \"aave base usdc\", \"jitosol\")" },
         query: { type: "string", description: "Symbol, name or keywords, e.g. PUMP, NVDA, wheat, fed cut, ETH" },
         limit: { type: "integer", description: "Max results (default 8)" },
       },

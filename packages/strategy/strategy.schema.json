@@ -351,6 +351,66 @@
                           "venue",
                           "symbol"
                         ]
+                      },
+                      {
+                        "type": "object",
+                        "properties": {
+                          "kind": {
+                            "type": "string",
+                            "const": "lend"
+                          },
+                          "venue": {
+                            "type": "string",
+                            "const": "kamino"
+                          },
+                          "market": {
+                            "type": "string",
+                            "pattern": "^[1-9A-HJ-NP-Za-km-z]{32,44}$"
+                          },
+                          "reserve": {
+                            "type": "string",
+                            "pattern": "^[1-9A-HJ-NP-Za-km-z]{32,44}$"
+                          },
+                          "mint": {
+                            "type": "string",
+                            "pattern": "^[1-9A-HJ-NP-Za-km-z]{32,44}$"
+                          },
+                          "symbol": {
+                            "type": "string",
+                            "minLength": 1,
+                            "maxLength": 20
+                          },
+                          "decimals": {
+                            "type": "integer",
+                            "minimum": 0,
+                            "maximum": 18
+                          },
+                          "marketName": {
+                            "type": "string",
+                            "maxLength": 60
+                          },
+                          "assetClass": {
+                            "default": "crypto",
+                            "type": "string",
+                            "enum": [
+                              "crypto",
+                              "equity",
+                              "commodity",
+                              "fx",
+                              "index",
+                              "other"
+                            ]
+                          }
+                        },
+                        "required": [
+                          "kind",
+                          "venue",
+                          "market",
+                          "reserve",
+                          "mint",
+                          "symbol",
+                          "decimals"
+                        ]
                       }
                     ]
                   }
@@ -766,6 +826,66 @@
                           "kind",
                           "venue",
                           "symbol"
+                        ]
+                      },
+                      {
+                        "type": "object",
+                        "properties": {
+                          "kind": {
+                            "type": "string",
+                            "const": "lend"
+                          },
+                          "venue": {
+                            "type": "string",
+                            "const": "kamino"
+                          },
+                          "market": {
+                            "type": "string",
+                            "pattern": "^[1-9A-HJ-NP-Za-km-z]{32,44}$"
+                          },
+                          "reserve": {
+                            "type": "string",
+                            "pattern": "^[1-9A-HJ-NP-Za-km-z]{32,44}$"
+                          },
+                          "mint": {
+                            "type": "string",
+                            "pattern": "^[1-9A-HJ-NP-Za-km-z]{32,44}$"
+                          },
+                          "symbol": {
+                            "type": "string",
+                            "minLength": 1,
+                            "maxLength": 20
+                          },
+                          "decimals": {
+                            "type": "integer",
+                            "minimum": 0,
+                            "maximum": 18
+                          },
+                          "marketName": {
+                            "type": "string",
+                            "maxLength": 60
+                          },
+                          "assetClass": {
+                            "default": "crypto",
+                            "type": "string",
+                            "enum": [
+                              "crypto",
+                              "equity",
+                              "commodity",
+                              "fx",
+                              "index",
+                              "other"
+                            ]
+                          }
+                        },
+                        "required": [
+                          "kind",
+                          "venue",
+                          "market",
+                          "reserve",
+                          "mint",
+                          "symbol",
+                          "decimals"
                         ]
                       }
                     ]
@@ -1801,6 +1921,66 @@
                           "venue",
                           "symbol"
                         ]
+                      },
+                      {
+                        "type": "object",
+                        "properties": {
+                          "kind": {
+                            "type": "string",
+                            "const": "lend"
+                          },
+                          "venue": {
+                            "type": "string",
+                            "const": "kamino"
+                          },
+                          "market": {
+                            "type": "string",
+                            "pattern": "^[1-9A-HJ-NP-Za-km-z]{32,44}$"
+                          },
+                          "reserve": {
+                            "type": "string",
+                            "pattern": "^[1-9A-HJ-NP-Za-km-z]{32,44}$"
+                          },
+                          "mint": {
+                            "type": "string",
+                            "pattern": "^[1-9A-HJ-NP-Za-km-z]{32,44}$"
+                          },
+                          "symbol": {
+                            "type": "string",
+                            "minLength": 1,
+                            "maxLength": 20
+                          },
+                          "decimals": {
+                            "type": "integer",
+                            "minimum": 0,
+                            "maximum": 18
+                          },
+                          "marketName": {
+                            "type": "string",
+                            "maxLength": 60
+                          },
+                          "assetClass": {
+                            "default": "crypto",
+                            "type": "string",
+                            "enum": [
+                              "crypto",
+                              "equity",
+                              "commodity",
+                              "fx",
+                              "index",
+                              "other"
+                            ]
+                          }
+                        },
+                        "required": [
+                          "kind",
+                          "venue",
+                          "market",
+                          "reserve",
+                          "mint",
+                          "symbol",
+                          "decimals"
+                        ]
                       }
                     ]
                   }
@@ -2098,6 +2278,66 @@
                       "kind",
                       "venue",
                       "symbol"
+                    ]
+                  },
+                  {
+                    "type": "object",
+                    "properties": {
+                      "kind": {
+                        "type": "string",
+                        "const": "lend"
+                      },
+                      "venue": {
+                        "type": "string",
+                        "const": "kamino"
+                      },
+                      "market": {
+                        "type": "string",
+                        "pattern": "^[1-9A-HJ-NP-Za-km-z]{32,44}$"
+                      },
+                      "reserve": {
+                        "type": "string",
+                        "pattern": "^[1-9A-HJ-NP-Za-km-z]{32,44}$"
+                      },
+                      "mint": {
+                        "type": "string",
+                        "pattern": "^[1-9A-HJ-NP-Za-km-z]{32,44}$"
+                      },
+                      "symbol": {
+                        "type": "string",
+                        "minLength": 1,
+                        "maxLength": 20
+                      },
+                      "decimals": {
+                        "type": "integer",
+                        "minimum": 0,
+                        "maximum": 18
+                      },
+                      "marketName": {
+                        "type": "string",
+                        "maxLength": 60
+                      },
+                      "assetClass": {
+                        "default": "crypto",
+                        "type": "string",
+                        "enum": [
+                          "crypto",
+                          "equity",
+                          "commodity",
+                          "fx",
+                          "index",
+                          "other"
+                        ]
+                      }
+                    },
+                    "required": [
+                      "kind",
+                      "venue",
+                      "market",
+                      "reserve",
+                      "mint",
+                      "symbol",
+                      "decimals"
                     ]
                   }
                 ]
@@ -3004,6 +3244,66 @@
                               "kind",
                               "venue",
                               "symbol"
+                            ]
+                          },
+                          {
+                            "type": "object",
+                            "properties": {
+                              "kind": {
+                                "type": "string",
+                                "const": "lend"
+                              },
+                              "venue": {
+                                "type": "string",
+                                "const": "kamino"
+                              },
+                              "market": {
+                                "type": "string",
+                                "pattern": "^[1-9A-HJ-NP-Za-km-z]{32,44}$"
+                              },
+                              "reserve": {
+                                "type": "string",
+                                "pattern": "^[1-9A-HJ-NP-Za-km-z]{32,44}$"
+                              },
+                              "mint": {
+                                "type": "string",
+                                "pattern": "^[1-9A-HJ-NP-Za-km-z]{32,44}$"
+                              },
+                              "symbol": {
+                                "type": "string",
+                                "minLength": 1,
+                                "maxLength": 20
+                              },
+                              "decimals": {
+                                "type": "integer",
+                                "minimum": 0,
+                                "maximum": 18
+                              },
+                              "marketName": {
+                                "type": "string",
+                                "maxLength": 60
+                              },
+                              "assetClass": {
+                                "default": "crypto",
+                                "type": "string",
+                                "enum": [
+                                  "crypto",
+                                  "equity",
+                                  "commodity",
+                                  "fx",
+                                  "index",
+                                  "other"
+                                ]
+                              }
+                            },
+                            "required": [
+                              "kind",
+                              "venue",
+                              "market",
+                              "reserve",
+                              "mint",
+                              "symbol",
+                              "decimals"
                             ]
                           }
                         ]

@@ -92,6 +92,26 @@ export const SynthInstrument = z.object({
   assetClass: AssetClass.default("crypto"),
 });
 
+/**
+ * A deposit in a Kamino lending reserve (Solana): the token is lent out and earns the reserve's
+ * supply rate. The position is held as the reserve's kTokens, worth more of the token over time,
+ * so its price (USD per kToken) rises with the interest. Withdrawals need the reserve to have the
+ * cash on hand; when it's fully borrowed, a withdrawal waits.
+ */
+export const LendInstrument = z.object({
+  kind: z.literal("lend"),
+  venue: z.literal("kamino"),
+  /** The lending market and the reserve in it, copied exactly from a search of product "lending". */
+  market: SolanaMint,
+  reserve: SolanaMint,
+  /** The token lent (USDC, SOL, …). */
+  mint: SolanaMint,
+  symbol: z.string().min(1).max(20),
+  decimals: z.number().int().min(0).max(18),
+  marketName: z.string().max(60).optional(),
+  assetClass: AssetClass.default("crypto"),
+});
+
 export const Instrument = z.discriminatedUnion("kind", [
   PerpInstrument,
   SpotInstrument,
@@ -100,6 +120,7 @@ export const Instrument = z.discriminatedUnion("kind", [
   OptionInstrument,
   LpInstrument,
   SynthInstrument,
+  LendInstrument,
 ]);
 
 /** Instruments a plain `open` action may trade (options go through multi-leg `options` actions). */
@@ -109,6 +130,7 @@ export const TradableInstrument = z.discriminatedUnion("kind", [
   TokenInstrument,
   OutcomeInstrument,
   SynthInstrument,
+  LendInstrument,
 ]);
 
 export type PerpInstrument = z.infer<typeof PerpInstrument>;
@@ -118,6 +140,7 @@ export type OutcomeInstrument = z.infer<typeof OutcomeInstrument>;
 export type OptionInstrument = z.infer<typeof OptionInstrument>;
 export type LpInstrument = z.infer<typeof LpInstrument>;
 export type SynthInstrument = z.infer<typeof SynthInstrument>;
+export type LendInstrument = z.infer<typeof LendInstrument>;
 export type Instrument = z.infer<typeof Instrument>;
 export type TradableInstrument = z.infer<typeof TradableInstrument>;
 
@@ -138,6 +161,8 @@ export function instrumentKey(i: Instrument): string {
       return `meteora:lp:${i.pool}`;
     case "synth":
       return `papertrade:synth:${i.symbol}`;
+    case "lend":
+      return `kamino:lend:${i.reserve}`;
   }
 }
 
@@ -158,10 +183,12 @@ export function instrumentLabel(i: Instrument): string {
       return `${i.symbol} liquidity`;
     case "synth":
       return `${i.symbol} on Papertrade`;
+    case "lend":
+      return `${i.symbol} lent on Kamino${i.marketName ? ` (${i.marketName})` : ""}`;
   }
 }
 
 /** Instruments that can only be bought (no shorting): spot, tokens, outcome shares. */
 export function isLongOnly(i: Instrument): boolean {
-  return i.kind === "spot" || i.kind === "token" || i.kind === "outcome";
+  return i.kind === "spot" || i.kind === "token" || i.kind === "outcome" || i.kind === "lend";
 }

@@ -29,6 +29,8 @@ export class RoutingExecutor implements Executor {
         return null; // liquidity runs as practice for now; live Meteora deposits come next
       case "synth":
         return this.routes.papertrade ?? null;
+      case "lend":
+        return this.routes.solana ?? null;
     }
   }
 

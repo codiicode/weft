@@ -862,7 +862,9 @@ async function fetchUsdPrices(s: Session, intents: Intent[]): Promise<Record<str
   const out: Record<string, number> = {};
   const jobs: [string, Instrument][] = Object.entries(s.deps.usdPriceInstruments);
   for (const i of intents)
-    if (i.type === "open" && i.size.native != null && i.instrument.kind !== "token") jobs.push([i.instrumentKey, i.instrument]);
+    if (i.type === "open" && i.size.native != null && i.instrument.kind !== "token")
+      // A Kamino deposit of "2 SOL" means 2 SOL, not 2 kTokens: price it in the token lent.
+      jobs.push([i.instrumentKey, i.instrument.kind === "lend" ? { kind: "token", chain: "solana", mint: i.instrument.mint, symbol: i.instrument.symbol, quote: "USDC", route: "auto", assetClass: "crypto" } : i.instrument]);
   await Promise.all(
     jobs.map(async ([k, inst]) => {
       try {

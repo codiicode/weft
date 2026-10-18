@@ -177,6 +177,8 @@ function venueOf(a: Action): string {
     if (i.kind === "token") return i.route === "auto" ? "Jupiter" : i.route[0]!.toUpperCase() + i.route.slice(1);
     if (i.kind === "outcome") return i.venue === "hyperliquid" ? "HIP-4" : i.venue === "polymarket" ? "Polymarket" : "Jupiter";
     if (i.kind === "perp") return i.dex ? `HIP-3 · ${i.dex}` : "Hyperliquid";
+    if (i.kind === "lend") return "Kamino";
+    if (i.kind === "synth") return "Papertrade";
     return "Hyperliquid";
   }
   if (a.type === "options") return a.legs[0]!.instrument.venue[0]!.toUpperCase() + a.legs[0]!.instrument.venue.slice(1);
@@ -230,7 +232,7 @@ export function strategyToSpec(s: Strategy, live: LiveOverlay = {}): { spec: Gra
   for (const a of s.actions) {
     const pos = live.positions?.find((p) => p.actionId === a.id);
     if (a.type === "open") {
-      const longOnly = a.instrument.kind === "token" || a.instrument.kind === "outcome" || a.instrument.kind === "spot";
+      const longOnly = a.instrument.kind === "token" || a.instrument.kind === "outcome" || a.instrument.kind === "spot" || a.instrument.kind === "lend";
       const sign = a.side === "long" ? (["+", "−"] as const) : (["−", "+"] as const);
       nodes.push({
         id: a.id,
@@ -516,8 +518,8 @@ export function describeStrategy(s: Strategy): { watches: string[]; watchKinds: 
             (a.instrument.kind === "outcome"
               ? `${a.instrument.outcome} on “${short(a.instrument.question ?? a.instrument.market)}”`
               : instrumentLabel(a.instrument));
-          const longOnly = a.instrument.kind === "token" || a.instrument.kind === "outcome" || a.instrument.kind === "spot";
-          const verb = longOnly ? "Buy" : a.side === "long" ? "Go long" : "Go short";
+          const longOnly = a.instrument.kind === "token" || a.instrument.kind === "outcome" || a.instrument.kind === "spot" || a.instrument.kind === "lend";
+          const verb = a.instrument.kind === "lend" ? "Lend" : longOnly ? "Buy" : a.side === "long" ? "Go long" : "Go short";
           const quote = a.instrument.kind === "token" ? a.instrument.quote : undefined;
           const lev = a.leverage > 1 ? ` at ${a.leverage}×` : "";
           const sign: ["+" | "−", "+" | "−"] = a.side === "long" ? ["+", "−"] : ["−", "+"];

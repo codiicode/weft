@@ -1,5 +1,6 @@
 import { polymarketListings } from "./polymarket.ts";
 import { dlmmInstrument, feePerDay } from "./meteora.ts";
+import { lendInstrument } from "./kamino.ts";
 import { instrumentKey, officialMint, type Instrument } from "@weft/strategy";
 import type { Catalog, CatalogQuery, MarketListing, Product } from "./types.ts";
 import type { VenueMarketData } from "./market-data.ts";
@@ -52,6 +53,9 @@ export class VenueCatalog implements Catalog {
       case "papertrade":
         rows = await this.papertrade();
         break;
+      case "lending":
+        rows = await this.lending(q.search);
+        break;
     }
     const filtered = rows.filter((r) =>
       r._searched ||
@@ -93,6 +97,30 @@ export class VenueCatalog implements Catalog {
         meta: { symbol, minNotionalUsd: limits.minNotionalUsd, minMarginUsd: limits.minMarginUsd },
         venue: "papertrade",
       };
+    });
+  }
+
+  /** Kamino lending reserves for a token or market ("usdc", "sol", "jito"): supply rate, deposits, how much is lent out. */
+  private async lending(search?: string): Promise<(MarketListing & { _rank?: number; _searched?: boolean })[]> {
+    const found = await this.md.ctx.kamino.search(search?.trim() || "usdc", 12).catch(() => []);
+    const decimals = await Promise.all(found.map((r) => this.md.ctx.rpc.mintInfo(r.mint).then((m) => m?.decimals ?? null).catch(() => null)));
+    return found.flatMap((r, i) => {
+      const d = decimals[i];
+      if (d == null) return [];
+      const instrument = lendInstrument(r, d);
+      return [{
+        product: "lending" as const,
+        instrument,
+        instrumentKey: instrumentKey(instrument),
+        label: `${r.symbol} · Kamino ${r.marketName}`,
+        name: `Lend ${r.symbol} on Kamino: earns ${r.supplyApyPct.toFixed(2)}% a year · ${Math.round(r.utilization * 100)}% lent out${r.utilization > 0.9 ? " (withdrawals may have to wait)" : ""}`,
+        price: null,
+        liquidityUsd: r.totalSupplyUsd,
+        meta: { supplyApyPct: Math.round(r.supplyApyPct * 100) / 100, utilizationPct: Math.round(r.utilization * 100), market: r.marketName },
+        venue: "kamino",
+        _rank: r.totalSupplyUsd * (r.primary ? 1.5 : 1),
+        _searched: true,
+      }];
     });
   }
 

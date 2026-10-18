@@ -52,6 +52,8 @@ export interface SolanaLiveConfig {
   jupiterApiKey?: string | null;
   /** Liquidity in Meteora DLMM pools with real money (needs Weft's signer policy to allow DLMM). */
   lpEnabled?: boolean;
+  /** Kamino lending deposits with real money (needs Weft's signer policy to allow Kamino Lend). */
+  lendEnabled?: boolean;
 }
 
 export function solanaConfigFromEnv(env: NodeJS.ProcessEnv = process.env): SolanaLiveConfig {
@@ -71,6 +73,7 @@ export function solanaConfigFromEnv(env: NodeJS.ProcessEnv = process.env): Solan
     testers: (env.WEFT_SOL_TESTERS ?? "").split(",").map((x) => x.trim()).filter(Boolean),
     jupiterApiKey: env.JUPITER_API_KEY || null,
     lpEnabled: env.WEFT_SOL_LP === "1",
+    lendEnabled: env.WEFT_SOL_LEND === "1",
   };
 }
 
@@ -502,7 +505,7 @@ export class SolanaLive {
 
 /** True when a strategy opens positions in Solana tokens. */
 export function tradesSolana(s: Strategy): boolean {
-  return s.actions.some((a) => (a.type === "open" && a.instrument.kind === "token") || (a.type === "copy" && (a.leader.venue === "solana" || a.leader.venue === "x")) || a.type === "liquidity");
+  return s.actions.some((a) => (a.type === "open" && (a.instrument.kind === "token" || a.instrument.kind === "lend")) || (a.type === "copy" && (a.leader.venue === "solana" || a.leader.venue === "x")) || a.type === "liquidity");
 }
 
 /** The base64 SPKI public key for a base64 PKCS8 P-256 private key. */

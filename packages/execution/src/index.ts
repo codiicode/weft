@@ -20,6 +20,7 @@ export * from "./hyperliquid/executor.ts";
 export * from "./solana/programs.ts";
 export * from "./solana/inspect.ts";
 export * from "./solana/jupiter.ts";
+export * from "./solana/kamino.ts";
 export * from "./solana/signer.ts";
 export * from "./solana/executor.ts";
 export * from "./solana/dlmm.ts";

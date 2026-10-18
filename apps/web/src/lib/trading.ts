@@ -71,5 +71,5 @@ export function hlFreeUsd(venue: HlVenue | null | undefined): number | null {
 
 /** True when a strategy opens positions in Solana tokens. */
 export function tradesSolana(s: Strategy | undefined): boolean {
-  return Boolean(s?.actions.some((a) => (a.type === "open" && a.instrument.kind === "token") || a.type === "liquidity" || (a.type === "copy" && a.leader.venue !== "hyperliquid")));
+  return Boolean(s?.actions.some((a) => (a.type === "open" && (a.instrument.kind === "token" || a.instrument.kind === "lend")) || a.type === "liquidity" || (a.type === "copy" && a.leader.venue !== "hyperliquid")));
 }
