@@ -243,7 +243,7 @@ const money = "h-10 w-28 rounded-[10px] border border-line-2 bg-card px-3 text-[
 /** Tweet a trade: connect X, then tag @weftfinance with an idea and Weft does what you chose here. */
 function TweetATrade() {
   const me = useApi(() => api.xMe(), []);
-  const { user } = usePrivy();
+  const { user, unlinkTwitter } = usePrivy();
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState<{ ok: boolean; text: string } | null>(null);
   const [draft, setDraft] = useState<XPrefs | null>(null);
@@ -273,7 +273,15 @@ function TweetATrade() {
   if (!me.data.enabled) return <Row title="X" sub="Tweet a trade isn’t set up on this server yet." />;
   if (!account)
     return (
-      <Row title="Connect X" sub={<>Then tag <span className="text-ink">@weftfinance</span> with a trade idea, and Weft drafts it, or starts it, in your account.</>}>
+      <Row
+        title="Connect X"
+        sub={
+          <>
+            Then tag <span className="text-ink">@weftfinance</span> with a trade idea, and Weft drafts it, or starts it, in your account. X connects whichever account you’re signed in to on x.com.
+            {msg && <span className={`mt-1.5 block ${msg.ok ? "text-muted" : "text-short"}`}>{msg.text}</span>}
+          </>
+        }
+      >
         <Btn onClick={() => linkTwitter()}>Connect X</Btn>
       </Row>
     );
@@ -300,10 +308,21 @@ function TweetATrade() {
       <Row title={`Connected as @${account.username}`} sub={<>Tag <span className="text-ink">@weftfinance</span> with an idea, like “long SOL 10x if it breaks $110”, or reply “@weftfinance make this a strategy” under someone’s call.</>}>
         <Btn
           variant="ghost"
+          disabled={busy}
           onClick={async () => {
-            await api.xUnlink();
+            setBusy(true);
             setMsg(null);
-            await refresh();
+            try {
+              // Off the Privy account too, or it would be linked straight back.
+              if (privyX) await unlinkTwitter(privyX);
+              await api.xUnlink();
+              await refresh();
+              setMsg({ ok: true, text: "Disconnected. To connect another account, sign out of this one on x.com first, then press Connect X." });
+            } catch (e) {
+              setMsg({ ok: false, text: (e as Error).message });
+            } finally {
+              setBusy(false);
+            }
           }}
         >
           Disconnect
