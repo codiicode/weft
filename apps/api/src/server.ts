@@ -197,6 +197,13 @@ if (solana && solCfg.lpEnabled)
     .then((m) => console.log(`  liquidity: ${m}`))
     .catch((e) => console.warn(`  liquidity: couldn't update the signing policy: ${(e as Error).message.slice(0, 200)}`));
 
+// Live lending (WEFT_SOL_LEND=1): make sure Weft's Solana signer may sign Kamino Lend transactions.
+if (solana && solCfg.lendEnabled)
+  void solana
+    .ensureLendPolicy()
+    .then((m) => console.log(`  lending: ${m}`))
+    .catch((e) => console.warn(`  lending: couldn't update the signing policy: ${(e as Error).message.slice(0, 200)}`));
+
 // $WEFT holder discount on Weft's fees (inactive until WEFT_TOKEN_MINT and WEFT_HOLDER_MIN are set).
 // Holdings are read on-chain from wallets Privy says belong to the user.
 const holderCfg = holderConfigFromEnv();

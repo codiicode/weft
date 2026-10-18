@@ -11,6 +11,8 @@ export const PROGRAMS = {
   jupiterV6: new PublicKey("JUP6LkbZbjS1jKKwapdHNy74zcZ3tLUZoi5QNyVTaV4"),
   /** Meteora DLMM (liquidity positions). */
   meteoraDlmm: new PublicKey("LBUZKhRxPF3XUpBCjp4YzTKgLccjZhTSDM9YuVaPwxo"),
+  /** Kamino Lend (klend): reserve deposits and withdrawals. */
+  kaminoLend: new PublicKey("KLend2g3cP87fffoy8q1mQqGKjrxjC8boSyAYavgmjD"),
   /** SPL Memo (DLMM's *2 instructions pass it for transfer hooks). */
   memo: new PublicKey("MemoSq4gqABAXKb96qnH8TysNcWxMyWCqXgDLGmfcHr"),
 } as const;
@@ -30,6 +32,20 @@ export const DEFAULT_ALLOWED_PROGRAMS: readonly PublicKey[] = [
 
 /** What a liquidity transaction may call: the swap set plus Meteora DLMM and Memo. */
 export const LP_ALLOWED_PROGRAMS: readonly PublicKey[] = [...DEFAULT_ALLOWED_PROGRAMS, PROGRAMS.meteoraDlmm, PROGRAMS.memo];
+
+/** What a lending transaction may call: the swap set plus Kamino Lend. */
+export const LEND_ALLOWED_PROGRAMS: readonly PublicKey[] = [...DEFAULT_ALLOWED_PROGRAMS, PROGRAMS.kaminoLend];
+
+/**
+ * The klend instructions a lending transaction may contain, by Anchor discriminator, with the
+ * positions of the accounts the inspector checks (from the program's IDL, as in klend-sdk's codegen).
+ * Everything else klend does (obligations, borrowing, liquidations, admin) is refused.
+ */
+export const KLEND_IX: Record<string, { name: string; owner?: number; liquidityMint?: number; collateralMint?: number; userAccounts?: number[] }> = {
+  "02da8aeb4fc91966": { name: "refresh_reserve" },
+  a9c91e7e06cd6644: { name: "deposit_reserve_liquidity", owner: 0, liquidityMint: 4, collateralMint: 6, userAccounts: [7, 8] },
+  ea75b57db98edc1d: { name: "redeem_reserve_collateral", owner: 0, liquidityMint: 4, collateralMint: 5, userAccounts: [7, 8] },
+};
 
 export function associatedTokenAddress(owner: PublicKey, mint: PublicKey, tokenProgram: PublicKey = PROGRAMS.token): PublicKey {
   return PublicKey.findProgramAddressSync([owner.toBuffer(), tokenProgram.toBuffer(), mint.toBuffer()], PROGRAMS.associatedToken)[0];

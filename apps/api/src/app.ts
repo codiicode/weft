@@ -712,7 +712,7 @@ export function createApp(deps: AppDeps) {
       signals: deps.signalModes,
       auth: { enabled: authEnabled, appId: deps.auth?.appId ?? null },
       /** Which venues take real orders right now. */
-      trading: { hyperliquid: Boolean(deps.live?.cfg.enabled), solana: Boolean(deps.solana?.cfg.enabled), liquidity: Boolean(deps.solana?.cfg.enabled && deps.solana?.cfg.lpEnabled), papertrade: Boolean(deps.papertradeLive), network: deps.live?.cfg.network ?? null },
+      trading: { hyperliquid: Boolean(deps.live?.cfg.enabled), solana: Boolean(deps.solana?.cfg.enabled), liquidity: Boolean(deps.solana?.cfg.enabled && deps.solana?.cfg.lpEnabled), lending: Boolean(deps.solana?.cfg.enabled && deps.solana?.cfg.lendEnabled), papertrade: Boolean(deps.papertradeLive), network: deps.live?.cfg.network ?? null },
     })
   );
 
@@ -1142,7 +1142,7 @@ export function createApp(deps: AppDeps) {
         for (const d of await engine.listDeployments()) {
           if (d.mode !== "live" || !mineAll.has(d.id) || d.status === "stopped" || d.status === "killed") continue;
           for (const a of d.strategy.actions) {
-            if (a.type === "open" && a.instrument.kind === "token") mints.add(a.instrument.mint);
+            if (a.type === "open" && (a.instrument.kind === "token" || a.instrument.kind === "lend")) mints.add(a.instrument.mint);
             if (a.type === "liquidity") for (const m of [a.pool.baseMint, a.pool.quoteMint]) if (m !== "So11111111111111111111111111111111111111112") mints.add(m);
           }
         }

@@ -5,7 +5,7 @@ import {
   type AddressLookupTableAccount,
   type MessageAccountKeys,
 } from "@solana/web3.js";
-import { associatedTokenAddress, DEFAULT_ALLOWED_PROGRAMS, JUPITER_IX, PROGRAMS, WSOL_MINT } from "./programs.ts";
+import { associatedTokenAddress, DEFAULT_ALLOWED_PROGRAMS, JUPITER_IX, KLEND_IX, PROGRAMS, WSOL_MINT } from "./programs.ts";
 import { DLMM_IX } from "./dlmm-ix.ts";
 
 /**
@@ -159,6 +159,10 @@ export async function inspectSwapTransaction(tx: VersionedTransaction | Uint8Arr
   }));
   // Mints referenced by ATA creations and Jupiter swaps → the user's ATAs for them.
   for (const ix of ixs) {
+    if (ix.programId.equals(PROGRAMS.kaminoLend)) {
+      const l = KLEND_IX[Buffer.from(ix.data.subarray(0, 8)).toString("hex")];
+      for (const m of [l?.liquidityMint, l?.collateralMint]) if (m != null && ix.accounts[m]) addAtasFor(ix.accounts[m]!);
+    }
     if (ix.programId.equals(PROGRAMS.associatedToken) && ix.accounts[2]?.equals(user) && ix.accounts[3]) addAtasFor(ix.accounts[3]);
     if (ix.programId.equals(PROGRAMS.token) || ix.programId.equals(PROGRAMS.token2022)) {
       const t = ix.data[0];
@@ -282,6 +286,21 @@ export async function inspectSwapTransaction(tx: VersionedTransaction | Uint8Arr
         if (layout.name.startsWith("initialize_position")) {
           const pos = at("position");
           if (!pos || !extra.has(pos.toBase58())) v("a new position must be an account Weft just generated");
+        }
+      }
+    } else if (ix.programId.equals(PROGRAMS.kaminoLend)) {
+      // Lending: only refreshing a reserve, depositing into it and redeeming kTokens from it. The user
+      // signs as owner, and the tokens going in come from (and kTokens or tokens coming out go to)
+      // the user's own accounts.
+      const disc = Buffer.from(ix.data.subarray(0, 8)).toString("hex");
+      const layout = KLEND_IX[disc];
+      name = layout ? `klend.${layout.name}` : `klend.unknown(${disc})`;
+      if (!layout) v("Kamino instruction not allowed (only refreshing a reserve, depositing and withdrawing)");
+      else {
+        if (layout.owner != null && !acc(layout.owner)?.equals(user)) v(`owner ${acc(layout.owner)?.toBase58()} is not the user`);
+        for (const n of layout.userAccounts ?? []) {
+          const a = acc(n);
+          if (!a || !(await isUserOwned(a))) v(`token account ${a?.toBase58()} is not the user's`);
         }
       }
     } else if (ix.programId.equals(PROGRAMS.jupiterV6)) {

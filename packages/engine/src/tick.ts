@@ -1188,6 +1188,7 @@ function describeIntent(s: Session, i: Intent): string {
         const where = !r ? "" : "lowerPct" in r ? ` ${describePctRange(r)}` : ` between ${r.lower} and ${r.upper} ${i.instrument.quoteSymbol}`;
         return `Add ${sizeText(i.size)} of liquidity to the ${i.instrument.symbol} pool${where}`;
       }
+      if (i.instrument.kind === "lend") return `Lend ${sizeText(i.size, i.instrument.symbol)} on Kamino (${i.instrument.symbol})`;
       const longOnly = i.instrument.kind === "token" || i.instrument.kind === "outcome" || i.instrument.kind === "spot";
       const verb = longOnly ? "Buy" : i.side === "long" ? "Go long" : "Go short";
       const quote = i.instrument.kind === "token" ? i.instrument.quote : undefined;

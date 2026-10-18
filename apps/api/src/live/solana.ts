@@ -5,6 +5,8 @@ import {
   DEFAULT_ALLOWED_PROGRAMS,
   JupiterExecutor,
   DlmmExecutor,
+  KaminoExecutor,
+  LEND_ALLOWED_PROGRAMS,
   LP_ALLOWED_PROGRAMS,
   JupiterSwapBuilder,
   USDC_MINT,
@@ -395,6 +397,18 @@ export class SolanaLive {
     return changed ? "Meteora DLMM added to Weft's Solana signing policy" : "signing policy already allows Meteora DLMM";
   }
 
+  /**
+   * Live lending needs Weft's signer to sign Kamino Lend transactions: once WEFT_SOL_LEND is on, add
+   * the klend program to the policy's allow-list (every transaction is still inspected first: only
+   * reserve refreshes, deposits and withdrawals, to and from the user's own accounts).
+   */
+  async ensureLendPolicy(): Promise<string> {
+    if (!this.cfg.lendEnabled || !this.api?.allowPrograms) return "off";
+    const { policyId } = await this.signer();
+    const changed = await this.api.allowPrograms(policyId, LEND_ALLOWED_PROGRAMS.map((p) => p.toBase58()));
+    return changed ? "Kamino Lend added to Weft's Solana signing policy" : "signing policy already allows Kamino Lend";
+  }
+
   assertDeployable(userId: string, strategy: Strategy, allocationUsd: number, otherMints: Set<string> = new Set()) {
     if (!this.openFor(userId)) throw new Error("Solana trading isn’t switched on yet");
     if (!this.accounts.solanaAccount(userId)) throw new Error("set up your Solana trading wallet first");
@@ -409,6 +423,12 @@ export class SolanaLive {
       }
       if (a.type === "copy" && a.leader.venue !== "solana") throw new Error("a strategy can trade Solana tokens or Hyperliquid markets, not both in one run");
       if (a.type !== "open") continue;
+      if (a.instrument.kind === "lend") {
+        if (!this.cfg.lendEnabled) throw new Error("Kamino lending runs as practice for now. Live deposits are coming.");
+        // One wallet: kTokens and the token lent are shared, so one run per token lent.
+        if (a.instrument.mint !== "So11111111111111111111111111111111111111112" && otherMints.has(a.instrument.mint)) throw new Error(`another live strategy already uses the ${a.instrument.symbol} in your wallet`);
+        continue;
+      }
       if (a.instrument.kind !== "token") throw new Error("a strategy can trade Solana tokens or Hyperliquid markets, not both in one run");
       if (a.order.type === "limit") throw new Error("limit orders on Solana tokens aren’t supported; use a market order with a slippage limit");
       // One wallet: two runs holding the same token would sell each other's coins.
@@ -481,6 +501,25 @@ export class SolanaLive {
     });
   }
 
+  /** The user's lending executor (Kamino), buying the token lent through their token executor. */
+  async lendExecutorReady(userId: string): Promise<KaminoExecutor> {
+    const swaps = await this.executorReady(userId);
+    const acct = this.accounts.solanaAccount(userId);
+    if (!acct || !this.api) throw new Error("no Solana trading wallet for this user");
+    return new KaminoExecutor({
+      conn: this.conn,
+      signer: new PrivyWalletSigner(this.api, acct.walletId, acct.address),
+      swaps,
+      jupiter: this.builder,
+      rpc: this.rpc(),
+      sentStore: {
+        get: (id) => this.accounts.kvGet(`solsent:${id}`) || null,
+        set: (id, sig) => this.accounts.kvSet(`solsent:${id}`, sig),
+      },
+      log: (m) => console.log(`[solana ${acct.address.slice(0, 6)}] ${m}`),
+    });
+  }
+
   private rpc(): JupiterRpc {
     const conn = this.conn;
     return {
@@ -526,13 +565,17 @@ export class SolanaRouterExecutor implements Executor {
   async execute(req: OrderRequest, now: number): Promise<ExecutionResult> {
     const owner = req.deploymentId ? this.ownerOf(req.deploymentId) : null;
     if (!owner) return { status: "rejected", reason: "live order without an owning user" };
-    if (req.instrument.kind !== "token" && req.instrument.kind !== "lp") return { status: "rejected", reason: "the Solana engine only trades Solana tokens and liquidity" };
+    if (req.instrument.kind !== "token" && req.instrument.kind !== "lp" && req.instrument.kind !== "lend") return { status: "rejected", reason: "the Solana engine only trades Solana tokens, liquidity and lending" };
     const blocked = this.solana.blockReason(owner);
     if (blocked) return { status: "rejected", reason: blocked };
     try {
       if (req.instrument.kind === "lp") {
         if (!this.solana.cfg.lpEnabled) return { status: "rejected", reason: "live liquidity is switched off" };
         return await (await this.solana.lpExecutorReady(owner)).execute(req);
+      }
+      if (req.instrument.kind === "lend") {
+        if (!this.solana.cfg.lendEnabled) return { status: "rejected", reason: "live lending is switched off" };
+        return await (await this.solana.lendExecutorReady(owner)).execute(req);
       }
       return await (await this.solana.executorReady(owner)).execute(req, now);
     } catch (e) {
