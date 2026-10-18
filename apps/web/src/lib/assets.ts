@@ -23,6 +23,8 @@ export function instrumentIcon(i: Instrument, meta?: Record<string, unknown> | n
       return { symbol: i.symbol.split("-")[0]!, src, alt: [tokenLogo(i.baseMint)] };
     case "synth":
       return { symbol: i.symbol, src };
+    case "lend":
+      return { symbol: i.symbol, src, alt: [tokenLogo(i.mint)] };
     default:
       return { symbol: "?", src };
   }

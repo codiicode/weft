@@ -525,7 +525,7 @@ export function describeStrategy(s: Strategy): { watches: string[]; watchKinds: 
           const sign: ["+" | "−", "+" | "−"] = a.side === "long" ? ["+", "−"] : ["−", "+"];
           const ex = exitPhrase(a.exits, sign, a.leverage);
           // A label that already says what to do ("Buy 0.05 SOL of RAY") is used as the whole phrase.
-          const said = a.label && /^(buy|sell|go long|go short|long|short)\b/i.test(a.label);
+          const said = a.label && /^(buy|sell|go long|go short|long|short|lend|deposit|supply)\b/i.test(a.label);
           return {
             text: said ? `${a.label}${lev}${ex ? `; ${ex}` : ""}` : `${verb} ${inst} with ${sizePhrase(a, quote)}${lev}${ex ? `; ${ex}` : ""}`,
             tone: a.side === "short" && !longOnly ? "short" : "long",

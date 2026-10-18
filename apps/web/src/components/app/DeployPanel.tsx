@@ -121,6 +121,7 @@ function orderNow(s: Strategy | undefined): string | null {
     return w?.op === "gt" && w.right?.value === 0;
   });
   if (!immediate) return null;
+  if (open.instrument.kind === "lend") return `Lend ${open.instrument.symbol} on ${open.instrument.venue === "jupiter" ? "Jupiter Lend" : "Kamino"}`;
   const perpLike = open.instrument.kind === "perp" || open.instrument.kind === "synth";
   return `${open.side === "short" ? "Short" : perpLike ? "Long" : "Buy"} ${instrumentLabel(open.instrument)}${perpLike && (open.leverage ?? 1) > 1 ? ` ${open.leverage}×` : ""}`;
 }
@@ -216,6 +217,10 @@ export function DeployPanel({ strategy, strategyId, compact = false, initialMode
   const limit = isPractice ? (practiceLeft ?? Infinity) : onPapertrade ? Infinity : Math.min(cap ?? Infinity, available ?? Infinity);
   const max = Number.isFinite(limit) ? Math.max(10, limit) : Infinity;
   const now = useMemo(() => orderNow(strategy), [strategy]);
+  const lendVenue = useMemo(() => {
+    const l = strategy?.actions.find((a) => a.type === "open" && a.instrument.kind === "lend");
+    return l && l.type === "open" && l.instrument.kind === "lend" ? (l.instrument.venue === "jupiter" ? "Jupiter Lend" : "Kamino") : null;
+  }, [strategy]);
   // Papertrade: what this run needs in the account, and whether Start has to top it up or connect first.
   const papertrade = usePapertrade();
   const [ptStep, setPtStep] = useState<PapertradeStep | null>(null);
@@ -395,6 +400,8 @@ export function DeployPanel({ strategy, strategyId, compact = false, initialMode
             <p className="mt-3 text-[13.5px] leading-relaxed text-muted">
               {strategy?.actions.some((a) => a.type === "liquidity")
                 ? "A real deposit into Meteora from your own Solana wallet, paid in SOL. The position account holds about 0.06 SOL, which comes back when it closes."
+                : onSolana && lendVenue
+                  ? `A real deposit into ${lendVenue} from your own Solana wallet. Token you already hold goes in first; Weft buys anything missing with SOL. Withdrawals come back to the same wallet.`
                 : onSolana
                   ? "Real swaps through Jupiter, from your own Solana wallet."
                   : onPapertrade
@@ -481,7 +488,7 @@ export function DeployPanel({ strategy, strategyId, compact = false, initialMode
       <p className="mt-2.5 text-center text-[12.5px] leading-relaxed text-faint">
         {isLive && ready ? (
           <>
-            {`${now ? "Buys right away with" : "Trades"} real money from your ${onSolana ? "wallet" : "account"}, and you can lose it. Stop any time. `}
+            {`${now ? (lendVenue ? "Lends right away with" : "Buys right away with") : "Trades"} real money from your ${onSolana ? "wallet" : "account"}, and you can lose it. Stop any time. `}
             <a href="/risk" target="_blank" className="underline decoration-line-2 underline-offset-2 hover:text-ink">
               The risks
             </a>
