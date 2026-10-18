@@ -425,7 +425,8 @@ if (xbotMode && process.env.TWITTERAPI_IO_KEY) {
     kvSet: (k, v) => accounts.kvSet(k, v),
     log: (m) => console.log(`  ${m}`),
   });
-  setInterval(() => void bot.run().catch((e) => console.warn(`xbot: ${(e as Error).message.slice(0, 200)}`)), 60_000).unref();
+  // Every 10 seconds: a tweet gets its answer in well under a minute (most of that is the AI drafting).
+  setInterval(() => void bot.run().catch((e) => console.warn(`xbot: ${(e as Error).message.slice(0, 200)}`)), Number(process.env.WEFT_XBOT_POLL_SEC ?? 10) * 1000).unref();
   console.log(`  x bot: ${mode}${xbotMode === "live" && !xKeys ? " (X_API_* keys missing, so nothing is posted)" : ""}`);
 }
 

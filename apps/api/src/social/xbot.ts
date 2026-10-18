@@ -191,12 +191,16 @@ export class XBot {
   private bump(k: string) {
     this.d.kvSet(k, String(this.count(k) + 1));
   }
+  private unbump(k: string) {
+    this.d.kvSet(k, String(Math.max(0, this.count(k) - 1)));
+  }
 
   /** Mentions since the last run (the first run only looks back 15 minutes), oldest first. */
   private async mentions(now: number): Promise<Mention[]> {
     const since = Number(this.d.kvGet("xbot:since") ?? 0) || Math.floor(now / 1000) - 900;
     const h = this.d.handle.replace(/^@/, "");
-    const q = `@${h} -from:${h} since_time:${since}`;
+    // Two minutes of overlap: a tweet the search indexes late isn't skipped (answered ones are marked done).
+    const q = `@${h} -from:${h} since_time:${since - 120}`;
     const r = await this.f(`https://api.twitterapi.io/twitter/tweet/advanced_search?queryType=Latest&query=${encodeURIComponent(q)}`, { headers: { "X-API-Key": this.d.twitterApiKey }, signal: AbortSignal.timeout(20_000) });
     if (!r.ok) throw new Error(`mentions: HTTP ${r.status}`);
     const body = (await r.json()) as { tweets?: ApiTweet[] };
@@ -271,6 +275,31 @@ export class XBot {
     }
   }
 
+  /** Draft it, act on it, reply. False when nothing went out. */
+  private async answer(m: Mention, idea: string, link: { userId: string; prefs: XPrefs } | null, day: string, now: number): Promise<boolean> {
+    const drafted = await this.d.draft(idea).catch((e) => (this.d.log?.(`xbot: draft failed for ${m.id}: ${(e as Error).message.slice(0, 120)}`), null));
+    if (!drafted) return false;
+    const id = this.d.saveDraft({ strategy: drafted.strategy, thesis: idea, tweetId: m.id, author: m.author, at: now, owner: link?.userId });
+    const draftUrl = `${this.d.site}/d/${id}`;
+    const outcome = link ? await this.act(link, drafted.strategy, draftUrl, day) : "draft";
+    let plan: string | null = null;
+    try {
+      plan = planLine(drafted.strategy);
+    } catch {
+      /* the rationale's first sentence instead */
+    }
+    const text = replyText(drafted.strategy.name, drafted.rationale, draftUrl, outcome, plan);
+    const took = `${Math.round((Date.now() - m.at) / 1000)}s after the tweet`;
+    if (this.d.mode === "dry") {
+      this.d.log?.(`xbot (dry): would reply to @${m.author} ${m.id} (${took}): ${JSON.stringify(text)}`);
+      return true;
+    }
+    const sent = await this.post(text, m.id).catch((e) => (this.d.log?.(`xbot: reply to ${m.id} failed: ${(e as Error).message.slice(0, 160)}`), null));
+    if (!sent) return false;
+    this.d.log?.(`xbot: replied to @${m.author} ${m.id} (${outcome}, ${took}) → ${sent}`);
+    return true;
+  }
+
   /** One pass: read new mentions, answer the ones worth answering. */
   async run(now = Date.now()): Promise<{ seen: number; replied: number }> {
     if (this.running) return { seen: 0, replied: 0 };
@@ -279,6 +308,9 @@ export class XBot {
     try {
       const list = await this.mentions(now);
       const day = this.day(now);
+      // 1. Decide, in order: what's worth answering (the caps are reserved here, so answering in
+      //    parallel below can't go over them).
+      const todo: { m: Mention; idea: string; link: { userId: string; prefs: XPrefs } | null }[] = [];
       for (const m of list) {
         this.d.kvSet("xbot:since", String(Math.floor(m.at / 1000)));
         if (this.d.kvGet(`xbot:done:${m.id}`)) continue;
@@ -302,23 +334,24 @@ export class XBot {
           this.d.log?.(`xbot: skipped ${m.id} from @${m.author} (${why})`);
           continue;
         }
-        const drafted = await this.d.draft(idea).catch((e) => (this.d.log?.(`xbot: draft failed for ${m.id}: ${(e as Error).message.slice(0, 120)}`), null));
-        if (!drafted) continue;
-        const id = this.d.saveDraft({ strategy: drafted.strategy, thesis: idea, tweetId: m.id, author: m.author, at: now, owner: link?.userId });
-        const draftUrl = `${this.d.site}/d/${id}`;
-        const outcome = link ? await this.act(link, drafted.strategy, draftUrl, day) : "draft";
-        const text = replyText(drafted.strategy.name, drafted.rationale, draftUrl, outcome, (() => { try { return planLine(drafted.strategy); } catch { return null; } })());
-        if (this.d.mode === "dry") {
-          this.d.log?.(`xbot (dry): would reply to @${m.author} ${m.id}: ${JSON.stringify(text)}`);
-        } else {
-          const sent = await this.post(text, m.id).catch((e) => (this.d.log?.(`xbot: reply to ${m.id} failed: ${(e as Error).message.slice(0, 160)}`), null));
-          if (!sent) continue;
-          this.d.log?.(`xbot: replied to @${m.author} ${m.id} (${outcome}) → ${sent}`);
-        }
         this.bump(`xbot:day:${day}`);
         this.bump(`xbot:author:${day}:${m.author}`);
-        replied++;
+        todo.push({ m, idea, link });
       }
+      // 2. Answer: different people in parallel, one person's tweets in order (their live limits).
+      const byAuthor = new Map<string, typeof todo>();
+      for (const t of todo) byAuthor.set(t.m.author, [...(byAuthor.get(t.m.author) ?? []), t]);
+      await Promise.all(
+        [...byAuthor.values()].map(async (mine) => {
+          for (const { m, idea, link } of mine) {
+            if (await this.answer(m, idea, link, day, now)) replied++;
+            else {
+              this.unbump(`xbot:day:${day}`);
+              this.unbump(`xbot:author:${day}:${m.author}`);
+            }
+          }
+        }),
+      );
       return { seen: list.length, replied };
     } finally {
       this.running = false;
