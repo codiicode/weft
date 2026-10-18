@@ -25,6 +25,7 @@ export function Hero() {
             <Button href="#demo" size="lg" variant="quiet">
               See it work
             </Button>
+            <p className="w-full text-[13.5px] text-muted lg:text-right">No wallet or Hyperliquid account needed: sign in with email and Weft makes them for you.</p>
           </div>
         </div>
       </div>

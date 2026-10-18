@@ -10,8 +10,16 @@ const faqs = [
     a: "You need an opinion, not a trading background. Weft turns it into concrete rules and shows you each one in plain English before anything runs. Practice it with pretend money first if you like, then start it with whatever amount you like.",
   },
   {
+    q: "Do I need a wallet or a Hyperliquid account?",
+    a: "No. Sign in with email or Google and Weft makes you a wallet on Hyperliquid and one on Solana, ready to trade. Send USDC on Arbitrum and Weft moves it onto Hyperliquid and pays the gas. Already trade on Hyperliquid or hold a Solana wallet? You can use your own instead.",
+  },
+  {
+    q: "Is the wallet Weft makes safe?",
+    a: "The wallet is yours. Its key is secured by Privy, not held by Weft, and you can export it to Phantom, Rabby or MetaMask whenever you like. The key Weft gets on it can place trades and nothing else: it can’t withdraw or send your money anywhere.",
+  },
+  {
     q: "Does Weft hold my money?",
-    a: "No. Your money stays in your own Hyperliquid account and your own Solana wallet. Weft gets a key that can place trades, but it can’t withdraw or send money anywhere. You can move your money out whenever you want.",
+    a: "No. Your money stays in your own wallets, on Hyperliquid and on Solana. Weft gets a key that can place trades, but it can’t withdraw or send money anywhere. You can move your money out whenever you want.",
   },
   {
     q: "What can it watch?",
@@ -27,7 +35,7 @@ const faqs = [
   },
   {
     q: `What is ${$T} for?`,
-    a: `It’s how Weft shares what it earns. Half of every fee, and ${brand.tokenFee.buybackBps / 100}% of every ${$T} trade, buys ${$T} in small amounts about every ten minutes. Of what it buys, ${Math.round(brand.rewards.traderShare * 100)}% goes back to the people who traded that day (by the fees they paid), ${Math.round(brand.rewards.creatorShare * 100)}% to the people whose strategies others ran, and ${Math.round(brand.rewards.burnShare * 100)}% is burned on the spot. Holders (from ${brand.tiers.holder.min.toLocaleString("en-US")} ${$T}) pay ${Math.round(brand.tiers.holder.discount * 100)}% less and get ${brand.rewards.holderBoost}× rewards; Whales (from ${brand.tiers.whale.min.toLocaleString("en-US")}) pay ${Math.round(brand.tiers.whale.discount * 100)}% less and get ${brand.rewards.whaleBoost}×; both get ${brand.aiDrafts.holders} AI drafts a day instead of ${brand.aiDrafts.everyone}. Rewards start the day ${$T} launches.`,
+    a: `It’s how Weft shares what it earns. Half of every fee, and ${brand.tokenFee.buybackBps / 100}% of every ${$T} trade, buys ${$T} in small amounts about every ten minutes. Of what it buys, ${Math.round(brand.rewards.traderShare * 100)}% goes back to the people who traded that day (by the fees they paid), ${Math.round(brand.rewards.creatorShare * 100)}% to the people whose strategies others ran, and ${Math.round(brand.rewards.burnShare * 100)}% is burned on the spot. Holders (from ${brand.tiers.holder.min.toLocaleString("en-US")} ${$T}) pay ${Math.round(brand.tiers.holder.discount * 100)}% less and get ${brand.rewards.holderBoost}× rewards; Whales (from ${brand.tiers.whale.min.toLocaleString("en-US")}) pay ${Math.round(brand.tiers.whale.discount * 100)}% less and get ${brand.rewards.whaleBoost}×; both get ${brand.aiDrafts.holders} AI drafts a day instead of ${brand.aiDrafts.everyone}. Rewards start the day ${$T} launches. Holder fee discounts are on now; reward payouts haven’t started yet.`,
   },
   {
     q: "Is it safe to trade new tokens with it?",

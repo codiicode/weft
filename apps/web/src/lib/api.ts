@@ -233,6 +233,8 @@ export interface RewardRow {
   claimTx: string | null;
 }
 export interface RewardsProgram {
+  /** Pots fill up, but nothing is shared out or claimable yet. */
+  paused?: boolean;
   enabled: boolean;
   startDay: string | null;
   claims: boolean;

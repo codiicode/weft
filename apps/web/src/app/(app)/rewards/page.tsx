@@ -1,5 +1,6 @@
 "use client";
 import { useState } from "react";
+import { usePrivy } from "@privy-io/react-auth";
 import { api } from "@/lib/api";
 import { useAuth } from "@/lib/auth";
 import { useApi, fmtUsd } from "@/lib/use-api";
@@ -25,6 +26,7 @@ function Stat({ label, value, sub, action }: { label: string; value: string; sub
 /** Daily $WEFT rewards: what you've earned from trading and from your strategies, and claiming it. */
 export default function RewardsPage() {
   const auth = useAuth();
+  const { linkWallet } = usePrivy();
   const program = useApi(() => api.rewards(), [], { pollMs: 120_000 });
   const signedIn = !auth.enabled || auth.authenticated;
   const mine = useApi(signedIn ? () => api.myRewards() : null, [signedIn], { pollMs: 60_000 });
@@ -48,6 +50,11 @@ export default function RewardsPage() {
     <>
       <PageHeader title="Rewards" sub={`Half of every fee Weft earns buys ${$T}. Every day, ${pct(cfg.traderShare)} of it goes back to the people who traded and ${pct(cfg.creatorShare)} to the people whose strategies they ran.`} />
       <div className="space-y-6 px-5 pb-16 pt-6 lg:px-10">
+        {p?.paused && (
+          <Card className="p-5 text-[14px] leading-relaxed text-ink-2">
+            Rewards are building up, and payouts haven’t started yet. We’ll announce when they do. Holder fee discounts are already on.
+          </Card>
+        )}
         {p && !p.enabled && (
           <Card className="p-5 text-[14px] leading-relaxed text-ink-2">
             Rewards start the day {$T} launches. From then on, each day closes at midnight UTC and its rewards are ready to claim shortly after.
@@ -86,6 +93,21 @@ export default function RewardsPage() {
           <Card className="flex flex-wrap items-center justify-between gap-4 p-5">
             <p className="text-[14px] text-ink-2">Sign in to see what you’ve earned.</p>
             <Btn onClick={auth.login}>Sign in</Btn>
+          </Card>
+        )}
+        {signedIn && m?.holder && (
+          <Card className="flex flex-wrap items-center justify-between gap-4 p-5">
+            <div className="min-w-0">
+              <div className="text-[15px] font-semibold tracking-[-0.015em] text-ink">Your {$T}</div>
+              <p className="mt-1 text-[13.5px] leading-relaxed text-muted">
+                <span className="tnum text-ink-2">{tokens(m.holder.holds)} {$T}</span> in your Weft wallet and the Solana wallets linked to your account
+                {tier === 2 ? ` · Whale, ${pct(brand.tiers.whale.discount)} off fees` : tier === 1 ? ` · Holder, ${pct(brand.tiers.holder.discount)} off fees` : ` · hold ${tokens(brand.tiers.holder.min)} for ${pct(brand.tiers.holder.discount)} off fees`}.
+                {" "}Holding it in another wallet? Link it and it counts within ten minutes.
+              </p>
+            </div>
+            <Btn variant="quiet" onClick={() => void linkWallet({ walletChainType: "solana-only" })}>
+              Link a Solana wallet
+            </Btn>
           </Card>
         )}
         {(claim.msg || claim.err) && (

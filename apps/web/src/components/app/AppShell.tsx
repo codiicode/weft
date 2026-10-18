@@ -52,6 +52,20 @@ function ApiStatus() {
   );
 }
 
+/** "Holder · 25% off fees" under the account, for anyone holding enough $WEFT. */
+function HolderLine() {
+  const auth = useAuth();
+  const me = useApi(auth.enabled && auth.authenticated ? () => api.myRewards() : null, [auth.authenticated], { pollMs: 300_000 });
+  const tier = me.data?.holder?.tier ?? 0;
+  if (!tier) return null;
+  const t = tier === 2 ? brand.tiers.whale : brand.tiers.holder;
+  return (
+    <Link href="/rewards" className="block truncate text-[12px] text-muted hover:text-ink">
+      {tier === 2 ? "Whale" : "Holder"} · {Math.round(t.discount * 100)}% off fees
+    </Link>
+  );
+}
+
 function AccountButton({ compact = false }: { compact?: boolean }) {
   const auth = useAuth();
   if (!auth.enabled) return null;
@@ -71,7 +85,12 @@ function AccountButton({ compact = false }: { compact?: boolean }) {
       <span className="grid h-7 w-7 shrink-0 place-items-center rounded-full bg-paper-2 text-[11px] font-medium uppercase text-ink-2">
         {(auth.label ?? "?").replace(/^0x/, "").slice(0, 2)}
       </span>
-      {!compact && <span className="min-w-0 flex-1 truncate text-[13.5px] text-ink">{auth.label}</span>}
+      {!compact && (
+        <span className="min-w-0 flex-1">
+          <span className="block truncate text-[13.5px] text-ink">{auth.label}</span>
+          <HolderLine />
+        </span>
+      )}
       <button onClick={() => auth.logout()} className="rounded-[6px] px-1.5 py-1 text-[12.5px] text-muted hover:text-ink">
         Sign out
       </button>

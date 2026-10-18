@@ -348,6 +348,8 @@ export function createApp(deps: AppDeps) {
       enabled: Boolean(deps.rewards?.enabled),
       startDay: deps.rewards?.startDay ?? null,
       claims: Boolean(deps.treasury),
+      // WEFT_REWARDS_HOLD: pots fill up but nothing is shared out or claimable yet
+      paused: process.env.WEFT_REWARDS_HOLD === "1",
       config: REWARDS,
       holders: deps.holders?.enabled ? { minAmount: Number(process.env.WEFT_HOLDER_MIN ?? 100_000), bigAmount: Number(process.env.WEFT_BIG_HOLDER_MIN ?? 1_000_000) } : null,
       aiDailyLimit: { everyone: aiDailyLimit, holders: holderAiDailyLimit },

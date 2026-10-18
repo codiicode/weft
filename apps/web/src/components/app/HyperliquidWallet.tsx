@@ -98,10 +98,15 @@ export function HyperliquidWallet({ status, onChange, autoLink }: { status: Live
         {error && <Card className="p-4 text-[13.5px] text-short">{error}</Card>}
 
         <Step n={1} title="Your Hyperliquid wallet" done={!!linked} active>
-          <p className="text-[13.5px] leading-relaxed text-ink-2">A wallet that belongs to you, made by Weft. No extension needed, and you can export its key at any time.</p>
+          <p className="text-[13.5px] leading-relaxed text-ink-2">
+            Made for you by Weft, and yours: its key is secured by Privy, not held by Weft. No extension or Hyperliquid account needed.
+          </p>
           {address ? (
             <div className="mt-3 max-w-[30rem]">
               <CopyAddress address={address} />
+              <button onClick={() => void exportWallet({ address }).catch(() => {})} className="mt-2 text-[13px] font-medium text-ink underline decoration-line-2 underline-offset-4 hover:decoration-ink">
+                Export key to Phantom, Rabby or MetaMask
+              </button>
             </div>
           ) : (
             <Btn className="mt-3" onClick={create} disabled={busy != null || !walletsReady}>
