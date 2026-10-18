@@ -8,6 +8,7 @@ import { PolymarketClient } from "./polymarket.ts";
 import type { PostMatcher } from "./signals/x.ts";
 import { HeliusWallets } from "./signals/wallet.ts";
 import { Kamino } from "./kamino.ts";
+import { JupiterLend } from "./jupiter-lend.ts";
 
 export interface VenueOptions extends HttpOptions {
   /** Share an existing Http instance (cache + coalescing) instead of creating one. */
@@ -62,6 +63,7 @@ export interface VenueContext {
   /** Helius wallet histories (when a Helius key is set). */
   helius: HeliusWallets | null;
   kamino: Kamino;
+  jupiterLend: JupiterLend;
   /** Open-interest sampler fed by every metaAndAssetCtxs read. */
   oi: OiHistory;
   now: () => number;
@@ -82,6 +84,7 @@ export function createContext(opts: VenueOptions = {}): VenueContext {
     pm: new PolymarketClient(http, opts.polymarketUrl),
     helius: opts.heliusApiKey ? new HeliusWallets(http, opts.heliusApiKey) : null,
     kamino: new Kamino(http),
+    jupiterLend: new JupiterLend(http, { url: opts.jupiterUrl, apiKey: opts.jupiterApiKey }),
     oi: new OiHistory({ ...opts.oiHistory, path: opts.oiHistoryPath, now }),
     now,
     opts,

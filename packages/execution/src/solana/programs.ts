@@ -13,6 +13,8 @@ export const PROGRAMS = {
   meteoraDlmm: new PublicKey("LBUZKhRxPF3XUpBCjp4YzTKgLccjZhTSDM9YuVaPwxo"),
   /** Kamino Lend (klend): reserve deposits and withdrawals. */
   kaminoLend: new PublicKey("KLend2g3cP87fffoy8q1mQqGKjrxjC8boSyAYavgmjD"),
+  /** Jupiter Lend Earn (deposits and withdrawals; the liquidity layer is only reached through it). */
+  jupiterLend: new PublicKey("jup3YeL8QhtSx1e253b2FDvsMNC87fDrgQZivbrndc9"),
   /** SPL Memo (DLMM's *2 instructions pass it for transfer hooks). */
   memo: new PublicKey("MemoSq4gqABAXKb96qnH8TysNcWxMyWCqXgDLGmfcHr"),
 } as const;
@@ -33,19 +35,49 @@ export const DEFAULT_ALLOWED_PROGRAMS: readonly PublicKey[] = [
 /** What a liquidity transaction may call: the swap set plus Meteora DLMM and Memo. */
 export const LP_ALLOWED_PROGRAMS: readonly PublicKey[] = [...DEFAULT_ALLOWED_PROGRAMS, PROGRAMS.meteoraDlmm, PROGRAMS.memo];
 
-/** What a lending transaction may call: the swap set plus Kamino Lend. */
-export const LEND_ALLOWED_PROGRAMS: readonly PublicKey[] = [...DEFAULT_ALLOWED_PROGRAMS, PROGRAMS.kaminoLend];
+/** What a lending transaction may call: the swap set plus Kamino Lend and Jupiter Lend. */
+export const LEND_ALLOWED_PROGRAMS: readonly PublicKey[] = [...DEFAULT_ALLOWED_PROGRAMS, PROGRAMS.kaminoLend, PROGRAMS.jupiterLend];
+
+/** A lending instruction the inspector allows, with the positions of the accounts it checks. */
+export interface LendIxLayout {
+  name: string;
+  /** Must be the user. */
+  owner?: number;
+  /** Mints whose user ATAs count as the user's (the token lent, the receipt token). */
+  liquidityMint?: number;
+  collateralMint?: number;
+  /** Token accounts that must be the user's (where tokens come from and go to). */
+  userAccounts?: number[];
+}
 
 /**
  * The klend instructions a lending transaction may contain, by Anchor discriminator, with the
  * positions of the accounts the inspector checks (from the program's IDL, as in klend-sdk's codegen).
  * Everything else klend does (obligations, borrowing, liquidations, admin) is refused.
  */
-export const KLEND_IX: Record<string, { name: string; owner?: number; liquidityMint?: number; collateralMint?: number; userAccounts?: number[] }> = {
+export const KLEND_IX: Record<string, LendIxLayout> = {
   "02da8aeb4fc91966": { name: "refresh_reserve" },
   a9c91e7e06cd6644: { name: "deposit_reserve_liquidity", owner: 0, liquidityMint: 4, collateralMint: 6, userAccounts: [7, 8] },
   ea75b57db98edc1d: { name: "redeem_reserve_collateral", owner: 0, liquidityMint: 4, collateralMint: 5, userAccounts: [7, 8] },
 };
+
+/**
+ * Jupiter Lend Earn instructions a lending transaction may contain (layouts from Jupiter's Earn CPI
+ * docs: deposit = signer, depositor token account, recipient jlToken account, mint, …, jlToken mint
+ * at 6; withdraw/redeem = signer, jlToken account, recipient token account, …, mint at 5, jlToken
+ * mint at 6). Borrowing, flashloans and admin are refused.
+ */
+export const JLEND_IX: Record<string, LendIxLayout> = {
+  f223c68952e1f2b6: { name: "deposit", owner: 0, liquidityMint: 3, collateralMint: 6, userAccounts: [1, 2] },
+  b80c569546c461e1: { name: "redeem", owner: 0, liquidityMint: 5, collateralMint: 6, userAccounts: [1, 2] },
+  b712469c946da122: { name: "withdraw", owner: 0, liquidityMint: 5, collateralMint: 6, userAccounts: [1, 2] },
+};
+
+/** Lending programs and their allowed instructions, by program id. */
+export const LEND_IX: ReadonlyMap<string, { prefix: string; ix: Record<string, LendIxLayout> }> = new Map([
+  [PROGRAMS.kaminoLend.toBase58(), { prefix: "klend", ix: KLEND_IX }],
+  [PROGRAMS.jupiterLend.toBase58(), { prefix: "jlend", ix: JLEND_IX }],
+]);
 
 export function associatedTokenAddress(owner: PublicKey, mint: PublicKey, tokenProgram: PublicKey = PROGRAMS.token): PublicKey {
   return PublicKey.findProgramAddressSync([owner.toBuffer(), tokenProgram.toBuffer(), mint.toBuffer()], PROGRAMS.associatedToken)[0];

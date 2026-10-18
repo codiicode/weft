@@ -35,6 +35,7 @@ export { USDC_MINT, WSOL_MINT } from "./jupiter/client.ts";
 export { calendarFields } from "./signals/calendar.ts";
 export { Yields, type YieldPool } from "./signals/yields.ts";
 export { Kamino, type KaminoReserveRow } from "./kamino.ts";
+export { JupiterLend, jupiterLendInstrument, type JupiterLendRow } from "./jupiter-lend.ts";
 export {
   VenueHistory,
   INTERVAL_MS,

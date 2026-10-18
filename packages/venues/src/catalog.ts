@@ -1,6 +1,7 @@
 import { polymarketListings } from "./polymarket.ts";
 import { dlmmInstrument, feePerDay } from "./meteora.ts";
 import { lendInstrument } from "./kamino.ts";
+import { jupiterLendInstrument } from "./jupiter-lend.ts";
 import { instrumentKey, officialMint, type Instrument } from "@weft/strategy";
 import type { Catalog, CatalogQuery, MarketListing, Product } from "./types.ts";
 import type { VenueMarketData } from "./market-data.ts";
@@ -100,9 +101,38 @@ export class VenueCatalog implements Catalog {
     });
   }
 
-  /** Kamino lending reserves for a token or market ("usdc", "sol", "jito"): supply rate, deposits, how much is lent out. */
+  /**
+   * Where a token can be lent ("usdc", "sol", "jito", "jupiter usdc"): Kamino reserves and Jupiter
+   * Lend vaults, each with its rate and deposits, so the two can be compared.
+   */
   private async lending(search?: string): Promise<(MarketListing & { _rank?: number; _searched?: boolean })[]> {
-    const found = await this.md.ctx.kamino.search(search?.trim() || "usdc", 12).catch(() => []);
+    const q = search?.trim() || "usdc";
+    const onlyJup = /jupiter|\bjup\b|\bearn\b/i.test(q), onlyKamino = /kamino/i.test(q);
+    const [kamino, jupiter] = await Promise.all([
+      onlyJup ? [] : this.lendingKamino(q),
+      onlyKamino ? [] : this.md.ctx.jupiterLend.search(q, 6).catch(() => []),
+    ]);
+    const jl = jupiter.map((v) => {
+      const instrument = jupiterLendInstrument(v);
+      return {
+        product: "lending" as const,
+        instrument,
+        instrumentKey: instrumentKey(instrument),
+        label: `${instrument.symbol} · Jupiter Lend`,
+        name: `Lend ${instrument.symbol} on Jupiter Lend: earns ${v.apyPct.toFixed(2)}% a year${v.rewardsApyPct > 0 ? ` (${v.supplyApyPct.toFixed(2)}% interest + ${v.rewardsApyPct.toFixed(2)}% rewards)` : ""}`,
+        price: null,
+        liquidityUsd: v.totalSupplyUsd,
+        meta: { supplyApyPct: Math.round(v.apyPct * 100) / 100, protocol: "Jupiter Lend" },
+        venue: "jupiter",
+        _rank: v.totalSupplyUsd * 1.5,
+        _searched: true,
+      };
+    });
+    return [...kamino, ...jl];
+  }
+
+  private async lendingKamino(q: string): Promise<(MarketListing & { _rank?: number; _searched?: boolean })[]> {
+    const found = await this.md.ctx.kamino.search(q, 12).catch(() => []);
     const decimals = await Promise.all(found.map((r) => this.md.ctx.rpc.mintInfo(r.mint).then((m) => m?.decimals ?? null).catch(() => null)));
     return found.flatMap((r, i) => {
       const d = decimals[i];
@@ -116,7 +146,7 @@ export class VenueCatalog implements Catalog {
         name: `Lend ${r.symbol} on Kamino: earns ${r.supplyApyPct.toFixed(2)}% a year · ${Math.round(r.utilization * 100)}% lent out${r.utilization > 0.9 ? " (withdrawals may have to wait)" : ""}`,
         price: null,
         liquidityUsd: r.totalSupplyUsd,
-        meta: { supplyApyPct: Math.round(r.supplyApyPct * 100) / 100, utilizationPct: Math.round(r.utilization * 100), market: r.marketName },
+        meta: { supplyApyPct: Math.round(r.supplyApyPct * 100) / 100, utilizationPct: Math.round(r.utilization * 100), market: r.marketName, protocol: "Kamino" },
         venue: "kamino",
         _rank: r.totalSupplyUsd * (r.primary ? 1.5 : 1),
         _searched: true,

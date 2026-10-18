@@ -5,7 +5,7 @@ import {
   type AddressLookupTableAccount,
   type MessageAccountKeys,
 } from "@solana/web3.js";
-import { associatedTokenAddress, DEFAULT_ALLOWED_PROGRAMS, JUPITER_IX, KLEND_IX, PROGRAMS, WSOL_MINT } from "./programs.ts";
+import { associatedTokenAddress, DEFAULT_ALLOWED_PROGRAMS, JUPITER_IX, LEND_IX, PROGRAMS, WSOL_MINT } from "./programs.ts";
 import { DLMM_IX } from "./dlmm-ix.ts";
 
 /**
@@ -159,8 +159,9 @@ export async function inspectSwapTransaction(tx: VersionedTransaction | Uint8Arr
   }));
   // Mints referenced by ATA creations and Jupiter swaps → the user's ATAs for them.
   for (const ix of ixs) {
-    if (ix.programId.equals(PROGRAMS.kaminoLend)) {
-      const l = KLEND_IX[Buffer.from(ix.data.subarray(0, 8)).toString("hex")];
+    const lend = LEND_IX.get(ix.programId.toBase58());
+    if (lend) {
+      const l = lend.ix[Buffer.from(ix.data.subarray(0, 8)).toString("hex")];
       for (const m of [l?.liquidityMint, l?.collateralMint]) if (m != null && ix.accounts[m]) addAtasFor(ix.accounts[m]!);
     }
     if (ix.programId.equals(PROGRAMS.associatedToken) && ix.accounts[2]?.equals(user) && ix.accounts[3]) addAtasFor(ix.accounts[3]);
@@ -288,14 +289,15 @@ export async function inspectSwapTransaction(tx: VersionedTransaction | Uint8Arr
           if (!pos || !extra.has(pos.toBase58())) v("a new position must be an account Weft just generated");
         }
       }
-    } else if (ix.programId.equals(PROGRAMS.kaminoLend)) {
-      // Lending: only refreshing a reserve, depositing into it and redeeming kTokens from it. The user
-      // signs as owner, and the tokens going in come from (and kTokens or tokens coming out go to)
-      // the user's own accounts.
+    } else if (LEND_IX.has(pid)) {
+      // Lending (Kamino, Jupiter Lend): only depositing, withdrawing (and Kamino's reserve refresh).
+      // The user signs as owner, and the tokens going in come from (and receipt tokens or tokens
+      // coming out go to) the user's own accounts.
+      const lend = LEND_IX.get(pid)!;
       const disc = Buffer.from(ix.data.subarray(0, 8)).toString("hex");
-      const layout = KLEND_IX[disc];
-      name = layout ? `klend.${layout.name}` : `klend.unknown(${disc})`;
-      if (!layout) v("Kamino instruction not allowed (only refreshing a reserve, depositing and withdrawing)");
+      const layout = lend.ix[disc];
+      name = layout ? `${lend.prefix}.${layout.name}` : `${lend.prefix}.unknown(${disc})`;
+      if (!layout) v("lending instruction not allowed (only depositing and withdrawing)");
       else {
         if (layout.owner != null && !acc(layout.owner)?.equals(user)) v(`owner ${acc(layout.owner)?.toBase58()} is not the user`);
         for (const n of layout.userAccounts ?? []) {

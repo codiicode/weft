@@ -71,8 +71,12 @@ export class Kamino {
   /** Reserves for a token or market name ("usdc", "sol", "jito"), biggest first; the main market ranks first on ties. */
   async search(q: string, limit = 10): Promise<KaminoReserveRow[]> {
     const words = q.toLowerCase().replace(/kamino|lend(ing)?|supply|deposit/g, " ").split(/[\s,/]+/).filter(Boolean);
-    return (await this.reserves())
-      .filter((r) => words.every((w) => `${r.symbol} ${r.marketName}`.toLowerCase().includes(w)))
+    const all = await this.reserves();
+    // A word that is a token's symbol ("sol", "usdc") picks that token, not every reserve in a market named after it.
+    const symbols = new Set(all.map((r) => r.symbol.toLowerCase()));
+    const sym = words.filter((w) => symbols.has(w));
+    return all
+      .filter((r) => (sym.length ? sym.includes(r.symbol.toLowerCase()) : true) && words.every((w) => sym.includes(w) || `${r.symbol} ${r.marketName}`.toLowerCase().includes(w)))
       .sort((a, b) => b.totalSupplyUsd * (b.primary ? 1.5 : 1) - a.totalSupplyUsd * (a.primary ? 1.5 : 1))
       .slice(0, limit);
   }

@@ -306,14 +306,25 @@ export class VenueMarketData implements MarketData {
     return px != null ? { ...base, fillPrice: px, priceImpactBps: Math.abs(px - p.price) / p.price * 1e4 } : base;
   }
 
-  /** A Kamino deposit, in USD per kToken: tokens per kToken (from the chain) × the token's price. */
+  /**
+   * A lending deposit, in USD per receipt token: tokens per kToken (Kamino, from the chain) or per
+   * jlToken (Jupiter Lend, from its API) × the token's price.
+   */
   private async lendQuote(i: LendInstrument): Promise<VenueQuote> {
-    if (!this.ctx.opts.lendRate) throw new Error("Kamino rates need a Solana RPC on the server");
+    const rateOf = async (): Promise<number> => {
+      if (i.venue === "jupiter") {
+        const v = await this.ctx.jupiterLend.vault(i.reserve);
+        if (!v) throw new Error(`no Jupiter Lend vault for ${i.symbol}`);
+        return v.rate;
+      }
+      if (!this.ctx.opts.lendRate) throw new Error("Kamino rates need a Solana RPC on the server");
+      return this.ctx.opts.lendRate(i.reserve);
+    };
     const [rate, token] = await Promise.all([
-      this.ctx.opts.lendRate(i.reserve),
+      rateOf(),
       this.tokenQuote({ kind: "token", chain: "solana", mint: i.mint, symbol: i.symbol, quote: "USDC", route: "auto", assetClass: "crypto" }, {}),
     ]);
-    return { instrumentKey: instrumentKey(i), price: rate * token.price, ts: this.ctx.now(), source: "kamino:reserve" };
+    return { instrumentKey: instrumentKey(i), price: rate * token.price, ts: this.ctx.now(), source: i.venue === "jupiter" ? "jupiter:lend" : "kamino:reserve" };
   }
 
   private async tokenQuote(i: TokenInstrument, req: QuoteRequest): Promise<VenueQuote> {

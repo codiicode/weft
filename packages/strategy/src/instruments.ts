@@ -92,16 +92,23 @@ export const SynthInstrument = z.object({
   assetClass: AssetClass.default("crypto"),
 });
 
+/** The Jupiter Lend (Earn) program: the `market` of every Jupiter Lend deposit. */
+export const JUPITER_LEND_PROGRAM = "jup3YeL8QhtSx1e253b2FDvsMNC87fDrgQZivbrndc9";
+
 /**
- * A deposit in a Kamino lending reserve (Solana): the token is lent out and earns the reserve's
- * supply rate. The position is held as the reserve's kTokens, worth more of the token over time,
- * so its price (USD per kToken) rises with the interest. Withdrawals need the reserve to have the
- * cash on hand; when it's fully borrowed, a withdrawal waits.
+ * A deposit that lends a token out on Solana and earns its supply rate: a Kamino reserve, or a
+ * Jupiter Lend (Earn) vault. The position is held as the protocol's receipt token (Kamino's kToken,
+ * Jupiter's jlToken), worth more of the token over time, so its price (USD per receipt token) rises
+ * with the interest. Withdrawals need the protocol to have the cash on hand; when it's fully
+ * borrowed, a withdrawal waits.
  */
 export const LendInstrument = z.object({
   kind: z.literal("lend"),
-  venue: z.literal("kamino"),
-  /** The lending market and the reserve in it, copied exactly from a search of product "lending". */
+  venue: z.enum(["kamino", "jupiter"]),
+  /**
+   * Kamino: the lending market and the reserve in it. Jupiter Lend: the Earn program and the
+   * jlToken mint. Copied exactly from a search of product "lending".
+   */
   market: SolanaMint,
   reserve: SolanaMint,
   /** The token lent (USDC, SOL, …). */
@@ -162,7 +169,7 @@ export function instrumentKey(i: Instrument): string {
     case "synth":
       return `papertrade:synth:${i.symbol}`;
     case "lend":
-      return `kamino:lend:${i.reserve}`;
+      return `${i.venue}:lend:${i.reserve}`;
   }
 }
 
@@ -184,7 +191,7 @@ export function instrumentLabel(i: Instrument): string {
     case "synth":
       return `${i.symbol} on Papertrade`;
     case "lend":
-      return `${i.symbol} lent on Kamino${i.marketName ? ` (${i.marketName})` : ""}`;
+      return i.venue === "jupiter" ? `${i.symbol} lent on Jupiter Lend` : `${i.symbol} lent on Kamino${i.marketName ? ` (${i.marketName})` : ""}`;
   }
 }
 

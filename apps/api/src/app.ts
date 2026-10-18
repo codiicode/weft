@@ -712,7 +712,7 @@ export function createApp(deps: AppDeps) {
       signals: deps.signalModes,
       auth: { enabled: authEnabled, appId: deps.auth?.appId ?? null },
       /** Which venues take real orders right now. */
-      trading: { hyperliquid: Boolean(deps.live?.cfg.enabled), solana: Boolean(deps.solana?.cfg.enabled), liquidity: Boolean(deps.solana?.cfg.enabled && deps.solana?.cfg.lpEnabled), lending: Boolean(deps.solana?.cfg.enabled && deps.solana?.cfg.lendEnabled), papertrade: Boolean(deps.papertradeLive), network: deps.live?.cfg.network ?? null },
+      trading: { hyperliquid: Boolean(deps.live?.cfg.enabled), solana: Boolean(deps.solana?.cfg.enabled), liquidity: Boolean(deps.solana?.cfg.enabled && deps.solana?.cfg.lpEnabled), lending: Boolean(deps.solana?.cfg.enabled && deps.solana?.cfg.lendEnabled), jupiterLend: Boolean(deps.solana?.cfg.enabled && deps.solana?.cfg.jlendEnabled), papertrade: Boolean(deps.papertradeLive), network: deps.live?.cfg.network ?? null },
     })
   );
 
@@ -1116,7 +1116,9 @@ export function createApp(deps: AppDeps) {
     if (body.mode === "live" && !body.alertsOnly && strategy.actions.some((a) => a.type === "liquidity") && !deps.solana?.cfg.lpEnabled)
       return c.json({ error: "Liquidity strategies run as practice for now. Live deposits to Meteora are coming." }, 409);
     if (body.mode === "live" && !body.alertsOnly && strategy.actions.some((a) => a.type === "open" && a.instrument.kind === "lend") && !deps.solana?.cfg.lendEnabled)
-      return c.json({ error: "Kamino lending runs as practice for now. Live deposits are coming." }, 409);
+      return c.json({ error: "Lending runs as practice for now. Live deposits are coming." }, 409);
+    if (body.mode === "live" && !body.alertsOnly && strategy.actions.some((a) => a.type === "open" && a.instrument.kind === "lend" && a.instrument.venue === "jupiter") && !deps.solana?.cfg.jlendEnabled)
+      return c.json({ error: "Jupiter Lend runs as practice for now. Live deposits are coming; Kamino lending is live." }, 409);
     if (body.mode === "live" && !body.alertsOnly && strategy.actions.some((a) => a.type === "open" && a.instrument.kind === "synth") && !deps.papertradeLive)
       return c.json({ error: "Papertrade runs as practice for now. Live trading there is coming." }, 409);
     // Real money never rides on made-up data: signals Weft only simulates (no live feed yet) can run

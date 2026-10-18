@@ -177,7 +177,7 @@ function venueOf(a: Action): string {
     if (i.kind === "token") return i.route === "auto" ? "Jupiter" : i.route[0]!.toUpperCase() + i.route.slice(1);
     if (i.kind === "outcome") return i.venue === "hyperliquid" ? "HIP-4" : i.venue === "polymarket" ? "Polymarket" : "Jupiter";
     if (i.kind === "perp") return i.dex ? `HIP-3 · ${i.dex}` : "Hyperliquid";
-    if (i.kind === "lend") return "Kamino";
+    if (i.kind === "lend") return i.venue === "jupiter" ? "Jupiter Lend" : "Kamino";
     if (i.kind === "synth") return "Papertrade";
     return "Hyperliquid";
   }

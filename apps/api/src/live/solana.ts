@@ -5,8 +5,9 @@ import {
   DEFAULT_ALLOWED_PROGRAMS,
   JupiterExecutor,
   DlmmExecutor,
-  KaminoExecutor,
-  LEND_ALLOWED_PROGRAMS,
+  JupiterLendApi,
+  LendExecutor,
+  PROGRAMS,
   LP_ALLOWED_PROGRAMS,
   JupiterSwapBuilder,
   USDC_MINT,
@@ -56,6 +57,8 @@ export interface SolanaLiveConfig {
   lpEnabled?: boolean;
   /** Kamino lending deposits with real money (needs Weft's signer policy to allow Kamino Lend). */
   lendEnabled?: boolean;
+  /** Jupiter Lend deposits with real money too (on top of lendEnabled; adds Jupiter Lend to the policy). */
+  jlendEnabled?: boolean;
 }
 
 export function solanaConfigFromEnv(env: NodeJS.ProcessEnv = process.env): SolanaLiveConfig {
@@ -76,6 +79,7 @@ export function solanaConfigFromEnv(env: NodeJS.ProcessEnv = process.env): Solan
     jupiterApiKey: env.JUPITER_API_KEY || null,
     lpEnabled: env.WEFT_SOL_LP === "1",
     lendEnabled: env.WEFT_SOL_LEND === "1",
+    jlendEnabled: env.WEFT_SOL_LEND === "1" && env.WEFT_SOL_JLEND === "1",
   };
 }
 
@@ -232,6 +236,21 @@ export class SolanaLive {
     this.api = api;
     this.conn = conn ?? new Connection(cfg.rpcUrl, "confirmed");
     this.builder = this.swapBuilder({ platformFeeBps: 0 });
+    this.jupiterLend = new JupiterLendApi({ apiKey: cfg.jupiterApiKey ?? null });
+    const conn2 = this.conn;
+    this.jupiterLend.tokenProgramOf = async (mint) => {
+      const info = await conn2.getAccountInfo(mint);
+      if (!info) throw new Error(`mint ${mint.toBase58()} not found`);
+      return info.owner;
+    };
+  }
+
+  /** Jupiter Lend (Earn): vault state and checked deposit/redeem instructions. */
+  readonly jupiterLend: JupiterLendApi;
+
+  /** The lending programs Weft's signer may call: Kamino, plus Jupiter Lend once it's switched on. */
+  private lendPrograms(): string[] {
+    return [...DEFAULT_ALLOWED_PROGRAMS, PROGRAMS.kaminoLend, ...(this.cfg.jlendEnabled ? [PROGRAMS.jupiterLend] : [])].map((p) => p.toBase58());
   }
 
   private swapBuilder(o: ConstructorParameters<typeof JupiterSwapBuilder>[0]): JupiterSwapBuilder {
@@ -405,8 +424,9 @@ export class SolanaLive {
   async ensureLendPolicy(): Promise<string> {
     if (!this.cfg.lendEnabled || !this.api?.allowPrograms) return "off";
     const { policyId } = await this.signer();
-    const changed = await this.api.allowPrograms(policyId, LEND_ALLOWED_PROGRAMS.map((p) => p.toBase58()));
-    return changed ? "Kamino Lend added to Weft's Solana signing policy" : "signing policy already allows Kamino Lend";
+    const changed = await this.api.allowPrograms(policyId, this.lendPrograms());
+    const names = this.cfg.jlendEnabled ? "Kamino Lend and Jupiter Lend" : "Kamino Lend";
+    return changed ? `${names} added to Weft's Solana signing policy` : `signing policy already allows ${names}`;
   }
 
   assertDeployable(userId: string, strategy: Strategy, allocationUsd: number, otherMints: Set<string> = new Set()) {
@@ -424,7 +444,8 @@ export class SolanaLive {
       if (a.type === "copy" && a.leader.venue !== "solana") throw new Error("a strategy can trade Solana tokens or Hyperliquid markets, not both in one run");
       if (a.type !== "open") continue;
       if (a.instrument.kind === "lend") {
-        if (!this.cfg.lendEnabled) throw new Error("Kamino lending runs as practice for now. Live deposits are coming.");
+        if (!this.cfg.lendEnabled) throw new Error("Lending runs as practice for now. Live deposits are coming.");
+        if (a.instrument.venue === "jupiter" && !this.cfg.jlendEnabled) throw new Error("Jupiter Lend runs as practice for now. Live deposits are coming; Kamino lending is live.");
         // One wallet: kTokens and the token lent are shared, so one run per token lent.
         if (a.instrument.mint !== "So11111111111111111111111111111111111111112" && otherMints.has(a.instrument.mint)) throw new Error(`another live strategy already uses the ${a.instrument.symbol} in your wallet`);
         continue;
@@ -502,11 +523,12 @@ export class SolanaLive {
   }
 
   /** The user's lending executor (Kamino), buying the token lent through their token executor. */
-  async lendExecutorReady(userId: string): Promise<KaminoExecutor> {
+  async lendExecutorReady(userId: string): Promise<LendExecutor> {
     const swaps = await this.executorReady(userId);
     const acct = this.accounts.solanaAccount(userId);
     if (!acct || !this.api) throw new Error("no Solana trading wallet for this user");
-    return new KaminoExecutor({
+    return new LendExecutor({
+      jupiterLend: this.jupiterLend,
       conn: this.conn,
       signer: new PrivyWalletSigner(this.api, acct.walletId, acct.address),
       swaps,
@@ -575,6 +597,7 @@ export class SolanaRouterExecutor implements Executor {
       }
       if (req.instrument.kind === "lend") {
         if (!this.solana.cfg.lendEnabled) return { status: "rejected", reason: "live lending is switched off" };
+        if (req.instrument.venue === "jupiter" && !this.solana.cfg.jlendEnabled) return { status: "rejected", reason: "live Jupiter Lend is switched off" };
         return await (await this.solana.lendExecutorReady(owner)).execute(req);
       }
       return await (await this.solana.executorReady(owner)).execute(req, now);
