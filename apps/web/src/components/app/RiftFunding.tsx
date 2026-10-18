@@ -173,13 +173,18 @@ export function RiftFunding({ status, embedded = false }: { status: LiveStatus; 
       ) : (
         <div className="mt-4 space-y-3">
           <div className="grid gap-3 sm:grid-cols-2">
-            <select value={asset} onChange={(e) => setAsset(e.target.value)} className={field}>
-              {(assets.data?.assets ?? []).map((x) => (
-                <option key={x.id} value={x.id}>
-                  {x.label}
-                </option>
-              ))}
-            </select>
+            <div className="relative">
+              <select value={asset} onChange={(e) => setAsset(e.target.value)} className={`${field} cursor-pointer appearance-none pr-10`}>
+                {(assets.data?.assets ?? []).map((x) => (
+                  <option key={x.id} value={x.id}>
+                    {x.label}
+                  </option>
+                ))}
+              </select>
+              <svg aria-hidden width="14" height="14" viewBox="0 0 24 24" className="pointer-events-none absolute right-3.5 top-1/2 -translate-y-1/2 text-muted">
+                <path d="M6 9l6 6 6-6" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+              </svg>
+            </div>
             <input inputMode="decimal" placeholder={tab === "in" ? `Amount, ${a?.symbol ?? ""}` : "Amount, USDC"} value={amount} onChange={(e) => setAmount(e.target.value.replace(/[^0-9.]/g, ""))} className={field} />
           </div>
           {tab === "out" && <input placeholder={`Your ${a?.symbol ?? ""} address on ${a?.chain ?? ""}`} value={to} onChange={(e) => setTo(e.target.value)} className={`${field} font-mono text-[13px]`} />}

@@ -58,6 +58,8 @@ export interface RiftOrder {
   createdAt: number;
   /** Money in: moved from spot to the trading (perp) balance already. */
   movedToPerps?: boolean;
+  /** What actually arrived, once delivered (Rift's `amount_out`). */
+  amountOut?: string;
 }
 
 export class RiftFunding {
@@ -190,7 +192,7 @@ export class RiftFunding {
     const spot = await this.hlInfo<{ balances?: { coin: string; total: string; hold: string }[] }>({ type: "spotClearinghouseState", user: wallet });
     const u = spot.balances?.find((b) => b.coin === "USDC");
     const free = u ? Number(u.total) - Number(u.hold) : 0;
-    const amount = Math.floor(Math.min(free, Number(order.estimatedOut)) * 1e6) / 1e6;
+    const amount = Math.floor(Math.min(free, Number(order.amountOut ?? order.estimatedOut)) * 1e6) / 1e6;
     if (amount < 1) return { typedData: [] };
     const req = buildUsdClassTransfer({ isMainnet: true, amount: amount.toFixed(6).replace(/\.?0+$/, ""), toPerp: true, signatureChainId, nonce: Date.now() });
     this.pending.set(`${userId}:perps`, { reqs: [req], wallet, expires: Date.now() + 10 * 60_000, orderId });
@@ -222,9 +224,10 @@ export class RiftFunding {
     await Promise.all(
       list.map(async (o) => {
         if (TERMINAL.has(o.status) || Date.now() - o.createdAt > 8 * 86_400_000) return;
-        const r = await this.rift<{ status: string }>(`/order/${encodeURIComponent(o.id)}`).catch(() => null);
-        if (r && r.status !== o.status) {
+        const r = await this.rift<{ status: string; amount_out?: string | null }>(`/order/${encodeURIComponent(o.id)}`).catch(() => null);
+        if (r && (r.status !== o.status || (r.amount_out && r.amount_out !== o.amountOut))) {
           o.status = r.status;
+          if (r.amount_out) o.amountOut = r.amount_out;
           changed = true;
         }
       })
