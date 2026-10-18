@@ -285,7 +285,7 @@ export class PapertradeAccounts {
     if (signer !== wallet) throw new Error("the signature isn’t from this account’s wallet");
     const r = await this.f(`${API}/intents`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ action: "registerSessionKey", signed }), signal: AbortSignal.timeout(20_000) });
     const body = (await r.json().catch(() => ({}))) as { code?: string; reason?: string; message?: string; intentId?: string };
-    if (!r.ok) throw new Error(`Papertrade refused the key: ${body.reason ?? body.message ?? body.code ?? `HTTP ${r.status}`}`);
+    if (!r.ok) throw new Error(body.reason === "noDeposit" ? "Papertrade only accepts the key once your account has money in it: deposit first, then connect." : `Papertrade refused the key: ${body.reason ?? body.message ?? body.code ?? `HTTP ${r.status}`}`);
     return { intentId: body.intentId ?? intentId };
   }
 }

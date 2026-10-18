@@ -23,6 +23,7 @@ export function PapertradeSetup() {
   const [note, setNote] = useState<string | null>(null);
   const a = acct.data;
   const n = Number(amount);
+  const funded = (a?.availableUsd ?? 0) > 0 || (a?.openPositions ?? 0) > 0;
 
   /** Sign a message with the account's wallet (in the background) and return v/r/s for Papertrade. */
   const signVrs = async (td: { message: Record<string, string> } & Record<string, unknown>) => {
@@ -109,10 +110,12 @@ export function PapertradeSetup() {
                 <div className="mt-0.5 text-[13.5px] leading-relaxed text-muted">
                   {a.registered
                     ? `Weft can open and close positions in your Papertrade account until ${new Date(a.sessionExpiresAt!).toLocaleDateString()}. It can’t withdraw.`
-                    : "One signature lets Weft open and close positions in your Papertrade account for 30 days. Papertrade never lets that key withdraw."}
+                    : funded
+                      ? "One signature lets Weft open and close positions in your Papertrade account for 30 days. Papertrade never lets that key withdraw."
+                      : "Papertrade accepts the key once your account has money in it: deposit below first, then connect."}
                 </div>
               </div>
-              <Btn onClick={connect} disabled={busy} variant={a.registered ? "ghost" : "ink"}>
+              <Btn onClick={connect} disabled={busy || (!a.registered && !funded)} variant={a.registered ? "ghost" : "ink"}>
                 {busy ? "Signing…" : a.registered ? "Renew" : "Connect"}
               </Btn>
             </div>
@@ -121,7 +124,7 @@ export function PapertradeSetup() {
                 <div className="text-[14.5px] font-medium text-ink">Balance</div>
                 <div className="tnum text-[15px] font-semibold text-ink">{a.availableUsd != null ? fmtUsd(a.availableUsd, 2) : "—"}</div>
               </div>
-              {a.registered && (
+              {(
                 <div className="mt-3">
                   <div className="flex flex-wrap items-center gap-2">
                     <input
@@ -134,9 +137,11 @@ export function PapertradeSetup() {
                     <Btn onClick={() => move("in")} disabled={busy || !(n >= 11)}>
                       Deposit from Hyperliquid
                     </Btn>
-                    <Btn variant="ghost" onClick={() => move("out")} disabled={busy || !(n >= 10)}>
-                      Withdraw
-                    </Btn>
+                    {funded && (
+                      <Btn variant="ghost" onClick={() => move("out")} disabled={busy || !(n >= 10)}>
+                        Withdraw
+                      </Btn>
+                    )}
                   </div>
                   <p className="mt-2 text-[12.5px] leading-relaxed text-muted">
                     Deposits come from your Hyperliquid account. Weft keeps 1% of what you move in (less if you hold $WEFT); withdrawals are free. At least $11 in (Papertrade takes $1 on a first deposit), $10 out.
