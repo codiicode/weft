@@ -550,7 +550,7 @@ async function logFunnel() {
   const conn = new Connection(solCfg.rpcUrl, "confirmed");
   const solFunded = (await Promise.all(f.solAddresses.map(async (a) => (await conn.getBalance(new PublicKey(a)).catch(() => 0)) >= 0.01e9))).filter(Boolean).length;
   console.log(
-    `funnel: ${f.users} signed up (${f.seen7d} seen in 7d) → ${f.drafted} drafted with AI → ${who(() => true)} started a run (${who((d) => d.mode === "paper" && !d.alertsOnly)} practice) → ` +
+    `funnel: ${f.visitorsDrafted} visitors drafted without an account · ${f.users} signed up (${f.seen7d} seen in 7d) → ${f.drafted} drafted with AI → ${who(() => true)} started a run (${who((d) => d.mode === "paper" && !d.alertsOnly)} practice) → ` +
       `Hyperliquid linked ${f.hlLinked}, approved ${f.hlApproved}, funded ${hlFunded} · Solana wallet ${f.solWallets}, funded ${solFunded} → ${who((d) => d.mode === "live")} ever live, ${who((d) => d.mode === "live" && (d.status === "running" || d.status === "paused"))} live now`,
   );
 }

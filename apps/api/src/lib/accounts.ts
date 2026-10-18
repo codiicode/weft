@@ -270,7 +270,9 @@ export class Accounts {
     return {
       users: n("SELECT COUNT(*) AS n FROM users"),
       seen7d: n("SELECT COUNT(*) AS n FROM users WHERE last_seen_at > ?", now - 7 * 86_400_000),
-      drafted: n("SELECT COUNT(DISTINCT user_id) AS n FROM ai_usage"),
+      // ai_usage also counts visitors (hashed); only signed-up people here
+      drafted: n("SELECT COUNT(DISTINCT a.user_id) AS n FROM ai_usage a JOIN users u ON u.id = a.user_id"),
+      visitorsDrafted: n("SELECT COUNT(DISTINCT a.user_id) AS n FROM ai_usage a LEFT JOIN users u ON u.id = a.user_id WHERE u.id IS NULL"),
       hlLinked: n("SELECT COUNT(*) AS n FROM live_accounts WHERE network = 'mainnet'"),
       hlApproved: n("SELECT COUNT(*) AS n FROM live_accounts WHERE network = 'mainnet' AND agent_approved_at IS NOT NULL"),
       solWallets: n("SELECT COUNT(*) AS n FROM solana_accounts"),

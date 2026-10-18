@@ -100,7 +100,9 @@ const EVENTS = {
   ].reverse(),
 };
 
-const accountValue = FRESH ? 250 : 2400;
+// UNFUNDED=1: a wallet made and approved, but no USDC in it yet (for checking the set-up-here flow).
+const UNFUNDED = process.env.UNFUNDED === "1";
+const accountValue = UNFUNDED ? 0 : FRESH ? 250 : 2400;
 const LIVE_STATUS = {
   config: { enabled: true, network: "mainnet", builder: "0x0000000000000000000000000000000000000000", builderFeeBps: 10, maxAllocationUsd: null, maxLeverage: 20 },
   account: { userId: "demo", network: "mainnet", hlAddress: "0x5e2b7a40c3d91f6a8be0e4b1d7c2a9f03b6e91ad", agentApprovedAt: now - 20 * D, builderApprovedAt: now - 20 * D },
@@ -108,7 +110,7 @@ const LIVE_STATUS = {
   venue: FRESH
     ? { accountValueUsd: accountValue, withdrawableUsd: accountValue, marginUsedUsd: 0, positionsWorthUsd: 0, agentApprovedOnVenue: true, builderMaxFeeTenthsBps: 1000 }
     : { accountValueUsd: accountValue, withdrawableUsd: 1462.5, marginUsedUsd: 600, positionsWorthUsd: 937.5, agentApprovedOnVenue: true, builderMaxFeeTenthsBps: 100 },
-  ready: true, blockers: [],
+  ready: !UNFUNDED, blockers: UNFUNDED ? ["Deposit USDC to your Hyperliquid mainnet account."] : [],
 };
 const SOLANA = {
   enabled: true, signerId: "demo", policyId: "demo", wallet: { address: "7xKpQ2mVb9fQe4tLr8NcZs1Wd3Hy6Ju5Ag0Ek9fQe", delegated: true },

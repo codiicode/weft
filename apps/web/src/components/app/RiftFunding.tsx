@@ -24,7 +24,8 @@ const num = (s: string, d = 6) => Number(s).toLocaleString("en-US", { maximumFra
  * account (Weft sets that address); on a default account Weft then moves it to the trading balance
  * with one background signature. Money out is signed by the account's wallet.
  */
-export function RiftFunding({ status, embedded = false }: { status: LiveStatus; embedded?: boolean }) {
+/** `compact`: a narrow column (the start panel): adding money only, fields stacked. */
+export function RiftFunding({ status, embedded = false, compact = false }: { status: LiveStatus; embedded?: boolean; compact?: boolean }) {
   const assets = useApi(() => api.riftAssets(), []);
   const orders = useApi(() => api.riftOrders(), [], { pollMs: 10_000 });
   const { wallets } = useWallets();
@@ -123,7 +124,7 @@ export function RiftFunding({ status, embedded = false }: { status: LiveStatus; 
     <Wrap embedded={embedded}>
       <div className="flex flex-wrap items-baseline justify-between gap-3">
         <div className={embedded ? "text-[14px] font-medium text-ink" : "text-[15px] font-semibold tracking-[-0.015em]"}>{embedded ? "Or from any chain: BTC, ETH or USDC" : "From any chain"}</div>
-        <div className="inline-flex rounded-[9px] bg-paper-2 p-0.5 text-[13px]">
+        <div className={`${compact ? "hidden" : "inline-flex"} rounded-[9px] bg-paper-2 p-0.5 text-[13px]`}>
           {(["in", "out"] as const).map((k) => (
             <button key={k} onClick={() => (setTab(k), setOpen(null))} className={`rounded-[7px] px-3 py-1 ${tab === k ? "bg-[var(--raised)] text-ink" : "text-muted hover:text-ink"}`}>
               {k === "in" ? "Add money" : "Withdraw"}
@@ -172,7 +173,7 @@ export function RiftFunding({ status, embedded = false }: { status: LiveStatus; 
         </div>
       ) : (
         <div className="mt-4 space-y-3">
-          <div className="grid gap-3 sm:grid-cols-2">
+          <div className={`grid gap-3 ${compact ? "" : "sm:grid-cols-2"}`}>
             <div className="relative">
               <select value={asset} onChange={(e) => setAsset(e.target.value)} className={`${field} cursor-pointer appearance-none pr-10`}>
                 {(assets.data?.assets ?? []).map((x) => (

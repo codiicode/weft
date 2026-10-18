@@ -41,6 +41,8 @@ const LOCAL: AuthState = {
  */
 const DEMO_USER = process.env.NEXT_PUBLIC_DEMO_USER?.trim() || "";
 const DEMO: AuthState = { ...LOCAL, enabled: true, label: DEMO_USER };
+/** A demo build: signed in, but without Privy (its hooks aren't available). */
+export const IS_DEMO = Boolean(DEMO_USER);
 
 const AuthContext = createContext<AuthState>(LOCAL);
 

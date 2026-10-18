@@ -329,9 +329,17 @@ function Run() {
         {d.mode === "paper" && !d.alertsOnly && (
           <div className="flex flex-wrap items-center justify-between gap-3 rounded-[12px] border border-line bg-[var(--trigger-soft)] px-4 py-3">
             <p className="text-[14px] text-ink-2">
-              <span className="font-semibold text-ink">Practice.</span> Pretend money at real prices: these trades aren’t real, and nothing here is yours to withdraw.
+              {money.traded && money.returnPct > 0 ? (
+                <>
+                  <span className="font-semibold text-ink">Up {money.returnPct.toFixed(1)}% in practice</span> since {new Date(d.createdAt).toLocaleDateString("en-GB", { day: "numeric", month: "short" })}. Run the same strategy with real money, from your own wallet.
+                </>
+              ) : (
+                <>
+                  <span className="font-semibold text-ink">Practice.</span> Pretend money at real prices: these trades aren’t real, and nothing here is yours to withdraw.
+                </>
+              )}
             </p>
-            <Btn href={`/new?from=${encodeURIComponent(`run:${d.id}`)}&mode=live`}>Start it for real</Btn>
+            <Btn href={`/new?from=${encodeURIComponent(`run:${d.id}`)}&mode=live`}>{money.traded && money.returnPct > 0 ? "Run it live" : "Start it for real"}</Btn>
           </div>
         )}
         {controlError && <div className="rounded-[12px] bg-[var(--short-soft)] px-4 py-3 text-[14px] text-short">{controlError}</div>}

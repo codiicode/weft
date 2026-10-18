@@ -1,8 +1,8 @@
 "use client";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { instrumentLabel, type Strategy } from "@weft/strategy";
-import { api, ApiError } from "@/lib/api";
+import { api, ApiError, type LiveStatus } from "@/lib/api";
 import { useAuth, useRequireAuth } from "@/lib/auth";
 import { useApi } from "@/lib/use-api";
 import { hlFreeUsd, tradesSolana, useTradingVenues, type Venues } from "@/lib/trading";
@@ -10,6 +10,8 @@ import { PAPERTRADE_FEE, PAPERTRADE_MIN_DEPOSIT, usePapertrade, type PapertradeS
 import { useHlApprove } from "@/lib/hl-approve";
 import Link from "next/link";
 import { Btn, Card } from "./AppShell";
+import { CopyAddress } from "./SolanaSetup";
+import { RiftFunding } from "./RiftFunding";
 
 /** Seconds between checks: 15 s when a stop, a target or a fast market needs watching, else 30 s. */
 export function checkInterval(s: Strategy | undefined): number {
@@ -128,6 +130,34 @@ const lowerFirst = (t: string) => t.charAt(0).toLowerCase() + t.slice(1);
 export type RunMode = "live" | "practice" | "alerts";
 
 /** Start a strategy with real money, as practice (pretend money, real prices) or as alerts only, and jump to its run page. */
+/** Adding USDC from the start panel: where to send it, any chain through Rift, and what's arriving. */
+function AddUsdc({ status }: { status: LiveStatus }) {
+  const dep = useApi(() => api.depositStatus(), [], { pollMs: 8_000 });
+  const d = dep.data;
+  const addr = status.account?.hlAddress;
+  return (
+    <div className="mt-3 rounded-[10px] bg-paper-2 p-4">
+      <p className="text-[13.5px] font-medium text-ink">Add USDC to start</p>
+      <p className="mt-1 text-[13px] leading-relaxed text-muted">
+        Send at least {d?.minUsdc ?? 5} USDC on Arbitrum to your Weft wallet. Weft moves it to Hyperliquid and pays the network fee. Already on Hyperliquid? Send it to the same address.
+      </p>
+      {addr && (
+        <div className="mt-3">
+          <CopyAddress address={addr} />
+        </div>
+      )}
+      <p className="tnum mt-3 text-[13px] text-ink-2">
+        {d?.inFlight
+          ? `Moving ${d.inFlight.usdc.toFixed(2)} USDC to Hyperliquid, about a minute…`
+          : d && d.walletUsdc > 0
+            ? `${d.walletUsdc.toFixed(2)} USDC arrived on Arbitrum${d.walletUsdc < d.minUsdc ? `: send at least ${d.minUsdc} in total` : ", moving it now"}.`
+            : "Waiting for USDC… this updates by itself."}
+      </p>
+      <RiftFunding status={status} embedded compact />
+    </div>
+  );
+}
+
 export function DeployPanel({ strategy, strategyId, compact = false, initialMode }: { strategy?: Strategy; strategyId?: string; compact?: boolean; initialMode?: RunMode }) {
   const router = useRouter();
   const requireAuth = useRequireAuth();
@@ -137,7 +167,9 @@ export function DeployPanel({ strategy, strategyId, compact = false, initialMode
   const onSolana = tradesSolana(strategy);
   // Papertrade-only strategies trade from the Papertrade account (same wallet, its own balance).
   const onPapertrade = Boolean(strategy?.actions.some((a) => a.type === "open" && a.instrument.kind === "synth") && strategy.actions.every((a) => a.type !== "open" || a.instrument.kind === "synth"));
-  const live = useApi(signedIn && !onSolana && !onPapertrade ? () => api.liveStatus() : null, [signedIn, onSolana, onPapertrade]);
+  // Waiting for money to arrive: keep looking, so the panel turns into Start by itself.
+  const [awaitingUsdc, setAwaitingUsdc] = useState(false);
+  const live = useApi(signedIn && !onSolana && !onPapertrade ? () => api.liveStatus() : null, [signedIn, onSolana, onPapertrade], { pollMs: awaitingUsdc ? 8_000 : 0 });
   const sol = useApi(signedIn && onSolana ? () => api.solanaStatus() : null, [signedIn, onSolana]);
   const pt = useApi(signedIn && onPapertrade ? () => api.papertradeAccount() : null, [signedIn, onPapertrade]);
   // Papertrade needs only the wallet: Start tops the account up and connects it on the way.
@@ -146,6 +178,9 @@ export function DeployPanel({ strategy, strategyId, compact = false, initialMode
   // Weft wallet approves in the background right here, an own wallet gets a clear one-step ask.
   // The approvals sign themselves in the background (WalletAutopilot); the button is the fallback.
   const hl = useHlApprove(onSolana || onPapertrade ? null : live.data, live.refresh, false);
+  // Hyperliquid wallet made and approved, nothing in it yet: the money can be added without leaving.
+  const needsUsdcOnly = !onSolana && !onPapertrade && Boolean(live.data?.account) && !hl.needsApproval && (live.data?.venue?.accountValueUsd ?? 0) <= 0;
+  useEffect(() => setAwaitingUsdc(needsUsdcOnly), [needsUsdcOnly]);
   const loadingStatus = onSolana ? sol.loading && !sol.data : onPapertrade ? pt.loading && !pt.data : live.loading && !live.data;
   // No cap unless the server sets one: people trade whatever amount they choose.
   const cap = (onSolana ? sol.data?.maxAllocationUsd : onPapertrade ? null : live.data?.config.maxAllocationUsd) ?? null;
@@ -303,6 +338,10 @@ export function DeployPanel({ strategy, strategyId, compact = false, initialMode
               </Link>
             )}
           </div>
+        ) : !ready && needsUsdcOnly && live.data ? (
+          // The wallet is set up and only the money is missing: add it right here, from Arbitrum,
+          // Hyperliquid or any chain through Rift. The panel turns into Start once it has arrived.
+          <AddUsdc status={live.data} />
         ) : !ready ? (
           <div className="mt-3 rounded-[10px] bg-paper-2 p-4">
             <p className="text-[13.5px] font-medium text-ink">{onSolana ? "Set up your Solana trading wallet" : onPapertrade ? "Set up Papertrade" : "Set up your Hyperliquid wallet"}</p>

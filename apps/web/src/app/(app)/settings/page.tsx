@@ -3,7 +3,7 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useLinkAccount, usePrivy } from "@privy-io/react-auth";
 import { api, type XPrefs } from "@/lib/api";
-import { useAuth, shortAddress } from "@/lib/auth";
+import { IS_DEMO, useAuth, shortAddress } from "@/lib/auth";
 import { useApi } from "@/lib/use-api";
 import { PageHeader, Card, Btn } from "@/components/app/AppShell";
 
@@ -445,7 +445,7 @@ export default function SettingsPage() {
 
             <section>
               <h2 className="mb-3 text-[15px] font-semibold text-ink">Tweet a trade</h2>
-              <Card className="divide-y divide-line">{auth.enabled ? <TweetATrade /> : <Row title="X" sub="Needs sign-in." />}</Card>
+              <Card className="divide-y divide-line">{auth.enabled && !IS_DEMO ? <TweetATrade /> : <Row title="X" sub="Needs sign-in." />}</Card>
             </section>
 
             <section>
