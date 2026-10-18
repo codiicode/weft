@@ -825,6 +825,21 @@ const drawSynth = (w, h) => paper2d(w, h, (g) => {
   txt(g, "Out at +20%.", 40, 306, F(32, 500), "#555");
 });
 
+/* ---------- Rift: fund Weft from any chain ---------- */
+const drawChainAsset = (sym, chain) => (w, h) => paper2d(w, h, (g) => {
+  txt(g, chain.toUpperCase(), 214, h / 2 - 14, F(30, 600), "#2e2e2e");
+  txt(g, sym, 210, h / 2 + 56, F(68, 700));
+});
+const drawArrived = (w, h) => paper2d(w, h, (g) => {
+  txt(g, "YOUR HYPERLIQUID ACCOUNT", 56, 92, F(32, 600), "#2e2e2e");
+  txt(g, "+53.68", 48, 310, F(176, 700));
+  txt(g, "USDC, ready to trade", 56, 396, F(56, 600));
+  g.fillStyle = "#111"; g.fillRect(56, 486, w - 112, 5);
+  txt(g, "Sent 55 USDC on Ethereum.", 56, 590, F(44, 500), "#333");
+  txt(g, "Arrived in about 10 minutes.", 56, 654, F(44, 500), "#333");
+  txt(g, "One deposit address, no bridging.", 56, 760, F(36, 600), "#111");
+});
+
 /* ---------- the three banners ---------- */
 const Q = new URLSearchParams(location.search), V = Q.get("v") ?? "1";
 // ?raw=1 shows each scene before printing, ?raw=1&ink=1 after
@@ -1010,6 +1025,25 @@ const BANNERS = {
     const mark = `<svg width="92" height="92" viewBox="0 0 48 48"><g fill="none" stroke="#f4f3ef" stroke-width="4.4" stroke-linecap="round"><path d="M8 13C20 13 21 24 30 24"/><path d="M8 24H30"/><path d="M8 35C20 35 21 24 30 24"/><path d="M30 24H40"/></g><circle cx="30" cy="24" r="5.6" fill="#f4f3ef"/></svg>`;
     div(`${mark}<span style="font-size:112px;font-weight:600;letter-spacing:-0.045em;line-height:1">weft</span>`, "position:absolute;left:0;right:0;top:262px;display:flex;align-items:center;justify-content:center;gap:22px;color:#f4f3ef;filter:drop-shadow(0 20px 50px rgba(0,0,0,0.6))");
     div(`Financial Superintelligence<br><span style="color:#77766f">for everyone.</span>`, "position:absolute;left:0;right:0;top:418px;text-align:center;font-size:84px;line-height:1.06;letter-spacing:-0.025em;color:#f4f3ef;text-shadow:0 20px 60px rgba(0,0,0,0.6)").classList.add("serif");
+  },
+  rift() {
+    $b.style.width = "1600px"; $b.style.height = "900px"; $b.className = "dark"; dots("#2a2a2e", 24);
+    const o = { contrast: 1.0, cell: 5, solid: 0.42 };
+    div(`Fund Weft from any chain.<br><span style="color:#77766f">Powered by Rift.</span>`, "position:absolute;left:80px;top:54px;font-size:76px;line-height:1.08;color:#f4f3ef;letter-spacing:-0.02em").classList.add("serif");
+    const SRC = [["BTC", "BTC", "Bitcoin", "amber"], ["ETH", "ETH", "Ethereum", "blue"], ["USDC", "USDC", "Base", "sky"], ["USDC", "USDC", "Arbitrum", "pink"]];
+    const K = { x: 860, y: 522 };
+    const paths = [];
+    SRC.forEach(([logo, sym, chain, ink], i) => {
+      const y = 262 + i * 136;
+      tile(80, y, 440, 112, drawChainAsset(sym, chain), ink, o);
+      div(`<img src="../../../apps/web/public/coins/${logo}.svg" width="56" height="56" style="border-radius:50%;display:block">`, `position:absolute;left:104px;top:${y + 28}px;filter:drop-shadow(0 6px 14px rgba(0,0,0,0.25))`);
+      paths.push([`M 520 ${y + 56} C 700 ${y + 56} 720 ${K.y} ${K.x} ${K.y}`, ["#f1b94e", "#adb7ff", "#93d3f4", "#f4a7c9"][i]]);
+    });
+    paths.push([`M ${K.x} ${K.y} L 1000 ${K.y}`, "#93e3bc"]);
+    threads(paths);
+    div("", `position:absolute;left:${K.x - 12}px;top:${K.y - 12}px;width:24px;height:24px;border-radius:50%;background:#f4f3ef;box-shadow:0 0 40px rgba(244,243,239,0.55)`);
+    tile(1000, 292, 520, 460, drawArrived, "green", o);
+    div("BTC, ETH or USDC from Bitcoin, Ethereum, Base or Arbitrum, straight into your Hyperliquid account on Weft.", "position:absolute;left:80px;top:832px;font-size:24px;color:#a3a29d");
   },
   safe() {
     $b.style.width = "1080px"; $b.style.height = "1080px"; $b.className = "dark"; dots("#242428", 24);
