@@ -125,10 +125,17 @@ describe("tweet a trade", () => {
     expect(asksAboutParent("long SOL 10x if it breaks $110")).toBe(false);
     expect(thesisFromParent("Long $SOL here, invalidation $95 https://t.co/a", "make this a strategy")).toBe("Long $SOL here, invalidation $95");
     expect(thesisFromParent("Long $SOL here", "turn this into a trade but 5x")).toBe("Long $SOL here (but 5x)");
+    expect(thesisFromParent("ETH will outperform BTC this quarter", "make this a thesis")).toBe("ETH will outperform BTC this quarter");
     const { b, drafts, posted } = linkedBot([T("1", "@trader @weftfinance make this a strategy", { inReplyToId: "p" })], { parent: { text: "Long $SOL if it holds $100, target $130", author: "caller" } });
     expect(await b.run()).toEqual({ seen: 1, replied: 1 });
     expect(drafts[0]!.thesis).toBe("Long $SOL if it holds $100, target $130");
     expect(posted[0]).toContain("Read it, practice it or run it:");
+  });
+
+  it("drafts a view that doesn't read like a trade when someone asks for it under the tweet", async () => {
+    const { b, drafts } = linkedBot([T("1", "@weftfinance make this a strategy", { inReplyToId: "p" })], { parent: { text: "Rates are coming down faster than people think. Duration wins this year.", author: "macro" } });
+    expect(await b.run()).toEqual({ seen: 1, replied: 1 });
+    expect(drafts[0]!.thesis).toBe("Rates are coming down faster than people think. Duration wins this year.");
   });
 
   it("puts it in a connected account, or starts it in practice", async () => {

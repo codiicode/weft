@@ -77,7 +77,7 @@ export function asksAboutParent(idea: string): boolean {
 /** The thesis for a mention that answers another tweet: that tweet's idea, plus anything added ("but 5x"). */
 export function thesisFromParent(parentText: string, idea: string): string {
   const base = ideaOf(parentText);
-  const extra = asksAboutParent(idea) ? idea.replace(/^(pls |please )?(make|turn|do|run|trade|draft|build|create)\b[\s\S]{0,40}\b(this|that|it)\b( into)?( a)?( strategy| trade| plan)?[,.!:\s]*/i, "").trim() : idea;
+  const extra = asksAboutParent(idea) ? idea.replace(/^(pls |please )?(make|turn|do|run|trade|draft|build|create)\b[\s\S]{0,40}\b(this|that|it)\b( into)?( a)?( strategy| trade| plan| thesis| setup)?[,.!:\s]*/i, "").trim() : idea;
   return extra ? `${base} (${extra})` : base;
 }
 
@@ -317,16 +317,22 @@ export class XBot {
         this.d.kvSet(`xbot:done:${m.id}`, "1");
         const link = m.authorId ? (this.d.linked?.(m.authorId) ?? null) : null;
         let idea = ideaOf(m.text);
-        // "@weftfinance make this a strategy" under someone's call: the call is the idea
+        // "@weftfinance make this a strategy" under someone's call: the call is the idea. Asked for
+        // outright, the AI judges the tweet (it may read like a view, not a trade, and still be one).
+        let asked = false;
         if (m.inReplyToId && (!looksLikeIdea(idea) || asksAboutParent(idea))) {
           const p = await this.parent(m.inReplyToId).catch(() => null);
-          if (p && p.author !== this.d.handle.replace(/^@/, "").toLowerCase()) idea = thesisFromParent(p.text, idea);
+          if (p && p.author !== this.d.handle.replace(/^@/, "").toLowerCase()) {
+            asked = asksAboutParent(idea);
+            idea = thesisFromParent(p.text, idea);
+          }
         }
         const why =
           m.isRetweet ? "retweet"
           : m.author === this.d.handle.replace(/^@/, "").toLowerCase() ? "own post"
           : !link && m.followers < (this.d.minFollowers ?? 10) ? `${m.followers} followers`
-          : !looksLikeIdea(idea) ? "not a trade idea"
+          : !asked && !looksLikeIdea(idea) ? "not a trade idea"
+          : idea.length < 12 ? "nothing to trade"
           : this.count(`xbot:day:${day}`) >= (this.d.maxPerDay ?? 15) ? "daily cap"
           : this.count(`xbot:author:${day}:${m.author}`) >= (link ? (this.d.perLinkedPerDay ?? 10) : (this.d.perAuthorPerDay ?? 2)) ? "author cap"
           : null;
