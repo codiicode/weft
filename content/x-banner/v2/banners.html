@@ -802,6 +802,29 @@ const drawMcpPlan = (w, h) => paper2d(w, h, (g) => {
   });
 });
 
+/* ---------- the claim: Financial Superintelligence for everyone ---------- */
+const drawPool = (w, h) => paper2d(w, h, (g) => {
+  txt(g, "LIQUIDITY · METEORA", 40, 56, F(22), "#2e2e2e");
+  txt(g, "SOL-USDC", 40, 116, F(46, 700));
+  txt(g, "±1.2% · out if it leaves", 40, 160, F(26, 500), "#555");
+  const n = 14, x0 = 40, x1 = 600, bw = (x1 - x0) / n;
+  for (let i = 0; i < n; i++) {
+    const hgt = 130;
+    const x = x0 + i * bw;
+    g.fillStyle = i < n / 2 ? "#555" : "#111";
+    g.fillRect(x + 6, 380 - hgt, bw - 12, hgt);
+  }
+  g.strokeStyle = "#111"; g.lineWidth = 4; g.setLineDash([10, 8]); g.beginPath(); g.moveTo(x0 + (n / 2) * bw, 220); g.lineTo(x0 + (n / 2) * bw, 392); g.stroke(); g.setLineDash([]);
+});
+const drawSynth = (w, h) => paper2d(w, h, (g) => {
+  txt(g, "PAPERTRADE", 40, 56, F(22), "#2e2e2e");
+  g.font = F(112, 700);
+  const fit = Math.min(112, Math.floor(112 * (w - 80) / g.measureText("BTC 1000×").width));
+  txt(g, "BTC 1000×", 40, 180, F(fit, 700));
+  txt(g, "Long if it breaks $82k.", 40, 262, F(32, 600));
+  txt(g, "Out at +20%.", 40, 306, F(32, 500), "#555");
+});
+
 /* ---------- the three banners ---------- */
 const Q = new URLSearchParams(location.search), V = Q.get("v") ?? "1";
 // ?raw=1 shows each scene before printing, ?raw=1&ink=1 after
@@ -967,6 +990,23 @@ const BANNERS = {
     threads([["M 740 600 C 820 600 800 470 880 470", "#c9b6fb"]]);
     tile(880, 250, 640, 480, drawMcpPlan, "violet", o);
     div(`<div style="flex:1;font-size:22px;color:#a3a29d;white-space:nowrap">Nothing trades from the chat.</div><div style="font-size:22px;color:#a3a29d;white-space:nowrap">Connector: <span style="color:#f4f3ef;font-weight:600">weft.fi/mcp</span></div>`, "position:absolute;left:880px;top:750px;width:640px;height:84px;display:flex;align-items:center;box-sizing:border-box;padding:0 28px;border-radius:16px;background:#1a1a1d;border:1px solid #2a2a2f");
+  },
+  claim() {
+    $b.style.width = "1600px"; $b.style.height = "900px"; $b.className = "dark"; dots("#2a2a2e", 24);
+    const T = [
+      [drawWatch, "news", 40, -30, 330, 200],
+      [drawRules, "amberBlue", 400, -10, 300, 160],
+      [drawBacktest, "skyAmber", 740, -40, 300, 240],
+      [drawLog, "pinkBlue", 1110, -10, 330, 230],
+      [drawCopy, "blue", -20, 262, 300, 140],
+      [drawPool, "violet", 1330, 250, 300, 200],
+      [drawSynth, "pink", 50, 640, 320, 210],
+      [drawWallet, "orange", 430, 700, 330, 210],
+      [drawBig([["24/7", "#111"]], "It watches while you sleep.", 170, 200), "violet", 810, 724, 300, 170],
+      [drawPM, "green", 1170, 650, 330, 220],
+    ];
+    for (const [fn, ink, x, y, w, h] of T) tile(x, y, w, h, fn, ink, { contrast: 1.0, cell: 5, solid: 0.42 });
+    div(`Weft = Financial<br>Superintelligence<br><span style="color:#77766f">for everyone.</span>`, "position:absolute;left:0;right:0;top:268px;text-align:center;font-size:104px;line-height:1.02;letter-spacing:-0.03em;color:#f4f3ef;text-shadow:0 20px 60px rgba(0,0,0,0.6)").classList.add("serif");
   },
   safe() {
     $b.style.width = "1080px"; $b.style.height = "1080px"; $b.className = "dark"; dots("#242428", 24);
