@@ -5,7 +5,8 @@ import type DLMMClass from "@meteora-ag/dlmm";
 
 // The SDK's ESM build has a broken directory import (anchor/utils/bytes); its CommonJS build works.
 const dlmmLib = createRequire(import.meta.url)("@meteora-ag/dlmm") as typeof import("@meteora-ag/dlmm");
-const DLMM = dlmmLib.default as typeof DLMMClass;
+// module.exports is the DLMM class itself (with the helpers as properties); ESM interop puts it on `default`.
+const DLMM = ((dlmmLib as { default?: unknown }).default ?? dlmmLib) as typeof DLMMClass;
 const { StrategyType } = dlmmLib;
 import type { ExecutionResult, Executor, OrderRequest } from "../types.ts";
 import { inspectSwapTransaction } from "./inspect.ts";
