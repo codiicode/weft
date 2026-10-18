@@ -1,5 +1,5 @@
 import Anthropic from "@anthropic-ai/sdk";
-import { validateStrategy, type Issue, type Strategy } from "@weft/strategy";
+import { pinOfficialTokens, validateStrategy, type Issue, type Strategy } from "@weft/strategy";
 import type { Catalog, Product } from "@weft/venues";
 import { SYSTEM_PROMPT } from "./prompt.ts";
 import { templateStrategy } from "./template.ts";
@@ -148,7 +148,8 @@ export async function generateStrategy(
           const v = validateStrategy({ ...(input.strategy as object), thesis: (input.strategy as { thesis?: string })?.thesis || edit?.base.thesis || thesis });
           if (v.ok) {
             accepted = {
-              strategy: v.strategy,
+              // $WEFT always means Weft's own token, whatever mint the draft picked
+              strategy: pinOfficialTokens(v.strategy).strategy,
               warnings: v.warnings,
               rationale: typeof input.rationale === "string" ? input.rationale : "",
               source: "claude",

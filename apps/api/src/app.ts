@@ -13,7 +13,7 @@ import type { Context } from "hono";
 import { streamSSE } from "hono/streaming";
 import { z } from "zod";
 import { examples } from "@weft/strategy/examples";
-import { RiskCaps, toGraph, validateStrategy, type Instrument, type Strategy } from "@weft/strategy";
+import { RiskCaps, pinOfficialTokens, toGraph, validateStrategy, type Instrument, type Strategy } from "@weft/strategy";
 import { Instrument as InstrumentSchema } from "@weft/strategy";
 import { INTERVAL_MS, type CandleInterval, type Catalog, type MarketData, type Product } from "@weft/venues";
 import type { Engine, EngineEvent } from "@weft/engine";
@@ -1102,7 +1102,8 @@ export function createApp(deps: AppDeps) {
     if (!raw && body.strategyId) raw = library.get(body.strategyId)?.strategy;
     const v = validateStrategy(raw);
     if (!v.ok) return c.json({ error: "invalid strategy", issues: v.errors }, 422);
-    const strategy = v.strategy;
+    // $WEFT always means Weft's own token: a strategy naming it trades the official mint, whatever it says.
+    const strategy = pinOfficialTokens(v.strategy).strategy;
     if (body.mode === "paper" && !body.alertsOnly && !allowPaper) {
       if (!practiceBudget) return c.json({ error: "Weft trades with real money only. Start it live, or as alerts only." }, 400);
       const { usedUsd, running } = await practiceUse(user.id);
@@ -1133,7 +1134,7 @@ export function createApp(deps: AppDeps) {
         return n;
       };
       // Solana tokens: the user's own Privy wallet, Weft as a limited signer.
-      if (tradesSolana(v.strategy)) {
+      if (tradesSolana(strategy)) {
         if (!deps.solana) return c.json({ error: "Solana trading is not configured on this server" }, 501);
         const mints = new Set<string>();
         for (const d of await engine.listDeployments()) {
@@ -1144,7 +1145,7 @@ export function createApp(deps: AppDeps) {
           }
         }
         try {
-          deps.solana.assertDeployable(user.id, v.strategy, body.allocationUsd, mints);
+          deps.solana.assertDeployable(user.id, strategy, body.allocationUsd, mints);
         } catch (e) {
           return c.json({ error: (e as Error).message }, 409);
         }
@@ -1156,8 +1157,8 @@ export function createApp(deps: AppDeps) {
         return create();
       }
       // Papertrade only: its own account (a registered session key and money in it), not Hyperliquid's agent.
-      const opens = v.strategy.actions.filter((a) => a.type === "open");
-      if (opens.length && opens.every((a) => a.type === "open" && a.instrument.kind === "synth") && v.strategy.actions.every((a) => a.type === "open" || a.type === "close" || a.type === "notify")) {
+      const opens = strategy.actions.filter((a) => a.type === "open");
+      if (opens.length && opens.every((a) => a.type === "open" && a.instrument.kind === "synth") && strategy.actions.every((a) => a.type === "open" || a.type === "close" || a.type === "notify")) {
         if (!deps.papertrade) return c.json({ error: "Papertrade isn’t set up on this server" }, 501);
         const st = await deps.papertrade.status(user.id);
         if (!st.wallet) return c.json({ error: "Set up your Hyperliquid wallet in Weft first: Papertrade uses the same wallet." }, 409);
@@ -1178,7 +1179,7 @@ export function createApp(deps: AppDeps) {
             others.add(`hl:outcome:${a.instrument.market}:${a.instrument.outcome}`);
       }
       try {
-        deps.live.assertDeployable(user.id, v.strategy, body.allocationUsd, others);
+        deps.live.assertDeployable(user.id, strategy, body.allocationUsd, others);
       } catch (e) {
         return c.json({ error: (e as Error).message }, 409);
       }

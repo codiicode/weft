@@ -1,6 +1,6 @@
 import { polymarketListings } from "./polymarket.ts";
 import { dlmmInstrument, feePerDay } from "./meteora.ts";
-import { instrumentKey, type Instrument } from "@weft/strategy";
+import { instrumentKey, officialMint, type Instrument } from "@weft/strategy";
 import type { Catalog, CatalogQuery, MarketListing, Product } from "./types.ts";
 import type { VenueMarketData } from "./market-data.ts";
 import type { PerpMarket } from "./hyperliquid/parse.ts";
@@ -205,12 +205,18 @@ export class VenueCatalog implements Catalog {
   private async tokens(search?: string): Promise<(MarketListing & { _rank?: number })[]> {
     if (!search) {
       const rows = await this.md.ctx.jup.category("toptrending", "1h", 50);
-      return rows.filter((t) => t.usdPrice != null).map((t) => tokenListing(t, "tokens"));
+      return rows.filter((t) => t.usdPrice != null && !isImpostor(t)).map((t) => tokenListing(t, "tokens"));
+    }
+    // Weft's own token: its ticker always means the official mint, and copies using it never show up.
+    const official = officialMint(cleanSymbol(search));
+    if (official) {
+      const rows = (await this.md.ctx.jup.searchTokens(official, 10)).filter((t) => t.id === official);
+      return rows.map((t) => ({ ...tokenListing(t, "tokens"), _rank: 2e15 }));
     }
     // Search: exact symbol matches first ("WIF" → the real $WIF, not "$swordcat"), then by liquidity.
     const rows = await this.md.ctx.jup.searchTokens(search, 50);
     return rows
-      .filter((t) => t.usdPrice != null)
+      .filter((t) => t.usdPrice != null && !isImpostor(t))
       .map((t) => ({ ...tokenListing(t, "tokens"), _rank: tokenSearchRank(t, search) }));
   }
 
@@ -270,6 +276,12 @@ export function perpListing(m: PerpMarket, product: Product): MarketListing {
 }
 
 /** Jupiter returns some symbols with a leading "$" (e.g. "$WIF"). */
+/** A token using an official ticker (like WEFT) without being the official mint. */
+export function isImpostor(t: RawToken): boolean {
+  const m = officialMint(cleanSymbol(t.symbol));
+  return m != null && t.id !== m;
+}
+
 export function cleanSymbol(symbol: string): string {
   return symbol.trim().replace(/^\$+/, "");
 }
