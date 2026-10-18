@@ -325,7 +325,17 @@ export class Treasury {
     if (revenue > 0n) {
       try {
         await this.waitForLamports(revenue + rewards.owedTokenBuyback());
-        await this.send([SystemProgram.transfer({ fromPubkey: this.me, toPubkey: this.c.revenueWallet, lamports: revenue })]);
+        // Right after a claim the node simulating the transfer can still be behind the one that
+        // showed the balance ("insufficient lamports"): try again a few times before leaving it owed.
+        for (let k = 0; ; k++) {
+          try {
+            await this.send([SystemProgram.transfer({ fromPubkey: this.me, toPubkey: this.c.revenueWallet, lamports: revenue })]);
+            break;
+          } catch (e) {
+            if (k >= 4 || !/simulation failed/i.test((e as Error).message)) throw e;
+            await sleep(4000);
+          }
+        }
         rewards.setOwedRevenue(0n);
       } catch (e) {
         this.c.log?.(`treasury: sending ${(Number(revenue) / LAMPORTS_PER_SOL).toFixed(4)} SOL to the revenue wallet failed, retrying next run (${(e as Error).message.slice(0, 120)})`);
