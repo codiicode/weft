@@ -1,4 +1,5 @@
 "use client";
+import { RiftFunding } from "./RiftFunding";
 import { useEffect, useRef, useState } from "react";
 import { useCreateWallet, useExportWallet, useSignTypedData, useWallets } from "@privy-io/react-auth";
 import { api, type DepositStatus, type LiveStatus } from "@/lib/api";
@@ -151,6 +152,8 @@ export function HyperliquidWallet({ status, onChange, autoLink }: { status: Live
               </div>
             </dl>
           )}
+
+          {linked && net === "mainnet" && <RiftFunding status={status} embedded />}
 
           {d?.inFlight && (
             <p className="mt-3 rounded-[10px] bg-paper-2 px-3.5 py-2.5 text-[13px] text-ink-2">

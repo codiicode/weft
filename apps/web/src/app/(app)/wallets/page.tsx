@@ -65,7 +65,7 @@ function Hyperliquid() {
   return (
     <>
       {mode === "weft" ? <HyperliquidWallet status={s} onChange={status.refresh} autoLink={choice === "weft" || !linkedOwn} /> : <OwnWallet s={s} refresh={status.refresh} />}
-      {s.account && s.account.network === "mainnet" && s.config.network === "mainnet" && (
+      {mode !== "weft" && s.account && s.account.network === "mainnet" && s.config.network === "mainnet" && (
         <div className="mt-4">
           <RiftFunding status={s} />
         </div>

@@ -24,7 +24,7 @@ const num = (s: string, d = 6) => Number(s).toLocaleString("en-US", { maximumFra
  * account (Weft sets that address); on a default account Weft then moves it to the trading balance
  * with one background signature. Money out is signed by the account's wallet.
  */
-export function RiftFunding({ status }: { status: LiveStatus }) {
+export function RiftFunding({ status, embedded = false }: { status: LiveStatus; embedded?: boolean }) {
   const assets = useApi(() => api.riftAssets(), []);
   const orders = useApi(() => api.riftOrders(), [], { pollMs: 10_000 });
   const { wallets } = useWallets();
@@ -120,9 +120,9 @@ export function RiftFunding({ status }: { status: LiveStatus }) {
   const live = open ? (orders.data?.orders.find((o) => o.id === open.id) ?? open) : null;
 
   return (
-    <Card className="p-5">
+    <Wrap embedded={embedded}>
       <div className="flex flex-wrap items-baseline justify-between gap-3">
-        <div className="text-[15px] font-semibold tracking-[-0.015em]">From any chain</div>
+        <div className={embedded ? "text-[14px] font-medium text-ink" : "text-[15px] font-semibold tracking-[-0.015em]"}>{embedded ? "Or from any chain: BTC, ETH or USDC" : "From any chain"}</div>
         <div className="inline-flex rounded-[9px] bg-paper-2 p-0.5 text-[13px]">
           {(["in", "out"] as const).map((k) => (
             <button key={k} onClick={() => (setTab(k), setOpen(null))} className={`rounded-[7px] px-3 py-1 ${tab === k ? "bg-[var(--raised)] text-ink" : "text-muted hover:text-ink"}`}>
@@ -209,6 +209,11 @@ export function RiftFunding({ status }: { status: LiveStatus }) {
           ))}
         </ul>
       )}
-    </Card>
+    </Wrap>
   );
 }
+
+function Wrap({ embedded, children }: { embedded: boolean; children: React.ReactNode }) {
+  return embedded ? <div className="mt-4 rounded-[12px] border border-line p-4">{children}</div> : <Card className="p-5">{children}</Card>;
+}
+
