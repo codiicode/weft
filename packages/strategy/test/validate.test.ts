@@ -132,3 +132,17 @@ describe("validateStrategy", () => {
     expect(e[0]).toMatch(/^schemaVersion: /);
   });
 });
+
+describe("liquidity ranges", () => {
+  it("allows one-sided ranges and refuses ones that end below where they start", async () => {
+    const { LpRange, describePctRange } = await import("../src/actions.ts");
+    expect(LpRange.safeParse({ lowerPct: 50, upperPct: 0 }).success).toBe(true);
+    expect(LpRange.safeParse({ lowerPct: 50, upperPct: -10 }).success).toBe(true);
+    expect(LpRange.safeParse({ lowerPct: -5, upperPct: 20 }).success).toBe(true);
+    expect(LpRange.safeParse({ lowerPct: -5, upperPct: 3 }).success).toBe(false);
+    expect(LpRange.safeParse({ lower: 10, upper: 5 }).success).toBe(false);
+    expect(describePctRange({ lowerPct: 20, upperPct: 5 })).toBe("from 20% below to 5% above the price");
+    expect(describePctRange({ lowerPct: 50, upperPct: 0 })).toBe("from 50% below to the price");
+    expect(describePctRange({ lowerPct: 50, upperPct: -10 })).toBe("from 50% below to 10% below the price");
+  });
+});

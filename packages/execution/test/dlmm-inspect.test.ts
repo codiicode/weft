@@ -91,3 +91,14 @@ describe("splitting a deposit over a range", () => {
     expect(baseShareAt(Math.sqrt(90 * 110), 90, 110)).toBeCloseTo(0.5, 2);
   });
 });
+
+describe("splitting a one-sided or bid-ask deposit", () => {
+  it("needs only the quote token below the price and only the base token above it", () => {
+    expect(baseShareAt(100, 50, 100)).toBe(0);
+    expect(baseShareAt(100, 100, 150)).toBe(1);
+    expect(baseShareAt(100, 50, 100, "bid_ask")).toBe(0);
+  });
+  it("splits a bid-ask range centred on the price about evenly", () => {
+    expect(baseShareAt(100, 80, 125, "bid_ask")).toBeCloseTo(0.5, 6);
+  });
+});

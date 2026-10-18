@@ -20,9 +20,10 @@ import type { Signer } from "./signer.ts";
  *
  * Opening (`phase: "open"`, `notionalUsd`, `lp.lower/upper`):
  *  1. read the pool and turn the price range into bins (at most `maxBins`, one position);
- *  2. split the deposit between the two tokens the way an even spread over the range needs at
- *     the current price, and get each token that isn't SOL by swapping SOL through Jupiter
- *     (the same inspected, policy-signed swaps as token trades);
+ *  2. split the deposit between the two tokens the way the range and shape need at the current
+ *     price, and get each token that isn't SOL by swapping SOL through Jupiter (the same
+ *     inspected, policy-signed swaps as token trades). A one-sided range needs only one token: a
+ *     range below the price in a TOKEN-SOL pool takes SOL alone, with no swap at all;
  *  3. one transaction: create the position (a fresh account Weft generates, owned by the user)
  *     and add the liquidity, inspected before the user's signer signs it.
  * Closing (`phase: "close"`, `lp.position`): withdraw everything, claim the fees and close the
@@ -49,10 +50,23 @@ export interface DlmmExecutorConfig {
   log?: (m: string) => void;
 }
 
-/** Share of an even (constant-liquidity) spread's value held in the base token at price p. */
-export function baseShareAt(p: number, lower: number, upper: number): number {
+/**
+ * Share of a new position's value that goes in as the base token at price p: an even
+ * (constant-liquidity) spread for "spot", or bins weighted by their distance from p for "bid_ask".
+ * A range entirely below p is all quote token (0), entirely above it all base (1).
+ */
+export function baseShareAt(p: number, lower: number, upper: number, shape: "spot" | "bid_ask" = "spot"): number {
   if (p <= lower) return 1;
   if (p >= upper) return 0;
+  if (shape === "bid_ask") {
+    let above = 0, total = 0;
+    for (let k = 0; k < 64; k++) {
+      const q = lower * Math.pow(upper / lower, (k + 0.5) / 64), w = Math.abs(Math.log(q / p));
+      total += w;
+      if (q > p) above += w;
+    }
+    return total > 0 ? above / total : 0.5;
+  }
   const sa = Math.sqrt(lower), sb = Math.sqrt(upper), sp = Math.sqrt(p);
   const x = (1 / sp - 1 / sb) * p, y = sp - sa;
   return x / (x + y);
@@ -106,7 +120,8 @@ export class DlmmExecutor implements Executor {
     // What each side is worth, and how much of each the range needs at the pool's current price.
     const active = await dlmm.getActiveBin();
     const price = Number(dlmm.fromPricePerLamport(Number(active.price)));
-    const share = baseShareAt(price, lp.lower, lp.upper);
+    const shape = lp.shape ?? "spot";
+    const share = baseShareAt(price, lp.lower, lp.upper, shape);
     const solUsd = await this.solUsd();
     const quoteUsd = yMint.equals(WSOL_MINT) ? solUsd : yMint.equals(USDC_MINT) ? 1 : lp.quoteUsd;
     const baseUsd = price * quoteUsd;
@@ -115,20 +130,24 @@ export class DlmmExecutor implements Executor {
     const y = await this.acquire(yMint, yDec, usd! * (1 - share), quoteUsd, solUsd, `${req.clientId}:y`, fees);
     if (x === 0n && y === 0n) return { status: "rejected", reason: "nothing to deposit" };
 
+    // One token only: keep to the bins on its side of the price (the active bin takes it too).
+    const lo = y === 0n ? Math.max(minBinId, active.binId) : minBinId;
+    const hi = x === 0n ? Math.min(maxBinId, active.binId) : maxBinId;
+    if (lo > hi) return { status: "rejected", reason: "the range has no bins on the side of the price this deposit is in" };
     const position = Keypair.generate();
     const built = await dlmm.initializePositionAndAddLiquidityByStrategy({
       positionPubKey: position.publicKey,
       user: this.user,
       totalXAmount: new BN(x.toString()),
       totalYAmount: new BN(y.toString()),
-      strategy: { minBinId, maxBinId, strategyType: StrategyType.Spot },
+      strategy: { minBinId: lo, maxBinId: hi, strategyType: shape === "bid_ask" ? StrategyType.BidAsk : StrategyType.Spot, ...(y === 0n ? { singleSidedX: true } : {}) },
       slippage: 1,
     });
     const wrap = (xMint.equals(WSOL_MINT) ? x : 0n) + (yMint.equals(WSOL_MINT) ? y : 0n);
     const sig = await this.send(built, req.clientId, { extraSigners: [position], maxWrapLamports: wrap + 10_000n });
     const depositedUsd = (Number(x) / 10 ** xDec) * baseUsd + (Number(y) / 10 ** yDec) * quoteUsd;
     fees.usd += this.networkUsd(2, solUsd);
-    this.cfg.log?.(`added ${depositedUsd.toFixed(2)} USD of liquidity to ${pool.toBase58().slice(0, 6)} in bins ${minBinId}–${maxBinId}, position ${position.publicKey.toBase58()}: ${sig}`);
+    this.cfg.log?.(`added ${depositedUsd.toFixed(2)} USD of liquidity to ${pool.toBase58().slice(0, 6)} in bins ${lo}–${hi} (${shape}), position ${position.publicKey.toBase58()}: ${sig}`);
     return { status: "filled", qty: depositedUsd, price: 1, markPrice: 1, feeUsd: fees.usd, builderFeeUsd: fees.builder, slippageBps: 0, lp: { position: position.publicKey.toBase58() } };
   }
 

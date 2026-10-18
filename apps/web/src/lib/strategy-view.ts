@@ -1,5 +1,6 @@
 import {
   clauses,
+  describePctRange,
   exprRefs,
   instrumentLabel,
   type Action,
@@ -542,7 +543,7 @@ export function describeStrategy(s: Strategy): { watches: string[]; watchKinds: 
         if (a.type === "copy") return { text: copyText(a), tone: "long" };
         if (a.type === "liquidity") {
           const r = a.range;
-          const where = "lowerPct" in r ? `from ${r.lowerPct}% below to ${r.upperPct}% above the price` : `between ${r.lower.toLocaleString("en-US")} and ${r.upper.toLocaleString("en-US")} ${a.pool.quoteSymbol}`;
+          const where = ("lowerPct" in r ? describePctRange(r) : `between ${r.lower.toLocaleString("en-US")} and ${r.upper.toLocaleString("en-US")} ${a.pool.quoteSymbol}`) + (a.shape === "bid_ask" ? ", weighted toward the edges (bid-ask)" : "");
           const ex = [exitPhrase(a.exits, ["+", "−"]), a.outOfRangeMinutes != null ? `withdraw if the price stays outside the range for ${a.outOfRangeMinutes >= 60 && a.outOfRangeMinutes % 60 === 0 ? `${a.outOfRangeMinutes / 60} h` : `${a.outOfRangeMinutes} min`}` : ""].filter(Boolean).join("; ");
           return { text: `Provide ${sizePhrase(a)} of liquidity to the ${a.pool.symbol} pool on Meteora, ${where}${ex ? `; ${ex}` : ""}`, tone: "long", icon: instrumentIcon(a.pool) };
         }

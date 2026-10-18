@@ -36,7 +36,7 @@ export interface OrderRequest {
    * Liquidity pools: where the range sits and what the pool and its quote token are worth now;
    * closes name the on-chain position to withdraw from.
    */
-  lp?: { lower: number; upper: number; poolPrice: number; quoteUsd: number; position?: string };
+  lp?: { lower: number; upper: number; poolPrice: number; quoteUsd: number; position?: string; shape?: "spot" | "bid_ask" };
 }
 
 export type ExecutionResult =

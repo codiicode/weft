@@ -143,16 +143,35 @@ export const CopyAction = z.object({
 });
 export type CopyAction = z.infer<typeof CopyAction>;
 
-/** Where a liquidity position's range sits: percent below/above the price when it opens, or fixed prices. */
+/**
+ * Where a liquidity position's range sits: percent below/above the price when it opens, or fixed
+ * prices. A range can sit entirely on one side of the price (one-sided): `upperPct` 0 or negative
+ * puts it all below the price, so only the quote token goes in (e.g. only SOL in a TOKEN-SOL pool);
+ * `lowerPct` 0 or negative puts it all above, so only the base token goes in.
+ */
 export const LpRange = z.union([
-  z.object({ lowerPct: z.number().positive().max(99), upperPct: z.number().positive().max(1000) }).describe("Percent below and above the pool price at the moment it opens"),
-  z.object({ lower: z.number().positive(), upper: z.number().positive() }).describe("Fixed prices, in the pool's quote token"),
+  z
+    .object({ lowerPct: z.number().min(-1000).max(99), upperPct: z.number().min(-99).max(1000) })
+    .refine((r) => r.lowerPct + r.upperPct > 0, { message: "the range's lower end must be below its upper end" })
+    .describe("Percent below (lowerPct) and above (upperPct) the pool price at the moment it opens; upperPct ≤ 0 = one-sided below the price, lowerPct ≤ 0 = one-sided above"),
+  z.object({ lower: z.number().positive(), upper: z.number().positive() }).refine((r) => r.lower < r.upper, { message: "lower must be below upper" }).describe("Fixed prices, in the pool's quote token"),
 ]);
 export type LpRange = z.infer<typeof LpRange>;
 
+/** "from 20% below to 5% above the price"; one-sided too ("from 50% below to 10% below the price"). */
+export function describePctRange(r: { lowerPct: number; upperPct: number }): string {
+  const side = (pct: number, dir: "below" | "above") => (pct === 0 ? "the price" : pct > 0 ? `${pct}% ${dir}` : `${-pct}% ${dir === "below" ? "above" : "below"}`);
+  const hi = side(r.upperPct, "above");
+  return `from ${side(r.lowerPct, "below")} to ${hi}${hi === "the price" ? "" : " the price"}`;
+}
+
+/** How liquidity spreads over the range: evenly ("spot"), or more of it further from the price ("bid_ask"). */
+export const LpShape = z.enum(["spot", "bid_ask"]);
+export type LpShape = z.infer<typeof LpShape>;
+
 /**
- * Provide liquidity to a pool when a trigger fires: deposit `size` into `pool`, spread evenly over
- * `range` (DLMM "spot" shape). It earns the pool's trading fees while the price is in range. Exits
+ * Provide liquidity to a pool when a trigger fires: deposit `size` into `pool`, spread over `range`
+ * in `shape` (evenly by default). It earns the pool's trading fees while the price is in range. Exits
  * work on the position's value (pct / positionPct levels: % gain or loss on what went in) and time;
  * `outOfRangeMinutes` closes it once the price has been outside the range that long. Closing
  * withdraws everything and settles to the quote token.
@@ -163,7 +182,7 @@ export const LiquidityAction = z.object({
   pool: LpInstrument,
   size: Size.describe("usd or pct_equity: what goes into the pool"),
   range: LpRange,
-  shape: z.enum(["spot"]).default("spot").describe("How liquidity spreads over the range; spot = evenly"),
+  shape: LpShape.default("spot").describe("How liquidity spreads over the range: spot = evenly; bid_ask = little near the price, more toward the edges (buys more the further the price falls into it, sells more the further it rises)"),
   exits: Exits.prefault({}),
   outOfRangeMinutes: z.number().positive().max(100_000).optional().describe("Close once the price has been outside the range this long"),
   reentry: z.enum(["never", "after_close"]).default("never"),

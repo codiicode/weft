@@ -23,6 +23,7 @@ import { errMsg, withTimeout, type Executor } from "./executor.ts";
 import { dirOf, exitReason, exposureOf, groupExitReason, groupUnitValue, marginOf, markPosition, unrealizedOf } from "./positions.ts";
 import { computeFee, type FeeSchedule } from "./fees.ts";
 import { lpBaseShare, lpValueRatio, resolveRange } from "./lp.ts";
+import { describePctRange } from "@weft/strategy";
 import { DEFAULT_MAINTENANCE_MARGIN, fundingPayment, HOUR_MS, liquidationCrossed, liquidationPrice, maintenanceMarginRate, needsLiquidationPrice } from "./perps.ts";
 
 /** Everything a tick needs from the outside world. Injected; the tick itself does no I/O. */
@@ -926,11 +927,12 @@ async function executeLiquidity(s: Session, i: OpenIntent, pool: Extract<Instrum
   }
   if (!(q.price > 0) || !q.lp) return retryLater(s, i, `no price for the ${pool.symbol} pool`);
   const { lower, upper } = resolveRange(i.lp!.range, q.price);
+  const shape = i.lp!.shape ?? "spot";
   if (!(lower > 0 && upper > lower)) return reject(s, i, `the range ${fmtPx(lower)}–${fmtPx(upper)} isn’t valid`);
   let res;
   try {
     res = await s.deps.executor.execute(
-      { clientId: i.key, instrument: pool, instrumentKey: i.instrumentKey, side: "buy", phase: "open", notionalUsd: usd, order: i.order, deploymentId: s.deployment.id, leverage: 1, lp: { lower, upper, poolPrice: q.price, quoteUsd: q.lp.quoteUsd } },
+      { clientId: i.key, instrument: pool, instrumentKey: i.instrumentKey, side: "buy", phase: "open", notionalUsd: usd, order: i.order, deploymentId: s.deployment.id, leverage: 1, lp: { lower, upper, poolPrice: q.price, quoteUsd: q.lp.quoteUsd, shape } },
       s.now
     );
   } catch (e) {
@@ -951,6 +953,7 @@ async function executeLiquidity(s: Session, i: OpenIntent, pool: Extract<Instrum
       poolPrice: q.price,
       lower,
       upper,
+      ...(shape !== "spot" ? { shape } : {}),
       entryQuoteUsd: q.lp.quoteUsd,
       quoteUsd: q.lp.quoteUsd,
       ...(res.lp?.position ? { position: res.lp.position } : {}),
@@ -958,9 +961,9 @@ async function executeLiquidity(s: Session, i: OpenIntent, pool: Extract<Instrum
       accruedAt: s.now,
       outSince: inRange ? null : s.now,
       ...(i.lp!.outOfRangeMinutes != null ? { outOfRangeMinutes: i.lp!.outOfRangeMinutes } : {}),
-      baseShare: lpBaseShare(q.price, lower, upper),
+      baseShare: lpBaseShare(q.price, lower, upper, shape),
     },
-    message: `Added ${fmtUsd(res.qty)} of liquidity to the ${pool.symbol} pool between ${fmtPx(lower)} and ${fmtPx(upper)} ${pool.quoteSymbol} (price ${fmtPx(q.price)})`,
+    message: `Added ${fmtUsd(res.qty)} of liquidity to the ${pool.symbol} pool between ${fmtPx(lower)} and ${fmtPx(upper)} ${pool.quoteSymbol}${shape === "bid_ask" ? ", bid-ask" : ""} (price ${fmtPx(q.price)})`,
   });
 }
 
@@ -972,14 +975,14 @@ async function executeLiquidity(s: Session, i: OpenIntent, pool: Extract<Instrum
 function markLiquidity(s: Session, p: Position, q: Quote): boolean {
   const lp = p.lp;
   if (!lp || !q.lp || !(q.price > 0) || !(q.lp.quoteUsd > 0)) return false;
-  const ratio = lpValueRatio(lp.entryPoolPrice, q.price, lp.lower, lp.upper) * (q.lp.quoteUsd / lp.entryQuoteUsd);
+  const ratio = lpValueRatio(lp.entryPoolPrice, q.price, lp.lower, lp.upper, lp.shape) * (q.lp.quoteUsd / lp.entryQuoteUsd);
   const inRange = q.price >= lp.lower && q.price <= lp.upper;
   const days = Math.max(0, s.now - lp.accruedAt) / 86_400_000;
   if (inRange && days > 0) lp.feesUsd += p.qty * ratio * q.lp.feePerDay * days;
   lp.accruedAt = s.now;
   lp.poolPrice = q.price;
   lp.quoteUsd = q.lp.quoteUsd;
-  lp.baseShare = lpBaseShare(q.price, lp.lower, lp.upper);
+  lp.baseShare = lpBaseShare(q.price, lp.lower, lp.upper, lp.shape, lp.entryPoolPrice);
   lp.outSince = inRange ? null : (lp.outSince ?? s.now);
   markPosition(p, ratio + lp.feesUsd / p.qty, s.now);
   return true;
@@ -1105,7 +1108,7 @@ function describeIntent(s: Session, i: Intent): string {
     case "open": {
       if (i.instrument.kind === "lp") {
         const r = i.lp?.range;
-        const where = !r ? "" : "lowerPct" in r ? ` from −${r.lowerPct}% to +${r.upperPct}% around the price` : ` between ${r.lower} and ${r.upper} ${i.instrument.quoteSymbol}`;
+        const where = !r ? "" : "lowerPct" in r ? ` ${describePctRange(r)}` : ` between ${r.lower} and ${r.upper} ${i.instrument.quoteSymbol}`;
         return `Add ${sizeText(i.size)} of liquidity to the ${i.instrument.symbol} pool${where}`;
       }
       const longOnly = i.instrument.kind === "token" || i.instrument.kind === "outcome" || i.instrument.kind === "spot";

@@ -2,6 +2,7 @@ import type { Strategy } from "./strategy.ts";
 import type { Signal } from "./signals.ts";
 import { clauses, exprRefs } from "./expr.ts";
 import { instrumentLabel } from "./instruments.ts";
+import { describePctRange } from "./actions.ts";
 
 /**
  * Projects a strategy into the node/edge shape the UI renders.
@@ -69,7 +70,7 @@ export function toGraph(s: Strategy): GraphView {
         nodes.push({ id: a.id, kind: "action", side: "notify", title: a.label ?? "Notify", subtitle: a.channel });
         break;
       case "liquidity": {
-        const r = "lowerPct" in a.range ? `−${a.range.lowerPct}% to +${a.range.upperPct}%` : `${a.range.lower} to ${a.range.upper}`;
+        const r = "lowerPct" in a.range ? describePctRange(a.range).replace(/^from /, "").replace(/ the price$/, "") : `${a.range.lower} to ${a.range.upper}`;
         nodes.push({ id: a.id, kind: "action", side: "long", title: a.label ?? `${a.pool.symbol} liquidity`, subtitle: `range ${r}` });
         break;
       }

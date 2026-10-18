@@ -103,3 +103,36 @@ describe("liquidity positions (practice)", () => {
     expect((await engine.getFills(d.id)).some((f) => f.reason === "stop_loss")).toBe(true);
   });
 });
+
+describe("one-sided ranges and the bid-ask shape", () => {
+  it("is all quote when the range sits below the price, and buys base on the way down", () => {
+    expect(lpBaseShare(100, 50, 95)).toBe(0);
+    expect(lpValueRatio(100, 120, 50, 95)).toBeCloseTo(1, 12); // above the range: nothing changes
+    expect(lpBaseShare(70, 50, 95)).toBeGreaterThan(0);
+    expect(lpBaseShare(40, 50, 95)).toBe(1);
+  });
+
+  it("bid-ask is worth what went in at the opening price, half each side for a range centred on it", () => {
+    expect(lpValueRatio(100, 100, 80, 125, "bid_ask")).toBeCloseTo(1, 12);
+    expect(lpBaseShare(100, 80, 125, "bid_ask", 100)).toBeCloseTo(0.5, 6);
+  });
+
+  it("bid-ask buys more of the base token low down than an even spread does", () => {
+    // all the way through a one-sided range below the price: everything ends up in base
+    const units = (shape: "spot" | "bid_ask") => lpValueRatio(100, 40, 50, 95, shape) / 40;
+    expect(units("bid_ask")).toBeGreaterThan(units("spot"));
+    // halfway down, an even spread has already bought more than bid-ask (which waits for lower prices)
+    expect(lpBaseShare(75, 50, 95, "bid_ask", 100)).toBeLessThan(lpBaseShare(75, 50, 95, "spot"));
+  });
+
+  it("books a one-sided bid-ask position (practice)", async () => {
+    const { at, engine, d } = await opened({ range: { lowerPct: 40, upperPct: 0 }, shape: "bid_ask" });
+    let s = (await engine.getSnapshot(d.id))!;
+    expect(s.positions[0]!.lp).toMatchObject({ lower: 60, upper: 100, shape: "bid_ask", baseShare: 0 });
+    s = await at(80);
+    expect(s.positions[0]!.lp!.baseShare).toBeGreaterThan(0);
+    expect(s.positions[0]!.markPrice).toBeCloseTo(lpValueRatio(100, 80, 60, 100, "bid_ask") + s.positions[0]!.lp!.feesUsd / 1_000, 9);
+    const events = await engine.getEvents(d.id);
+    expect(events.some((e) => /between 60 and 100 USDC, bid-ask/.test(e.message))).toBe(true);
+  });
+});

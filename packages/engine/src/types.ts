@@ -75,6 +75,8 @@ export interface LpState {
   poolPrice: number;
   lower: number;
   upper: number;
+  /** How the liquidity spreads over the range (default spot: evenly). */
+  shape?: "spot" | "bid_ask";
   /** USD price of the quote token when it opened (the position's value moves with it too), and now. */
   entryQuoteUsd: number;
   quoteUsd?: number;
