@@ -264,6 +264,21 @@ export class Accounts {
     this.db.prepare(`UPDATE live_accounts SET ${col} = ?, updated_at = ? WHERE user_id = ?`).run(at, at, userId);
   }
 
+  /** Counts for the sign-up → live funnel (no names), plus the addresses to check balances on. */
+  funnel(now = Date.now()) {
+    const n = (sql: string, ...args: (string | number)[]) => (this.db.prepare(sql).get(...args) as { n: number }).n;
+    return {
+      users: n("SELECT COUNT(*) AS n FROM users"),
+      seen7d: n("SELECT COUNT(*) AS n FROM users WHERE last_seen_at > ?", now - 7 * 86_400_000),
+      drafted: n("SELECT COUNT(DISTINCT user_id) AS n FROM ai_usage"),
+      hlLinked: n("SELECT COUNT(*) AS n FROM live_accounts WHERE network = 'mainnet'"),
+      hlApproved: n("SELECT COUNT(*) AS n FROM live_accounts WHERE network = 'mainnet' AND agent_approved_at IS NOT NULL"),
+      solWallets: n("SELECT COUNT(*) AS n FROM solana_accounts"),
+      hlAddresses: (this.db.prepare("SELECT hl_address AS a FROM live_accounts WHERE network = 'mainnet'").all() as { a: string }[]).map((r) => r.a),
+      solAddresses: (this.db.prepare("SELECT address AS a FROM solana_accounts").all() as { a: string }[]).map((r) => r.a),
+    };
+  }
+
   close() {
     this.db.close();
   }

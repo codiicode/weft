@@ -532,7 +532,31 @@ async function logUsage() {
       `started last 24h ${runs.filter((d) => d.createdAt > day).length}, last 7d ${runs.filter((d) => d.createdAt > week).length}; fills ${fills} (live ${liveFills})`,
   );
 }
+// Where people stop on the way to trading live: counts only. Balances are read from the chains.
+async function logFunnel() {
+  const f = accounts.funnel();
+  const runs = await engine.listDeployments();
+  const who = (pred: (d: (typeof runs)[number]) => boolean) => new Set(runs.filter(pred).map((d) => accounts.deploymentOwner(d.id)).filter(Boolean)).size;
+  const hlFunded = (
+    await Promise.all(
+      f.hlAddresses.map(async (a) => {
+        const post = async (body: unknown) => (await fetch("https://api.hyperliquid.xyz/info", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(body), signal: AbortSignal.timeout(10_000) })).json();
+        const [perp, spot] = await Promise.all([post({ type: "clearinghouseState", user: a }).catch(() => null), post({ type: "spotClearinghouseState", user: a }).catch(() => null)]);
+        const usdc = Number((spot as { balances?: { coin: string; total: string }[] } | null)?.balances?.find((b) => b.coin === "USDC")?.total ?? 0);
+        return Number((perp as { marginSummary?: { accountValue?: string } } | null)?.marginSummary?.accountValue ?? 0) + usdc >= 1;
+      }),
+    )
+  ).filter(Boolean).length;
+  const conn = new Connection(solCfg.rpcUrl, "confirmed");
+  const solFunded = (await Promise.all(f.solAddresses.map(async (a) => (await conn.getBalance(new PublicKey(a)).catch(() => 0)) >= 0.01e9))).filter(Boolean).length;
+  console.log(
+    `funnel: ${f.users} signed up (${f.seen7d} seen in 7d) → ${f.drafted} drafted with AI → ${who(() => true)} started a run (${who((d) => d.mode === "paper" && !d.alertsOnly)} practice) → ` +
+      `Hyperliquid linked ${f.hlLinked}, approved ${f.hlApproved}, funded ${hlFunded} · Solana wallet ${f.solWallets}, funded ${solFunded} → ${who((d) => d.mode === "live")} ever live, ${who((d) => d.mode === "live" && (d.status === "running" || d.status === "paused"))} live now`,
+  );
+}
 setTimeout(() => void logUsage().catch((e) => console.warn(`usage: ${(e as Error).message}`)), 20_000).unref();
+setTimeout(() => void logFunnel().catch((e) => console.warn(`funnel: ${(e as Error).message}`)), 25_000).unref();
+setInterval(() => void logFunnel().catch(() => {}), 3_600_000).unref();
 setInterval(() => void logUsage().catch(() => {}), 3_600_000).unref();
 
 // Live runs: blocked and failed orders go to the server log too (run id prefix and reason only), so
