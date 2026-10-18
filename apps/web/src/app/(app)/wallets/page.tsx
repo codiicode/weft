@@ -4,6 +4,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { SolanaSetup } from "@/components/app/SolanaSetup";
 import { HyperliquidWallet } from "@/components/app/HyperliquidWallet";
 import { HyperliquidWithdraw } from "@/components/app/Withdraw";
+import { PapertradeSetup } from "@/components/app/PapertradeSetup";
 import { usePrivy, useWallets } from "@privy-io/react-auth";
 import { api, ApiError, type LiveStatus } from "@/lib/api";
 import { useAuth, shortAddress } from "@/lib/auth";
@@ -265,7 +266,8 @@ function OwnWallet({ s, refresh }: { s: LiveStatus; refresh: () => Promise<unkno
 function Live() {
   const auth = useAuth();
   const router = useRouter();
-  const tab = useSearchParams().get("venue") === "solana" ? "solana" : "hyperliquid";
+  const venue = useSearchParams().get("venue");
+  const tab = venue === "solana" ? "solana" : venue === "papertrade" ? "papertrade" : "hyperliquid";
   return (
     <>
       <PageHeader title="Wallets" sub="Weft trades from wallets you own. It can place trades for you, but it can never withdraw." />
@@ -281,13 +283,14 @@ function Live() {
                 [
                   ["hyperliquid", "Hyperliquid", "Perps and stocks"],
                   ["solana", "Solana", "Tokens"],
+                  ["papertrade", "Papertrade", "BTC and ETH to 1000×"],
                 ] as const
               ).map(([id, label, sub]) => (
                 <button
                   key={id}
                   role="tab"
                   aria-selected={tab === id}
-                  onClick={() => router.replace(`/wallets${id === "solana" ? "?venue=solana" : ""}`)}
+                  onClick={() => router.replace(`/wallets${id === "hyperliquid" ? "" : `?venue=${id}`}`)}
                   className={`rounded-[8px] px-4 py-2 text-left transition-colors ${tab === id ? "bg-[var(--raised)] shadow-[0_1px_2px_rgba(0,0,0,0.08)]" : "hover:bg-paper-2"}`}
                 >
                   <div className={`text-[14px] ${tab === id ? "font-medium text-ink" : "text-ink-2"}`}>{label}</div>
@@ -295,7 +298,7 @@ function Live() {
                 </button>
               ))}
             </div>
-            {tab === "solana" ? <SolanaSetup /> : <Hyperliquid />}
+            {tab === "solana" ? <SolanaSetup /> : tab === "papertrade" ? <PapertradeSetup /> : <Hyperliquid />}
           </>
         )}
         <p className="mt-6 text-[12.5px] text-faint">Not financial advice. Leverage can lose more than you expect, and tokens can go to zero.</p>

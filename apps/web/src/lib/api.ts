@@ -461,6 +461,11 @@ export const api = {
   aiKeys: () => req<{ keys: { id: string; label: string; createdAt: number }[] }>("/me/ai-keys"),
   createAiKey: (label: string) => req<{ key: string; id: string; label: string; createdAt: number }>("/me/ai-keys", { method: "POST", json: { label } }),
   deleteAiKey: (id: string) => req<{ ok: true }>(`/me/ai-keys/${encodeURIComponent(id)}`, { method: "DELETE" }),
+  /** Papertrade: account status, the registration to sign, and the signed registration. */
+  papertradeAccount: () =>
+    req<{ enabled: boolean; live?: boolean; wallet?: string | null; sessionKey?: string | null; registered?: boolean; sessionExpiresAt?: number | null; depositAddress?: string | null; availableUsd?: number | null; openPositions?: number }>("/papertrade/account"),
+  papertradeRegistration: () => req<{ domain: Record<string, unknown>; types: Record<string, unknown>; primaryType: string; message: Record<string, string> }>("/papertrade/registration", { method: "POST" }),
+  papertradeRegister: (signed: Record<string, unknown>) => req<{ intentId: string }>("/papertrade/register", { method: "POST", json: { signed } }),
   /** A strategy the X bot drafted for someone who tagged @weftfinance. */
   draft: (id: string) => req<{ id: string; thesis: string; strategy: Strategy }>(`/drafts/${encodeURIComponent(id)}`),
   /** A shared result's strategy, to run it yourself. */

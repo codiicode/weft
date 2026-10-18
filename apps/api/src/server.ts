@@ -32,6 +32,8 @@ import { Reconciler } from "./live/reconcile.ts";
 import { TelegramBot } from "./lib/telegram.ts";
 import { createApp } from "./app.ts";
 import { XBot } from "./social/xbot.ts";
+import { PapertradeAccounts } from "./live/papertrade.ts";
+import { PapertradeExecutor, type Executor } from "@weft/execution";
 import { generateStrategy } from "./ai/generate.ts";
 import { randomBytes } from "node:crypto";
 import { claudePostMatcher } from "./ai/post-matcher.ts";
@@ -67,6 +69,32 @@ const agents = process.env.PRIVY_APP_ID && process.env.PRIVY_APP_SECRET ? new Ag
 const live = process.env.PRIVY_APP_ID ? new LiveService(liveCfg, accounts, agents) : null;
 const deposits = live ? new HlDeposits(depositConfigFromEnv(liveCfg.network)) : null;
 const liveRouter = live ? new LiveRouterExecutor(live, (id) => accounts.deploymentOwner(id)) : null;
+// Papertrade (synthetic BTC/ETH perps on HyperEVM) runs in the Hyperliquid live engine: same wallet.
+// Accounts (session keys, registration, deposit address) exist whenever Privy is configured; orders
+// only go out with WEFT_PAPERTRADE_LIVE=1.
+const papertrade = process.env.PRIVY_APP_ID && process.env.PRIVY_APP_SECRET ? new PapertradeAccounts({ appId: process.env.PRIVY_APP_ID, appSecret: process.env.PRIVY_APP_SECRET, accounts }) : null;
+const papertradeLive = Boolean(papertrade) && process.env.WEFT_PAPERTRADE_LIVE === "1";
+const papertradeExec = papertrade
+  ? new PapertradeExecutor({
+      account: async (deploymentId) => {
+        const owner = accounts.deploymentOwner(deploymentId);
+        return owner ? papertrade.account(owner) : null;
+      },
+      sentStore: { get: (k) => accounts.kvGet(`pt_sent:${k}`) || null, set: (k, v) => accounts.kvSet(`pt_sent:${k}`, v) },
+      log: (m) => console.log(`  ${m}`),
+    })
+  : null;
+const liveExecutor: Executor | null = liveRouter
+  ? {
+      mode: "live",
+      execute: (req, now) =>
+        req.instrument.kind !== "synth"
+          ? liveRouter.execute(req, now)
+          : papertradeLive && papertradeExec
+            ? papertradeExec.execute(req)
+            : Promise.resolve({ status: "rejected", reason: "Papertrade live trading is switched off" }),
+    }
+  : null;
 const liveEngine = live
   ? createEngine({
       // One store per network: testnet runs can never wake up on mainnet.
@@ -75,7 +103,7 @@ const liveEngine = live
       signalProviders: venues.signalProviders,
       tokenFacts: venues.tokenFacts,
       copy: venues.copyFeeds,
-      executor: liveRouter!,
+      executor: liveExecutor!,
     })
   : null;
 // Real stop-loss / take-profit trigger orders on Hyperliquid for every live perp position, so a
@@ -345,12 +373,33 @@ if (xbotMode && process.env.TWITTERAPI_IO_KEY) {
   console.log(`  x bot: ${mode}${xbotMode === "live" && !xKeys ? " (X_API_* keys missing, so nothing is posted)" : ""}`);
 }
 
+// Papertrade busts happen on chain: book any live Papertrade position that has settled there
+// (closing it through the executor finds the settlement and sends nothing).
+if (liveEngine && papertradeLive)
+  setInterval(async () => {
+    try {
+      for (const d of await liveEngine.listDeployments()) {
+        if (d.status !== "running" && d.status !== "paused") continue;
+        const snap = await liveEngine.getSnapshot(d.id);
+        const synth = (snap?.positions ?? []).filter((p) => p.instrument.kind === "synth" && p.venueId);
+        if (!synth.length || !papertradeExec) continue;
+        // Only positions Papertrade has already settled: closing those books the settlement and sends nothing.
+        const settled = await papertradeExec.settledIds(d.id);
+        for (const p of synth) if (settled.has(p.venueId!)) await liveEngine.closePosition?.(d.id, p.id, 1).catch(() => false);
+      }
+    } catch (e) {
+      console.warn(`papertrade reconcile: ${(e as Error).message.slice(0, 160)}`);
+    }
+  }, 5 * 60_000).unref();
+
 const app = createApp({
   holders,
   rewards,
   treasury: treasury ?? undefined,
   heliusWebhook: heliusWebhook ?? undefined,
   topTraders: createTopTraders(),
+  papertrade: papertrade ?? undefined,
+  papertradeLive,
   allowPaper,
   practiceBudgetUsd,
   tape: tape ?? undefined,

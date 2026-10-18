@@ -280,6 +280,7 @@ export class LiveService {
       if (a.type !== "open") continue;
       if (a.order.type === "limit") throw new Error("limit orders can't trade live yet; use market orders with a slippage limit");
       const k = a.instrument.kind;
+      if (k === "synth") continue; // Papertrade: its own account and limits (checked by the API)
       if (k === "outcome" && a.instrument.venue !== "hyperliquid") throw new Error("this prediction market can't trade live yet (Hyperliquid's own markets only)");
       if (k !== "perp" && k !== "spot" && k !== "outcome") throw new Error(`${k} instruments can't trade on Hyperliquid`);
       if (a.leverage > this.cfg.maxLeverage) throw new Error(`live leverage is capped at ${this.cfg.maxLeverage}×`);

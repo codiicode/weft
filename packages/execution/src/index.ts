@@ -24,3 +24,5 @@ export * from "./solana/signer.ts";
 export * from "./solana/executor.ts";
 export * from "./solana/dlmm.ts";
 export { DLMM_IX } from "./solana/dlmm-ix.ts";
+export * from "./papertrade/intents.ts";
+export { PapertradeExecutor, PapertradeError, type PapertradeAccount, type PapertradeExecutorConfig } from "./papertrade/executor.ts";

@@ -56,6 +56,8 @@ export interface AppDeps {
   topTraders?: () => Promise<TopTrader[]>;
   /** Papertrade live trading is on (WEFT_PAPERTRADE_LIVE=1, with its executor wired). */
   papertradeLive?: boolean;
+  /** Papertrade accounts: session keys, registration, deposit address, status. */
+  papertrade?: import("./live/papertrade.ts").PapertradeAccounts;
   /** Helius pushes watched wallets' transactions here (wallet signals and copy trading react at once). */
   heliusWebhook?: HeliusWebhook;
   catalog: Catalog;
@@ -407,6 +409,36 @@ export function createApp(deps: AppDeps) {
       if (draftPngs.size > 500) draftPngs.delete(draftPngs.keys().next().value!);
     }
     return c.body(new Uint8Array(png), 200, { "content-type": "image/png", "cache-control": "public, max-age=86400, immutable" });
+  });
+
+  /* ---------------- Papertrade accounts ---------------- */
+
+  /** The signed-in user's Papertrade account: wallet, session key, deposit address, balance. */
+  app.get("/papertrade/account", async (c) => {
+    const user = await requireUser(c);
+    if (!deps.papertrade) return c.json({ enabled: false });
+    return c.json({ enabled: true, live: Boolean(deps.papertradeLive), ...(await deps.papertrade.status(user.id)) });
+  });
+  /** The RegisterSessionKey message for the user's wallet to sign (it creates the session key if needed). */
+  app.post("/papertrade/registration", async (c) => {
+    const user = await requireUser(c);
+    if (!deps.papertrade) return c.json({ error: "Papertrade isn’t set up on this server" }, 503);
+    try {
+      return c.json(await deps.papertrade.registration(user.id));
+    } catch (e) {
+      return c.json({ error: (e as Error).message }, 409);
+    }
+  });
+  /** The signed registration: checked here, then sent to Papertrade. */
+  app.post("/papertrade/register", async (c) => {
+    const user = await requireUser(c);
+    if (!deps.papertrade) return c.json({ error: "Papertrade isn’t set up on this server" }, 503);
+    const { signed } = z.object({ signed: z.record(z.string(), z.unknown()) }).parse(await c.req.json());
+    try {
+      return c.json(await deps.papertrade.register(user.id, signed as never));
+    } catch (e) {
+      return c.json({ error: (e as Error).message }, 400);
+    }
   });
 
   /* ---------------- AI assistants: personal keys and the MCP endpoint ---------------- */
@@ -944,6 +976,16 @@ export function createApp(deps: AppDeps) {
         const open = total != null ? await openLive() : 0;
         if (total != null && open + body.allocationUsd > total)
           return c.json({ error: `you already have $${open.toLocaleString()} live; the limit across all live runs is $${total.toLocaleString()}` }, 409);
+        return create();
+      }
+      // Papertrade only: its own account (a registered session key and money in it), not Hyperliquid's agent.
+      const opens = v.strategy.actions.filter((a) => a.type === "open");
+      if (opens.length && opens.every((a) => a.type === "open" && a.instrument.kind === "synth") && v.strategy.actions.every((a) => a.type === "open" || a.type === "close" || a.type === "notify")) {
+        if (!deps.papertrade) return c.json({ error: "Papertrade isn’t set up on this server" }, 501);
+        const st = await deps.papertrade.status(user.id);
+        if (!st.wallet) return c.json({ error: "Set up your Hyperliquid wallet in Weft first: Papertrade uses the same wallet." }, 409);
+        if (!st.registered) return c.json({ error: "Connect Papertrade under Wallets first (one signature)." }, 409);
+        if (st.availableUsd != null && st.availableUsd < 10) return c.json({ error: "Your Papertrade account is empty: deposit USDC under Wallets first." }, 409);
         return create();
       }
       if (!deps.live) return c.json({ error: "live trading is not configured on this server" }, 501);
