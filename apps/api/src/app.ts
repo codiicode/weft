@@ -56,6 +56,8 @@ export interface AppDeps {
   topTraders?: () => Promise<TopTrader[]>;
   /** Papertrade live trading is on (WEFT_PAPERTRADE_LIVE=1, with its executor wired). */
   papertradeLive?: boolean;
+  /** Money in and out of the Hyperliquid account from any chain, through Rift. */
+  rift?: import("./live/rift.ts").RiftFunding;
   /** Papertrade accounts: session keys, registration, deposit address, status. */
   papertrade?: import("./live/papertrade.ts").PapertradeAccounts;
   /** Helius pushes watched wallets' transactions here (wallet signals and copy trading react at once). */
@@ -484,6 +486,56 @@ export function createApp(deps: AppDeps) {
     } catch (e) {
       return c.json({ error: (e as Error).message }, 422);
     }
+  });
+
+  /* ---------------- Rift: fund or withdraw the Hyperliquid account from any chain ---------------- */
+
+  const riftOr = (c: Context) => {
+    if (!deps.rift) throw new HTTPException(503, { message: "deposits from other chains aren’t set up on this server" });
+    return deps.rift;
+  };
+  const riftTry = async <T,>(c: Context, fn: () => Promise<T>) => {
+    try {
+      return c.json(await fn() as never);
+    } catch (e) {
+      if (e instanceof HTTPException) throw e;
+      return c.json({ error: (e as Error).message }, 422);
+    }
+  };
+  app.get("/rift/assets", async (c) => c.json({ assets: (await import("./live/rift.ts")).RIFT_ASSETS }));
+  app.post("/rift/quote", async (c) => {
+    const user = await requireUser(c);
+    const b = z.object({ kind: z.enum(["in", "out"]), asset: z.string().max(40), amount: z.number().positive() }).parse(await c.req.json());
+    return riftTry(c, () => riftOr(c).quote(user.id, b.kind, b.asset, b.amount));
+  });
+  app.post("/rift/deposit", async (c) => {
+    const user = await requireUser(c);
+    const { quoteId } = z.object({ quoteId: z.string().uuid() }).parse(await c.req.json());
+    return riftTry(c, () => riftOr(c).depositOrder(user.id, quoteId));
+  });
+  app.post("/rift/withdraw", async (c) => {
+    const user = await requireUser(c);
+    const b = z.object({ quoteId: z.string().uuid(), toAddress: z.string().min(20).max(100), signatureChainId: z.string().regex(/^0x[0-9a-fA-F]+$/) }).parse(await c.req.json());
+    return riftTry(c, () => riftOr(c).withdrawOrder(user.id, b.quoteId, b.toAddress, b.signatureChainId));
+  });
+  app.post("/rift/withdraw/submit", async (c) => {
+    const user = await requireUser(c);
+    const { signatures } = z.object({ signatures: z.array(z.string().regex(/^0x[0-9a-fA-F]{130}$/)).min(1).max(3) }).parse(await c.req.json());
+    return riftTry(c, () => riftOr(c).submitWithdraw(user.id, signatures as `0x${string}`[]));
+  });
+  app.post("/rift/to-perps/prepare", async (c) => {
+    const user = await requireUser(c);
+    const b = z.object({ orderId: z.string().min(1).max(80), signatureChainId: z.string().regex(/^0x[0-9a-fA-F]+$/) }).parse(await c.req.json());
+    return riftTry(c, () => riftOr(c).prepareToPerps(user.id, b.orderId, b.signatureChainId));
+  });
+  app.post("/rift/to-perps/submit", async (c) => {
+    const user = await requireUser(c);
+    const { signatures } = z.object({ signatures: z.array(z.string().regex(/^0x[0-9a-fA-F]{130}$/)).min(1).max(1) }).parse(await c.req.json());
+    return riftTry(c, () => riftOr(c).submitToPerps(user.id, signatures as `0x${string}`[]));
+  });
+  app.get("/rift/orders", async (c) => {
+    const user = await requireUser(c);
+    return riftTry(c, async () => ({ orders: await riftOr(c).list(user.id) }));
   });
 
   /* ---------------- AI assistants: personal keys and the MCP endpoint ---------------- */

@@ -33,6 +33,7 @@ import { TelegramBot } from "./lib/telegram.ts";
 import { createApp } from "./app.ts";
 import { XBot } from "./social/xbot.ts";
 import { FastExits } from "./live/fast-exits.ts";
+import { RiftFunding } from "./live/rift.ts";
 import { PapertradeAccounts } from "./live/papertrade.ts";
 import { PapertradeExecutor, type Executor } from "@weft/execution";
 import { generateStrategy } from "./ai/generate.ts";
@@ -423,6 +424,7 @@ const app = createApp({
   topTraders: createTopTraders(),
   papertrade: papertrade ?? undefined,
   papertradeLive,
+  rift: new RiftFunding({ accounts, apiKey: process.env.RIFT_API_KEY ?? null }),
   allowPaper,
   practiceBudgetUsd,
   tape: tape ?? undefined,

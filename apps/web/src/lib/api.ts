@@ -6,6 +6,9 @@ import type { MarketListing, Product, Quote } from "@weft/venues";
  * Typed client for the Weft API (apps/api). Base URL from
  * NEXT_PUBLIC_API_URL, defaulting to the local dev server.
  */
+export interface RiftQuote { id: string; from: string; to: string; fromAmount: string; estimatedOut: string; expiresAt: string }
+export interface RiftOrder { id: string; kind: "in" | "out"; from: string; to: string; fromAmount: string; estimatedOut: string; depositAddress: string; depositDeadline: string | null; toAddress: string; status: string; createdAt: number; movedToPerps?: boolean }
+
 export const API_URL = (process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8787").replace(/\/$/, "");
 
 export class ApiError extends Error {
@@ -471,6 +474,16 @@ export const api = {
   papertradeDepositSubmit: (signatures: string[]) => req<{ ok: true; summary: string }>("/papertrade/deposit/submit", { method: "POST", json: { signatures } }),
   papertradeWithdrawPrepare: (amountUsd: number) => req<{ domain: Record<string, unknown>; types: Record<string, unknown>; primaryType: string; message: Record<string, string> }>("/papertrade/withdraw/prepare", { method: "POST", json: { amountUsd } }),
   papertradeWithdrawSubmit: (signed: Record<string, unknown>) => req<{ ok: true }>("/papertrade/withdraw/submit", { method: "POST", json: { signed } }),
+  /** Rift: money in and out of the Hyperliquid account from any chain. */
+  riftAssets: () => req<{ assets: { id: string; label: string; symbol: string; chain: string }[] }>("/rift/assets"),
+  riftQuote: (kind: "in" | "out", asset: string, amount: number) => req<RiftQuote>("/rift/quote", { method: "POST", json: { kind, asset, amount } }),
+  riftDeposit: (quoteId: string) => req<RiftOrder>("/rift/deposit", { method: "POST", json: { quoteId } }),
+  riftWithdraw: (quoteId: string, toAddress: string, signatureChainId: string) =>
+    req<{ order: RiftOrder; typedData: Record<string, unknown>[] }>("/rift/withdraw", { method: "POST", json: { quoteId, toAddress, signatureChainId } }),
+  riftWithdrawSubmit: (signatures: string[]) => req<{ ok: true }>("/rift/withdraw/submit", { method: "POST", json: { signatures } }),
+  riftToPerps: (orderId: string, signatureChainId: string) => req<{ amountUsd?: number; typedData: Record<string, unknown>[] }>("/rift/to-perps/prepare", { method: "POST", json: { orderId, signatureChainId } }),
+  riftToPerpsSubmit: (signatures: string[]) => req<{ ok: true }>("/rift/to-perps/submit", { method: "POST", json: { signatures } }),
+  riftOrders: () => req<{ orders: RiftOrder[] }>("/rift/orders"),
   /** A strategy the X bot drafted for someone who tagged @weftfinance. */
   draft: (id: string) => req<{ id: string; thesis: string; strategy: Strategy }>(`/drafts/${encodeURIComponent(id)}`),
   /** A shared result's strategy, to run it yourself. */

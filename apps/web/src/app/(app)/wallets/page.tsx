@@ -5,6 +5,7 @@ import { SolanaSetup } from "@/components/app/SolanaSetup";
 import { HyperliquidWallet } from "@/components/app/HyperliquidWallet";
 import { HyperliquidWithdraw } from "@/components/app/Withdraw";
 import { PapertradeSetup } from "@/components/app/PapertradeSetup";
+import { RiftFunding } from "@/components/app/RiftFunding";
 import { useTradingVenues } from "@/lib/trading";
 import { usePrivy, useWallets } from "@privy-io/react-auth";
 import { api, ApiError, type LiveStatus } from "@/lib/api";
@@ -64,6 +65,11 @@ function Hyperliquid() {
   return (
     <>
       {mode === "weft" ? <HyperliquidWallet status={s} onChange={status.refresh} autoLink={choice === "weft" || !linkedOwn} /> : <OwnWallet s={s} refresh={status.refresh} />}
+      {s.account && s.account.network === "mainnet" && s.config.network === "mainnet" && (
+        <div className="mt-4">
+          <RiftFunding status={s} />
+        </div>
+      )}
       {switcher}
     </>
   );
