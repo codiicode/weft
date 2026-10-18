@@ -33,6 +33,7 @@ import { TelegramBot } from "./lib/telegram.ts";
 import { createApp } from "./app.ts";
 import { DEFAULT_X_PREFS, XBot, type XPrefs } from "./social/xbot.ts";
 import { fomoLookup } from "./lib/fomo.ts";
+import { claudeTradeIntent } from "./ai/trade-intent.ts";
 import { setTraderLookup } from "./ai/generate.ts";
 import { FastExits } from "./live/fast-exits.ts";
 import { RiftFunding } from "./live/rift.ts";
@@ -443,6 +444,7 @@ if (xbotMode && process.env.TWITTERAPI_IO_KEY) {
     tell: async (userId, text) => {
       await telegram?.sendToUser(userId, text);
     },
+    isTradeIdea: claudeTradeIntent(),
     kvGet: (k) => accounts.kvGet(k),
     kvSet: (k, v) => accounts.kvSet(k, v),
     log: (m) => console.log(`  ${m}`),

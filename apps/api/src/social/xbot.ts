@@ -44,6 +44,8 @@ export interface XBotDeps {
   start?: (userId: string, strategy: Strategy, mode: "paper" | "live", allocationUsd: number) => Promise<{ id: string }>;
   /** A private note to the user (their Telegram, when linked). */
   tell?: (userId: string, text: string) => Promise<void>;
+  /** Does this post actually ask for a strategy? (Not a compliment, a question, chatter.) Default: yes. */
+  isTradeIdea?: (post: string, context: string | null) => Promise<boolean>;
   kvGet: (k: string) => string | null;
   kvSet: (k: string, v: string) => void;
   /** OAuth 1.0a credentials for @weftfinance (live mode). */
@@ -320,9 +322,11 @@ export class XBot {
         // "@weftfinance make this a strategy" under someone's call: the call is the idea. Asked for
         // outright, the AI judges the tweet (it may read like a view, not a trade, and still be one).
         let asked = false;
-        if (m.inReplyToId && (!looksLikeIdea(idea) || asksAboutParent(idea))) {
+        let context: string | null = null;
+        if (m.inReplyToId) {
           const p = await this.parent(m.inReplyToId).catch(() => null);
-          if (p && p.author !== this.d.handle.replace(/^@/, "").toLowerCase()) {
+          context = p?.text ?? null;
+          if (p && p.author !== this.d.handle.replace(/^@/, "").toLowerCase() && (!looksLikeIdea(idea) || asksAboutParent(idea))) {
             asked = asksAboutParent(idea);
             idea = thesisFromParent(p.text, idea);
           }
@@ -339,6 +343,15 @@ export class XBot {
         if (why) {
           this.d.log?.(`xbot: skipped ${m.id} from @${m.author} (${why})`);
           continue;
+        }
+        // The keyword check is only a coarse first pass ("for long time" has "long" in it): a small
+        // model decides whether the post really asks for a trade. Unsure or failing: no reply.
+        if (!asked && this.d.isTradeIdea) {
+          const yes = await this.d.isTradeIdea(ideaOf(m.text), context).catch(() => false);
+          if (!yes) {
+            this.d.log?.(`xbot: skipped ${m.id} from @${m.author} (not asking for a trade)`);
+            continue;
+          }
         }
         this.bump(`xbot:day:${day}`);
         this.bump(`xbot:author:${day}:${m.author}`);

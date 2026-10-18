@@ -119,6 +119,14 @@ describe("tweet a trade", () => {
     expect(planLine({ name: "x", triggers: [], actions: [] } as never)).toBeNull();
   });
 
+  it("says nothing to compliments under its own posts, even with a trade word in them", async () => {
+    const { b, posted, drafts } = linkedBot([T("1", "@weftfinance keep building. haven't seen real project for long time", { inReplyToId: "p" })], { parent: { text: "You can now tweet a trade.", author: "weftfinance" } });
+    (b as unknown as { d: { isTradeIdea: (p: string) => Promise<boolean> } }).d.isTradeIdea = async (p) => /\bif\b|\bbreaks?\b|\d+x\b/i.test(p);
+    expect(await b.run()).toEqual({ seen: 1, replied: 0 });
+    expect(posted).toEqual([]);
+    expect(drafts).toEqual([]);
+  });
+
   it("turns the tweet above into a strategy when asked to", async () => {
     expect(asksAboutParent("make this a strategy")).toBe(true);
     expect(asksAboutParent("turn that into a trade but 5x")).toBe(true);
