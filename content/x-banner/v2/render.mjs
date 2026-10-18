@@ -15,7 +15,7 @@ for (const v of which) {
   for (const [scale, suffix] of [[2, "@2x"], [1, ""]]) {
     const page = await browser.newPage();
     page.on("pageerror", (e) => console.error(`v${v}: ${e.message}`));
-    const [W, H] = ["safe", "split"].includes(v) ? [1080, 1080] : ["spurs", "w1", "w2", "w3", "fees", "start", "earnings", "news", "copy", "thesis", "edit", "macro", "publish", "copy2", "plan", "custody", "say", "mcp", "claim", "rift", "riftb", "papertrade", "practice", "mcp2", "night", "q357", "burns", "tweet1", "tweet2", "fomo", "anyone"].includes(v) ? [1600, 900] : v.startsWith("pfp") ? [1000, 1000] : [1500, 500];
+    const [W, H] = ["safe", "split"].includes(v) ? [1080, 1080] : ["spurs", "w1", "w2", "w3", "fees", "start", "earnings", "news", "copy", "thesis", "edit", "macro", "publish", "copy2", "plan", "custody", "say", "mcp", "claim", "rift", "riftb", "papertrade", "practice", "mcp2", "night", "q357", "burns", "tweet1", "tweet2", "fomo", "anyone", "noapp"].includes(v) ? [1600, 900] : v.startsWith("pfp") ? [1000, 1000] : [1500, 500];
     await page.setViewport({ width: W, height: H, deviceScaleFactor: scale });
     await page.goto(`file://${here}banners.html?v=${v}`, { waitUntil: "networkidle0" });
     await page.evaluate(() => window.ready);
