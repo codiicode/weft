@@ -7,6 +7,8 @@ import { useAuth } from "./auth";
 export type Venues = {
   hyperliquid: boolean;
   solana: boolean;
+  /** Liquidity in Meteora pools with real money. */
+  liquidity?: boolean;
   network: "testnet" | "mainnet" | null;
   /** Signal kinds Weft only simulates (no live feed): fine for alerts, never for real trades. */
   simulated?: string[];
@@ -68,5 +70,5 @@ export function hlFreeUsd(venue: HlVenue | null | undefined): number | null {
 
 /** True when a strategy opens positions in Solana tokens. */
 export function tradesSolana(s: Strategy | undefined): boolean {
-  return Boolean(s?.actions.some((a) => a.type === "open" && a.instrument.kind === "token"));
+  return Boolean(s?.actions.some((a) => (a.type === "open" && a.instrument.kind === "token") || a.type === "liquidity"));
 }

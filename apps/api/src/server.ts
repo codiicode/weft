@@ -110,6 +110,12 @@ const solanaEngine = solana
     })
   : null;
 const engine = new CompositeEngine(paperEngine, liveEngine, solanaEngine);
+// Live liquidity (WEFT_SOL_LP=1): make sure Weft's Solana signer may sign Meteora DLMM transactions.
+if (solana && solCfg.lpEnabled)
+  void solana
+    .ensureLpPolicy()
+    .then((m) => console.log(`  liquidity: ${m}`))
+    .catch((e) => console.warn(`  liquidity: couldn't update the signing policy: ${(e as Error).message.slice(0, 200)}`));
 
 // $WEFT holder discount on Weft's fees (inactive until WEFT_TOKEN_MINT and WEFT_HOLDER_MIN are set).
 // Holdings are read on-chain from wallets Privy says belong to the user.

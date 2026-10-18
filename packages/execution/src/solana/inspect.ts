@@ -6,6 +6,7 @@ import {
   type MessageAccountKeys,
 } from "@solana/web3.js";
 import { associatedTokenAddress, DEFAULT_ALLOWED_PROGRAMS, JUPITER_IX, PROGRAMS, WSOL_MINT } from "./programs.ts";
+import { DLMM_IX } from "./dlmm-ix.ts";
 
 /**
  * Defense-in-depth inspection of an (unsigned) swap transaction before it is handed to a signer.
@@ -48,6 +49,11 @@ export interface InspectOptions {
   maxPriorityFeeLamports?: number;
   /** Max lamports the user may move from their wallet into their own WSOL account. */
   maxWrapLamports?: bigint | number;
+  /**
+   * Liquidity: fresh position accounts Weft generated for this transaction, which sign it alongside
+   * the user. Nobody else may sign.
+   */
+  extraSigners?: readonly PublicKey[];
 }
 
 export interface InspectedInstruction {
@@ -130,7 +136,13 @@ export async function inspectSwapTransaction(tx: VersionedTransaction | Uint8Arr
   /* ---- signers ---- */
   const feePayer = msg.staticAccountKeys[0]!.toBase58();
   if (feePayer !== userB58) violations.push(`fee payer ${feePayer} is not the user ${userB58}`);
-  if (msg.header.numRequiredSignatures !== 1) violations.push(`transaction requires ${msg.header.numRequiredSignatures} signatures; only the user may sign`);
+  const extra = new Set((opts.extraSigners ?? []).map((k) => k.toBase58()));
+  if (msg.header.numRequiredSignatures !== 1 + extra.size)
+    violations.push(`transaction requires ${msg.header.numRequiredSignatures} signatures; only the user${extra.size ? " and its new position account" : ""} may sign`);
+  for (let i = 1; i < msg.header.numRequiredSignatures; i++) {
+    const k = msg.staticAccountKeys[i]?.toBase58();
+    if (!k || !extra.has(k)) violations.push(`signer ${k} is neither the user nor a new position account`);
+  }
 
   /* ---- what the user owns ---- */
   const ownedTokenAccounts = new Set<string>();
@@ -246,6 +258,31 @@ export async function inspectSwapTransaction(tx: VersionedTransaction | Uint8Arr
         if (!acc(2)?.equals(user)) v(`ATA wallet ${acc(2)?.toBase58()} is not the user`);
         if (acc(1) && acc(2) && acc(3) && acc(5) && !associatedTokenAddress(acc(2)!, acc(3)!, acc(5)!).equals(acc(1)!))
           v("ATA address does not match its derivation");
+      }
+    } else if (ix.programId.equals(PROGRAMS.memo)) {
+      name = "memo";
+    } else if (ix.programId.equals(PROGRAMS.meteoraDlmm)) {
+      // Liquidity: only position and liquidity instructions; the user owns the position, pays, and
+      // receives every token and lamport that comes out.
+      const disc = Buffer.from(ix.data.subarray(0, 8)).toString("hex");
+      const layout = DLMM_IX.get(disc);
+      name = layout ? `dlmm.${layout.name}` : `dlmm.unknown(${disc})`;
+      if (!layout || !layout.allowed) v("DLMM instruction not allowed (only positions, adding and removing liquidity, claiming fees)");
+      else {
+        const at = (n: string) => (layout.accounts.indexOf(n) >= 0 ? acc(layout.accounts.indexOf(n)) : undefined);
+        for (const n of ["owner", "sender", "payer", "rent_receiver", "user", "funder"]) {
+          const a = at(n);
+          if (a && !a.equals(user)) v(`${n} ${a.toBase58()} is not the user`);
+        }
+        for (const [tokenAcct, mintAcct] of [["user_token_x", "token_x_mint"], ["user_token_y", "token_y_mint"], ["user_token", "reward_mint"]] as const) {
+          const a = at(tokenAcct), m = at(mintAcct);
+          if (m) addAtasFor(m);
+          if (a && !(await isUserOwned(a))) v(`${tokenAcct} ${a.toBase58()} is not the user's`);
+        }
+        if (layout.name.startsWith("initialize_position")) {
+          const pos = at("position");
+          if (!pos || !extra.has(pos.toBase58())) v("a new position must be an account Weft just generated");
+        }
       }
     } else if (ix.programId.equals(PROGRAMS.jupiterV6)) {
       const disc = Buffer.from(ix.data.subarray(0, 8)).toString("hex");

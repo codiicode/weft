@@ -35,6 +35,11 @@ export interface OrderRequest {
   deploymentId?: string;
   /** Opens on perps: the leverage to set on the venue before trading. */
   leverage?: number;
+  /**
+   * Liquidity pools: where the range sits and what the pool and its quote token are worth now;
+   * closes name the on-chain position to withdraw from.
+   */
+  lp?: { lower: number; upper: number; poolPrice: number; quoteUsd: number; position?: string };
 }
 
 export type ExecutionResult =
@@ -47,6 +52,8 @@ export type ExecutionResult =
       markPrice: number;
       feeUsd: number;
       builderFeeUsd: number;
+      /** Liquidity opens on chain: the position account that holds it. */
+      lp?: { position: string };
       slippageBps: number;
     }
   | { status: "rejected" | "pending"; reason: string };

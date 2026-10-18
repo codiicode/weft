@@ -22,3 +22,5 @@ export * from "./solana/inspect.ts";
 export * from "./solana/jupiter.ts";
 export * from "./solana/signer.ts";
 export * from "./solana/executor.ts";
+export * from "./solana/dlmm.ts";
+export { DLMM_IX } from "./solana/dlmm-ix.ts";

@@ -324,7 +324,7 @@ export function createApp(deps: AppDeps) {
       signals: deps.signalModes,
       auth: { enabled: authEnabled, appId: deps.auth?.appId ?? null },
       /** Which venues take real orders right now. */
-      trading: { hyperliquid: Boolean(deps.live?.cfg.enabled), solana: Boolean(deps.solana?.cfg.enabled), network: deps.live?.cfg.network ?? null },
+      trading: { hyperliquid: Boolean(deps.live?.cfg.enabled), solana: Boolean(deps.solana?.cfg.enabled), liquidity: Boolean(deps.solana?.cfg.enabled && deps.solana?.cfg.lpEnabled), network: deps.live?.cfg.network ?? null },
     })
   );
 
@@ -659,8 +659,8 @@ export function createApp(deps: AppDeps) {
       if (body.allocationUsd > left + 1e-9)
         return c.json({ error: left <= 0 ? `All $${practiceBudget.toLocaleString("en-US")} of your practice money is in use. Stop a practice run to free some up.` : `You have $${Math.floor(left).toLocaleString("en-US")} of practice money left.` }, 409);
     }
-    // Liquidity runs as practice for now: live Meteora deposits come next.
-    if (body.mode === "live" && !body.alertsOnly && strategy.actions.some((a) => a.type === "liquidity"))
+    // Live liquidity only once it's switched on (WEFT_SOL_LP).
+    if (body.mode === "live" && !body.alertsOnly && strategy.actions.some((a) => a.type === "liquidity") && !deps.solana?.cfg.lpEnabled)
       return c.json({ error: "Liquidity strategies run as practice for now. Live deposits to Meteora are coming." }, 409);
     // Real money never rides on made-up data: signals Weft only simulates (no live feed yet) can run
     // as alerts, not trades.
@@ -684,7 +684,10 @@ export function createApp(deps: AppDeps) {
         const mints = new Set<string>();
         for (const d of await engine.listDeployments()) {
           if (d.mode !== "live" || !mineAll.has(d.id) || d.status === "stopped" || d.status === "killed") continue;
-          for (const a of d.strategy.actions) if (a.type === "open" && a.instrument.kind === "token") mints.add(a.instrument.mint);
+          for (const a of d.strategy.actions) {
+            if (a.type === "open" && a.instrument.kind === "token") mints.add(a.instrument.mint);
+            if (a.type === "liquidity") for (const m of [a.pool.baseMint, a.pool.quoteMint]) if (m !== "So11111111111111111111111111111111111111112") mints.add(m);
+          }
         }
         try {
           deps.solana.assertDeployable(user.id, v.strategy, body.allocationUsd, mints);

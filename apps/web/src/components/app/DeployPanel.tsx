@@ -94,7 +94,7 @@ export function liveBlocker(s: Strategy | undefined, venues: Venues | null = nul
   if (doc.includes("ExampLeMint") || /"venue":"hyperliquid","market":"[^"]*[a-z][^"]*"/.test(doc))
     return "This example still points at a sample market. Make a copy and pick a real market first.";
   for (const a of s.actions) {
-    if (a.type === "liquidity") return "Liquidity strategies run as practice for now. Live deposits to Meteora are coming.";
+    if (a.type === "liquidity" && !venues?.liquidity) return "Liquidity strategies run as practice for now. Live deposits to Meteora are coming.";
     if (a.type === "options") return "Options can’t be traded live yet.";
     if (a.type !== "open") continue;
     if (a.order.type === "limit") return "Limit orders can’t be traded live yet. Use a market order with a slippage limit.";
@@ -299,7 +299,11 @@ export function DeployPanel({ strategy, strategyId, compact = false, initialMode
         ) : (
           <>
             <p className="mt-3 text-[13.5px] leading-relaxed text-muted">
-              {onSolana ? "Real swaps through Jupiter, from your own Solana wallet." : <>Real orders on Hyperliquid{testnet ? " testnet (test funds)" : ""}, from your own account.</>}
+              {strategy?.actions.some((a) => a.type === "liquidity")
+                ? "A real deposit into Meteora from your own Solana wallet, paid in SOL. The position account holds about 0.06 SOL, which comes back when it closes."
+                : onSolana
+                  ? "Real swaps through Jupiter, from your own Solana wallet."
+                  : <>Real orders on Hyperliquid{testnet ? " testnet (test funds)" : ""}, from your own account.</>}
               {solBalance != null && (
                 <>
                   {" "}

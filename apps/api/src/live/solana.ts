@@ -4,6 +4,8 @@ import { Connection, PublicKey, VersionedTransaction } from "@solana/web3.js";
 import {
   DEFAULT_ALLOWED_PROGRAMS,
   JupiterExecutor,
+  DlmmExecutor,
+  LP_ALLOWED_PROGRAMS,
   JupiterSwapBuilder,
   USDC_MINT,
   WSOL_MINT,
@@ -48,6 +50,8 @@ export interface SolanaLiveConfig {
   testers: string[];
   /** Jupiter API key (portal.jup.ag): api.jup.ag with higher limits instead of the throttled lite-api. */
   jupiterApiKey?: string | null;
+  /** Liquidity in Meteora DLMM pools with real money (needs Weft's signer policy to allow DLMM). */
+  lpEnabled?: boolean;
 }
 
 export function solanaConfigFromEnv(env: NodeJS.ProcessEnv = process.env): SolanaLiveConfig {
@@ -66,6 +70,7 @@ export function solanaConfigFromEnv(env: NodeJS.ProcessEnv = process.env): Solan
     authorizationKey: env.PRIVY_AUTHORIZATION_KEY || null,
     testers: (env.WEFT_SOL_TESTERS ?? "").split(",").map((x) => x.trim()).filter(Boolean),
     jupiterApiKey: env.JUPITER_API_KEY || null,
+    lpEnabled: env.WEFT_SOL_LP === "1",
   };
 }
 
@@ -81,6 +86,8 @@ export interface PrivySolanaApi {
   /** Weft's key quorum (signer) and swap policy, created once. */
   createSigner(publicKey: string): Promise<string>;
   createPolicy(): Promise<string>;
+  /** Add programs to the policy's allow-list (true when it changed). */
+  allowPrograms?(policyId: string, programs: string[]): Promise<boolean>;
   /** The user's embedded Solana wallets, with whether `signerId` is attached. */
   userWallets(userId: string, signerId: string): Promise<SolanaWalletInfo[]>;
   signTransaction(walletId: string, tx: Uint8Array): Promise<Uint8Array>;
@@ -110,6 +117,25 @@ export function privySolanaApi(appId: string, appSecret: string, authorizationKe
         ],
       } as never);
       return (p as { id: string }).id;
+    },
+    async allowPrograms(policyId, programs) {
+      type Cond = { field_source: string; field: string; operator: string; value: unknown };
+      type Rule = { id: string; name: string; method: string; action: string; conditions: Cond[] };
+      const policy = (await privy.policies().get(policyId)) as unknown as { rules: Rule[] };
+      const rule = policy.rules.find((r) => r.method === "signTransaction" && r.conditions.some((c) => c.field === "programId"));
+      if (!rule) throw new Error("the Solana policy has no program allow-list rule");
+      const cond = rule.conditions.find((c) => c.field === "programId")!;
+      const have = new Set(Array.isArray(cond.value) ? (cond.value as string[]) : [String(cond.value)]);
+      const missing = programs.filter((p) => !have.has(p));
+      if (!missing.length) return false;
+      await privy.policies().updateRule(rule.id, {
+        policy_id: policyId,
+        name: rule.name,
+        method: rule.method,
+        action: rule.action,
+        conditions: rule.conditions.map((c) => (c === cond ? { ...c, value: [...have, ...missing] } : c)),
+      } as never);
+      return true;
     },
     async userWallets(userId, signerId) {
       const out: SolanaWalletInfo[] = [];
@@ -354,12 +380,30 @@ export class SolanaLive {
     return this.status(userId);
   }
 
+  /**
+   * Live liquidity needs Weft's signer to sign Meteora DLMM transactions: once WEFT_SOL_LP is on, add
+   * the DLMM and Memo programs to the policy's allow-list (every transaction is still inspected
+   * first, see inspectSwapTransaction). Says what it did.
+   */
+  async ensureLpPolicy(): Promise<string> {
+    if (!this.cfg.lpEnabled || !this.api?.allowPrograms) return "off";
+    const { policyId } = await this.signer();
+    const changed = await this.api.allowPrograms(policyId, LP_ALLOWED_PROGRAMS.map((p) => p.toBase58()));
+    return changed ? "Meteora DLMM added to Weft's Solana signing policy" : "signing policy already allows Meteora DLMM";
+  }
+
   assertDeployable(userId: string, strategy: Strategy, allocationUsd: number, otherMints: Set<string> = new Set()) {
     if (!this.openFor(userId)) throw new Error("Solana trading isn’t switched on yet");
     if (!this.accounts.solanaAccount(userId)) throw new Error("set up your Solana trading wallet first");
     if (this.cfg.maxAllocationUsd != null && allocationUsd > this.cfg.maxAllocationUsd) throw new Error(`Solana runs are capped at $${this.cfg.maxAllocationUsd} for now`);
     for (const a of strategy.actions) {
       if (a.type === "options") throw new Error("options can't trade live yet");
+      if (a.type === "liquidity") {
+        if (!this.cfg.lpEnabled) throw new Error("Liquidity strategies run as practice for now. Live deposits to Meteora are coming.");
+        // One wallet: a run holding one of the pool's tokens would have it swapped away on withdrawal.
+        for (const m of [a.pool.baseMint, a.pool.quoteMint]) if (m !== "So11111111111111111111111111111111111111112" && otherMints.has(m)) throw new Error(`another live strategy trades ${a.pool.symbol}'s tokens from your wallet`);
+        continue;
+      }
       if (a.type === "copy" && a.leader.venue !== "solana") throw new Error("a strategy can trade Solana tokens or Hyperliquid markets, not both in one run");
       if (a.type !== "open") continue;
       if (a.instrument.kind !== "token") throw new Error("a strategy can trade Solana tokens or Hyperliquid markets, not both in one run");
@@ -393,24 +437,7 @@ export class SolanaLive {
       feeMultiplier === 1 || !Object.keys(this.feeAccountsNow).length
         ? this.builder
         : this.swapBuilder({ platformFeeBps: Math.round(this.cfg.platformFeeBps * feeMultiplier), feeAccounts: this.feeAccountsNow });
-    const conn = this.conn;
-    const rpc: JupiterRpc = {
-      getAccountInfo: (k) => conn.getAccountInfo(k),
-      getAddressLookupTable: (k) => conn.getAddressLookupTable(k),
-      sendRawTransaction: (raw, o) => conn.sendRawTransaction(raw, o),
-      confirmTransaction: (s, c) => conn.confirmTransaction(s, c),
-      tokenBalance: async (owner, mint) => {
-        const r = await conn.getParsedTokenAccountsByOwner(owner, { mint });
-        return r.value.reduce((n, a) => n + BigInt((a.account.data as { parsed?: { info?: { tokenAmount?: { amount?: string } } } }).parsed?.info?.tokenAmount?.amount ?? "0"), 0n);
-      },
-      emptyTokenAccounts: async (owner, mint) => {
-        const r = await conn.getParsedTokenAccountsByOwner(owner, { mint }, "confirmed");
-        return r.value
-          .filter((a) => (a.account.data as { parsed?: { info?: { tokenAmount?: { amount?: string } } } }).parsed?.info?.tokenAmount?.amount === "0")
-          .map((a) => ({ address: a.pubkey, programId: a.account.owner }));
-      },
-      getLatestBlockhash: () => conn.getLatestBlockhash("confirmed"),
-    } as JupiterRpc;
+    const rpc = this.rpc();
     const ex = new JupiterExecutor({
       builder,
       signer: new PrivyWalletSigner(this.api, acct.walletId, acct.address),
@@ -430,11 +457,52 @@ export class SolanaLive {
     this.executors.set(key, ex);
     return ex;
   }
+
+  /** The user's liquidity executor (Meteora DLMM), swapping through their token executor. */
+  async lpExecutorReady(userId: string): Promise<DlmmExecutor> {
+    const swaps = await this.executorReady(userId);
+    const acct = this.accounts.solanaAccount(userId);
+    if (!acct || !this.api) throw new Error("no Solana trading wallet for this user");
+    return new DlmmExecutor({
+      conn: this.conn,
+      signer: new PrivyWalletSigner(this.api, acct.walletId, acct.address),
+      swaps,
+      jupiter: this.builder,
+      rpc: this.rpc(),
+      maxPriorityFeeLamports: 1_000_000,
+      sentStore: {
+        get: (id) => this.accounts.kvGet(`solsent:${id}`) || null,
+        set: (id, sig) => this.accounts.kvSet(`solsent:${id}`, sig),
+      },
+      log: (m) => console.log(`[solana ${acct.address.slice(0, 6)}] ${m}`),
+    });
+  }
+
+  private rpc(): JupiterRpc {
+    const conn = this.conn;
+    return {
+      getAccountInfo: (k) => conn.getAccountInfo(k),
+      getAddressLookupTable: (k) => conn.getAddressLookupTable(k),
+      sendRawTransaction: (raw, o) => conn.sendRawTransaction(raw, o),
+      confirmTransaction: (s, c) => conn.confirmTransaction(s, c),
+      tokenBalance: async (owner, mint) => {
+        const r = await conn.getParsedTokenAccountsByOwner(owner, { mint });
+        return r.value.reduce((n, a) => n + BigInt((a.account.data as { parsed?: { info?: { tokenAmount?: { amount?: string } } } }).parsed?.info?.tokenAmount?.amount ?? "0"), 0n);
+      },
+      emptyTokenAccounts: async (owner, mint) => {
+        const r = await conn.getParsedTokenAccountsByOwner(owner, { mint }, "confirmed");
+        return r.value
+          .filter((a) => (a.account.data as { parsed?: { info?: { tokenAmount?: { amount?: string } } } }).parsed?.info?.tokenAmount?.amount === "0")
+          .map((a) => ({ address: a.pubkey, programId: a.account.owner }));
+      },
+      getLatestBlockhash: () => conn.getLatestBlockhash("confirmed"),
+    } as JupiterRpc;
+  }
 }
 
 /** True when a strategy opens positions in Solana tokens. */
 export function tradesSolana(s: Strategy): boolean {
-  return s.actions.some((a) => (a.type === "open" && a.instrument.kind === "token") || (a.type === "copy" && a.leader.venue === "solana"));
+  return s.actions.some((a) => (a.type === "open" && a.instrument.kind === "token") || (a.type === "copy" && a.leader.venue === "solana") || a.type === "liquidity");
 }
 
 /** The base64 SPKI public key for a base64 PKCS8 P-256 private key. */
@@ -455,10 +523,14 @@ export class SolanaRouterExecutor implements Executor {
   async execute(req: OrderRequest, now: number): Promise<ExecutionResult> {
     const owner = req.deploymentId ? this.ownerOf(req.deploymentId) : null;
     if (!owner) return { status: "rejected", reason: "live order without an owning user" };
-    if (req.instrument.kind !== "token") return { status: "rejected", reason: "the Solana engine only trades Solana tokens" };
+    if (req.instrument.kind !== "token" && req.instrument.kind !== "lp") return { status: "rejected", reason: "the Solana engine only trades Solana tokens and liquidity" };
     const blocked = this.solana.blockReason(owner);
     if (blocked) return { status: "rejected", reason: blocked };
     try {
+      if (req.instrument.kind === "lp") {
+        if (!this.solana.cfg.lpEnabled) return { status: "rejected", reason: "live liquidity is switched off" };
+        return await (await this.solana.lpExecutorReady(owner)).execute(req);
+      }
       return await (await this.solana.executorReady(owner)).execute(req, now);
     } catch (e) {
       return { status: "rejected", reason: (e as Error).message };

@@ -118,11 +118,23 @@ export class Session {
 
   /** Close `fraction` of a position at market. Exits are never blocked by slippage limits. */
   async closePosition(p: Position, fraction: number, reason: FillReason, clientId: string, intentKey?: string): Promise<boolean> {
+    // A liquidity position is withdrawn whole (the pool takes everything out at once).
+    if (p.lp) fraction = 1;
     const qty = fraction >= 1 ? p.qty : p.qty * fraction;
     let res;
     try {
       res = await this.deps.executor.execute(
-        { clientId, instrument: p.instrument, instrumentKey: p.instrumentKey, side: p.side === "long" ? "sell" : "buy", phase: "close", qty, fallbackPrice: p.markPrice, deploymentId: this.deployment.id },
+        {
+          clientId,
+          instrument: p.instrument,
+          instrumentKey: p.instrumentKey,
+          side: p.side === "long" ? "sell" : "buy",
+          phase: "close",
+          qty,
+          fallbackPrice: p.markPrice,
+          deploymentId: this.deployment.id,
+          ...(p.lp ? { lp: { lower: p.lp.lower, upper: p.lp.upper, poolPrice: p.lp.poolPrice, quoteUsd: p.lp.quoteUsd ?? p.lp.entryQuoteUsd, ...(p.lp.position ? { position: p.lp.position } : {}) } } : {}),
+        },
         this.now
       );
     } catch (e) {
@@ -918,7 +930,7 @@ async function executeLiquidity(s: Session, i: OpenIntent, pool: Extract<Instrum
   let res;
   try {
     res = await s.deps.executor.execute(
-      { clientId: i.key, instrument: pool, instrumentKey: i.instrumentKey, side: "buy", phase: "open", notionalUsd: usd, order: i.order, deploymentId: s.deployment.id, leverage: 1 },
+      { clientId: i.key, instrument: pool, instrumentKey: i.instrumentKey, side: "buy", phase: "open", notionalUsd: usd, order: i.order, deploymentId: s.deployment.id, leverage: 1, lp: { lower, upper, poolPrice: q.price, quoteUsd: q.lp.quoteUsd } },
       s.now
     );
   } catch (e) {
@@ -940,6 +952,8 @@ async function executeLiquidity(s: Session, i: OpenIntent, pool: Extract<Instrum
       lower,
       upper,
       entryQuoteUsd: q.lp.quoteUsd,
+      quoteUsd: q.lp.quoteUsd,
+      ...(res.lp?.position ? { position: res.lp.position } : {}),
       feesUsd: 0,
       accruedAt: s.now,
       outSince: inRange ? null : s.now,
@@ -964,6 +978,7 @@ function markLiquidity(s: Session, p: Position, q: Quote): boolean {
   if (inRange && days > 0) lp.feesUsd += p.qty * ratio * q.lp.feePerDay * days;
   lp.accruedAt = s.now;
   lp.poolPrice = q.price;
+  lp.quoteUsd = q.lp.quoteUsd;
   lp.baseShare = lpBaseShare(q.price, lp.lower, lp.upper);
   lp.outSince = inRange ? null : (lp.outSince ?? s.now);
   markPosition(p, ratio + lp.feesUsd / p.qty, s.now);

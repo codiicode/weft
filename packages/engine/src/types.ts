@@ -75,8 +75,11 @@ export interface LpState {
   poolPrice: number;
   lower: number;
   upper: number;
-  /** USD price of the quote token when it opened (the position's value moves with it too). */
+  /** USD price of the quote token when it opened (the position's value moves with it too), and now. */
   entryQuoteUsd: number;
+  quoteUsd?: number;
+  /** Live: the on-chain position account holding the liquidity. */
+  position?: string;
   /** Fees earned so far, USD. Practice: estimated from the pool's fees per day over its TVL. */
   feesUsd: number;
   /** Fees accrued up to this time (ms). */

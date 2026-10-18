@@ -9,6 +9,10 @@ export const PROGRAMS = {
   associatedToken: new PublicKey("ATokenGPvbdGVxr1b2hvZbsiqW5xWH25efTNsLJA8knL"),
   /** Jupiter Aggregator v6. */
   jupiterV6: new PublicKey("JUP6LkbZbjS1jKKwapdHNy74zcZ3tLUZoi5QNyVTaV4"),
+  /** Meteora DLMM (liquidity positions). */
+  meteoraDlmm: new PublicKey("LBUZKhRxPF3XUpBCjp4YzTKgLccjZhTSDM9YuVaPwxo"),
+  /** SPL Memo (DLMM's *2 instructions pass it for transfer hooks). */
+  memo: new PublicKey("MemoSq4gqABAXKb96qnH8TysNcWxMyWCqXgDLGmfcHr"),
 } as const;
 
 export const WSOL_MINT = new PublicKey("So11111111111111111111111111111111111111112");
@@ -23,6 +27,9 @@ export const DEFAULT_ALLOWED_PROGRAMS: readonly PublicKey[] = [
   PROGRAMS.computeBudget,
   PROGRAMS.system,
 ];
+
+/** What a liquidity transaction may call: the swap set plus Meteora DLMM and Memo. */
+export const LP_ALLOWED_PROGRAMS: readonly PublicKey[] = [...DEFAULT_ALLOWED_PROGRAMS, PROGRAMS.meteoraDlmm, PROGRAMS.memo];
 
 export function associatedTokenAddress(owner: PublicKey, mint: PublicKey, tokenProgram: PublicKey = PROGRAMS.token): PublicKey {
   return PublicKey.findProgramAddressSync([owner.toBuffer(), tokenProgram.toBuffer(), mint.toBuffer()], PROGRAMS.associatedToken)[0];
