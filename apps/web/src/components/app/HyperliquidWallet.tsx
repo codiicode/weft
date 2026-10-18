@@ -94,7 +94,7 @@ export function HyperliquidWallet({ status, onChange, autoLink }: { status: Live
   const testnet = net === "testnet";
 
   return (
-    <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_360px]">
+    <div className="grid grid-cols-1 gap-6 xl:grid-cols-[minmax(0,1fr)_360px]">
       <div className="space-y-4">
         {error && <Card className="p-4 text-[13.5px] text-short">{error}</Card>}
 

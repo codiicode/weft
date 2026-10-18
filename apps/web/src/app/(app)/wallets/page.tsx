@@ -125,7 +125,7 @@ function OwnWallet({ s, refresh }: { s: LiveStatus; refresh: () => Promise<unkno
     });
 
   return (
-    <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_360px]">
+    <div className="grid grid-cols-1 gap-6 xl:grid-cols-[minmax(0,1fr)_360px]">
       <div className="space-y-4">
         {error && <Card className="p-4 text-[13.5px] text-short">{error}</Card>}
 
@@ -183,7 +183,7 @@ function OwnWallet({ s, refresh }: { s: LiveStatus; refresh: () => Promise<unkno
               Hyperliquid only accepts this after the address has made its first deposit. Deposit USDC first, then approve.
             </p>
           )}
-          {s.agentAddress && <div className="mt-2 font-mono text-[13px] text-faint">agent {s.agentAddress}</div>}
+          {s.agentAddress && <div className="mt-2 break-all font-mono text-[13px] text-faint">agent {s.agentAddress}</div>}
           <div className="mt-3 flex flex-wrap items-center gap-2">
             <Btn onClick={approve} disabled={!linked || busy != null || (agentOk && builderOk)} variant={agentOk && builderOk ? "ghost" : "ink"}>
               {busy === "approve" ? "Check your wallet…" : agentOk && builderOk ? "Approved" : "Approve in wallet"}

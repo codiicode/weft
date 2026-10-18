@@ -108,16 +108,16 @@ export function PapertradeSetup() {
               </div>
               {(
                 <div className="mt-3">
-                  <div className="flex flex-wrap items-center gap-2">
+                  <div className="grid grid-cols-2 gap-2 sm:flex sm:flex-wrap sm:items-center">
                     <input
                       inputMode="decimal"
                       placeholder="Amount, USD"
                       value={amount}
                       onChange={(e) => setAmount(e.target.value.replace(/[^0-9.]/g, ""))}
-                      className="h-10 w-40 rounded-[10px] border border-line bg-paper px-3 text-[14px] text-ink outline-none focus:border-ink"
+                      className="col-span-2 h-10 w-full rounded-[10px] border border-line bg-paper px-3 text-[14px] text-ink outline-none focus:border-ink sm:w-40"
                     />
                     <Btn onClick={() => move("in")} disabled={busy || !(n >= 11)}>
-                      {busy && step && step !== "done" ? { depositing: "Moving…", arriving: "Arriving…", connecting: "Connecting…" }[step] : "Add money from Hyperliquid"}
+                      {busy && step && step !== "done" ? { depositing: "Moving…", arriving: "Arriving…", connecting: "Connecting…" }[step] : "Add money"}
                     </Btn>
                     {funded && (
                       <Btn variant="ghost" onClick={() => move("out")} disabled={busy || !(n >= 10)}>
@@ -126,7 +126,7 @@ export function PapertradeSetup() {
                     )}
                   </div>
                   <p className="mt-2 text-[12.5px] leading-relaxed text-muted">
-                    Deposits come from your Hyperliquid account. Weft keeps 1% of what you move in (less if you hold $WEFT); withdrawals are free. At least $11 in, $10 out.
+                    Money comes from your Hyperliquid account. Weft keeps 1% of what you move in (less if you hold $WEFT); withdrawals are free. At least $11 in, $10 out.
                     {n >= 11 && ` Depositing $${n.toFixed(2)}: about $${(n * 0.99).toFixed(2)} reaches Papertrade.`}
                   </p>
                   {note && <p className="mt-2 text-[13px] text-ink-2">{note}</p>}

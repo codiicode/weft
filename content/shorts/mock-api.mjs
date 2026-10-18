@@ -132,6 +132,11 @@ const MOCK = [
   ["GET", /^\/alerts\/me$/, () => ({ available: true, telegram: { username: "demo", linkedAt: now - 10 * D } })],
   ["GET", /^\/me$/, () => ({ authEnabled: true, user: { id: "demo", wallets: [LIVE_STATUS.account.hlAddress] }, ai: { usedToday: 1, dailyLimit: null } })],
   ["POST", /^\/me$/, () => ({ id: "demo" })],
+  // Papertrade, Rift and AI keys, for visual checks of those screens
+  ["GET", /^\/papertrade\/account$/, () => ({ enabled: true, live: true, wallet: LIVE_STATUS.account.hlAddress, sessionKey: "0x3943c3303bfc1f9a4ea8c77806089b9b55eafc2a", registered: !process.env.PT_NEW, sessionExpiresAt: now + 29 * D, depositAddress: "0x0bd22985c9e15002d48a8790fd50c906b8fc27d3", availableUsd: process.env.PT_NEW ? 0 : 14.08, openPositions: 0 })],
+  ["POST", /^\/rift\/quote$/, (_, b) => ({ id: "11111111-1111-4111-8111-111111111111", from: b.kind === "in" ? b.asset : "hyperliquid.usdc", to: b.kind === "in" ? "hyperliquid.usdc" : b.asset, fromAmount: String(b.amount), estimatedOut: b.kind === "in" ? String(b.amount * (b.asset.startsWith("bitcoin") ? 81000 : b.asset.includes("eth") ? 2400 : 1) * 0.994 - 2.2) : String(b.amount * 0.99), expiresAt: new Date(now + 600000).toISOString() })],
+  ["GET", /^\/rift\/orders$/, () => ({ orders: [{ id: "o1", kind: "in", from: "ethereum.usdc", to: "hyperliquid.usdc", fromAmount: "55", estimatedOut: "52.7", depositAddress: "0xabc", depositDeadline: null, toAddress: LIVE_STATUS.account.hlAddress, status: "delivered", createdAt: now - 3 * H, movedToPerps: true }] })],
+  ["GET", /^\/me\/ai-keys$/, () => ({ keys: [{ id: "a1b2", label: "AI assistant", createdAt: now - 2 * D }] })],
 ];
 
 /** Real drafts from Weft, recorded once and replayed, picked by what the thesis is about. */

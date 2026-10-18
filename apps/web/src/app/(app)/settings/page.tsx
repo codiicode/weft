@@ -153,7 +153,7 @@ function Snippet({ label, code }: { label: string; code: string }) {
           {copied ? "Copied" : "Copy"}
         </button>
       </div>
-      <pre className="overflow-x-auto whitespace-pre-wrap break-all rounded-[10px] border border-line bg-paper-2 px-3.5 py-2.5 font-mono text-[12.5px] leading-relaxed text-ink-2">{code}</pre>
+      <pre className="overflow-x-auto whitespace-pre rounded-[10px] border border-line bg-paper-2 px-3.5 py-2.5 font-mono text-[12.5px] leading-relaxed text-ink-2">{code}</pre>
     </div>
   );
 }
@@ -192,7 +192,8 @@ function AiAssistants() {
         }
       />
       <div className="space-y-4 px-5 pb-5">
-        <Snippet label="Address (Claude and ChatGPT: add it as a custom connector)" code={MCP_URL} />
+        <Snippet label="Address" code={MCP_URL} />
+        <p className="-mt-2 text-[12.5px] text-muted">In Claude or ChatGPT, add it as a custom connector.</p>
         <div className="rounded-[10px] border border-line px-4 py-3">
           <div className="flex flex-wrap items-center justify-between gap-3">
             <div className="text-[13.5px] leading-relaxed text-muted">
