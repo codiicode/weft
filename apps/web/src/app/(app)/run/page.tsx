@@ -323,7 +323,7 @@ function Run() {
             id={d.id}
             shared={Boolean(s.shared)}
             onChange={() => snap.refresh()}
-            venue={d.strategy.actions.some((a) => a.type === "open" && a.instrument.kind === "token") ? "Solana trading wallet" : "Hyperliquid account"}
+            venue={d.strategy.actions.some((a) => a.type === "open" && a.instrument.kind === "token") ? "Solana trading wallet" : d.strategy.actions.some((a) => a.type === "open" && a.instrument.kind === "synth") ? "Papertrade account" : "Hyperliquid account"}
           />
         )}
         {d.mode === "paper" && !d.alertsOnly && (
