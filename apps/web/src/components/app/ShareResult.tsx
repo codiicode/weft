@@ -5,7 +5,9 @@ import { api } from "@/lib/api";
 import { useRequireAuth } from "@/lib/auth";
 import { Btn } from "@/components/app/AppShell";
 
-type Card = { id: string; url: string; image: string; returnPct: number; practice: boolean };
+type Card = { id: string; url: string; image: string; receipt: string; returnPct: number; practice: boolean; amounts: boolean };
+type Style = "print" | "receipt";
+const STYLE_KEY = "weft:card-style";
 
 const pct = (v: number) => `${v > 0 ? "+" : v < 0 ? "−" : ""}${Math.abs(v).toFixed(Math.abs(v) >= 10 ? 1 : 2)}%`;
 
@@ -20,20 +22,47 @@ export function ShareResult({ id, name }: { id: string; name: string }) {
   const [error, setError] = useState<string | null>(null);
   const [note, setNote] = useState<string | null>(null);
   const [loaded, setLoaded] = useState(false);
+  const [style, setStyleState] = useState<Style>(() => {
+    try {
+      return localStorage.getItem(STYLE_KEY) === "receipt" ? "receipt" : "print";
+    } catch {
+      return "print";
+    }
+  });
+  const [amounts, setAmounts] = useState(false);
+  const setStyle = (s: Style) => {
+    setStyleState(s);
+    setLoaded(false);
+    try {
+      localStorage.setItem(STYLE_KEY, s);
+    } catch {
+      /* fine */
+    }
+  };
 
-  const start = async () => {
-    if (!requireAuth()) return;
-    setOpen(true);
+  const make = async (showAmounts: boolean) => {
     setCard(null);
     setError(null);
     setNote(null);
     setLoaded(false);
     try {
-      setCard(await api.resultCard(id));
+      setCard(await api.resultCard(id, showAmounts));
     } catch (e) {
       setError((e as { status?: number }).status === 403 ? "Only the owner of this run can share it." : (e as Error).message);
     }
   };
+  const start = async () => {
+    if (!requireAuth()) return;
+    setOpen(true);
+    setAmounts(false);
+    await make(false);
+  };
+  const toggleAmounts = () => {
+    const next = !amounts;
+    setAmounts(next);
+    void make(next);
+  };
+  const imageUrl = card ? (style === "receipt" ? card.receipt : card.image) : null;
   useEffect(() => {
     if (!open) return;
     const esc = (e: KeyboardEvent) => e.key === "Escape" && setOpen(false);
@@ -55,7 +84,7 @@ export function ShareResult({ id, name }: { id: string; name: string }) {
   const copyImage = async () => {
     if (!card) return;
     try {
-      const blob = await fetch(card.image).then((r) => r.blob());
+      const blob = await fetch(imageUrl!).then((r) => r.blob());
       await navigator.clipboard.write([new ClipboardItem({ [blob.type || "image/png"]: blob })]);
       setNote("Image copied. Paste it into your post.");
     } catch {
@@ -93,12 +122,38 @@ export function ShareResult({ id, name }: { id: string; name: string }) {
                 </button>
               </div>
               <p className="mt-1.5 text-[13.5px] leading-relaxed text-muted">
-                The card shows the return in percent, never amounts. Whoever opens the link can run the same strategy.
+                The card shows the return in percent{amounts ? " and the amounts" : ""}. Whoever opens the link can run the same strategy.
               </p>
+              <div className="mt-4 flex flex-wrap items-center justify-between gap-3">
+                <div className="inline-flex rounded-[9px] bg-paper-2 p-0.5" role="tablist" aria-label="Card style">
+                  {(
+                    [
+                      ["print", "Print"],
+                      ["receipt", "Receipt"],
+                    ] as const
+                  ).map(([s, label]) => (
+                    <button
+                      key={s}
+                      role="tab"
+                      aria-selected={style === s}
+                      onClick={() => setStyle(s)}
+                      className={`rounded-[7px] px-3.5 py-1.5 text-[13.5px] transition-colors ${style === s ? "bg-[var(--raised)] font-medium text-ink shadow-[0_1px_2px_rgba(0,0,0,0.08)]" : "text-ink-2 hover:text-ink"}`}
+                    >
+                      {label}
+                    </button>
+                  ))}
+                </div>
+                <button onClick={toggleAmounts} role="switch" aria-checked={amounts} className="inline-flex items-center gap-2.5 text-[13.5px] text-ink-2 hover:text-ink">
+                  <span className={`relative h-5 w-9 rounded-full transition-colors ${amounts ? "bg-long" : "bg-line-2"}`}>
+                    <span className={`absolute top-0.5 h-4 w-4 rounded-full bg-white shadow transition-[left] ${amounts ? "left-[18px]" : "left-0.5"}`} />
+                  </span>
+                  Show amounts
+                </button>
+              </div>
               <div className="relative mt-4 aspect-[1200/630] overflow-hidden rounded-[10px] border border-line bg-paper-2">
                 {card && (
                   // eslint-disable-next-line @next/next/no-img-element
-                  <img src={card.image} alt={`${name}: ${pct(card.returnPct)}`} className={`h-full w-full transition-opacity ${loaded ? "opacity-100" : "opacity-0"}`} onLoad={() => setLoaded(true)} />
+                  <img key={imageUrl} src={imageUrl!} alt={`${name}: ${pct(card.returnPct)}`} className={`h-full w-full transition-opacity ${loaded ? "opacity-100" : "opacity-0"}`} onLoad={() => setLoaded(true)} />
                 )}
                 {!loaded && !error && <div className="absolute inset-0 animate-pulse bg-paper-2" />}
                 {error && <div className="absolute inset-0 grid place-items-center px-6 text-center text-[14px] text-short">{error}</div>}
@@ -114,7 +169,7 @@ export function ShareResult({ id, name }: { id: string; name: string }) {
                   Copy link
                 </Btn>
                 {card && (
-                  <a href={card.image} download={`weft-result-${card.id}.png`} className="ml-auto self-center text-[13.5px] text-muted underline decoration-line-2 underline-offset-4 hover:text-ink">
+                  <a href={imageUrl!} download={`weft-result-${card.id}${style === "receipt" ? "-receipt" : ""}.png`} className="ml-auto self-center text-[13.5px] text-muted underline decoration-line-2 underline-offset-4 hover:text-ink">
                     Download
                   </a>
                 )}

@@ -14,11 +14,12 @@ import { instrumentLabel, type Strategy } from "@weft/strategy";
 
 const require = createRequire(import.meta.url);
 const font = (pkg: string, file: string) => readFileSync(join(dirname(require.resolve(`${pkg}/package.json`)), "files", file));
-let fonts: { name: string; data: Buffer; weight: 400 | 600; style: "normal" }[] | null = null;
+let fonts: { name: string; data: Buffer; weight: 400 | 600 | 700; style: "normal" }[] | null = null;
 const loadFonts = () =>
   (fonts ??= [
     { name: "Instrument Sans", data: font("@fontsource/instrument-sans", "instrument-sans-latin-400-normal.woff"), weight: 400, style: "normal" },
     { name: "Instrument Sans", data: font("@fontsource/instrument-sans", "instrument-sans-latin-600-normal.woff"), weight: 600, style: "normal" },
+    { name: "Instrument Sans", data: font("@fontsource/instrument-sans", "instrument-sans-latin-700-normal.woff"), weight: 700, style: "normal" },
     { name: "Newsreader", data: font("@fontsource/newsreader", "newsreader-latin-400-normal.woff"), weight: 400, style: "normal" },
   ]);
 
@@ -167,7 +168,13 @@ export interface ResultCard {
   trades: number;
   /** The strategy, so whoever opens the link can run the same thing. */
   strategy: Strategy;
+  /** Highest leverage it trades at (1 when unlevered). */
+  leverage?: number;
+  /** Only when the owner chose to show amounts: what went in and what it made, USD. */
+  amounts?: { investedUsd: number; pnlUsd: number } | null;
 }
+
+export type CardStyle = "print" | "receipt";
 
 const UP = "#3ecf8e";
 const DOWN = "#f26a57";
@@ -185,38 +192,104 @@ function curveSvg(curve: number[], w: number, hgt: number, color: string): strin
   return `<svg xmlns="http://www.w3.org/2000/svg" width="${w}" height="${hgt}" viewBox="0 0 ${w} ${hgt}"><defs><linearGradient id="g" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="${color}" stop-opacity="0.22"/><stop offset="1" stop-color="${color}" stop-opacity="0"/></linearGradient></defs><line x1="0" x2="${w}" y1="${y(0).toFixed(1)}" y2="${y(0).toFixed(1)}" stroke="${LINE}" stroke-width="2" stroke-dasharray="6 8"/><path d="${area}" fill="url(#g)"/><path d="${d}" fill="none" stroke="${color}" stroke-width="4" stroke-linejoin="round" stroke-linecap="round"/></svg>`;
 }
 
-/** The 1200×630 result card, as PNG. */
-export async function resultCard(r: ResultCard): Promise<Buffer> {
-  const color = r.returnPct > 0 ? UP : r.returnPct < 0 ? DOWN : INK;
-  const curve = Buffer.from(curveSvg(r.curve, 1056, 150, color === INK ? MUTED : color)).toString("base64");
-  const tree = h("div", { width: 1200, height: 630, display: "flex", background: PAPER, fontFamily: "Instrument Sans", color: INK }, [
-    h("div", { width: 1056, height: 510, margin: "60px 72px", display: "flex", flexDirection: "column" }, [
-      h("div", { display: "flex", alignItems: "center", gap: 14 }, [
-        { type: "img", props: { src: `data:image/svg+xml;base64,${LOGO}`, width: 44, height: 44 } },
-        h("div", { fontSize: 32, fontWeight: 600, letterSpacing: -1 }, "weft"),
-        h("div", { marginLeft: "auto", display: "flex" }, [label(r.practice ? "Practice · pretend money" : "Live · real money", r.practice ? "#f5a524" : MUTED)]),
+/* ---------- result cards: two styles, set like Weft's printed graphics ---------- */
+
+const here = dirname(new URL(import.meta.url).pathname);
+const paperCache = new Map<string, string>();
+/** Blank halftone paper (rendered once from Weft's banner system), as a data URL. */
+const paper = (name: "green" | "pink" | "stone" | "cream") => {
+  let v = paperCache.get(name);
+  if (!v) {
+    v = `data:image/jpeg;base64,${readFileSync(join(here, "../../assets/cards", `paper-${name}.jpg`)).toString("base64")}`;
+    paperCache.set(name, v);
+  }
+  return v;
+};
+const DOTS = (() => {
+  let c = "";
+  for (let y = 11; y < 630; y += 22) for (let x = 11; x < 1200; x += 22) c += `<circle cx="${x}" cy="${y}" r="1.1"/>`;
+  return `data:image/svg+xml;base64,${Buffer.from(`<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="630"><g fill="#2a2a2e">${c}</g></svg>`).toString("base64")}`;
+})();
+const MARK = (fg: string) =>
+  `data:image/svg+xml;base64,${Buffer.from(`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48"><g fill="none" stroke="${fg}" stroke-width="4.4" stroke-linecap="round"><path d="M8 13C20 13 21 24 30 24"/><path d="M8 24H30"/><path d="M8 35C20 35 21 24 30 24"/><path d="M30 24H40"/></g><circle cx="30" cy="24" r="5.6" fill="${fg}"/></svg>`).toString("base64")}`;
+const img = (src: string, w: number, hh: number, style: Record<string, unknown> = {}): El => ({ type: "img", props: { src, width: w, height: hh, style } });
+const usd = (v: number) => `${v < 0 ? "−" : ""}$${Math.abs(v).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+const signedUsd = (v: number) => `${v > 0 ? "+" : v < 0 ? "−" : ""}$${Math.abs(v).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+const tradesTxt = (n: number) => `${n} ${n === 1 ? "trade" : "trades"}`;
+
+/** Print: the run on the left, the return printed on a coloured slip (green up, pink down). */
+function printCard(r: ResultCard): El {
+  const tone = r.returnPct > 0 ? "green" : r.returnPct < 0 ? "pink" : "stone";
+  const lev = r.leverage && r.leverage > 1 ? `${r.leverage}×` : null;
+  const facts: [string, string][] = [
+    ["Market", r.markets.slice(0, 2).join(" · ") || "—"],
+    ...(r.amounts ? ([["Put in", `${usd(r.amounts.investedUsd)}${lev ? ` at ${lev}` : ""}`]] as [string, string][]) : lev ? ([["Leverage", lev]] as [string, string][]) : []),
+    ["Since", day(r.since)],
+  ];
+  return h("div", { width: 1200, height: 630, display: "flex", position: "relative", background: "#0c0c0d", fontFamily: "Instrument Sans", color: INK }, [
+    img(DOTS, 1200, 630, { position: "absolute", left: 0, top: 0 }),
+    h("div", { position: "absolute", left: 56, top: 46, width: 480, height: 538, display: "flex", flexDirection: "column" }, [
+      h("div", { display: "flex", alignItems: "center", gap: 12 }, [img(MARK(INK), 32, 32), h("div", { fontSize: 30, fontWeight: 600, letterSpacing: -1 }, "weft")]),
+      h("div", { marginTop: 40, fontFamily: "Newsreader", fontSize: 50, lineHeight: 1.06, letterSpacing: -1 }, clip(r.name, 46)),
+      h("div", { marginTop: 18, fontSize: 20, lineHeight: 1.45, color: MUTED }, `“${clip(r.thesis, 110)}”`),
+      h("div", { marginTop: "auto", display: "flex", flexDirection: "column" }, [
+        ...facts.map(([k, v]) =>
+          h("div", { display: "flex", justifyContent: "space-between", alignItems: "baseline", padding: "11px 0", borderTop: `1px solid ${LINE}` }, [
+            h("div", { fontSize: 13, letterSpacing: 2.4, color: FAINT, textTransform: "uppercase" }, k),
+            h("div", { fontSize: 18, fontWeight: 600 }, v),
+          ]),
+        ),
+        h("div", { marginTop: 16, fontSize: 18, fontWeight: 600 }, "weft.fi"),
       ]),
-      h("div", { display: "flex", marginTop: 44, gap: 48 }, [
-        h("div", { display: "flex", flexDirection: "column", flex: 1 }, [
-          h("div", { fontFamily: "Newsreader", fontSize: 60, lineHeight: 1.05, letterSpacing: -1.2 }, clip(r.name, 44)),
-          h("div", { marginTop: 18, fontSize: 25, lineHeight: 1.4, color: MUTED }, clip(r.thesis, 120)),
-        ]),
-        h("div", { display: "flex", flexDirection: "column", alignItems: "flex-end" }, [
-          label("Return"),
-          h("div", { fontSize: 104, fontWeight: 600, letterSpacing: -4, lineHeight: 1.05, color, marginTop: 6 }, fmtPct(r.returnPct)),
-          h("div", { fontSize: 21, color: FAINT, marginTop: 4 }, `since ${day(r.since)} · ${r.trades} ${r.trades === 1 ? "trade" : "trades"}`),
-        ]),
-      ]),
-      h("div", { display: "flex", marginTop: "auto", flexDirection: "column" }, [
-        { type: "img", props: { src: `data:image/svg+xml;base64,${curve}`, width: 1056, height: 150 } },
-        h("div", { display: "flex", alignItems: "center", gap: 18, marginTop: 14, paddingTop: 14, borderTop: `1px solid ${LINE}` }, [
-          label("Trades"),
-          h("div", { fontSize: 22, color: INK }, r.markets.join("  ·  ") || "—"),
-          h("div", { marginLeft: "auto", fontSize: 22, color: MUTED }, "Made with Weft · weft.fi"),
-        ]),
+    ]),
+    h("div", { position: "absolute", left: 580, top: 46, width: 564, height: 538, display: "flex" }, [
+      img(paper(tone), 564, 538, { position: "absolute", left: 0, top: 0 }),
+      h("div", { position: "absolute", left: 40, top: 34, right: 40, bottom: 34, display: "flex", flexDirection: "column", color: "#111" }, [
+        h("div", { height: 22, fontSize: 16, fontWeight: 600, letterSpacing: 2.4, color: "#2e2e2e" }, r.practice ? "PRACTICE" : ""),
+        h("div", { marginTop: 92, fontSize: fmtPct(r.returnPct).length > 7 ? 104 : 128, fontWeight: 700, letterSpacing: -5, lineHeight: 1 }, fmtPct(r.returnPct)),
+        h("div", { marginTop: 34, height: 3, background: "#111", display: "flex" }),
+        h("div", { marginTop: 26, fontSize: 30, fontWeight: 700, letterSpacing: -0.5 }, r.amounts ? `${signedUsd(r.amounts.pnlUsd)} on ${usd(r.amounts.investedUsd)}` : tradesTxt(r.trades)),
+        h("div", { marginTop: 8, fontSize: 21, color: "#2e2e2e" }, r.amounts ? `${tradesTxt(r.trades)} · since ${day(r.since)}` : `since ${day(r.since)}`),
       ]),
     ]),
   ]);
+}
+
+/** Receipt: the whole card is a printed slip, the return set large in serif. */
+function receiptCard(r: ResultCard): El {
+  const ink = "#111", dim = "#3a3936";
+  const lev = r.leverage && r.leverage > 1 ? `${r.leverage}×` : "1×";
+  const rows: [string, string][] = r.amounts
+    ? [["Market", r.markets.slice(0, 2).join(" · ") || "—"], ["Put in", `${usd(r.amounts.investedUsd)} at ${lev}`], ["Result", signedUsd(r.amounts.pnlUsd)], ["Since", day(r.since)]]
+    : [["Market", r.markets.slice(0, 2).join(" · ") || "—"], ["Leverage", lev], ["Trades", String(r.trades)], ["Since", day(r.since)]];
+  return h("div", { width: 1200, height: 630, display: "flex", position: "relative", fontFamily: "Instrument Sans", color: ink }, [
+    img(paper("cream"), 1200, 630, { position: "absolute", left: 0, top: 0 }),
+    h("div", { position: "absolute", left: 56, top: 44, right: 56, bottom: 40, display: "flex", flexDirection: "column" }, [
+      h("div", { display: "flex", alignItems: "center", gap: 12, paddingBottom: 18, borderBottom: `2px solid ${ink}` }, [
+        img(MARK(ink), 30, 30),
+        h("div", { fontSize: 28, fontWeight: 600, letterSpacing: -1 }, "weft"),
+        h("div", { marginLeft: "auto", fontSize: 15, fontWeight: 600, letterSpacing: 2.4, color: dim }, r.practice ? "PRACTICE" : ""),
+      ]),
+      h("div", { marginTop: 22, fontFamily: "Newsreader", fontSize: 34, letterSpacing: -0.5 }, clip(r.name, 60)),
+      h("div", { marginTop: 4, fontFamily: "Newsreader", fontSize: 150, lineHeight: 1, letterSpacing: -4, color: r.returnPct < 0 ? "#a3261b" : ink }, fmtPct(r.returnPct)),
+      h("div", { marginTop: 18, display: "flex", flexDirection: "column", gap: 10 }, rows.map(([k, v]) =>
+        h("div", { display: "flex", alignItems: "flex-end", gap: 16 }, [
+          h("div", { width: 120, fontSize: 15, fontWeight: 600, letterSpacing: 2, color: dim, textTransform: "uppercase" }, k),
+          h("div", { flex: 1, height: 12, borderBottom: `2px dashed ${dim}`, display: "flex" }),
+          h("div", { fontSize: 20, fontWeight: 600 }, v),
+        ]),
+      )),
+      h("div", { marginTop: "auto", display: "flex", alignItems: "baseline", justifyContent: "space-between" }, [
+        h("div", { fontFamily: "Newsreader", fontSize: 20, color: dim }, `“${clip(r.thesis, 90)}”`),
+        h("div", { fontSize: 20, fontWeight: 700 }, "weft.fi"),
+      ]),
+    ]),
+  ]);
+}
+
+/** A 1200×630 result card, as PNG, in either style. */
+export async function resultCard(r: ResultCard, style: CardStyle = "print"): Promise<Buffer> {
+  const tree = style === "receipt" ? receiptCard(r) : printCard(r);
   const svg = await satori(tree as never, { width: 1200, height: 630, fonts: loadFonts() });
   return Buffer.from(new Resvg(svg, { fitTo: { mode: "width", value: 1200 } }).render().asPng());
 }

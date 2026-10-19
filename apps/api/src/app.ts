@@ -411,6 +411,8 @@ export function createApp(deps: AppDeps) {
     if (!accounts) return c.json({ error: "sharing needs the account store" }, 503);
     const d = snap.deployment;
     if (d.alertsOnly) return c.json({ error: "alerts-only runs don’t trade, so there’s no result to share" }, 400);
+    // The owner chooses whether the card shows amounts (what went in, what it made); off by default.
+    const { showAmounts } = z.object({ showAmounts: z.boolean().default(false) }).parse(await c.req.json().catch(() => ({})));
     const fills = await engine.getFills(id);
     const pnl = snap.realizedPnlUsd + snap.unrealizedPnlUsd;
     const openMargin = snap.positions.reduce((n, p) => n + p.sizeUsd, 0);
@@ -427,7 +429,9 @@ export function createApp(deps: AppDeps) {
       practice: d.mode !== "live",
       name: d.strategy.name,
       thesis: d.strategy.thesis,
-      markets: tradesOf(d.strategy).length ? tradesOf(d.strategy) : [...new Set(fills.map((f) => f.instrumentKey.split(":").pop()!.slice(0, 12)))].slice(0, 4),
+      markets: (tradesOf(d.strategy).length ? tradesOf(d.strategy) : [...new Set(fills.map((f) => f.instrumentKey.split(":").pop()!.slice(0, 12)))].slice(0, 4)).map((m) => m.replace(/\s\d+(\.\d+)?×$/, "")),
+      leverage: Math.max(1, ...d.strategy.actions.map((a) => (a.type === "open" || a.type === "copy" ? ((a as { leverage?: number }).leverage ?? 1) : 1))),
+      amounts: showAmounts ? { investedUsd: invested, pnlUsd: pnl } : null,
       returnPct: (pnl / invested) * 100,
       curve: [...curve.slice(0, -1), (pnl / invested) * 100],
       since: d.createdAt,
@@ -435,7 +439,7 @@ export function createApp(deps: AppDeps) {
       strategy: d.strategy,
     };
     accounts.kvSet(`result:${card.id}`, JSON.stringify(card));
-    return c.json({ id: card.id, url: `${site}/r/${card.id}`, image: `${site}/og/result/${card.id}.png`, returnPct: card.returnPct, practice: card.practice });
+    return c.json({ id: card.id, url: `${site}/r/${card.id}`, image: `${site}/og/result/${card.id}.png`, receipt: `${site}/og/result/${card.id}.receipt.png`, returnPct: card.returnPct, practice: card.practice, amounts: Boolean(card.amounts) });
   });
   app.get("/result/:id", (c) => {
     const r = readResult(c.req.param("id"));
@@ -450,13 +454,17 @@ export function createApp(deps: AppDeps) {
   });
   const resultPngs = new Map<string, Buffer>();
   app.get("/og/result/:file", async (c) => {
-    const id = c.req.param("file").replace(/\.png$/, "");
+    // <id>.png is the Print card (and the link preview); <id>.receipt.png the Receipt.
+    const file = c.req.param("file");
+    const style = file.endsWith(".receipt.png") ? "receipt" : "print";
+    const id = file.replace(/(\.receipt)?\.png$/, "");
     const r = readResult(id);
     if (!r) return c.redirect(`${site}/og.png`, 302);
-    let png = resultPngs.get(id);
+    const ck = `${id}:${style}`;
+    let png = resultPngs.get(ck);
     if (!png) {
-      png = await resultCard(r);
-      resultPngs.set(id, png);
+      png = await resultCard(r, style);
+      resultPngs.set(ck, png);
       if (resultPngs.size > 500) resultPngs.delete(resultPngs.keys().next().value!);
     }
     return c.body(new Uint8Array(png), 200, { "content-type": "image/png", "cache-control": "public, max-age=86400, immutable" });

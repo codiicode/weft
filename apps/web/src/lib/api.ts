@@ -473,7 +473,8 @@ export const api = {
   traders: () => req<{ traders: TopTrader[] }>("/traders"),
   shareRun: (id: string, shared: boolean) => req<{ shared: boolean }>(`/deployments/${encodeURIComponent(id)}/share`, { method: "POST", json: { shared } }),
   /** Owner: freeze the run's result (percent only) into a card with its own share link. */
-  resultCard: (id: string) => req<{ id: string; url: string; image: string; returnPct: number; practice: boolean }>(`/deployments/${encodeURIComponent(id)}/card`, { method: "POST" }),
+  resultCard: (id: string, showAmounts = false) =>
+    req<{ id: string; url: string; image: string; receipt: string; returnPct: number; practice: boolean; amounts: boolean }>(`/deployments/${encodeURIComponent(id)}/card`, { method: "POST", json: { showAmounts } }),
   /** Keys that let an AI assistant (over MCP) read your runs. The key itself comes back once, on create. */
   aiKeys: () => req<{ keys: { id: string; label: string; createdAt: number }[] }>("/me/ai-keys"),
   createAiKey: (label: string) => req<{ key: string; id: string; label: string; createdAt: number }>("/me/ai-keys", { method: "POST", json: { label } }),

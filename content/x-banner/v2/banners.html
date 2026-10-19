@@ -1206,6 +1206,68 @@ const BANNERS = {
     div(`${head(av(mark, "#f4f3ef", "#0c0c0d"), "Weft", "@weftfinance")}${body(`ETH Reclaim<br>Long ETH when ETH reclaims $3,000. Stop at $2,850.<br><span style="color:#a3a29d">Read it, practice it or run it:</span> <span style="color:#7c8cff">weft.fi/d/…</span>`)}`,
       `${card};top:599px;box-shadow:0 30px 80px rgba(0,0,0,0.5)`);
   },
+  /* ---------- paper textures for the result cards (blank halftone paper, text is set by the API) ---------- */
+  texGreen() { $b.style.width = "564px"; $b.style.height = "538px"; tile(0, 0, 564, 538, (w, h) => paper2d(w, h, () => {}), "green", { contrast: 1.0, cell: 5, solid: 0.42 }); },
+  texPink() { $b.style.width = "564px"; $b.style.height = "538px"; tile(0, 0, 564, 538, (w, h) => paper2d(w, h, () => {}), "pink", { contrast: 1.0, cell: 5, solid: 0.42 }); },
+  texStone() { $b.style.width = "564px"; $b.style.height = "538px"; tile(0, 0, 564, 538, (w, h) => paper2d(w, h, () => {}), "news", { contrast: 1.0, cell: 5, solid: 0.42 }); },
+  texCream() { $b.style.width = "1200px"; $b.style.height = "630px"; tile(0, 0, 1200, 630, (w, h) => paper2d(w, h, () => {}), "news", { contrast: 1.0, cell: 4, solid: 0.5 }); },
+
+  /* ---------- PnL card proposals (1200×630) ---------- */
+  pnlA() {
+    $b.style.width = "1200px"; $b.style.height = "630px"; $b.className = "dark"; dots("#2a2a2e", 22);
+    logo(56, 46, 30, "dark");
+    div(`LIVE · REAL MONEY`, "position:absolute;left:56px;top:112px;font-size:14px;letter-spacing:0.18em;color:#77766f");
+    div(`BTC 500× long<br><span style="color:#77766f">on Papertrade.</span>`, "position:absolute;left:56px;top:140px;font-size:54px;line-height:1.06;color:#f4f3ef;letter-spacing:-0.02em").classList.add("serif");
+    div(`“Open a 500x BTC long with $25 on Papertrade, use a 45% stop loss.”`, "position:absolute;left:56px;top:276px;width:470px;font-size:20px;line-height:1.45;color:#a3a29d");
+    const row = (y, k, v) => div(`<span style="color:#77766f;letter-spacing:0.16em;font-size:13px">${k}</span><span style="color:#f4f3ef;font-size:18px;font-weight:600">${v}</span>`, `position:absolute;left:56px;top:${y}px;width:470px;display:flex;justify-content:space-between;align-items:baseline;padding:12px 0;border-top:1px solid #2a2a2f`);
+    row(380, "MARKET", "BTC on Papertrade");
+    row(426, "PUT IN", "$25 at 500×");
+    row(472, "ENTRY", "$82,527.50");
+    div(`weft.fi`, "position:absolute;left:56px;top:560px;font-size:18px;font-weight:600;color:#f4f3ef");
+    tile(580, 46, 564, 538, (w, h) => paper2d(w, h, (g) => {
+      txt(g, "RETURN", 56, 96, F(30, 600), "#2e2e2e");
+      txt(g, "Oct 19", w - 56, 96, F(30, 500), "#2e2e2e", "right");
+      txt(g, "+56.3%", 40, 470, F(250, 700));
+      g.fillStyle = "#111"; g.fillRect(56, 560, w - 112, 4);
+      txt(g, "+$14.08 on $25", 56, 660, F(54, 700));
+      txt(g, "1 trade · closed", 56, 730, F(40, 500), "#2e2e2e");
+      txt(g, "MADE WITH WEFT", w - 56, h - 70, F(30, 600), "#2e2e2e", "right");
+    }), "green", { contrast: 1.0, cell: 5, solid: 0.42 });
+  },
+  pnlB() {
+    $b.style.width = "1200px"; $b.style.height = "630px"; $b.className = "dark"; dots("#2a2a2e", 22);
+    // a collage strip like the banner: the market printed, the trade, the knot
+    tile(0, 0, 300, 210, "screens", "amberBlue", { contrast: 1.5, cell: 6 });
+    tile(0, 210, 300, 210, "knot", "green", { contrast: 1.5, cell: 6 });
+    tile(0, 420, 300, 210, "tape", "violet", { contrast: 1.5, cell: 6 });
+    logo(350, 46, 30, "dark");
+    div(`LIVE · REAL MONEY`, "position:absolute;right:56px;top:54px;font-size:14px;letter-spacing:0.18em;color:#77766f");
+    div(`+56.3%`, "position:absolute;left:346px;top:118px;font-size:200px;line-height:1;color:#f4f3ef;letter-spacing:-0.03em").classList.add("serif");
+    div(`<span style="color:#3ecf8e">+$14.08</span> on $25 · BTC 500× long on Papertrade`, "position:absolute;left:352px;top:340px;font-size:24px;color:#a3a29d");
+    div(`“Open a 500x BTC long with $25 on Papertrade, use a 45% stop loss.”`, "position:absolute;left:352px;top:396px;width:760px;font-size:26px;line-height:1.4;color:#f4f3ef").classList.add("serif");
+    div(`<span>Entry $82,527.50</span><span>1 trade · Oct 19</span><span style="color:#f4f3ef;font-weight:600">weft.fi</span>`, "position:absolute;left:352px;right:56px;top:556px;display:flex;justify-content:space-between;font-size:17px;color:#77766f;border-top:1px solid #2a2a2f;padding-top:16px");
+  },
+  pnlC() {
+    $b.style.width = "1200px"; $b.style.height = "630px"; $b.className = "dark";
+    // the whole card is a printed slip
+    tile(0, 0, 1200, 630, (w, h) => paper2d(w, h, (g) => {
+      const mark = (x, y, k) => { g.save(); g.translate(x, y); g.scale(k, k); g.strokeStyle = "#111"; g.lineWidth = 4.4; g.lineCap = "round"; g.beginPath(); g.moveTo(8, 13); g.bezierCurveTo(20, 13, 21, 24, 30, 24); g.moveTo(8, 24); g.lineTo(30, 24); g.moveTo(8, 35); g.bezierCurveTo(20, 35, 21, 24, 30, 24); g.moveTo(30, 24); g.lineTo(40, 24); g.stroke(); g.beginPath(); g.arc(30, 24, 5.6, 0, 7); g.fillStyle = "#111"; g.fill(); g.restore(); };
+      mark(110, 92, 1.5); txt(g, "weft", 186, 140, F(58, 600));
+      txt(g, "TRADE RESULT · LIVE", w - 112, 132, F(30, 600), "#333", "right");
+      g.fillStyle = "#111"; g.fillRect(112, 196, w - 224, 3);
+      txt(g, "BTC 500× long on Papertrade", 112, 290, F(64, 400, "Newsreader"));
+      txt(g, "+56.3%", 104, 560, F(270, 400, "Newsreader"));
+      const rows = [["Put in", "$25 at 500×"], ["Entry", "$82,527.50"], ["Result", "+$14.08"], ["Date", "Oct 19, 2026"]];
+      rows.forEach(([k, v], i) => {
+        const y = 690 + i * 78;
+        txt(g, k.toUpperCase(), 112, y, F(30, 600), "#333");
+        txt(g, v, w - 112, y, F(40, 600), "#111", "right");
+        g.fillStyle = "#111"; for (let x = 360; x < w - 420; x += 18) g.fillRect(x, y - 10, 6, 3);
+      });
+      txt(g, "“Open a 500x BTC long with $25 on Papertrade, use a 45% stop loss.”", 112, h - 92, F(34, 400, "Newsreader"), "#333");
+      txt(g, "weft.fi", w - 112, h - 92, F(36, 700), "#111", "right");
+    }), "news", { contrast: 1.0, cell: 4, solid: 0.5 });
+  },
   ptroom() {
     $b.style.width = "1600px"; $b.style.height = "900px"; $b.className = "dark"; dots("#2a2a2e", 24);
     div(`Papertrade is full?<br><span style="color:#77766f">Weft waits for room.</span>`, "position:absolute;left:80px;top:56px;font-size:74px;line-height:1.06;color:#f4f3ef;letter-spacing:-0.02em").classList.add("serif");
