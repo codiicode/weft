@@ -133,3 +133,28 @@ describe("a Papertrade / Hyperliquid hedge", () => {
     expect(fills.filter((f) => f.instrumentKey === kHl)).toHaveLength(2); // opened, then closed
   });
 });
+
+describe("Farm PAPER (the example)", () => {
+  it("runs in rounds: bust, close the hedge, wait, open again", async () => {
+    const { farmPaper } = await import("@weft/strategy/examples");
+    const HL_BTC: Instrument = { kind: "perp", venue: "hyperliquid", symbol: "BTC", assetClass: "crypto" };
+    const t = setup({ tickEventIntervalMs: 0 });
+    const kPt = instrumentKey(PT_BTC), kHl = instrumentKey(HL_BTC);
+    const both = (px: number) => (t.market.set(kPt, px), t.market.set(kHl, px));
+    both(100_000);
+    const d = await t.engine.createDeployment({ strategy: farmPaper, allocationUsd: 200 });
+    const step = async (px: number, mins = 1) => {
+      t.clock.t += mins * MIN;
+      both(px);
+      await t.engine.tick(d.id);
+      return (await t.engine.getSnapshot(d.id))!.positions.length;
+    };
+    await t.engine.tick(d.id);
+    expect((await t.engine.getSnapshot(d.id))!.positions).toHaveLength(2); // round 1
+    expect(await step(98_800)).toBeLessThan(2); // busts…
+    expect(await step(98_800)).toBe(0); // …and the short is closed
+    expect(await step(98_800)).toBe(2); // round 2: at most one round every 3 minutes
+    const fills = await t.engine.getFills(d.id);
+    expect(fills.filter((f) => f.reason === "liquidation")).toHaveLength(1);
+  });
+});

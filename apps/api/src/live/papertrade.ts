@@ -39,6 +39,8 @@ export interface PapertradeStatus {
   /** Free balance in the Papertrade account, USD. */
   availableUsd: number | null;
   openPositions: number;
+  /** PAPER in the account, staked included. */
+  paper: number | null;
 }
 
 export class PapertradeAccounts {
@@ -221,7 +223,7 @@ export class PapertradeAccounts {
   }
 
   /** The wallet's live state from Papertrade (first snapshot of its event stream). */
-  async liveState(wallet: Hex): Promise<{ sessionKeys?: [string, string][]; openPositions?: unknown[]; funds?: { availableBalance?: string } } | null> {
+  async liveState(wallet: Hex): Promise<{ sessionKeys?: [string, string][]; openPositions?: unknown[]; funds?: { availableBalance?: string }; paper?: { balance?: string; staked?: string } } | null> {
     const r = await this.f(`${API}/state/user/live?wallet=${wallet}`, { headers: { accept: "text/event-stream" }, signal: AbortSignal.timeout(12_000) });
     if (!r.ok || !r.body) return null;
     const reader = r.body.getReader();
@@ -240,11 +242,19 @@ export class PapertradeAccounts {
     }
   }
 
+  /** PAPER the user's Papertrade account holds, staked included (18 decimals on chain). Null without an account. */
+  async paperOf(userId: string): Promise<number | null> {
+    const wallet = this.walletOf(userId);
+    if (!wallet) return null;
+    const p = (await this.liveState(wallet).catch(() => null))?.paper;
+    return p ? Number(BigInt(p.balance ?? "0") + BigInt(p.staked ?? "0")) / 1e18 : null;
+  }
+
   async status(userId: string): Promise<PapertradeStatus> {
     const wallet = this.walletOf(userId);
     const raw = this.accounts.kvGet(`pt_session:${userId}`);
     const key = raw ? (JSON.parse(raw) as { address: Hex }).address : null;
-    if (!wallet) return { wallet: null, sessionKey: key, registered: false, sessionExpiresAt: null, depositAddress: null, availableUsd: null, openPositions: 0 };
+    if (!wallet) return { wallet: null, sessionKey: key, registered: false, sessionExpiresAt: null, depositAddress: null, availableUsd: null, openPositions: 0, paper: null };
     const [state, deposit] = await Promise.all([this.liveState(wallet).catch(() => null), this.depositAddress(wallet).catch(() => null)]);
     const entry = state?.sessionKeys?.find(([k]) => k.toLowerCase() === key);
     const expires = entry ? Number(entry[1]) * 1000 : null;
@@ -257,6 +267,7 @@ export class PapertradeAccounts {
       depositAddress: deposit,
       availableUsd: avail != null ? Number(BigInt(avail)) / 1e18 : null,
       openPositions: state?.openPositions?.length ?? 0,
+      paper: state?.paper ? Number(BigInt(state.paper.balance ?? "0") + BigInt(state.paper.staked ?? "0")) / 1e18 : null,
     };
   }
 

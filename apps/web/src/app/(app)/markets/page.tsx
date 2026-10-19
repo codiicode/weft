@@ -22,7 +22,7 @@ const PRODUCTS: { id: Product; label: string; blurb: string }[] = [
   { id: "predictions", label: "Predictions", blurb: "Outcome markets on Hyperliquid: crypto prices, sports, companies and more" },
   { id: "tokens", label: "Solana tokens", blurb: "Any Solana token, matched by contract address" },
   { id: "options", label: "Options", blurb: "Listed options. Only strategies with a known worst case" },
-  { id: "papertrade", label: "Papertrade", blurb: "BTC and ETH up to 1000× on Papertrade (HyperEVM). A bust loses the whole margin. Practice for now" },
+  { id: "papertrade", label: "Papertrade", blurb: "BTC and ETH up to 1000× on Papertrade (HyperEVM). A bust loses the whole margin" },
 ];
 
 /** A price that flashes green or red when it moves. */
@@ -142,6 +142,14 @@ function Markets() {
           {PRODUCTS.find((p) => p.id === product)?.blurb}
           {soon(product) && <span className="text-faint">· Trading opens soon; charts and alerts work today.</span>}
         </p>
+        {product === "papertrade" && (
+          <Link href="/new?from=farm-paper-btc" className="mb-5 flex items-center justify-between gap-4 rounded-[12px] border border-line bg-card px-4 py-3 hover:border-line-2">
+            <span className="text-[14px] text-ink-2">
+              <span className="font-semibold text-ink">Farm PAPER, hedged.</span> A 100× BTC long on Papertrade against the same size short on Hyperliquid, round after round. Losses on Papertrade earn PAPER; the short covers the move.
+            </span>
+            <span className="shrink-0 text-[14px] font-medium text-ink">Open it →</span>
+          </Link>
+        )}
 
         {error && !rows.length ? (
           <Empty title="Market data is unavailable" sub="Can’t reach the Weft server. Try again in a moment." />

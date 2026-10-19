@@ -9,7 +9,7 @@ describe("examples", () => {
     expect(r.ok, r.ok ? "" : JSON.stringify(r.errors, null, 2)).toBe(true);
   });
 
-  it("cover every product: perps, stocks, options, predictions, Solana tokens", () => {
+  it("cover every product: perps, stocks, options, predictions, Solana tokens, Papertrade", () => {
     const kinds = new Set<string>();
     for (const s of examples)
       for (const a of s.actions) {
@@ -17,7 +17,7 @@ describe("examples", () => {
         if (a.type === "open" && a.instrument.kind === "perp" && a.instrument.assetClass !== "crypto") kinds.add("stock-or-commodity-perp");
         if (a.type === "options") kinds.add("option");
       }
-    expect([...kinds].sort()).toEqual(["option", "outcome", "perp", "stock-or-commodity-perp", "stock-token", "token"].sort());
+    expect([...kinds].sort()).toEqual(["option", "outcome", "perp", "stock-or-commodity-perp", "stock-token", "synth", "token"].sort());
   });
 
   it("round-trips through JSON", () => {

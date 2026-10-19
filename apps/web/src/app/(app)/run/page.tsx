@@ -324,9 +324,10 @@ function Run() {
             id={d.id}
             shared={Boolean(s.shared)}
             onChange={() => snap.refresh()}
-            venue={tradesSolana(d.strategy) ? "Solana trading wallet" : d.strategy.actions.some((a) => a.type === "open" && a.instrument.kind === "synth") ? "Papertrade account" : "Hyperliquid account"}
+            venue={tradesSolana(d.strategy) ? "Solana trading wallet" : d.strategy.actions.some((a) => a.type === "open" && a.instrument.kind === "synth") ? (d.strategy.actions.some((a) => a.type === "open" && a.instrument.kind === "perp") ? "Papertrade and Hyperliquid accounts" : "Papertrade account") : "Hyperliquid account"}
           />
         )}
+        {d.strategy.actions.some((a) => a.type === "open" && a.instrument.kind === "synth") && !d.alertsOnly && <PaperFarmed runId={d.id} live={d.mode === "live"} fills={fills.data?.fills ?? []} />}
         {d.mode === "paper" && !d.alertsOnly && (
           <div className="flex flex-wrap items-center justify-between gap-3 rounded-[12px] border border-line bg-[var(--trigger-soft)] px-4 py-3">
             <p className="text-[14px] text-ink-2">
@@ -596,5 +597,28 @@ export default function RunPage() {
     <Suspense>
       <Run />
     </Suspense>
+  );
+}
+
+/** Papertrade runs: the PAPER a live run has farmed (the account's PAPER now vs when it started), or in practice the losses that would earn it. */
+function PaperFarmed({ runId, live, fills }: { runId: string; live: boolean; fills: { instrumentKey: string; realizedPnlUsd?: number }[] }) {
+  const paper = useApi(live ? () => api.papertradePaper(runId) : null, [runId, live], { pollMs: 30_000 });
+  const lost = fills.filter((f) => f.instrumentKey.startsWith("papertrade:") && (f.realizedPnlUsd ?? 0) < 0).reduce((n, f) => n - (f.realizedPnlUsd ?? 0), 0);
+  const fmt = (n: number) => n.toLocaleString("en-US", { maximumFractionDigits: 0 });
+  const p = paper.data;
+  return (
+    <div className="flex flex-wrap items-baseline justify-between gap-3 rounded-[12px] border border-line bg-card px-4 py-3 text-[14px]">
+      {live ? (
+        <span className="text-ink-2">
+          <span className="font-semibold text-ink">{p?.earned != null ? `+${fmt(p.earned)} PAPER` : "PAPER"}</span> farmed by this run
+          {p?.paper != null && <span className="text-muted"> · {fmt(p.paper)} PAPER in your Papertrade account</span>}
+        </span>
+      ) : (
+        <span className="text-ink-2">
+          <span className="font-semibold text-ink">${lost.toFixed(2)}</span> lost on Papertrade so far. With real money, each lost dollar earns PAPER.
+        </span>
+      )}
+      <span className="text-[13px] text-muted">PAPER can’t be sold yet</span>
+    </div>
   );
 }

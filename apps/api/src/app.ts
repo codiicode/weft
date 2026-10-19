@@ -448,6 +448,16 @@ export function createApp(deps: AppDeps) {
     if (!deps.papertrade) return c.json({ enabled: false });
     return c.json({ enabled: true, live: Boolean(deps.papertradeLive), ...(await deps.papertrade.status(user.id)) });
   });
+  /** PAPER farmed by one of the user's live runs: the account's PAPER now, and when the run started. */
+  app.get("/papertrade/paper/:runId", async (c) => {
+    const user = await requireUser(c);
+    if (!deps.papertrade) return c.json({ error: "Papertrade isn’t set up on this server" }, 503);
+    const id = c.req.param("runId");
+    assertOwner(accounts?.deploymentOwner(id), user);
+    const now = await deps.papertrade.paperOf(user.id);
+    const start = Number(accounts?.kvGet(`pt:paper0:${id}`) ?? NaN);
+    return c.json({ paper: now, atStart: Number.isFinite(start) ? start : null, earned: now != null && Number.isFinite(start) ? Math.max(0, now - start) : null });
+  });
   /** The RegisterSessionKey message for the user's wallet to sign (it creates the session key if needed). */
   app.post("/papertrade/registration", async (c) => {
     const user = await requireUser(c);
@@ -1220,6 +1230,9 @@ export function createApp(deps: AppDeps) {
       alertsOnly: body.mode === "paper" && body.alertsOnly ? true : undefined,
     });
     accounts?.setDeploymentOwner(record.id, user.id);
+    // Papertrade with real money: note the account's PAPER now, so the run can show what it farmed.
+    if (body.mode === "live" && deps.papertrade && strategy.actions.some((a) => a.type === "open" && a.instrument.kind === "synth"))
+      void deps.papertrade.paperOf(user.id).then((p) => p != null && accounts?.kvSet(`pt:paper0:${record.id}`, String(p))).catch(() => {});
     // Someone else's published strategy (or a copy of one): its creator earns from this run's fees.
     const creator = accounts ? (accounts.strategyOwner(strategy.id) ?? (strategy.forkedFrom ? accounts.strategyOwner(strategy.forkedFrom) : null)) : null;
     if (creator && creator !== user.id) accounts?.setDeploymentCreator(record.id, creator);

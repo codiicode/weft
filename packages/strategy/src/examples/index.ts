@@ -338,4 +338,43 @@ export const coldSnap = defineStrategy({
   ],
 });
 
-export const examples: Strategy[] = [ethBreakout, buyThePanic, spursHotStart, coldSnap, pumpMomentum, fedPivot, crowdedFade, ethCallSpread, nvdaxEarnings];
+/**
+ * Papertrade: farm PAPER hedged, in rounds. A $1,000 BTC long on Papertrade (100×, $10) against a
+ * $1,000 short on Hyperliquid (40×, $25): while both are open they cancel out. A move of about 1%
+ * busts the Papertrade leg (the loss earns PAPER) and the short, which gained about as much, is
+ * closed at once; then the next round opens (at most one round every 3 minutes). Up to 30 rounds,
+ * and the day stops after half the budget is spent.
+ */
+const PT_BTC = { kind: "synth", venue: "papertrade", symbol: "BTC" } as const;
+const HL_BTC = { kind: "perp", venue: "hyperliquid", symbol: "BTC" } as const;
+export const farmPaper = defineStrategy({
+  schemaVersion: 1,
+  id: "farm-paper-btc",
+  name: "Farm PAPER, hedged",
+  thesis: "Farm PAPER on Papertrade without betting on BTC: a 100× BTC long on Papertrade against the same size short on Hyperliquid, round after round.",
+  tags: ["papertrade", "hedge", "farm"],
+  risk: { maxLeverage: 100, maxPositionPct: 100, maxTotalExposurePct: 10_000, maxDailyLossPct: 50 },
+  signals: [
+    { id: "pt", kind: "position", label: "Papertrade leg", params: { instrument: PT_BTC } },
+    { id: "hl", kind: "position", label: "Hyperliquid leg", params: { instrument: HL_BTC } },
+  ],
+  triggers: [
+    {
+      id: "round",
+      label: "Neither leg is open",
+      when: { op: "and", args: [{ op: "is", ref: "pt.open", value: false }, { op: "is", ref: "hl.open", value: false }] },
+      cooldownMinutes: 3,
+      maxFires: 30,
+    },
+    { id: "pt_gone", label: "Papertrade leg closed", when: { op: "and", args: [{ op: "is", ref: "pt.open", value: false }, { op: "is", ref: "hl.open", value: true }] } },
+    { id: "hl_gone", label: "Hyperliquid leg closed", when: { op: "and", args: [{ op: "is", ref: "hl.open", value: false }, { op: "is", ref: "pt.open", value: true }] } },
+  ],
+  actions: [
+    { id: "pt_long", on: ["round"], type: "open", label: "Long BTC 100× on Papertrade", instrument: PT_BTC, side: "long", size: { unit: "usd", value: 10 }, leverage: 100, reentry: "after_close" },
+    { id: "hl_short", on: ["round"], type: "open", label: "Short BTC 40× on Hyperliquid", instrument: HL_BTC, side: "short", size: { unit: "usd", value: 25 }, leverage: 40, reentry: "after_close" },
+    { id: "close_after_pt", on: ["pt_gone"], type: "close", target: "all" },
+    { id: "close_after_hl", on: ["hl_gone"], type: "close", target: "all" },
+  ],
+});
+
+export const examples: Strategy[] = [ethBreakout, buyThePanic, spursHotStart, coldSnap, pumpMomentum, fedPivot, crowdedFade, ethCallSpread, nvdaxEarnings, farmPaper];
