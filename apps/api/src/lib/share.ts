@@ -3,6 +3,7 @@ import { createRequire } from "node:module";
 import { dirname, join } from "node:path";
 import satori from "satori";
 import { Resvg } from "@resvg/resvg-js";
+import { encodePng, half, halftone, type Pixels } from "./halftone.ts";
 import { instrumentLabel, type Strategy } from "@weft/strategy";
 
 /**
@@ -194,17 +195,26 @@ function curveSvg(curve: number[], w: number, hgt: number, color: string): strin
 
 /* ---------- result cards: two styles, set like Weft's printed graphics ---------- */
 
-const here = dirname(new URL(import.meta.url).pathname);
-const paperCache = new Map<string, string>();
-/** Blank halftone paper (rendered once from Weft's banner system), as a data URL. */
-const paper = (name: "green" | "pink" | "stone" | "cream") => {
-  let v = paperCache.get(name);
-  if (!v) {
-    v = `data:image/jpeg;base64,${readFileSync(join(here, "../../assets/cards", `paper-${name}.jpg`)).toString("base64")}`;
-    paperCache.set(name, v);
-  }
-  return v;
-};
+/** The paper and ink pairs of Weft's printed graphics (banners.html's INK). */
+const PLATES = {
+  green: { paper: "#93e3bc", ink: "#082818" },
+  pink: { paper: "#f4a7c9", ink: "#2a0d22" },
+  stone: { paper: "#e9e5d8", ink: "#141414" },
+} as const;
+/** Draw a tree at twice the size, as raw pixels (black type on white, for the halftone). */
+async function pixels2x(tree: El, w: number, hh: number): Promise<Pixels> {
+  const svg = await satori(tree as never, { width: w, height: hh, fonts: loadFonts() });
+  const r = new Resvg(svg, { fitTo: { mode: "width", value: w * 2 } }).render();
+  return { width: r.width, height: r.height, data: new Uint8Array(r.pixels) };
+}
+/** A row of printed dots, like a receipt's leaders (cropped to fit). */
+const LEADER = (() => {
+  let c = "";
+  for (let x = 2; x < 1000; x += 9) c += `<rect x="${x}" y="9" width="3" height="3"/>`;
+  return `data:image/svg+xml;base64,${Buffer.from(`<svg xmlns="http://www.w3.org/2000/svg" width="1000" height="14"><g fill="#3a3936">${c}</g></svg>`).toString("base64")}`;
+})();
+const asDataUrl = (p: Pixels) => `data:image/png;base64,${encodePng(p).toString("base64")}`;
+
 const DOTS = (() => {
   let c = "";
   for (let y = 11; y < 630; y += 22) for (let x = 11; x < 1200; x += 22) c += `<circle cx="${x}" cy="${y}" r="1.1"/>`;
@@ -217,9 +227,24 @@ const usd = (v: number) => `${v < 0 ? "−" : ""}$${Math.abs(v).toLocaleString("
 const signedUsd = (v: number) => `${v > 0 ? "+" : v < 0 ? "−" : ""}$${Math.abs(v).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 const tradesTxt = (n: number) => `${n} ${n === 1 ? "trade" : "trades"}`;
 
+/** The return, set in black on white, for the slip's halftone. */
+function slipTree(r: ResultCard): El {
+  // The renderer puts padding outside a box's size, so the type sits in an inner box with margins.
+  return h("div", { width: 564, height: 538, display: "flex", background: "#fff", color: "#111", fontFamily: "Instrument Sans" }, [
+   h("div", { width: 484, height: 470, margin: "34px 40px", display: "flex", flexDirection: "column" }, [
+    h("div", { height: 22, fontSize: 16, fontWeight: 700, letterSpacing: 2.4 }, r.practice ? "PRACTICE" : ""),
+    h("div", { marginTop: 92, fontSize: fmtPct(r.returnPct).length > 7 ? 104 : 128, fontWeight: 700, letterSpacing: -5, lineHeight: 1 }, fmtPct(r.returnPct)),
+    h("div", { marginTop: 34, height: 3, background: "#111", display: "flex" }),
+    h("div", { marginTop: 26, fontSize: 30, fontWeight: 700, letterSpacing: -0.5 }, r.amounts ? `${signedUsd(r.amounts.pnlUsd)} on ${usd(r.amounts.investedUsd)}` : tradesTxt(r.trades)),
+    h("div", { marginTop: 8, fontSize: 21, fontWeight: 600 }, r.amounts ? `${tradesTxt(r.trades)} · since ${day(r.since)}` : `since ${day(r.since)}`),
+   ]),
+  ]);
+}
+
 /** Print: the run on the left, the return printed on a coloured slip (green up, pink down). */
-function printCard(r: ResultCard): El {
+async function printCard(r: ResultCard): Promise<El> {
   const tone = r.returnPct > 0 ? "green" : r.returnPct < 0 ? "pink" : "stone";
+  const slip = asDataUrl(halftone(await pixels2x(slipTree(r), 564, 538), { ...PLATES[tone], cell: 5, contrast: 1.0, solid: 0.42 }));
   const lev = r.leverage && r.leverage > 1 ? `${r.leverage}×` : null;
   const facts: [string, string][] = [
     ["Market", r.markets.slice(0, 2).join(" · ") || "—"],
@@ -242,16 +267,7 @@ function printCard(r: ResultCard): El {
         h("div", { marginTop: 16, fontSize: 18, fontWeight: 600 }, "weft.fi"),
       ]),
     ]),
-    h("div", { position: "absolute", left: 580, top: 46, width: 564, height: 538, display: "flex" }, [
-      img(paper(tone), 564, 538, { position: "absolute", left: 0, top: 0 }),
-      h("div", { position: "absolute", left: 40, top: 34, right: 40, bottom: 34, display: "flex", flexDirection: "column", color: "#111" }, [
-        h("div", { height: 22, fontSize: 16, fontWeight: 600, letterSpacing: 2.4, color: "#2e2e2e" }, r.practice ? "PRACTICE" : ""),
-        h("div", { marginTop: 92, fontSize: fmtPct(r.returnPct).length > 7 ? 104 : 128, fontWeight: 700, letterSpacing: -5, lineHeight: 1 }, fmtPct(r.returnPct)),
-        h("div", { marginTop: 34, height: 3, background: "#111", display: "flex" }),
-        h("div", { marginTop: 26, fontSize: 30, fontWeight: 700, letterSpacing: -0.5 }, r.amounts ? `${signedUsd(r.amounts.pnlUsd)} on ${usd(r.amounts.investedUsd)}` : tradesTxt(r.trades)),
-        h("div", { marginTop: 8, fontSize: 21, color: "#2e2e2e" }, r.amounts ? `${tradesTxt(r.trades)} · since ${day(r.since)}` : `since ${day(r.since)}`),
-      ]),
-    ]),
+    img(slip, 564, 538, { position: "absolute", left: 580, top: 46 }),
   ]);
 }
 
@@ -262,20 +278,19 @@ function receiptCard(r: ResultCard): El {
   const rows: [string, string][] = r.amounts
     ? [["Market", r.markets.slice(0, 2).join(" · ") || "—"], ["Put in", `${usd(r.amounts.investedUsd)} at ${lev}`], ["Result", signedUsd(r.amounts.pnlUsd)], ["Since", day(r.since)]]
     : [["Market", r.markets.slice(0, 2).join(" · ") || "—"], ["Leverage", lev], ["Trades", String(r.trades)], ["Since", day(r.since)]];
-  return h("div", { width: 1200, height: 630, display: "flex", position: "relative", fontFamily: "Instrument Sans", color: ink }, [
-    img(paper("cream"), 1200, 630, { position: "absolute", left: 0, top: 0 }),
+  return h("div", { width: 1200, height: 630, display: "flex", position: "relative", background: "#fff", fontFamily: "Instrument Sans", color: ink }, [
     h("div", { position: "absolute", left: 56, top: 44, right: 56, bottom: 40, display: "flex", flexDirection: "column" }, [
       h("div", { display: "flex", alignItems: "center", gap: 12, paddingBottom: 18, borderBottom: `2px solid ${ink}` }, [
         img(MARK(ink), 30, 30),
         h("div", { fontSize: 28, fontWeight: 600, letterSpacing: -1 }, "weft"),
         h("div", { marginLeft: "auto", fontSize: 15, fontWeight: 600, letterSpacing: 2.4, color: dim }, r.practice ? "PRACTICE" : ""),
       ]),
-      h("div", { marginTop: 22, fontFamily: "Newsreader", fontSize: 34, letterSpacing: -0.5 }, clip(r.name, 60)),
-      h("div", { marginTop: 4, fontFamily: "Newsreader", fontSize: 150, lineHeight: 1, letterSpacing: -4, color: r.returnPct < 0 ? "#a3261b" : ink }, fmtPct(r.returnPct)),
-      h("div", { marginTop: 18, display: "flex", flexDirection: "column", gap: 10 }, rows.map(([k, v]) =>
+      h("div", { marginTop: 28, fontFamily: "Newsreader", fontSize: 34, letterSpacing: -0.5 }, clip(r.name, 60)),
+      h("div", { marginTop: 8, fontFamily: "Newsreader", fontSize: 150, lineHeight: 1, letterSpacing: -4, color: r.returnPct < 0 ? "#d01f12" : ink }, fmtPct(r.returnPct)),
+      h("div", { marginTop: 26, display: "flex", flexDirection: "column", gap: 14 }, rows.map(([k, v]) =>
         h("div", { display: "flex", alignItems: "flex-end", gap: 16 }, [
           h("div", { width: 120, fontSize: 15, fontWeight: 600, letterSpacing: 2, color: dim, textTransform: "uppercase" }, k),
-          h("div", { flex: 1, height: 12, borderBottom: `2px dashed ${dim}`, display: "flex" }),
+          h("div", { flex: 1, height: 14, display: "flex", overflow: "hidden" }, [img(LEADER, 1000, 14)]),
           h("div", { fontSize: 20, fontWeight: 600 }, v),
         ]),
       )),
@@ -289,8 +304,15 @@ function receiptCard(r: ResultCard): El {
 
 /** A 1200×630 result card, as PNG, in either style. */
 export async function resultCard(r: ResultCard, style: CardStyle = "print"): Promise<Buffer> {
-  const tree = style === "receipt" ? receiptCard(r) : printCard(r);
-  const svg = await satori(tree as never, { width: 1200, height: 630, fonts: loadFonts() });
+  if (style === "receipt") {
+    // The whole slip goes through the press: drawn at 2×, printed, shown at 1× (as the banners are).
+    const printed = halftone(await pixels2x(receiptCard(r), 1200, 630), {
+      ...PLATES.stone, cell: 4, contrast: 1.0, solid: 0.5,
+      accent: { ink: "#a3261b", match: (red, g, b) => red > 150 && g < 110 && b < 110 },
+    });
+    return encodePng(half(printed));
+  }
+  const svg = await satori((await printCard(r)) as never, { width: 1200, height: 630, fonts: loadFonts() });
   return Buffer.from(new Resvg(svg, { fitTo: { mode: "width", value: 1200 } }).render().asPng());
 }
 
