@@ -1211,29 +1211,25 @@ const BANNERS = {
     div(`Farm PAPER without<br>betting on BTC.`, "position:absolute;left:80px;top:56px;font-size:76px;line-height:1.06;color:#f4f3ef;letter-spacing:-0.02em").classList.add("serif");
     const pr = div(`<div class="txt" style="font-size:28px;color:#f4f3ef">“Farm PAPER on autopilot.”</div>`, "left:900px;top:92px;width:620px;height:88px;padding:0 30px");
     pr.classList.add("prompt");
-    // the two legs
-    const card = "position:absolute;box-sizing:border-box;border-radius:20px;box-shadow:0 30px 80px rgba(0,0,0,0.5)";
+    // two legs, both on Papertrade
+    const card = "position:absolute;box-sizing:border-box;border-radius:20px;box-shadow:0 30px 80px rgba(0,0,0,0.5);background:#f3ebd6";
     const BTC = `<img src="../../../apps/web/public/coins/BTC.svg" width="30" height="30" style="border-radius:50%;display:block">`;
-    div(`<div style="display:flex;align-items:center;justify-content:space-between"><div style="font-family:'Helvetica Neue',Helvetica,Arial,sans-serif;font-size:30px;letter-spacing:-0.03em;color:#15120a">papertrade<span style="color:#881e20">_</span></div>${BTC}</div>
-      <div style="margin-top:34px;font-size:15px;letter-spacing:0.16em;color:#6b6352">LEG ONE</div>
-      <div style="margin-top:6px;font-size:46px;font-weight:600;letter-spacing:-0.03em;color:#15120a">Long BTC 100×</div>
-      <div style="margin-top:8px;font-size:22px;color:#4a4336">$1,000 position · $10 margin</div>`,
-      `${card};left:80px;top:276px;width:560px;height:268px;padding:30px 34px;background:#f3ebd6`);
-    div(`<div style="display:flex;align-items:center;justify-content:space-between"><div style="display:flex;align-items:center;gap:12px"><img src="../../../apps/web/public/coins/HYPE.svg" width="34" height="34" style="border-radius:50%;display:block"><div style="font-size:26px;font-weight:600;color:#f4f3ef;letter-spacing:-0.02em">Hyperliquid</div></div>${BTC}</div>
-      <div style="margin-top:34px;font-size:15px;letter-spacing:0.16em;color:#77766f">LEG TWO</div>
-      <div style="margin-top:6px;font-size:46px;font-weight:600;letter-spacing:-0.03em;color:#f4f3ef">Short BTC 40×</div>
-      <div style="margin-top:8px;font-size:22px;color:#a3a29d">$1,000 position · $25 margin</div>`,
-      `${card};left:960px;top:276px;width:560px;height:268px;padding:30px 34px;background:#161618;border:1px solid #2f6b5c`);
-    // the hedge between them
+    const leg = (x, n, side, col) => div(`<div style="display:flex;align-items:center;justify-content:space-between"><div style="font-family:'Helvetica Neue',Helvetica,Arial,sans-serif;font-size:30px;letter-spacing:-0.03em;color:#15120a">papertrade<span style="color:#881e20">_</span></div>${BTC}</div>
+      <div style="margin-top:34px;font-size:15px;letter-spacing:0.16em;color:#6b6352">LEG ${n}</div>
+      <div style="margin-top:6px;font-size:46px;font-weight:600;letter-spacing:-0.03em;color:#15120a">${side} BTC 100×</div>
+      <div style="margin-top:8px;font-size:22px;color:#4a4336">$1,000 position · $10 margin</div>
+      <div style="position:absolute;left:34px;right:34px;bottom:0;height:4px;border-radius:4px 4px 0 0;background:${col}"></div>`,
+      `${card};left:${x}px;top:276px;width:560px;height:268px;padding:30px 34px`);
+    leg(80, "ONE", "Long", "#2f9e6e");
+    leg(960, "TWO", "Short", "#c2453c");
     div(`<div style="font-size:15px;letter-spacing:0.16em;color:#77766f">TOGETHER</div><div style="margin-top:8px;font-size:34px;font-weight:600;color:#f4f3ef;letter-spacing:-0.02em">≈ $0 net</div><div style="margin-top:6px;font-size:18px;color:#a3a29d">BTC up or down, the legs cancel</div>`,
       "position:absolute;left:640px;top:350px;width:320px;text-align:center");
-    threads([["M 640 410 C 680 410 690 410 700 410", "#f4a7c9"], ["M 900 410 C 910 410 920 410 960 410", "#93e3bc"]]);
-    // one round, then the next
+    threads([["M 640 410 C 680 410 690 410 700 410", "#93e3bc"], ["M 900 410 C 910 410 920 410 960 410", "#f4a7c9"]]);
     const STEPS = [
-      ["BTC drops about 1%", "Sooner or later, one leg loses."],
-      ["The Papertrade leg busts", "Its $10 loss earns PAPER."],
-      ["The short closes in profit", "It gained about what the long lost."],
-      ["Next round opens", "Up to 30 rounds, 3 minutes apart."],
+      ["BTC moves about 1%", "Up or down, one leg busts."],
+      ["Its $10 loss earns PAPER", "Every round, either way."],
+      ["The other closes in profit", "Less Papertrade’s haircut and 2%."],
+      ["The next round opens", "Up to 30 rounds, 3 minutes apart."],
     ];
     STEPS.forEach(([t, sub], i) => {
       const x = 80 + i * 365;
@@ -1241,7 +1237,7 @@ const BANNERS = {
         `position:absolute;left:${x}px;top:612px;width:330px;height:150px;box-sizing:border-box;padding:22px 24px;border-radius:16px;background:#1a1a1d;border:1px solid ${i === 1 ? "#5c4a2a" : "#2a2a2f"}`);
       if (i < 3) threads([[`M ${x + 330} 687 C ${x + 342} 687 ${x + 353} 687 ${x + 365} 687`, ["#f1b94e", "#f4a7c9", "#93e3bc"][i]]]);
     });
-    div("Weft opens both legs, ties them together and runs it round after round. Practice it first: PAPER can’t be sold yet.", "position:absolute;left:80px;top:800px;font-size:21px;color:#77766f");
+    div("About $1.80 a round at 100×. Weft opens both legs, ties them together and runs the rounds. Practice it first: PAPER can’t be sold yet.", "position:absolute;left:80px;top:800px;font-size:21px;color:#77766f");
   },
   odds() {
     $b.style.width = "1600px"; $b.style.height = "900px"; $b.className = "dark"; dots("#2a2a2e", 24);
