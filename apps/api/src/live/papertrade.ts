@@ -242,6 +242,12 @@ export class PapertradeAccounts {
     }
   }
 
+  /** The raw live state of the user's Papertrade wallet (operator diagnostics). */
+  async rawState(userId: string): Promise<unknown> {
+    const wallet = this.walletOf(userId);
+    return wallet ? await this.liveState(wallet).catch((e) => ({ error: (e as Error).message })) : null;
+  }
+
   /** PAPER the user's Papertrade account holds, staked included (18 decimals on chain). Null without an account. */
   async paperOf(userId: string): Promise<number | null> {
     const wallet = this.walletOf(userId);

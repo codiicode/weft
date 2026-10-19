@@ -202,6 +202,13 @@ export function createApp(deps: AppDeps) {
               triggers: snap?.triggers?.map((t) => ({ id: t.id, fired: t.fired, held: (t as { held?: string }).held ?? null })) ?? [],
               signals: snap?.signalValues ?? {},
               strategy: c.req.query("detail") === "full" ? d.strategy : undefined,
+              papertrade:
+                c.req.query("detail") === "full" && deps.papertrade && d.strategy.actions.some((a) => a.type === "open" && a.instrument.kind === "synth")
+                  ? await (async () => {
+                      const st = (await deps.papertrade!.rawState(accounts?.deploymentOwner(d.id) ?? "")) as Record<string, unknown> | null;
+                      return st && { funds: st.funds, balance: st.balance, queued: st.queued, locked: st.locked, openPositions: st.openPositions, operations: Array.isArray(st.operations) ? (st.operations as unknown[]).slice(-12) : st.operations, error: st.error };
+                    })()
+                  : undefined,
               fillLog: c.req.query("detail") === "full" ? fills.map((f) => `${new Date(f.ts).toISOString().slice(5, 19)} ${f.side} ${f.reason} qty ${f.qty} @ ${f.price} pnl ${(f.realizedPnlUsd ?? 0).toFixed(2)}`) : undefined,
             }
           : {}),
