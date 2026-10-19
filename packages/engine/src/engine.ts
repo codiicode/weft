@@ -176,6 +176,27 @@ export function createEngine(opts: EngineOptions): EngineRuntime {
     return Math.max(open, ...cost.values(), 0) || null;
   }
 
+  /**
+   * Why a run is finished, or null while it can still do something. Finished means: nothing open, and
+   * every action that opens positions has used its one go (no re-entry) or its rules have used all their
+   * fires. Copy trading, alerts-only runs and anything that may still open are never finished.
+   */
+  function finishedReason(strategy: DeploymentRecord["strategy"], ev: { triggers: Record<string, { fires: number }>; actions: Record<string, { fires: number }> }, openCount: number): string | null {
+    if (openCount > 0) return null;
+    const openers = strategy.actions.filter((a) => a.type === "open" || a.type === "options" || a.type === "liquidity" || a.type === "copy");
+    if (!openers.length || openers.some((a) => a.type === "copy")) return null;
+    const spent = (a: (typeof openers)[number]) => {
+      const fired = (ev.actions[a.id]?.fires ?? 0) > 0;
+      if ("reentry" in a && a.reentry === "never" && fired) return true;
+      return a.on.every((tid) => {
+        const t = strategy.triggers.find((x) => x.id === tid);
+        return t?.maxFires != null && (ev.triggers[tid]?.fires ?? 0) >= t.maxFires;
+      });
+    };
+    if (!openers.every(spent)) return null;
+    return "Finished: its trades are closed and none of its rules can open another, so the run has stopped.";
+  }
+
   async function doTick(id: string, t: number): Promise<void> {
     const { d, rt } = await load(id);
     if (d.status !== "running") return;
@@ -191,6 +212,17 @@ export function createEngine(opts: EngineOptions): EngineRuntime {
     }
     await store.commit(s.toBatch());
     publish(s.events);
+    // A run with nothing left to do (its trades are closed and no rule can open another) finishes,
+    // instead of showing "running" forever.
+    const done = finishedReason(d.strategy, s.rt.evalState, s.open().length);
+    if (done) {
+      const traded = (await store.listFills(id)).length > 0;
+      const why = traded ? done : "Finished without trading: its order didn’t go through (see above) and none of its rules can try again, so the run has stopped.";
+      const next: DeploymentRecord = { ...d, status: "stopped", updatedAt: t };
+      const ev = event(id, "status", why, { from: "running", to: "stopped", finished: true }, t);
+      await store.commit({ deploymentId: id, deployment: next, events: [ev] });
+      publish([ev]);
+    }
   }
 
   async function setStatus(id: string, to: DeploymentStatus, allowedFrom: DeploymentStatus[]) {
