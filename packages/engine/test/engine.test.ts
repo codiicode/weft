@@ -675,3 +675,27 @@ describe("orders the venue couldn't take yet", () => {
     expect((await t.engine.getSnapshot(d.id))!.positions).toHaveLength(1);
   });
 });
+
+describe("two runs of the same strategy", () => {
+  it("send their orders under different ids, so a venue's duplicate guard never mixes them up", async () => {
+    const ids: string[] = [];
+    const executor = {
+      mode: "paper" as const,
+      async execute(req: { clientId: string; notionalUsd?: number }) {
+        ids.push(req.clientId);
+        return { status: "filled" as const, qty: (req.notionalUsd ?? 0) / 100, price: 100, markPrice: 100, feeUsd: 0, builderFeeUsd: 0, slippageBps: 0 };
+      },
+    };
+    const t = setup({ executor: executor as never });
+    t.market.set(BTC, 100);
+    t.signals.set("go", { value: 1 });
+    const strategy = simpleStrategy({ instrument: BTC, side: "long", size: { unit: "usd", value: 100 } }, { triggers: [{ id: "entry", when: { op: "gt", left: { ref: "go.value" }, right: { value: 0 } }, maxFires: 1 }] });
+    const a = await t.engine.createDeployment({ strategy, allocationUsd: 1_000 });
+    const b = await t.engine.createDeployment({ strategy, allocationUsd: 1_000 });
+    await t.engine.tick(a.id);
+    await t.engine.tick(b.id);
+    expect(ids).toHaveLength(2);
+    expect(ids[0]).not.toBe(ids[1]);
+    expect(ids[0]!.startsWith(a.id)).toBe(true);
+  });
+});

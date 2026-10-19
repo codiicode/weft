@@ -195,3 +195,30 @@ describe("a full Papertrade side", () => {
     expect(shortsTried).toBe(2);
   });
 });
+
+describe("a Papertrade open that is still pending", () => {
+  it("is asked about again under the same id until it shows up, never sent twice", async () => {
+    const ids: string[] = [];
+    let calls = 0;
+    const executor = {
+      mode: "paper" as const,
+      async execute(req: { clientId: string; notionalUsd?: number }) {
+        ids.push(req.clientId);
+        calls++;
+        if (calls === 1) return { status: "pending" as const, reason: "sent to Papertrade (0xabc…), not open yet" };
+        return { status: "filled" as const, qty: (req.notionalUsd ?? 0) / 100_000, price: 100_000, markPrice: 100_000, feeUsd: 0, builderFeeUsd: 0, slippageBps: 0, venueId: "1" };
+      },
+    };
+    const t = setup({ tickEventIntervalMs: 0, executor: executor as never });
+    t.market.set(instrumentKey(PT_BTC), 100_000);
+    t.signals.set("go", { value: 1 });
+    const d = await t.engine.createDeployment({ strategy: strategy(100, 10), allocationUsd: 100 });
+    await t.engine.tick(d.id);
+    expect((await t.engine.getSnapshot(d.id))!.positions).toHaveLength(0);
+    t.clock.t += MIN;
+    await t.engine.tick(d.id);
+    expect((await t.engine.getSnapshot(d.id))!.positions).toHaveLength(1);
+    expect(ids).toHaveLength(2);
+    expect(ids[1]).toBe(ids[0]); // the same order, looked up again
+  });
+});

@@ -975,7 +975,7 @@ async function executeOpen(s: Session, i: OpenIntent, usdPrices: Record<string, 
   try {
     res = await s.deps.executor.execute(
       {
-        clientId: i.key,
+        clientId: orderId(s, i.key),
         instrument: i.instrument,
         instrumentKey: i.instrumentKey,
         side: i.side === "long" ? "buy" : "sell",
@@ -990,7 +990,10 @@ async function executeOpen(s: Session, i: OpenIntent, usdPrices: Record<string, 
   } catch (e) {
     res = { status: "rejected" as const, reason: errMsg(e) };
   }
-  if (res.status !== "filled") return res.status === "rejected" && res.retry ? retryLater(s, i, res.reason) : reject(s, i, res.reason, res.status === "pending");
+  // Papertrade confirms through a relayer queue: an open still "pending" is asked about again on a later
+  // tick under the same id (its executor never sends the same id twice), so the rule isn't left stuck.
+  const askAgain = (res.status === "rejected" && res.retry) || (res.status === "pending" && i.instrument.kind === "synth");
+  if (res.status !== "filled") return askAgain ? retryLater(s, i, res.reason) : reject(s, i, res.reason, res.status === "pending");
   const maxLeverage = s.deps.perpRealism && i.instrument.kind === "perp" && needsLiquidationPrice({ instrument: i.instrument, side: i.side, leverage: i.leverage }) ? await maxLeverageOf(s, i.instrument) : null;
   s.bookOpen({ instrument: i.instrument, side: i.side, leverage: i.leverage, actionId: i.actionId, intentKey: i.key, exits: i.exits, res, maxLeverage });
 }
@@ -1014,7 +1017,7 @@ async function executeLiquidity(s: Session, i: OpenIntent, pool: Extract<Instrum
   let res;
   try {
     res = await s.deps.executor.execute(
-      { clientId: i.key, instrument: pool, instrumentKey: i.instrumentKey, side: "buy", phase: "open", notionalUsd: usd, order: i.order, deploymentId: s.deployment.id, leverage: 1, lp: { lower, upper, poolPrice: q.price, quoteUsd: q.lp.quoteUsd, shape } },
+      { clientId: orderId(s, i.key), instrument: pool, instrumentKey: i.instrumentKey, side: "buy", phase: "open", notionalUsd: usd, order: i.order, deploymentId: s.deployment.id, leverage: 1, lp: { lower, upper, poolPrice: q.price, quoteUsd: q.lp.quoteUsd, shape } },
       s.now
     );
   } catch (e) {
@@ -1095,7 +1098,7 @@ async function executeOptions(s: Session, i: OptionsIntent, usdPrices: Record<st
     let res;
     try {
       res = await s.deps.executor.execute(
-        { clientId: `${i.key}:${leg.instrumentKey}`, instrument: leg.instrument, instrumentKey: leg.instrumentKey, side: leg.side, phase: "open", qty: units * leg.ratio, order: i.order, deploymentId: s.deployment.id },
+        { clientId: orderId(s, `${i.key}:${leg.instrumentKey}`), instrument: leg.instrument, instrumentKey: leg.instrumentKey, side: leg.side, phase: "open", qty: units * leg.ratio, order: i.order, deploymentId: s.deployment.id },
         s.now
       );
     } catch (e) {
@@ -1129,6 +1132,15 @@ async function executeClose(s: Session, i: CloseIntent): Promise<void> {
     return;
   }
   for (const p of targets) await s.closePosition(p, i.fraction, "close_action", `${i.key}:${p.id}`, i.key);
+}
+
+/**
+ * The id an order goes to the venue with. It carries the run: two runs of the same strategy (a
+ * template, a copy) have the same intent keys, and an executor that remembers sent orders by id must
+ * never take one run's order for another's.
+ */
+export function orderId(s: Session, key: string): string {
+  return `${s.deployment.id}:${key}`;
 }
 
 function reject(s: Session, i: Intent, reason: string, pending = false): void {
