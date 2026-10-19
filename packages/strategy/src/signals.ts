@@ -232,6 +232,9 @@ export const SIGNAL_KINDS = {
     params: z.object({ instrument: Instrument.optional() }),
     fields: {
       open: "boolean",
+      count: "number",
+      longs: "number",
+      shorts: "number",
       size_usd: "number",
       pnl_pct: "number",
       pnl_usd: "number",

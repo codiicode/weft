@@ -135,26 +135,30 @@ describe("a Papertrade / Hyperliquid hedge", () => {
 });
 
 describe("Farm PAPER (the example)", () => {
-  it("runs in rounds: bust, close the hedge, wait, open again", async () => {
+  it("runs in rounds with both legs on Papertrade: one busts either way, the other closes, a new round opens", async () => {
     const { farmPaper } = await import("@weft/strategy/examples");
-    const HL_BTC: Instrument = { kind: "perp", venue: "hyperliquid", symbol: "BTC", assetClass: "crypto" };
     const t = setup({ tickEventIntervalMs: 0 });
-    const kPt = instrumentKey(PT_BTC), kHl = instrumentKey(HL_BTC);
-    const both = (px: number) => (t.market.set(kPt, px), t.market.set(kHl, px));
-    both(100_000);
-    const d = await t.engine.createDeployment({ strategy: farmPaper, allocationUsd: 200 });
-    const step = async (px: number, mins = 1) => {
-      t.clock.t += mins * MIN;
-      both(px);
+    const k = instrumentKey(PT_BTC);
+    t.market.set(k, 100_000);
+    const d = await t.engine.createDeployment({ strategy: farmPaper, allocationUsd: 100 });
+    const step = async (px: number) => {
+      t.clock.t += MIN;
+      t.market.set(k, px);
       await t.engine.tick(d.id);
-      return (await t.engine.getSnapshot(d.id))!.positions.length;
+      return (await t.engine.getSnapshot(d.id))!.positions;
     };
     await t.engine.tick(d.id);
-    expect((await t.engine.getSnapshot(d.id))!.positions).toHaveLength(2); // round 1
-    expect(await step(98_800)).toBeLessThan(2); // busts…
-    expect(await step(98_800)).toBe(0); // …and the short is closed
-    expect(await step(98_800)).toBe(2); // round 2: at most one round every 3 minutes
+    let pos = (await t.engine.getSnapshot(d.id))!.positions;
+    expect(pos.map((p) => p.side).sort()).toEqual(["long", "short"]); // round 1, both on Papertrade
+    expect((await step(98_800)).length).toBeLessThan(2); // down: the long busts…
+    expect(await step(98_800)).toHaveLength(0); // …and the short is closed, in profit
+    pos = await step(98_800); // round 2
+    expect(pos.map((p) => p.side).sort()).toEqual(["long", "short"]);
+    expect((await step(100_100)).length).toBeLessThan(2); // up this time: the short busts
+    expect(await step(100_100)).toHaveLength(0);
     const fills = await t.engine.getFills(d.id);
-    expect(fills.filter((f) => f.reason === "liquidation")).toHaveLength(1);
+    expect(fills.filter((f) => f.reason === "liquidation").map((f) => f.side).sort()).toEqual(["buy", "sell"]); // a long and a short busted
+    const won = fills.filter((f) => f.reason !== "liquidation" && f.reason !== "entry" && (f.realizedPnlUsd ?? 0) > 0);
+    expect(won.length).toBe(2); // each round's survivor closed in profit
   });
 });

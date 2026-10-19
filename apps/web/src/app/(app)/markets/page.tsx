@@ -145,7 +145,7 @@ function Markets() {
         {product === "papertrade" && (
           <Link href="/new?from=farm-paper-btc" className="mb-5 flex items-center justify-between gap-4 rounded-[12px] border border-line bg-card px-4 py-3 hover:border-line-2">
             <span className="text-[14px] text-ink-2">
-              <span className="font-semibold text-ink">Farm PAPER, hedged.</span> A 100× BTC long on Papertrade against the same size short on Hyperliquid, round after round. Losses on Papertrade earn PAPER; the short covers the move.
+              <span className="font-semibold text-ink">Farm PAPER, hedged.</span> A 100× BTC long and a 100× BTC short on Papertrade at once, round after round. Whichever way BTC moves, the leg that busts earns PAPER and the other closes in profit.
             </span>
             <span className="shrink-0 text-[14px] font-medium text-ink">Open it →</span>
           </Link>

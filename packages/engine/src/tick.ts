@@ -822,6 +822,11 @@ function positionSnapshot(s: Session, sig: Extract<Signal, { kind: "position" }>
     asOf: s.now,
     fields: {
       open: ps.length > 0,
+      // How many positions, and on which side: two legs on one market (a long and a short on
+      // Papertrade) are told apart by these.
+      count: ps.length,
+      longs: ps.filter((p) => p.side === "long").length,
+      shorts: ps.filter((p) => p.side === "short").length,
       size_usd: size,
       pnl_usd: pnl,
       pnl_pct: size > 0 ? (pnl / size) * 100 : null,
