@@ -162,3 +162,36 @@ describe("Farm PAPER (the example)", () => {
     expect(won.length).toBe(2); // each round's survivor closed in profit
   });
 });
+
+describe("a full Papertrade side", () => {
+  it("doesn't make Earn PAPER churn: the round waits out its cooldown before trying again", async () => {
+    const { farmPaper } = await import("@weft/strategy/examples");
+    let shortsTried = 0;
+    const executor = {
+      mode: "paper" as const,
+      async execute(req: { side: string; phase: string; notionalUsd?: number; qty?: number }) {
+        if (req.phase === "open" && req.side === "sell") {
+          shortsTried++;
+          return { status: "rejected" as const, reason: "Papertrade is full on this side right now", retry: true };
+        }
+        const qty = req.phase === "open" ? (req.notionalUsd ?? 0) / 100_000 : req.qty!;
+        return { status: "filled" as const, qty, price: 100_000, markPrice: 100_000, feeUsd: 0, builderFeeUsd: 0, slippageBps: 0 };
+      },
+    };
+    const t = setup({ tickEventIntervalMs: 0, executor: executor as never });
+    t.market.set(instrumentKey(PT_BTC), 100_000);
+    const d = await t.engine.createDeployment({ strategy: farmPaper, allocationUsd: 100 });
+    const at = async (mins: number) => {
+      t.clock.t += mins * MIN;
+      await t.engine.tick(d.id);
+      return (await t.engine.getSnapshot(d.id))!.positions.length;
+    };
+    await t.engine.tick(d.id); // round 1: the long opens, the short is refused
+    expect(shortsTried).toBe(1);
+    expect(await at(1)).toBe(0); // the lone long is closed
+    expect(await at(1)).toBe(0); // still inside the 3-minute cooldown: no new round
+    expect(shortsTried).toBe(1);
+    await at(2); // past it: tries again
+    expect(shortsTried).toBe(2);
+  });
+});

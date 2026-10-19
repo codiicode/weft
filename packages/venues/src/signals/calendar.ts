@@ -75,8 +75,10 @@ export function calendarFields(p: { event: "earnings" | "fomc" | "cpi" | "custom
   const ms = (xs: readonly string[]) => xs.map((x) => Date.parse(x)).filter(Number.isFinite);
   switch (p.event) {
     case "custom": {
+      // A deadline ("the session ends at…"): once it has passed, hours_until goes below zero, so
+      // "hours_until ≤ 0" fires after it. (Recurring events keep null when no next one is known.)
       const at = p.at ? Date.parse(p.at) : NaN;
-      return Number.isFinite(at) ? hoursAround([at], now) : null;
+      return Number.isFinite(at) ? { hours_until: (at - now) / 3_600_000, hours_since: now >= at ? (now - at) / 3_600_000 : null } : null;
     }
     case "fomc":
       return hoursAround(ms(FOMC_DATES), now);

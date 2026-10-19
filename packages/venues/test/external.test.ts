@@ -42,7 +42,8 @@ describe("calendar", () => {
 
   it("custom events are exact", () => {
     expect(calendarFields({ event: "custom", at: "2026-10-13T13:00:00Z" }, now)).toEqual({ hours_until: 24, hours_since: null });
-    expect(calendarFields({ event: "custom", at: "2026-10-12T10:00:00Z" }, now)).toEqual({ hours_until: null, hours_since: 3 });
+    // A passed deadline counts below zero, so "when the session ends" (hours_until ≤ 0) fires after it.
+    expect(calendarFields({ event: "custom", at: "2026-10-12T10:00:00Z" }, now)).toEqual({ hours_until: -3, hours_since: 3 });
     expect(calendarFields({ event: "custom" }, now)).toBeNull();
   });
 

@@ -46,11 +46,17 @@ interface TradeRow { positionId: string; kind: "PositionClosed" | "Liquidated"; 
 
 export class PapertradeError extends Error {
   readonly code: string;
-  constructor(code: string, message: string) {
+  /** Papertrade's own reason ("openInterest", "marketPaused", …). */
+  readonly reason: string | null;
+  constructor(code: string, message: string, reason: string | null = null) {
     super(message);
     this.code = code;
+    this.reason = reason;
   }
 }
+
+/** Refusals that pass on their own: a full open-interest side frees up as others close; a pause ends. */
+const PASSES = new Set(["openInterest", "tradingPaused", "marketPaused"]);
 
 const REASONS: Record<string, string> = {
   tradingPaused: "Papertrade has paused trading",
@@ -59,7 +65,7 @@ const REASONS: Record<string, string> = {
   belowMinimumNotional: "the position (margin × leverage) is under Papertrade's minimum",
   leverageTooHigh: "the leverage is above Papertrade's maximum",
   positionTooLarge: "the position is above Papertrade's maximum",
-  openInterest: "Papertrade's open-interest cap for this side is full",
+  openInterest: "Papertrade is full on this side right now (its open-interest cap). Weft tries again as positions close",
   funding: "there isn't enough free balance in the Papertrade account",
   noOpenPositions: "that position is already closed",
   noDeposit: "the Papertrade account has no deposit yet",
@@ -94,14 +100,17 @@ export class PapertradeExecutor implements Executor {
       if (!acct) return { status: "rejected", reason: "this account has no Papertrade session set up" };
       return req.phase === "open" ? await this.open(req, i.symbol, acct) : await this.close(req, acct);
     } catch (e) {
-      return { status: "rejected", reason: e instanceof Error ? e.message : String(e) };
+      // An open refused for a reason that passes (its side is full, a pause): nothing was placed, so the
+      // rule may try again later instead of giving up on the trade.
+      const passes = req.phase === "open" && e instanceof PapertradeError && e.reason != null && PASSES.has(e.reason);
+      return { status: "rejected", reason: e instanceof Error ? e.message : String(e), ...(passes ? { retry: true } : {}) };
     }
   }
 
   private async post(action: string, signed: unknown): Promise<{ intentId?: string }> {
     const r = await this.f(`${this.base}/intents`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ action, signed }), signal: AbortSignal.timeout(20_000) });
     const body = (await r.json().catch(() => ({}))) as { code?: string; reason?: string; message?: string; intentId?: string; action?: string };
-    if (!r.ok) throw new PapertradeError(body.code ?? `http_${r.status}`, `Papertrade refused it: ${(body.reason && REASONS[body.reason]) ?? body.message ?? body.reason ?? body.code ?? `HTTP ${r.status}`}`);
+    if (!r.ok) throw new PapertradeError(body.code ?? `http_${r.status}`, `Papertrade refused it: ${(body.reason && REASONS[body.reason]) ?? body.message ?? body.reason ?? body.code ?? `HTTP ${r.status}`}`, body.reason ?? null);
     return body;
   }
 

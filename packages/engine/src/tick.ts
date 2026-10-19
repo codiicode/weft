@@ -1147,7 +1147,9 @@ function refund(s: Session, i: Intent): void {
   if (t) {
     t.fires = Math.max(0, t.fires - 1);
     t.armed = true;
-    t.lastFiredAt = null;
+    // A rule with a cooldown waits it out before trying again (a full venue isn't asked every tick).
+    const cooldown = s.deployment.strategy.triggers.find((x) => x.id === i.triggerId)?.cooldownMinutes ?? 0;
+    if (!(cooldown > 0)) t.lastFiredAt = null;
   }
   const a = s.rt.evalState.actions[i.actionId];
   if (a) a.fires = Math.max(0, a.fires - 1);

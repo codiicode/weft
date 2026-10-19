@@ -81,3 +81,19 @@ describe("PapertradeExecutor", () => {
     expect(r.posted).toHaveLength(1);
   });
 });
+
+describe("Papertrade refusals", () => {
+  const BTC = { kind: "synth", venue: "papertrade", symbol: "BTC", assetClass: "crypto" } as const;
+  it("marks a full open-interest side as worth retrying, and a real problem as not", async () => {
+    const refusing = (reason: string) =>
+      (async (url: string) =>
+        url.endsWith("/intents") ? new Response(JSON.stringify({ code: "rejected", reason }), { status: 422 }) : new Response("{}", { status: 404 })) as unknown as typeof fetch;
+    const req = { clientId: "x", instrument: BTC, instrumentKey: "k", side: "buy" as const, phase: "open" as const, notionalUsd: 1000, leverage: 100, deploymentId: "d" };
+    const full = await new PapertradeExecutor({ account: async () => ({ wallet: WALLET, session }), fetch: refusing("openInterest"), pollMs: 1 }).execute(req);
+    expect(full).toMatchObject({ status: "rejected", retry: true });
+    expect(full.status === "rejected" && full.reason).toMatch(/full on this side/);
+    const broke = await new PapertradeExecutor({ account: async () => ({ wallet: WALLET, session }), fetch: refusing("funding"), pollMs: 1 }).execute(req);
+    expect(broke.status).toBe("rejected");
+    expect((broke as { retry?: boolean }).retry).toBeUndefined();
+  });
+});
