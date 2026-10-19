@@ -122,6 +122,8 @@ export interface AppDeps {
    * this key and the user id. Random per boot, never leaves the process.
    */
   internalKey?: string;
+  /** Answer one tweet again by id (internal key only). */
+  xbotRetry?: (id: string) => Promise<string>;
   /** The X account Privy says the user linked (id and handle), for Tweet a trade. */
   xAccountOf?: (userId: string) => Promise<{ id: string; username: string } | null>;
 }
@@ -176,6 +178,15 @@ export function createApp(deps: AppDeps) {
 
   /** The signed-in user, LOCAL_USER in local mode, or null for anonymous requests. */
   const internalKey = deps.internalKey ? Buffer.from(deps.internalKey) : null;
+
+  // Operator tool: make the X bot answer a tweet whose answer got lost (e.g. cut short by a restart).
+  app.post("/internal/xbot/retry", async (c) => {
+    const ik = Buffer.from(c.req.header("x-weft-internal") ?? "");
+    if (!internalKey || ik.length !== internalKey.length || !timingSafeEqual(ik, internalKey)) return c.json({ error: "not found" }, 404);
+    if (!deps.xbotRetry) return c.json({ error: "x bot is off" }, 501);
+    const { id } = z.object({ id: z.string().regex(/^\d{5,25}$/) }).parse(await c.req.json());
+    return c.json({ id, result: await deps.xbotRetry(id) });
+  });
   const optionalUser = async (c: Context): Promise<AuthUser | null> => {
     const ik = c.req.header("x-weft-internal");
     if (internalKey && ik) {

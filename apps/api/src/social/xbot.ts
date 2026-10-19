@@ -59,6 +59,19 @@ export interface XBotDeps {
   fetch?: typeof fetch;
 }
 
+function toMention(t: ApiTweet): Mention {
+  return {
+    id: String(t.id),
+    text: t.text ?? "",
+    at: Date.parse(t.createdAt ?? ""),
+    author: (t.author?.userName ?? "").toLowerCase(),
+    authorId: String(t.author?.id ?? ""),
+    followers: t.author?.followers ?? 0,
+    isRetweet: !!t.retweeted_tweet || /^RT @/.test(t.text ?? ""),
+    inReplyToId: t.inReplyToId ? String(t.inReplyToId) : null,
+  };
+}
+
 interface Mention {
   id: string;
   text: string;
@@ -179,6 +192,10 @@ export class XBot {
   private readonly d: XBotDeps;
   private readonly f: typeof fetch;
   private running = false;
+  /** Tweets being answered right now (a pass can start while the last one is still drafting). */
+  private inflight = new Set<string>();
+  /** The first pass after a start looks further back and retries answers a restart cut short. */
+  private firstPass = true;
   constructor(d: XBotDeps) {
     this.d = d;
     this.f = d.fetch ?? fetch;
@@ -199,7 +216,9 @@ export class XBot {
 
   /** Mentions since the last run (the first run only looks back 15 minutes), oldest first. */
   private async mentions(now: number): Promise<Mention[]> {
-    const since = Number(this.d.kvGet("xbot:since") ?? 0) || Math.floor(now / 1000) - 900;
+    const stored = Number(this.d.kvGet("xbot:since") ?? 0) || Math.floor(now / 1000) - 900;
+    // After a restart, look back 30 minutes: a tweet whose answer was cut short is picked up again.
+    const since = this.firstPass ? Math.min(stored, Math.floor(now / 1000) - 1800) : stored;
     const h = this.d.handle.replace(/^@/, "");
     // Two minutes of overlap: a tweet the search indexes late isn't skipped (answered ones are marked done).
     const q = `@${h} -from:${h} since_time:${since - 120}`;
@@ -207,18 +226,17 @@ export class XBot {
     if (!r.ok) throw new Error(`mentions: HTTP ${r.status}`);
     const body = (await r.json()) as { tweets?: ApiTweet[] };
     return (body.tweets ?? [])
-      .map((t) => ({
-        id: String(t.id),
-        text: t.text ?? "",
-        at: Date.parse(t.createdAt ?? ""),
-        author: (t.author?.userName ?? "").toLowerCase(),
-        authorId: String(t.author?.id ?? ""),
-        followers: t.author?.followers ?? 0,
-        isRetweet: !!t.retweeted_tweet || /^RT @/.test(t.text ?? ""),
-        inReplyToId: t.inReplyToId ? String(t.inReplyToId) : null,
-      }))
+      .map(toMention)
       .filter((m) => Number.isFinite(m.at))
       .sort((a, b) => a.at - b.at);
+  }
+
+  /** One tweet by id, as a mention. */
+  private async tweet(id: string): Promise<Mention | null> {
+    const r = await this.f(`https://api.twitterapi.io/twitter/tweets?tweet_ids=${encodeURIComponent(id)}`, { headers: { "X-API-Key": this.d.twitterApiKey }, signal: AbortSignal.timeout(20_000) });
+    if (!r.ok) throw new Error(`tweet: HTTP ${r.status}`);
+    const t = ((await r.json()) as { tweets?: ApiTweet[] }).tweets?.[0];
+    return t ? toMention(t) : null;
   }
 
   /** The tweet a mention answers (for "make this a strategy"). */
@@ -302,6 +320,81 @@ export class XBot {
     return true;
   }
 
+  /** Whether a mention is worth answering; reserves the caps when it is. Null when it's skipped. */
+  private async consider(m: Mention, day: string): Promise<{ m: Mention; idea: string; link: { userId: string; prefs: XPrefs } | null } | null> {
+    this.d.kvSet(`xbot:done:${m.id}`, "started");
+      const link = m.authorId ? (this.d.linked?.(m.authorId) ?? null) : null;
+      let idea = ideaOf(m.text);
+      // "@weftfinance make this a strategy" under someone's call: the call is the idea. Asked for
+      // outright, the AI judges the tweet (it may read like a view, not a trade, and still be one).
+      let asked = false;
+      let context: string | null = null;
+      if (m.inReplyToId) {
+        const p = await this.parent(m.inReplyToId).catch(() => null);
+        context = p?.text ?? null;
+        if (p && p.author !== this.d.handle.replace(/^@/, "").toLowerCase() && (!looksLikeIdea(idea) || asksAboutParent(idea))) {
+          asked = asksAboutParent(idea);
+          idea = thesisFromParent(p.text, idea);
+        }
+      }
+      const why =
+        m.isRetweet ? "retweet"
+        : m.author === this.d.handle.replace(/^@/, "").toLowerCase() ? "own post"
+        : !link && m.followers < (this.d.minFollowers ?? 10) ? `${m.followers} followers`
+        : !asked && !looksLikeIdea(idea) ? "not a trade idea"
+        : idea.length < 12 ? "nothing to trade"
+        : this.count(`xbot:day:${day}`) >= (this.d.maxPerDay ?? 15) ? "daily cap"
+        : this.count(`xbot:author:${day}:${m.author}`) >= (link ? (this.d.perLinkedPerDay ?? 10) : (this.d.perAuthorPerDay ?? 2)) ? "author cap"
+        : null;
+      if (why) {
+        this.d.log?.(`xbot: skipped ${m.id} from @${m.author} (${why})`);
+        this.d.kvSet(`xbot:done:${m.id}`, "skipped");
+        return null;
+      }
+      // The keyword check is only a coarse first pass ("for long time" has "long" in it): a small
+      // model decides whether the post really asks for a trade. Unsure or failing: no reply.
+      if (!asked && this.d.isTradeIdea) {
+        const yes = await this.d.isTradeIdea(ideaOf(m.text), context).catch(() => false);
+        if (!yes) {
+          this.d.log?.(`xbot: skipped ${m.id} from @${m.author} (not asking for a trade)`);
+          this.d.kvSet(`xbot:done:${m.id}`, "skipped");
+          return null;
+        }
+      }
+    this.bump(`xbot:day:${day}`);
+    this.bump(`xbot:author:${day}:${m.author}`);
+    return { m, idea, link };
+  }
+
+  /** Answer a considered mention; the outcome is recorded so it's never answered twice. */
+  private async finish(t: { m: Mention; idea: string; link: { userId: string; prefs: XPrefs } | null }, day: string, now: number): Promise<boolean> {
+    const { m, idea, link } = t;
+    this.inflight.add(m.id);
+    try {
+      const ok = await this.answer(m, idea, link, day, now);
+      if (!ok) {
+        this.unbump(`xbot:day:${day}`);
+        this.unbump(`xbot:author:${day}:${m.author}`);
+      }
+      this.d.kvSet(`xbot:done:${m.id}`, ok ? "replied" : "failed");
+      return ok;
+    } finally {
+      this.inflight.delete(m.id);
+    }
+  }
+
+  /** Answer one tweet again by id (an answer that got lost). Says what happened. */
+  async retry(id: string, now = Date.now()): Promise<string> {
+    if (this.inflight.has(id)) return "already being answered";
+    if (this.d.kvGet(`xbot:done:${id}`) === "replied") return "already answered";
+    const m = await this.tweet(id);
+    if (!m) return "tweet not found";
+    const day = this.day(now);
+    const t = await this.consider(m, day);
+    if (!t) return `skipped: ${this.d.kvGet(`xbot:done:${id}`) ?? "?"} (see the log for why)`;
+    return (await this.finish(t, day, now)) ? "replied" : "couldn't answer (see the log)";
+  }
+
   /** One pass: read new mentions, answer the ones worth answering. */
   async run(now = Date.now()): Promise<{ seen: number; replied: number }> {
     if (this.running) return { seen: 0, replied: 0 };
@@ -315,64 +408,24 @@ export class XBot {
       const todo: { m: Mention; idea: string; link: { userId: string; prefs: XPrefs } | null }[] = [];
       for (const m of list) {
         this.d.kvSet("xbot:since", String(Math.floor(m.at / 1000)));
-        if (this.d.kvGet(`xbot:done:${m.id}`)) continue;
-        this.d.kvSet(`xbot:done:${m.id}`, "1");
-        const link = m.authorId ? (this.d.linked?.(m.authorId) ?? null) : null;
-        let idea = ideaOf(m.text);
-        // "@weftfinance make this a strategy" under someone's call: the call is the idea. Asked for
-        // outright, the AI judges the tweet (it may read like a view, not a trade, and still be one).
-        let asked = false;
-        let context: string | null = null;
-        if (m.inReplyToId) {
-          const p = await this.parent(m.inReplyToId).catch(() => null);
-          context = p?.text ?? null;
-          if (p && p.author !== this.d.handle.replace(/^@/, "").toLowerCase() && (!looksLikeIdea(idea) || asksAboutParent(idea))) {
-            asked = asksAboutParent(idea);
-            idea = thesisFromParent(p.text, idea);
-          }
-        }
-        const why =
-          m.isRetweet ? "retweet"
-          : m.author === this.d.handle.replace(/^@/, "").toLowerCase() ? "own post"
-          : !link && m.followers < (this.d.minFollowers ?? 10) ? `${m.followers} followers`
-          : !asked && !looksLikeIdea(idea) ? "not a trade idea"
-          : idea.length < 12 ? "nothing to trade"
-          : this.count(`xbot:day:${day}`) >= (this.d.maxPerDay ?? 15) ? "daily cap"
-          : this.count(`xbot:author:${day}:${m.author}`) >= (link ? (this.d.perLinkedPerDay ?? 10) : (this.d.perAuthorPerDay ?? 2)) ? "author cap"
-          : null;
-        if (why) {
-          this.d.log?.(`xbot: skipped ${m.id} from @${m.author} (${why})`);
-          continue;
-        }
-        // The keyword check is only a coarse first pass ("for long time" has "long" in it): a small
-        // model decides whether the post really asks for a trade. Unsure or failing: no reply.
-        if (!asked && this.d.isTradeIdea) {
-          const yes = await this.d.isTradeIdea(ideaOf(m.text), context).catch(() => false);
-          if (!yes) {
-            this.d.log?.(`xbot: skipped ${m.id} from @${m.author} (not asking for a trade)`);
-            continue;
-          }
-        }
-        this.bump(`xbot:day:${day}`);
-        this.bump(`xbot:author:${day}:${m.author}`);
-        todo.push({ m, idea, link });
+        // Done once answered or skipped. "started" with no answer means a restart cut it short:
+        // the first pass after a start tries those again. (Older entries just say "1": done.)
+        const st = this.d.kvGet(`xbot:done:${m.id}`);
+        if ((st && !(st === "started" && this.firstPass)) || this.inflight.has(m.id)) continue;
+        const t = await this.consider(m, day);
+        if (t) todo.push(t);
       }
       // 2. Answer: different people in parallel, one person's tweets in order (their live limits).
       const byAuthor = new Map<string, typeof todo>();
       for (const t of todo) byAuthor.set(t.m.author, [...(byAuthor.get(t.m.author) ?? []), t]);
       await Promise.all(
         [...byAuthor.values()].map(async (mine) => {
-          for (const { m, idea, link } of mine) {
-            if (await this.answer(m, idea, link, day, now)) replied++;
-            else {
-              this.unbump(`xbot:day:${day}`);
-              this.unbump(`xbot:author:${day}:${m.author}`);
-            }
-          }
+          for (const t of mine) if (await this.finish(t, day, now)) replied++;
         }),
       );
       return { seen: list.length, replied };
     } finally {
+      this.firstPass = false;
       this.running = false;
     }
   }

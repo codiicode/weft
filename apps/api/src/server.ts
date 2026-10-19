@@ -422,13 +422,14 @@ if (process.env.FOMOAPI_KEY) {
 const INTERNAL_KEY = randomBytes(32).toString("hex");
 
 // The X reply bot (@weftfinance): off unless WEFT_XBOT is "dry" (logs replies) or "live" (posts them).
+let xbot: XBot | null = null;
 const xbotMode = process.env.WEFT_XBOT === "live" || process.env.WEFT_XBOT === "dry" ? process.env.WEFT_XBOT : null;
 if (xbotMode && process.env.TWITTERAPI_IO_KEY) {
   const xKeys = process.env.X_API_KEY && process.env.X_API_SECRET && process.env.X_ACCESS_TOKEN && process.env.X_ACCESS_SECRET
     ? { apiKey: process.env.X_API_KEY, apiSecret: process.env.X_API_SECRET, accessToken: process.env.X_ACCESS_TOKEN, accessSecret: process.env.X_ACCESS_SECRET }
     : undefined;
   const mode = xbotMode === "live" && xKeys ? "live" : "dry";
-  const bot = new XBot({
+  const bot = (xbot = new XBot({
     mode,
     handle: process.env.WEFT_X_HANDLE ?? "weftfinance",
     twitterApiKey: process.env.TWITTERAPI_IO_KEY,
@@ -472,7 +473,7 @@ if (xbotMode && process.env.TWITTERAPI_IO_KEY) {
     kvGet: (k) => accounts.kvGet(k),
     kvSet: (k, v) => accounts.kvSet(k, v),
     log: (m) => console.log(`  ${m}`),
-  });
+  }));
   // Every 10 seconds: a tweet gets its answer in well under a minute (most of that is the AI drafting).
   setInterval(() => void bot.run().catch((e) => console.warn(`xbot: ${(e as Error).message.slice(0, 200)}`)), Number(process.env.WEFT_XBOT_POLL_SEC ?? 10) * 1000).unref();
   console.log(`  x bot: ${mode}${xbotMode === "live" && !xKeys ? " (X_API_* keys missing, so nothing is posted)" : ""}`);
@@ -498,6 +499,7 @@ if (liveEngine && papertradeLive)
   }, 5 * 60_000).unref();
 
 const app = createApp({
+  xbotRetry: (id) => (xbot ? xbot.retry(id) : Promise.resolve("x bot is off")),
   holders,
   rewards,
   treasury: treasury ?? undefined,
