@@ -270,6 +270,60 @@ function OwnWallet({ s, refresh }: { s: LiveStatus; refresh: () => Promise<unkno
   );
 }
 
+const VENUE_LOGO = { hyperliquid: "/venues/hyperliquid.svg", solana: "/venues/solana.svg", papertrade: "/venues/papertrade.png" } as const;
+
+function VenueLogo({ id, size = 28 }: { id: keyof typeof VENUE_LOGO; size?: number }) {
+  // eslint-disable-next-line @next/next/no-img-element
+  return <img src={VENUE_LOGO[id]} alt="" width={size} height={size} className="shrink-0 rounded-full" style={{ width: size, height: size }} />;
+}
+
+/** One card per account: what's in it, at a glance. Click one to set it up or manage it. */
+function Overview({ ptOn, tab, go }: { ptOn: boolean; tab: string; go: (id: "hyperliquid" | "solana" | "papertrade") => void }) {
+  const hl = useApi(() => api.liveStatus(), [], { pollMs: 30_000 });
+  const sol = useApi(() => api.solanaStatus(), [], { pollMs: 30_000 });
+  const pt = useApi(ptOn ? () => api.papertradeAccount() : null, [ptOn], { pollMs: 30_000 });
+  const hlUsd = hl.data?.venue?.accountValueUsd ?? null;
+  const solUsd = sol.data?.balances?.usd ?? null;
+  const p = pt.data;
+  const cards = [
+    { id: "hyperliquid" as const, name: "Hyperliquid", what: "Perps, stocks, predictions", usd: hlUsd, ok: Boolean(hl.data?.ready), linked: Boolean(hl.data?.account) },
+    { id: "solana" as const, name: "Solana", what: "Tokens, lending, liquidity", usd: solUsd, ok: Boolean(sol.data?.ready), linked: Boolean(sol.data?.wallet) },
+    ...(ptOn ? [{ id: "papertrade" as const, name: "Papertrade", what: "BTC and ETH to 1000×", usd: p?.availableUsd ?? null, ok: Boolean(p?.registered), linked: Boolean(p?.wallet) }] : []),
+  ];
+  return (
+    <div className={`mb-6 grid gap-3 ${cards.length === 3 ? "md:grid-cols-3" : "md:grid-cols-2"}`}>
+      {cards.map((c) => (
+        <button
+          key={c.id}
+          onClick={() => go(c.id)}
+          className={`rounded-[14px] border bg-card p-4 text-left transition-colors hover:border-ink/25 ${tab === c.id ? "border-ink/30" : "border-line"}`}
+        >
+          <div className="flex items-center gap-3">
+            <VenueLogo id={c.id} size={36} />
+            <div className="min-w-0">
+              <div className="text-[15px] font-semibold text-ink">{c.name}</div>
+              <div className="truncate text-[12.5px] text-muted">{c.what}</div>
+            </div>
+            <span className={`ml-auto shrink-0 text-[12.5px] ${c.ok ? "text-long" : "text-muted"}`}>{c.ok ? "Ready" : c.linked ? "Finish setup" : "Set up"}</span>
+          </div>
+          <div className="mt-4 flex items-end justify-between gap-3">
+            <div>
+              <div className="text-[12px] text-muted">Balance</div>
+              <div className="tnum text-[22px] font-semibold tracking-[-0.02em] text-ink">{c.usd != null ? fmtUsd(c.usd, 2) : "—"}</div>
+            </div>
+            {c.id === "papertrade" && p?.paper != null && (
+              <div className="text-right">
+                <div className="text-[12px] text-muted">PAPER</div>
+                <div className="tnum text-[22px] font-semibold tracking-[-0.02em] text-ink">{p.paper.toLocaleString("en-US", { maximumFractionDigits: 0 })}</div>
+              </div>
+            )}
+          </div>
+        </button>
+      ))}
+    </div>
+  );
+}
+
 function Live() {
   const auth = useAuth();
   const router = useRouter();
@@ -287,6 +341,7 @@ function Live() {
           <Empty title="Sign in to set up trading" sub="Hyperliquid for perps, stocks and prediction markets. Solana for tokens." action={<Btn onClick={auth.login}>Sign in</Btn>} />
         ) : (
           <>
+            <Overview ptOn={ptOn} tab={tab} go={(id) => router.replace(`/wallets${id === "hyperliquid" ? "" : `?venue=${id}`}`)} />
             <div className="mb-6 inline-flex rounded-[10px] bg-paper-2 p-0.5" role="tablist">
               {(
                 [
@@ -300,10 +355,13 @@ function Live() {
                   role="tab"
                   aria-selected={tab === id}
                   onClick={() => router.replace(`/wallets${id === "hyperliquid" ? "" : `?venue=${id}`}`)}
-                  className={`rounded-[8px] px-4 py-2 text-left transition-colors ${tab === id ? "bg-[var(--raised)] shadow-[0_1px_2px_rgba(0,0,0,0.08)]" : "hover:bg-paper-2"}`}
+                  className={`flex items-center gap-2.5 rounded-[8px] px-4 py-2 text-left transition-colors ${tab === id ? "bg-[var(--raised)] shadow-[0_1px_2px_rgba(0,0,0,0.08)]" : "hover:bg-paper-2"}`}
                 >
-                  <div className={`text-[14px] ${tab === id ? "font-medium text-ink" : "text-ink-2"}`}>{label}</div>
-                  <div className="text-[12px] text-muted">{sub}</div>
+                  <VenueLogo id={id} size={22} />
+                  <div>
+                    <div className={`text-[14px] ${tab === id ? "font-medium text-ink" : "text-ink-2"}`}>{label}</div>
+                    <div className="text-[12px] text-muted">{sub}</div>
+                  </div>
                 </button>
               ))}
             </div>

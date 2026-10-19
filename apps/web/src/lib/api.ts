@@ -480,7 +480,7 @@ export const api = {
   deleteAiKey: (id: string) => req<{ ok: true }>(`/me/ai-keys/${encodeURIComponent(id)}`, { method: "DELETE" }),
   /** Papertrade: account status, the registration to sign, and the signed registration. */
   papertradeAccount: () =>
-    req<{ enabled: boolean; live?: boolean; wallet?: string | null; sessionKey?: string | null; registered?: boolean; sessionExpiresAt?: number | null; depositAddress?: string | null; availableUsd?: number | null; openPositions?: number }>("/papertrade/account"),
+    req<{ enabled: boolean; live?: boolean; wallet?: string | null; sessionKey?: string | null; registered?: boolean; sessionExpiresAt?: number | null; depositAddress?: string | null; availableUsd?: number | null; openPositions?: number; paper?: number | null }>("/papertrade/account"),
   papertradePaper: (runId: string) => req<{ paper: number | null; atStart: number | null; earned: number | null }>(`/papertrade/paper/${encodeURIComponent(runId)}`),
   papertradeRegistration: () => req<{ domain: Record<string, unknown>; types: Record<string, unknown>; primaryType: string; message: Record<string, string> }>("/papertrade/registration", { method: "POST" }),
   papertradeRegister: (signed: Record<string, unknown>) => req<{ intentId: string }>("/papertrade/register", { method: "POST", json: { signed } }),

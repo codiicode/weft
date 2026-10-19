@@ -66,7 +66,11 @@ export function PapertradeSetup() {
   return (
     <div className="space-y-4">
       <Card className="p-5">
-        <div className="text-[15px] font-semibold text-ink">Papertrade</div>
+        <div className="flex items-center gap-3">
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src="/venues/papertrade.png" alt="" width={32} height={32} className="rounded-[8px]" />
+          <div className="text-[15px] font-semibold text-ink">Papertrade</div>
+        </div>
         <p className="mt-1.5 text-[13.5px] leading-relaxed text-muted">
           BTC and ETH up to 1000×, priced at Hyperliquid’s mid, with no fee on the position. A winning close keeps part of the gain (Papertrade’s haircut and a 2% fee), and a bust loses the whole margin: at 1000× that’s a move of about 0.05%.
           {!a.live && " Live trading through Weft opens soon. Practice works today."}
@@ -106,6 +110,15 @@ export function PapertradeSetup() {
                 <div className="text-[14.5px] font-medium text-ink">Balance</div>
                 <div className="tnum text-[15px] font-semibold text-ink">{a.availableUsd != null ? fmtUsd(a.availableUsd, 2) : "—"}</div>
               </div>
+              {a.paper != null && (
+                <div className="mt-3 flex items-baseline justify-between border-t border-line pt-3">
+                  <div>
+                    <div className="text-[14.5px] font-medium text-ink">PAPER</div>
+                    <div className="mt-0.5 text-[12.5px] text-muted">Earned on Papertrade losses, staked included. It can’t be sold yet.</div>
+                  </div>
+                  <div className="tnum text-[15px] font-semibold text-ink">{a.paper.toLocaleString("en-US", { maximumFractionDigits: 0 })} PAPER</div>
+                </div>
+              )}
               {(
                 <div className="mt-3">
                   <div className="grid grid-cols-2 gap-2 sm:flex sm:flex-wrap sm:items-center">
