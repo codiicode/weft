@@ -194,6 +194,16 @@ export function createApp(deps: AppDeps) {
         name: d.strategy.name, status: d.status, person: who(accounts?.deploymentOwner(d.id)), createdAt: d.createdAt, allocationUsd: d.allocationUsd,
         markets: kinds, fills: fills.length, feesUsd: fills.reduce((n, f) => n + (f.feeUsd ?? 0), 0), builderUsd: fills.reduce((n, f) => n + ((f as { builderFeeUsd?: number }).builderFeeUsd ?? 0), 0),
         equityUsd: snap?.equityUsd ?? null, realizedPnlUsd: snap?.realizedPnlUsd ?? null, unrealizedPnlUsd: snap?.unrealizedPnlUsd ?? null, openPositions: snap?.positions.length ?? 0,
+        id: d.id,
+        // For running ones: what it has been saying lately, and where its triggers stand.
+        ...(d.status === "running" && c.req.query("detail")
+          ? {
+              events: (await engine.getEvents(d.id, { limit: 12 }).catch(() => [])).map((e) => `${new Date(e.ts).toISOString().slice(5, 16)} ${e.type}: ${e.message.slice(0, 220)}`),
+              triggers: snap?.triggers?.map((t) => ({ id: t.id, fired: t.fired, held: (t as { held?: string }).held ?? null })) ?? [],
+              signals: snap?.signalValues ?? {},
+              strategy: c.req.query("detail") === "full" ? d.strategy : undefined,
+            }
+          : {}),
       });
     }
     return c.json({ runs: rows.sort((a, b) => b.createdAt - a.createdAt) });
