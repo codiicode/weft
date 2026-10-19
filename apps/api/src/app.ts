@@ -179,6 +179,26 @@ export function createApp(deps: AppDeps) {
   /** The signed-in user, LOCAL_USER in local mode, or null for anonymous requests. */
   const internalKey = deps.internalKey ? Buffer.from(deps.internalKey) : null;
 
+  // Operator tool: what runs with real money right now (no user ids or wallets, a short hash per person).
+  app.get("/internal/live-runs", async (c) => {
+    const ik = Buffer.from(c.req.header("x-weft-internal") ?? "");
+    if (!internalKey || ik.length !== internalKey.length || !timingSafeEqual(ik, internalKey)) return c.json({ error: "not found" }, 404);
+    const who = (id: string | null | undefined) => (id ? createHash("sha256").update(id).digest("hex").slice(0, 6) : "?");
+    const rows = [];
+    for (const d of await engine.listDeployments()) {
+      if (d.mode !== "live") continue;
+      const snap = await engine.getSnapshot(d.id).catch(() => null);
+      const fills = await engine.getFills(d.id).catch(() => []);
+      const kinds = [...new Set(d.strategy.actions.flatMap((a) => (a.type === "open" ? [`${a.instrument.kind}:${(a.instrument as { symbol?: string }).symbol ?? ""}`] : a.type === "copy" ? [`copy:${a.leader.venue}`] : a.type === "liquidity" ? ["lp"] : [])))];
+      rows.push({
+        name: d.strategy.name, status: d.status, person: who(accounts?.deploymentOwner(d.id)), createdAt: d.createdAt, allocationUsd: d.allocationUsd,
+        markets: kinds, fills: fills.length, feesUsd: fills.reduce((n, f) => n + (f.feeUsd ?? 0), 0), builderUsd: fills.reduce((n, f) => n + ((f as { builderFeeUsd?: number }).builderFeeUsd ?? 0), 0),
+        equityUsd: snap?.equityUsd ?? null, realizedPnlUsd: snap?.realizedPnlUsd ?? null, unrealizedPnlUsd: snap?.unrealizedPnlUsd ?? null, openPositions: snap?.positions.length ?? 0,
+      });
+    }
+    return c.json({ runs: rows.sort((a, b) => b.createdAt - a.createdAt) });
+  });
+
   // Operator tool: make the X bot answer a tweet whose answer got lost (e.g. cut short by a restart).
   app.post("/internal/xbot/retry", async (c) => {
     const ik = Buffer.from(c.req.header("x-weft-internal") ?? "");
