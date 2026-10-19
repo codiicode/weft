@@ -41,7 +41,7 @@ import { RiftFunding } from "./live/rift.ts";
 import { PapertradeAccounts } from "./live/papertrade.ts";
 import { PapertradeExecutor, type Executor } from "@weft/execution";
 import { generateStrategy } from "./ai/generate.ts";
-import { randomBytes } from "node:crypto";
+import { createHmac, randomBytes } from "node:crypto";
 import { claudePostMatcher } from "./ai/post-matcher.ts";
 import { HeliusWebhook } from "./live/helius-webhook.ts";
 import { createTopTraders } from "./lib/traders.ts";
@@ -419,7 +419,9 @@ if (process.env.FOMOAPI_KEY) {
 }
 
 // In-process requests as a user (the X bot starting a run through the same route as the Start button).
-const INTERNAL_KEY = randomBytes(32).toString("hex");
+// Internal calls (the X bot starting runs, operator tools): derived from the Privy app secret so an
+// operator who holds that secret can reach /internal/*; random when there is none.
+const INTERNAL_KEY = process.env.PRIVY_APP_SECRET ? createHmac("sha256", process.env.PRIVY_APP_SECRET).update("weft-internal").digest("hex") : randomBytes(32).toString("hex");
 
 // The X reply bot (@weftfinance): off unless WEFT_XBOT is "dry" (logs replies) or "live" (posts them).
 let xbot: XBot | null = null;
