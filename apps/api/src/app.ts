@@ -202,6 +202,7 @@ export function createApp(deps: AppDeps) {
               triggers: snap?.triggers?.map((t) => ({ id: t.id, fired: t.fired, held: (t as { held?: string }).held ?? null })) ?? [],
               signals: snap?.signalValues ?? {},
               strategy: c.req.query("detail") === "full" ? d.strategy : undefined,
+              fillLog: c.req.query("detail") === "full" ? fills.map((f) => `${new Date(f.ts).toISOString().slice(5, 19)} ${f.side} ${f.reason} qty ${f.qty} @ ${f.price} pnl ${(f.realizedPnlUsd ?? 0).toFixed(2)}`) : undefined,
             }
           : {}),
       });
