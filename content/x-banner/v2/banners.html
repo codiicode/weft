@@ -1219,11 +1219,11 @@ const BANNERS = {
       `${card};left:80px;top:290px;width:680px;height:470px;padding:34px 38px`);
     // what Weft does, with a real run
     const step = (time, k, v, col) => `<div style="display:flex;gap:22px;align-items:flex-start;margin-top:26px"><div style="width:110px;flex:none;font-size:20px;color:#77766f;font-variant-numeric:tabular-nums;padding-top:4px">${time}</div><div style="width:12px;height:12px;border-radius:50%;background:${col};margin-top:10px;flex:none;box-shadow:0 0 0 5px ${col}22"></div><div><div style="font-size:15px;letter-spacing:0.16em;color:#77766f">${k}</div><div style="margin-top:4px;font-size:25px;font-weight:600;color:#f4f3ef">${v}</div></div></div>`;
-    div(`<div style="font-size:15px;letter-spacing:0.16em;color:#77766f">WHAT WEFT DOES · A REAL RUN TODAY</div>
+    div(`<div style="font-size:15px;letter-spacing:0.16em;color:#77766f">WHAT WEFT DOES · A REAL RUN TODAY (UTC)</div>
       <div style="margin-top:12px;font-size:24px;color:#a3a29d">“Long BTC 500× on Papertrade with $25.”</div>
-      ${step("11:54:53", "REFUSED", "BTC longs are full", "#c2453c")}
+      ${step("04:54:53", "REFUSED", "BTC longs are full", "#c2453c")}
       ${step("every 15 s", "WEFT TRIES AGAIN", "Only while your conditions still hold", "#f5a524")}
-      ${step("11:55:08", "FILLED", "Long BTC 500× at $82,786.50", "#3ecf8e")}`,
+      ${step("04:55:08", "FILLED", "Long BTC 500× at $82,786.50", "#3ecf8e")}`,
       `${card};left:800px;top:290px;width:720px;height:470px;padding:34px 38px;border-color:#2f6b52`);
     div("Same order, never sent twice. And if the moment has passed, Weft waits for your conditions again instead of chasing.", "position:absolute;left:80px;top:800px;font-size:22px;color:#77766f");
   },
