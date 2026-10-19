@@ -85,15 +85,34 @@ interface Mention {
 }
 
 /** "make this a strategy", "turn this into a trade": a request about the tweet above, not an idea. */
+const ASK_ABOUT = /^(pls |please |hey |yo )?(make|turn|convert)\b[\s\S]{0,30}?\b(this|that|it)\b[\s\S]{0,15}?\b(strategy|thesis|trade|plan|setup)\b/i;
+const DO_THIS = /^(pls |please |hey |yo )?(do|trade|run|copy|fade|draft|build|execute|ape|play)\s+(this|that|it)\b/i;
 export function asksAboutParent(idea: string): boolean {
-  return /^(pls |please )?(make|turn|do|run|trade|draft|build|create)\b[\s\S]{0,40}\b(this|that|it)\b/i.test(idea) || /^(this|that)\b/i.test(idea) || idea.length < 12;
+  // Only an explicit ask: "make this a strategy", "turn that into a trade", "do this", "fade this".
+  // A short reply ("lets gooo", "$WEFT", "they did it") is never one.
+  return ASK_ABOUT.test(idea) || DO_THIS.test(idea);
+}
+
+/** A tweet that tells Weft what to trade, in so many words: "long SOL 10x if…", "if BTC drops 8%, buy". */
+export function isInstruction(idea: string): boolean {
+  const verb = /\b(buy|sell|long|short|open|close|lend|deposit|copy|fade|mirror|hedge|exit|enter|stake|swap|dca|ape)\b/i;
+  return /^(pls |please )?(buy|sell|long|short|open|close|lend|deposit|copy|fade|mirror|hedge|go (long|short)|ape|dca|swap|stake|provide|put|enter|exit|lp|bid|accumulate)\b/i.test(idea)
+    || (/^(if|when|once|whenever)\b/i.test(idea) && verb.test(idea));
 }
 
 /** The thesis for a mention that answers another tweet: that tweet's idea, plus anything added ("but 5x"). */
 export function thesisFromParent(parentText: string, idea: string): string {
   const base = ideaOf(parentText);
-  const extra = asksAboutParent(idea) ? idea.replace(/^(pls |please )?(make|turn|do|run|trade|draft|build|create)\b[\s\S]{0,40}\b(this|that|it)\b( into)?( a)?( strategy| trade| plan| thesis| setup)?[,.!:\s]*/i, "").trim() : idea;
+  const extra = asksAboutParent(idea) ? askRemainder(idea) : idea;
   return extra ? `${base} (${extra})` : base;
+}
+
+/** What's left of "make this a strategy: …" / "do this but 5x" after the ask itself. */
+export function askRemainder(idea: string): string {
+  return idea
+    .replace(/^(pls |please |hey |yo )?(make|turn|convert)\b[\s\S]{0,30}?\b(this|that|it)\b[\s\S]{0,15}?\b(strategy|thesis|trade|plan|setup)\b[,.!:\s]*/i, "")
+    .replace(/^(pls |please |hey |yo )?(do|trade|run|copy|fade|draft|build|execute|ape|play)\s+(this|that|it)\b[,.!:\s]*/i, "")
+    .trim();
 }
 
 /** The trade idea in a tweet: without handles, links and the leading "hey". */
@@ -299,6 +318,11 @@ export class XBot {
   private async answer(m: Mention, idea: string, link: { userId: string; prefs: XPrefs } | null, day: string, now: number): Promise<boolean> {
     const drafted = await this.d.draft(idea).catch((e) => (this.d.log?.(`xbot: draft failed for ${m.id}: ${(e as Error).message.slice(0, 120)}`), null));
     if (!drafted) return false;
+    // A draft that only watches ("watch only, thesis needed") isn't an answer worth posting.
+    if (drafted.strategy.actions && !drafted.strategy.actions.some((a) => a.type !== "notify")) {
+      this.d.log?.(`xbot: no reply to ${m.id}: the draft has nothing to trade`);
+      return false;
+    }
     const id = this.d.saveDraft({ strategy: drafted.strategy, thesis: idea, tweetId: m.id, author: m.author, at: now, owner: link?.userId });
     const draftUrl = `${this.d.site}/d/${id}`;
     const outcome = link ? await this.act(link, drafted.strategy, draftUrl, day) : "draft";
@@ -325,23 +349,22 @@ export class XBot {
     this.d.kvSet(`xbot:done:${m.id}`, "started");
       const link = m.authorId ? (this.d.linked?.(m.authorId) ?? null) : null;
       let idea = ideaOf(m.text);
-      // "@weftfinance make this a strategy" under someone's call: the call is the idea. Asked for
-      // outright, the AI judges the tweet (it may read like a view, not a trade, and still be one).
-      let asked = false;
-      let context: string | null = null;
-      if (m.inReplyToId) {
-        const p = await this.parent(m.inReplyToId).catch(() => null);
-        context = p?.text ?? null;
-        if (p && p.author !== this.d.handle.replace(/^@/, "").toLowerCase() && (!looksLikeIdea(idea) || asksAboutParent(idea))) {
-          asked = asksAboutParent(idea);
-          idea = thesisFromParent(p.text, idea);
-        }
-      }
-      const why =
+    // Weft answers two things only: an explicit ask under a post ("make this a strategy", "do this"),
+    // or a tweet that tells it what to trade ("long SOL 10x if it breaks $110"). Anything else,
+    // however short or friendly, gets no reply.
+    const asked = asksAboutParent(idea);
+    let context: string | null = null;
+    if (asked) {
+      const own = askRemainder(idea);
+      const p = m.inReplyToId ? await this.parent(m.inReplyToId).catch(() => null) : null;
+      context = p?.text ?? null;
+      idea = p ? thesisFromParent(p.text, idea) : own;
+    }
+    const why =
         m.isRetweet ? "retweet"
         : m.author === this.d.handle.replace(/^@/, "").toLowerCase() ? "own post"
         : !link && m.followers < (this.d.minFollowers ?? 10) ? `${m.followers} followers`
-        : !asked && !looksLikeIdea(idea) ? "not a trade idea"
+        : !asked && !(isInstruction(idea) && looksLikeIdea(idea)) ? "not a trade instruction"
         : idea.length < 12 ? "nothing to trade"
         : this.count(`xbot:day:${day}`) >= (this.d.maxPerDay ?? 15) ? "daily cap"
         : this.count(`xbot:author:${day}:${m.author}`) >= (link ? (this.d.perLinkedPerDay ?? 10) : (this.d.perAuthorPerDay ?? 2)) ? "author cap"

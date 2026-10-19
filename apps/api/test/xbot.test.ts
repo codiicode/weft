@@ -55,7 +55,7 @@ describe("x bot", () => {
     expect(JSON.parse(posted[0]!.body)).toMatchObject({ reply: { in_reply_to_tweet_id: "1" } });
     expect(JSON.parse(posted[0]!.body).text).toContain("https://weft.fi/d/");
     expect(posted[0]!.auth).toMatch(/^OAuth oauth_consumer_key="ck", oauth_nonce="[0-9a-f]+", oauth_signature_method="HMAC-SHA1", oauth_timestamp="\d+", oauth_token="at", oauth_version="1.0", oauth_signature="[^"]+"$/);
-    expect(logs.join("\n")).toMatch(/author cap[\s\S]*2 followers[\s\S]*not a trade idea[\s\S]*retweet/);
+    expect(logs.join("\n")).toMatch(/author cap[\s\S]*2 followers[\s\S]*not a trade instruction[\s\S]*retweet/);
     // the same mentions again: nothing new
     expect(await b.run()).toEqual({ seen: 6, replied: 0 });
     expect(posted).toHaveLength(2);
@@ -80,7 +80,7 @@ describe("tweet a trade", () => {
     id, text, createdAt: new Date(Date.UTC(2026, 9, 18, 3)).toUTCString(), inReplyToId: o.inReplyToId ?? null,
     author: { id: o.authorId ?? "x-1", userName: o.author ?? "trader", followers: o.followers ?? 500 },
   });
-  function linkedBot(tweets: unknown[], o: { prefs?: Partial<XPrefs>; parent?: { text: string; author: string }; fail?: string; mode?: "dry" | "live" } = {}) {
+  function linkedBot(tweets: unknown[], o: { prefs?: Partial<XPrefs>; parent?: { text: string; author: string }; fail?: string; mode?: "dry" | "live"; watchOnly?: boolean } = {}) {
     const kv = new Map<string, string>();
     const posted: string[] = [], told: string[] = [], started: { mode: string; usd: number }[] = [], drafts: { thesis: string; owner?: string }[] = [];
     const fetch = (async (url: string, init?: RequestInit) => {
@@ -92,7 +92,7 @@ describe("tweet a trade", () => {
     const b = new XBot({
       mode: o.mode ?? "live", handle: "weftfinance", twitterApiKey: "k", site: "https://weft.fi", fetch,
       x: { apiKey: "ck", apiSecret: "cs", accessToken: "at", accessSecret: "as" },
-      draft: async (t) => ({ strategy: { name: "SOL breakout" } as never, rationale: `Plan for: ${t}.` }),
+      draft: async (t) => ({ strategy: { name: "SOL breakout", actions: [{ type: o.watchOnly ? "notify" : "open" }] } as never, rationale: `Plan for: ${t}.` }),
       saveDraft: (d) => (drafts.push({ thesis: d.thesis, owner: d.owner }), `d${drafts.length}`),
       linked: (xId) => (xId === "x-me" ? { userId: "did:me", prefs: { ...DEFAULT_X_PREFS, ...o.prefs } } : null),
       start: async (_u, _s, mode, usd) => {
@@ -125,6 +125,39 @@ describe("tweet a trade", () => {
     expect(await b.run()).toEqual({ seen: 1, replied: 0 });
     expect(posted).toEqual([]);
     expect(drafts).toEqual([]);
+  });
+
+  it("never answers short replies, tags or chatter, only explicit asks and instructions", async () => {
+    for (const [text, parent] of [
+      ["@weftfinance $WEFT", null],
+      ["@weftfinance lets goooo", { text: "RIFT x Weft: best price execution via the RIFT API.", author: "riftdotrade" }],
+      ["@weftfinance No I won't", { text: "What's one rule you always break when you trade?", author: "weftfinance" }],
+      ["@rajgokal they did it @weftfinance", { text: "Crypto rails are coming to every app.", author: "rajgokal" }],
+      ["@weftfinance this is huge, bullish on the team", null],
+    ] as const) {
+      const { b, posted, drafts } = linkedBot([T("1", text, parent ? { inReplyToId: "p" } : {})], parent ? { parent } : {});
+      expect(await b.run()).toEqual({ seen: 1, replied: 0 });
+      expect(posted).toEqual([]);
+      expect(drafts).toEqual([]);
+    }
+    expect(asksAboutParent("do this")).toBe(true);
+    expect(asksAboutParent("fade this one")).toBe(true);
+    expect(asksAboutParent("make this a thesis")).toBe(true);
+    expect(asksAboutParent("they did it")).toBe(false);
+    expect(asksAboutParent("lets goooo")).toBe(false);
+    expect(asksAboutParent("$WEFT")).toBe(false);
+  });
+
+  it("answers an ask with its own idea after it, under any post (its own too)", async () => {
+    const { b, drafts } = linkedBot([T("1", "@weftfinance make this a strategy: If Polymarket Fed-cut odds pass 60%, long BTC on Hyperliquid with a 15% stop.", { inReplyToId: "p" })], { parent: { text: "Use the odds as your signal.", author: "weftfinance" } });
+    expect(await b.run()).toEqual({ seen: 1, replied: 1 });
+    expect(drafts[0]!.thesis).toContain("long BTC on Hyperliquid with a 15% stop");
+  });
+
+  it("posts nothing when the draft only watches", async () => {
+    const { b, posted } = linkedBot([T("1", "@weftfinance make this a strategy", { inReplyToId: "p" })], { parent: { text: "Long $SOL if it holds $100", author: "caller" }, watchOnly: true });
+    expect(await b.run()).toEqual({ seen: 1, replied: 0 });
+    expect(posted).toEqual([]);
   });
 
   it("turns the tweet above into a strategy when asked to", async () => {
