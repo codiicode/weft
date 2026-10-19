@@ -84,3 +84,52 @@ describe("exit checks between ticks", () => {
     expect((await t.engine.getFills(d.id)).at(-1)!.reason).toBe("stop_loss");
   });
 });
+
+describe("a Papertrade / Hyperliquid hedge", () => {
+  it("closes the Hyperliquid leg as soon as the Papertrade leg is liquidated", async () => {
+    const HL_BTC: Instrument = { kind: "perp", venue: "hyperliquid", symbol: "BTC", assetClass: "crypto" };
+    const t = setup({ tickEventIntervalMs: 0 });
+    const kPt = instrumentKey(PT_BTC), kHl = instrumentKey(HL_BTC);
+    const both = (px: number) => (t.market.set(kPt, px), t.market.set(kHl, px));
+    both(100_000);
+    t.signals.set("go", { value: 1 });
+    const s = simpleStrategy(
+      { instrument: PT_BTC, side: "long", size: { unit: "usd", value: 10 }, leverage: 100 },
+      {
+        signals: [
+          { id: "go", kind: "macro", params: { series: "GO" } },
+          { id: "pt", kind: "position", params: { instrument: PT_BTC } },
+          { id: "hl", kind: "position", params: { instrument: HL_BTC } },
+        ],
+        triggers: [
+          { id: "entry", when: { op: "gt", left: { ref: "go.value" }, right: { value: 0 } }, maxFires: 1 },
+          { id: "pt_gone", when: { op: "and", args: [{ op: "is", ref: "pt.open", value: false }, { op: "is", ref: "hl.open", value: true }] } },
+          { id: "hl_gone", when: { op: "and", args: [{ op: "is", ref: "hl.open", value: false }, { op: "is", ref: "pt.open", value: true }] } },
+        ],
+        actions: [
+          { id: "open_it", on: ["entry"], type: "open", instrument: PT_BTC, side: "long", size: { unit: "usd", value: 10 }, leverage: 100 },
+          { id: "short_hl", on: ["entry"], type: "open", instrument: HL_BTC, side: "short", size: { unit: "usd", value: 25 }, leverage: 40 },
+          { id: "close_a", on: ["pt_gone"], type: "close", target: "all" },
+          { id: "close_b", on: ["hl_gone"], type: "close", target: "all" },
+        ],
+        risk: { maxLeverage: 100, maxTotalExposurePct: 5000, maxPositionPct: 100 } as never,
+      } as never,
+    );
+    const d = await t.engine.createDeployment({ strategy: s, allocationUsd: 1_000 });
+    await t.engine.tick(d.id);
+    let snap = (await t.engine.getSnapshot(d.id))!;
+    expect(snap.positions.map((p) => p.instrument.kind).sort()).toEqual(["perp", "synth"]);
+    expect(snap.positions.map((p) => p.qty * p.entryPrice).every((n) => Math.abs(n - 1_000) < 5)).toBe(true); // same position size
+    // BTC drops 1.2%: the 100× long busts; the short is now alone, and gets closed.
+    for (let k = 0; k < 3; k++) {
+      t.clock.t += MIN;
+      both(98_800);
+      await t.engine.tick(d.id);
+    }
+    snap = (await t.engine.getSnapshot(d.id))!;
+    expect(snap.positions).toHaveLength(0);
+    const fills = await t.engine.getFills(d.id);
+    expect(fills.map((f) => f.reason)).toEqual(expect.arrayContaining(["liquidation"]));
+    expect(fills.filter((f) => f.instrumentKey === kHl)).toHaveLength(2); // opened, then closed
+  });
+});
