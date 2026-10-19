@@ -217,6 +217,23 @@ export function createApp(deps: AppDeps) {
     return c.json({ runs: rows.sort((a, b) => b.createdAt - a.createdAt) });
   });
 
+  // Operator repair: a live run whose first round placed nothing (an order-id bug, since fixed) gets
+  // that rule re-armed. Only for running live runs that have never filled anything and hold nothing.
+  app.post("/internal/runs/:id/rearm", async (c) => {
+    const ik = Buffer.from(c.req.header("x-weft-internal") ?? "");
+    if (!internalKey || ik.length !== internalKey.length || !timingSafeEqual(ik, internalKey)) return c.json({ error: "not found" }, 404);
+    const id = c.req.param("id");
+    const { trigger } = z.object({ trigger: z.string().min(1).max(64) }).parse(await c.req.json());
+    const snap = await engine.getSnapshot(id);
+    if (!snap) return c.json({ error: "no such run" }, 404);
+    if (snap.deployment.mode !== "live" || snap.deployment.status !== "running") return c.json({ error: "only running live runs" }, 409);
+    if (snap.positions.length || (await engine.getFills(id)).length) return c.json({ error: "this run has traded; not touching it" }, 409);
+    if (!snap.deployment.strategy.triggers.some((t) => t.id === trigger)) return c.json({ error: "no such rule" }, 400);
+    if (!engine.rearmTrigger) return c.json({ error: "not supported" }, 501);
+    await engine.rearmTrigger(id, trigger, "Weft is retrying this run's first round: its orders never reached the venue because of a bug on our side, now fixed.");
+    return c.json({ ok: true, id, trigger });
+  });
+
   // Operator tool: make the X bot answer a tweet whose answer got lost (e.g. cut short by a restart).
   app.post("/internal/xbot/retry", async (c) => {
     const ik = Buffer.from(c.req.header("x-weft-internal") ?? "");

@@ -405,6 +405,22 @@ export function createEngine(opts: EngineOptions): EngineRuntime {
       });
     },
 
+    rearmTrigger(id: string, triggerId: string, note: string): Promise<void> {
+      return withLock(id, async () => {
+        const { d, rt } = await load(id);
+        if (d.status !== "running") throw new Error(`this run is ${d.status}`);
+        if ((await store.listPositions(id)).length) throw new Error("this run holds positions; nothing to re-arm");
+        const t = rt.evalState.triggers[triggerId];
+        if (!t) throw new Error(`no rule ${triggerId}`);
+        t.armed = true;
+        t.lastFiredAt = null;
+        const s = new Session(d, rt, [], deps, now());
+        s.emit("notify", note, { rearmed: triggerId, by: "weft" });
+        await store.commit(s.toBatch());
+        publish(s.events);
+      });
+    },
+
     setExits(id: string, patch: ExitsPatch, positionIds?: string[]): Promise<number> {
       return withLock(id, async () => {
         const { d, rt } = await load(id);

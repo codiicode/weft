@@ -249,6 +249,11 @@ export interface Engine {
   checkExits?(id: string, prices?: Record<string, number>): Promise<void>;
   /** The owner sells `fraction` (0–1] of one open position at market, now. Resolves false if nothing filled. */
   closePosition?(id: string, positionId: string, fraction: number): Promise<boolean>;
+  /**
+   * Operator repair: let a rule that fired but placed nothing fire again (its next fire gets a new
+   * key, so nothing already sent can be reused). Refused while the run holds positions.
+   */
+  rearmTrigger?(id: string, triggerId: string, note: string): Promise<void>;
   /** Change the exits of open positions (all, or the listed ones). `null` clears a level. */
   setExits?(id: string, patch: ExitsPatch, positionIds?: string[]): Promise<number>;
   /** Replace a running deployment's rules, keeping its positions, cash and history. */

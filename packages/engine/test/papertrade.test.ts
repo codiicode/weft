@@ -222,3 +222,35 @@ describe("a Papertrade open that is still pending", () => {
     expect(ids[1]).toBe(ids[0]); // the same order, looked up again
   });
 });
+
+describe("re-arming a stuck round (operator repair)", () => {
+  it("lets the round fire again under new order ids, and refuses while positions are open", async () => {
+    const { farmPaper } = await import("@weft/strategy/examples");
+    const ids: string[] = [];
+    let broken = true;
+    const executor = {
+      mode: "paper" as const,
+      async execute(req: { clientId: string; phase: string; notionalUsd?: number; qty?: number }) {
+        ids.push(req.clientId);
+        if (broken) return { status: "rejected" as const, reason: "duplicate: already sent" };
+        const qty = req.phase === "open" ? (req.notionalUsd ?? 0) / 100_000 : req.qty!;
+        return { status: "filled" as const, qty, price: 100_000, markPrice: 100_000, feeUsd: 0, builderFeeUsd: 0, slippageBps: 0 };
+      },
+    };
+    const t = setup({ tickEventIntervalMs: 0, executor: executor as never });
+    t.market.set(instrumentKey(PT_BTC), 100_000);
+    const d = await t.engine.createDeployment({ strategy: farmPaper, allocationUsd: 100 });
+    await t.engine.tick(d.id); // round 1: both legs refused (the old duplicate bug)
+    t.clock.t += 5 * MIN;
+    await t.engine.tick(d.id);
+    expect(ids).toHaveLength(2); // stuck: the rule never fires again on its own
+    broken = false;
+    await t.engine.rearmTrigger!(d.id, "round", "Retrying the first round");
+    t.clock.t += MIN;
+    await t.engine.tick(d.id);
+    const snap = (await t.engine.getSnapshot(d.id))!;
+    expect(snap.positions.map((p) => p.side).sort()).toEqual(["long", "short"]);
+    expect(ids.slice(2).every((id) => !ids.slice(0, 2).includes(id))).toBe(true); // brand-new order ids
+    await expect(t.engine.rearmTrigger!(d.id, "round", "x")).rejects.toThrow(/holds positions/);
+  });
+});

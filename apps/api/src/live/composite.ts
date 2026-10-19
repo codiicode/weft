@@ -100,6 +100,12 @@ export class CompositeEngine implements Engine {
       return e.setExits(id, patch, positionIds);
     });
   }
+  rearmTrigger(id: string, triggerId: string, note: string) {
+    return this.on(id, (e) => {
+      if (!e.rearmTrigger) throw new Error("this engine can’t re-arm rules");
+      return e.rearmTrigger(id, triggerId, note);
+    });
+  }
   updateStrategy(id: string, strategy: Strategy) {
     return this.on(id, (e) => {
       if (!e.updateStrategy) throw new Error("this engine can’t change rules");
